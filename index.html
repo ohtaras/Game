@@ -79,8 +79,9 @@ body {
 .tile.merged { animation: mergePop 0.4s cubic-bezier(.34,1.56,.64,1); }
 
 .tile-face { width: 62%; height: 62%; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid rgba(255,255,255,0.85); box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; overflow: hidden; flex-shrink: 0; }
-.tile-name { font-size: 0.5rem; font-weight: bold; color: rgba(0,0,0,0.55); margin-top: 2px; text-align: center; line-height: 1.2; }
+.tile-name { font-size: 0.62rem; font-weight: bold; color: rgba(0,0,0,0.7); margin-top: 3px; text-align: center; line-height: 1.2; letter-spacing: 0.2px; }
 .tile-lvl { position: absolute; top: 2px; right: 3px; background: rgba(0,0,0,0.45); color: white; font-size: 0.5rem; padding: 1px 4px; border-radius: 6px; font-weight: bold; }
+#lives-display { font-size: 1.2rem; letter-spacing: 2px; }
 
 /* ── BOTTOM BAR ── */
 #bottom-bar { width: 100%; display: flex; align-items: center; justify-content: space-between; background: white; border-radius: 16px; padding: 8px 14px; box-shadow: var(--shadow); }
@@ -151,7 +152,10 @@ body {
 <div id="game-screen" class="screen">
   <div id="header">
     <div class="stat"><div class="stat-label">Σκορ</div><div class="stat-value" id="score-val">0</div></div>
-    <div id="lvl-badge">Level 1</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div id="lvl-badge">Level 1</div>
+      <div id="lives-display">❤️❤️❤️</div>
+    </div>
     <div class="stat"><div class="stat-label">Best</div><div class="stat-value" id="best-val">0</div></div>
   </div>
 
@@ -208,6 +212,16 @@ body {
   </div>
 </div>
 
+<div id="ov-loselife" class="overlay">
+  <div class="card">
+    <div style="font-size:3rem">💔</div>
+    <h2 style="color:#e74c3c">Έχασες μια ζωή!</h2>
+    <p id="ov-ll-msg">Προσοχή! Απομένουν <span id="lives-left"></span> ζωές.</p>
+    <div id="lives-remain" style="font-size:2rem;margin:8px 0;"></div>
+    <button class="btn btn-primary" onclick="continueAfterLife()">Συνέχεια ▶️</button>
+  </div>
+</div>
+
 <div id="ov-levelup" class="overlay">
   <div class="card">
     <div style="font-size:3rem; animation: float 1s infinite;">🎉</div>
@@ -244,7 +258,7 @@ const LEVELS = [
 //  STATE
 // ══════════════════════════════════════════
 let grid = Array(16).fill(null);
-let score = 0, level = 0, selected = null;
+let score = 0, level = 0, selected = null, lives = 3;
 let nextId = null, dropTimeout = null;
 let paused = false, over = false;
 let hiScores = JSON.parse(localStorage.getItem('mhi') || '[]');
@@ -355,7 +369,8 @@ function updateNextPreview() {
 // ══════════════════════════════════════════
 function startGame() {
   grid = Array(16).fill(null);
-  score = 0; level = 0; selected = null; over = false; paused = false;
+  score = 0; level = 0; selected = null; lives = 3; over = false; paused = false;
+  updateLives();
   showScreen('game-screen');
   buildGrid();
   nextId = randFromPool(LEVELS[0].pool);
@@ -474,7 +489,34 @@ function checkOver() {
     if (i%4!==3 && grid[i+1] && grid[i].id===grid[i+1].id) return;
     if (i<12 && grid[i+4] && grid[i].id===grid[i+4].id) return;
   }
-  gameOver();
+  loseLife();
+}
+
+function loseLife() {
+  lives--;
+  updateLives();
+  clearTimeout(dropTimeout);
+  paused = true;
+  if (lives <= 0) {
+    gameOver();
+    return;
+  }
+  // Remove the 5 lowest-level tiles to free up space
+  const sorted = grid.map((t,i)=>({t,i})).filter(x=>x.t).sort((a,b)=>a.t.id-b.t.id);
+  sorted.slice(0, 5).forEach(x => { grid[x.i] = null; renderCell(x.i); });
+  document.getElementById('lives-left').textContent = lives;
+  document.getElementById('lives-remain').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3-lives);
+  document.getElementById('ov-loselife').classList.add('active');
+}
+
+function continueAfterLife() {
+  closeOverlay('ov-loselife');
+  paused = false;
+  scheduleTimer();
+}
+
+function updateLives() {
+  document.getElementById('lives-display').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3-lives);
 }
 
 function gameOver() {
