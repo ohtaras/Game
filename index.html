@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Οικογενειακό Merge!</title>
+<style>
+:root {
+  --bg: #FFF8F0;
+  --primary: #FF9F43;
+  --secondary: #FF6B9D;
+  --accent: #A29BFE;
+  --green: #00B894;
+  --grid-bg: #E8D5B7;
+  --cell-bg: #F0E6D3;
+  --shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: linear-gradient(135deg, #FFF8F0 0%, #FFF0F8 100%);
+  font-family: 'Segoe UI', 'Arial Rounded MT Bold', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 480px; padding: 16px; gap: 12px; }
+.screen.active { display: flex; }
+
+/* ── MENU ── */
+#menu-screen { text-align: center; gap: 20px; justify-content: center; min-height: 100vh; }
+#menu-screen h1 { font-size: 2.8rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: float 3s ease-in-out infinite; }
+#menu-screen .subtitle { color: #999; font-size: 1rem; margin-top: -12px; }
+
+.face-preview { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 8px 0; }
+.face-preview .fp { width: 64px; height: 64px; border-radius: 50%; border: 3px solid; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; animation: float 3s ease-in-out infinite; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+.btn { padding: 14px 36px; border: none; border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; box-shadow: 0 5px 0 rgba(0,0,0,0.18); outline: none; }
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.18); }
+.btn-primary { background: linear-gradient(135deg, var(--primary), #e67e22); color: white; }
+.btn-accent  { background: linear-gradient(135deg, var(--accent), #6c5ce7); color: white; }
+.btn-sm { padding: 8px 18px; font-size: 0.85rem; box-shadow: 0 3px 0 rgba(0,0,0,0.15); }
+
+/* ── HEADER ── */
+#header { width: 100%; display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 18px; padding: 10px 16px; box-shadow: var(--shadow); }
+.stat { text-align: center; }
+.stat-label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+.stat-value { font-size: 1.4rem; font-weight: 900; color: #333; }
+#lvl-badge { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 6px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
+
+/* ── PROGRESS ── */
+#progress-row { width: 100%; background: white; border-radius: 14px; padding: 8px 14px; box-shadow: var(--shadow); }
+.prog-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: #aaa; margin-bottom: 4px; }
+.prog-track { height: 8px; background: #F0F0F0; border-radius: 4px; overflow: hidden; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--secondary)); border-radius: 4px; transition: width 0.5s ease; }
+
+/* ── TIMER BAR ── */
+#timer-track { width: 100%; height: 5px; background: #EEE; border-radius: 3px; overflow: hidden; }
+#timer-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 3px; }
+
+/* ── GRID ── */
+#grid-wrap { background: var(--grid-bg); border-radius: 20px; padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+#grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: min(360px, calc(100vw - 60px)); height: min(360px, calc(100vw - 60px)); }
+
+.cell { background: var(--cell-bg); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s, box-shadow 0.15s; position: relative; overflow: visible; }
+.cell:active { background: #E0D0BC; }
+.cell.selected { background: rgba(255,159,67,0.25); box-shadow: 0 0 0 3px var(--primary); }
+
+/* ── TILE ── */
+.tile { width: 88%; height: 88%; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.12s; position: relative; box-shadow: 0 3px 8px rgba(0,0,0,0.18); user-select: none; }
+.tile:hover { transform: scale(1.06); }
+.tile.selected { transform: scale(1.1); }
+.tile.new { animation: tileIn 0.3s cubic-bezier(.34,1.56,.64,1); }
+.tile.merged { animation: mergePop 0.4s cubic-bezier(.34,1.56,.64,1); }
+
+.tile-face { width: 62%; height: 62%; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid rgba(255,255,255,0.85); box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; overflow: hidden; flex-shrink: 0; }
+.tile-name { font-size: 0.5rem; font-weight: bold; color: rgba(0,0,0,0.55); margin-top: 2px; text-align: center; line-height: 1.2; }
+.tile-lvl { position: absolute; top: 2px; right: 3px; background: rgba(0,0,0,0.45); color: white; font-size: 0.5rem; padding: 1px 4px; border-radius: 6px; font-weight: bold; }
+
+/* ── BOTTOM BAR ── */
+#bottom-bar { width: 100%; display: flex; align-items: center; justify-content: space-between; background: white; border-radius: 16px; padding: 8px 14px; box-shadow: var(--shadow); }
+#next-preview-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #999; }
+.mini-tile { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 2px solid; }
+.mini-face { width: 26px; height: 26px; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+
+/* ── OVERLAYS ── */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: center; justify-content: center; }
+.overlay.active { display: flex; }
+.card { background: white; border-radius: 28px; padding: 28px 24px; text-align: center; max-width: 310px; width: 90%; animation: tileIn 0.3s cubic-bezier(.34,1.56,.64,1); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.card h2 { font-size: 1.8rem; margin-bottom: 8px; }
+.card p { color: #888; margin-bottom: 16px; font-size: 0.95rem; }
+.btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ── SCORE SCREEN ── */
+#score-screen { min-height: 100vh; justify-content: center; }
+.score-item { display: flex; align-items: center; gap: 12px; background: white; border-radius: 14px; padding: 12px 16px; width: 100%; box-shadow: var(--shadow); }
+.rank-icon { font-size: 1.6rem; width: 36px; text-align: center; }
+
+/* ── SETUP SCREEN ── */
+#setup-screen { min-height: 100vh; justify-content: flex-start; padding-top: 30px; gap: 14px; overflow-y: auto; }
+#setup-screen h2 { font-size: 1.5rem; color: var(--primary); }
+.upload-slot { background: white; border-radius: 16px; padding: 14px; box-shadow: var(--shadow); width: 100%; display: flex; align-items: center; gap: 14px; }
+.slot-preview { width: 64px; height: 64px; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid #EEE; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; cursor: pointer; transition: border-color 0.2s; }
+.slot-preview:hover { border-color: var(--primary); }
+.slot-info { flex: 1; }
+.slot-info label { font-weight: bold; font-size: 0.95rem; color: #333; display: block; margin-bottom: 4px; }
+.slot-info input[type=file] { display: none; }
+.slot-btn { background: var(--cell-bg); border: 1px dashed #CCC; border-radius: 8px; padding: 5px 12px; font-size: 0.78rem; cursor: pointer; color: #888; }
+.slot-btn:hover { border-color: var(--primary); color: var(--primary); }
+.crop-hint { font-size: 0.7rem; color: #aaa; margin-top: 3px; }
+
+/* ── ANIMATIONS ── */
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes tileIn { from { transform: scale(0) rotate(-15deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+@keyframes mergePop { 0% { transform: scale(1); } 45% { transform: scale(1.45); } 100% { transform: scale(1); } }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-50px) scale(1.3); } }
+@keyframes particlePop { 0% { opacity: 1; transform: translate(0,0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); } }
+
+.score-float { position: fixed; font-weight: 900; font-size: 1.6rem; color: var(--primary); text-shadow: 1px 1px 0 rgba(0,0,0,0.15); pointer-events: none; animation: floatUp 0.9s ease-out forwards; z-index: 500; }
+.particle { position: fixed; border-radius: 50%; pointer-events: none; animation: particlePop 0.8s ease-out forwards; z-index: 500; }
+
+/* ── REVEAL FACE (level up) ── */
+#reveal-face { width: 90px; height: 90px; border-radius: 50%; margin: 12px auto; background-size: cover; background-position: center; background-repeat: no-repeat; border: 4px solid gold; box-shadow: 0 0 20px rgba(255,215,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; }
+
+/* ── RESPONSIVE ── */
+@media (max-height: 680px) {
+  #grid { gap: 5px; }
+  #header { padding: 7px 12px; }
+  #progress-row { padding: 6px 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════ MENU ════ -->
+<div id="menu-screen" class="screen active">
+  <h1>✨ Merge!</h1>
+  <div class="subtitle">Βρες τα ίδια και κάνε merge!</div>
+  <div class="face-preview" id="menu-faces"></div>
+  <button class="btn btn-primary" onclick="startGame()" style="font-size:1.3rem; padding:16px 48px;">🎮 Παίξε!</button>
+  <button class="btn btn-accent" onclick="showScreen('score-screen'); renderScores()">🏆 Highscores</button>
+  <div id="setup-hint" style="font-size:0.7rem; color:#CCC; margin-top: 20px; cursor:pointer;" onclick="showScreen('setup-screen')">⚙️ Setup</div>
+</div>
+
+<!-- ════ GAME ════ -->
+<div id="game-screen" class="screen">
+  <div id="header">
+    <div class="stat"><div class="stat-label">Σκορ</div><div class="stat-value" id="score-val">0</div></div>
+    <div id="lvl-badge">Level 1</div>
+    <div class="stat"><div class="stat-label">Best</div><div class="stat-value" id="best-val">0</div></div>
+  </div>
+
+  <div id="progress-row">
+    <div class="prog-labels">
+      <span id="prog-label">Επόμενο Level</span>
+      <span id="prog-nums">0 / 100</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <div id="timer-track"><div id="timer-fill" style="width:100%"></div></div>
+
+  <div id="grid-wrap">
+    <div id="grid"></div>
+  </div>
+
+  <div id="bottom-bar">
+    <div id="next-preview-wrap">
+      <span>Επόμενο:</span>
+      <div class="mini-tile" id="next-mini"></div>
+    </div>
+    <button class="btn btn-sm" style="background:#EEE; color:#888;" onclick="goMenu()">✕ Έξοδος</button>
+  </div>
+</div>
+
+<!-- ════ SCORES ════ -->
+<div id="score-screen" class="screen">
+  <h2 style="color:var(--primary); font-size:2rem;">🏆 Highscores</h2>
+  <div id="scores-list" style="width:100%; display:flex; flex-direction:column; gap:8px;"></div>
+  <button class="btn btn-primary" onclick="goMenu()">← Πίσω</button>
+</div>
+
+<!-- ════ SETUP ════ -->
+<div id="setup-screen" class="screen">
+  <h2>⚙️ Setup Φωτογραφιών</h2>
+  <p style="color:#999; font-size:0.85rem; text-align:center;">Ανέβασε τις φωτογραφίες για κάθε χαρακτήρα</p>
+  <div id="upload-slots"></div>
+  <button class="btn btn-primary" onclick="saveSetup()">💾 Αποθήκευση</button>
+  <button class="btn" style="background:#EEE; color:#888;" onclick="goMenu()">← Πίσω</button>
+</div>
+
+<!-- ════ OVERLAYS ════ -->
+<div id="ov-gameover" class="overlay">
+  <div class="card">
+    <div style="font-size:3rem">😮</div>
+    <h2>Game Over!</h2>
+    <p id="ov-go-msg">Δεν χωράει άλλο!</p>
+    <div style="font-size:2rem; font-weight:900; color:var(--primary); margin:8px 0" id="ov-score"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="restartGame()">🔄 Ξανά!</button>
+      <button class="btn btn-accent" onclick="goMenu()">🏠 Μενού</button>
+    </div>
+  </div>
+</div>
+
+<div id="ov-levelup" class="overlay">
+  <div class="card">
+    <div style="font-size:3rem; animation: float 1s infinite;">🎉</div>
+    <h2 style="color:var(--primary)">Level Up!</h2>
+    <p id="ov-lu-msg">Νέο πρόσωπο!</p>
+    <div id="reveal-face"></div>
+    <button class="btn btn-primary" onclick="closeLevelUp()">Συνέχεια ▶️</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  TILE DEFINITIONS
+//  bgPos / bgSize → crop to face area
+// ══════════════════════════════════════════
+const TILES = [
+  { id:1, name:'Μωρό',     file:'images/baby.jpg',    emoji:'👶', color:'#FFE4B5', border:'#FF9F43', bgPos:'50% 20%', bgSize:'220%', pts:10  },
+  { id:2, name:'Αδερφός', file:'images/boy.jpg',     emoji:'👦', color:'#B8F0C8', border:'#27AE60', bgPos:'28% 12%', bgSize:'260%', pts:25  },
+  { id:3, name:'Κορίτσι', file:'images/girl1.jpg',   emoji:'👧', color:'#FFD1DC', border:'#FF69B4', bgPos:'50% 22%', bgSize:'220%', pts:50  },
+  { id:4, name:'Αδερφή',  file:'images/girl2.jpg',   emoji:'👧', color:'#E8D5FF', border:'#9B59B6', bgPos:'50% 18%', bgSize:'200%', pts:100 },
+  { id:5, name:'Παππούς', file:'images/grandpa.jpg', emoji:'👴', color:'#B8E8FF', border:'#3498DB', bgPos:'50% 25%', bgSize:'160%', pts:200 },
+];
+
+// Levels: tilePool = weighted list of tile ids that can drop
+const LEVELS = [
+  { min:0,    pool:[1,1,1,1],      ms:3000, label:'Level 1' },
+  { min:100,  pool:[1,1,1,2],      ms:2500, label:'Level 2' },
+  { min:300,  pool:[1,1,2,2,3],    ms:2000, label:'Level 3' },
+  { min:600,  pool:[1,2,2,3,3,4],  ms:1500, label:'Level 4' },
+  { min:1000, pool:[1,2,3,4,4,5],  ms:1000, label:'Level 5 🔥' },
+];
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let grid = Array(16).fill(null);
+let score = 0, level = 0, selected = null;
+let nextId = null, dropTimeout = null;
+let paused = false, over = false;
+let hiScores = JSON.parse(localStorage.getItem('mhi') || '[]');
+let customImages = JSON.parse(localStorage.getItem('mci') || '{}');
+
+// ══════════════════════════════════════════
+//  TILE HELPERS
+// ══════════════════════════════════════════
+function tileConf(id) { return TILES.find(t => t.id === id); }
+
+function tileImageStyle(id) {
+  const t = tileConf(id);
+  const src = customImages[id] || t.file;
+  return `background-image:url('${src}'); background-size:${t.bgSize}; background-position:${t.bgPos};`;
+}
+
+function randFromPool(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function renderCell(i, isNew=false, isMerge=false) {
+  const cells = document.querySelectorAll('#grid .cell');
+  if (!cells[i]) return;
+  const cell = cells[i];
+  cell.innerHTML = '';
+  cell.className = 'cell' + (selected === i ? ' selected' : '');
+
+  const tile = grid[i];
+  if (!tile) return;
+
+  const conf = tileConf(tile.id);
+  const tEl = document.createElement('div');
+  tEl.className = 'tile' + (isNew?' new':'') + (isMerge?' merged':'') + (selected===i?' selected':'');
+  tEl.style.cssText = `background: linear-gradient(145deg, ${conf.color}, ${lighten(conf.color,25)}); border: 2.5px solid ${conf.border};`;
+
+  const face = document.createElement('div');
+  face.className = 'tile-face';
+  face.style.cssText = tileImageStyle(tile.id) + ` background-color:${conf.color};`;
+  face.textContent = conf.emoji;
+
+  // hide emoji once image loads
+  const img = new Image();
+  img.onload = () => { face.textContent = ''; };
+  img.src = customImages[tile.id] || conf.file;
+
+  const name = document.createElement('div');
+  name.className = 'tile-name';
+  name.textContent = conf.name;
+
+  const lvl = document.createElement('div');
+  lvl.className = 'tile-lvl';
+  lvl.textContent = `L${tile.id}`;
+
+  tEl.appendChild(face);
+  tEl.appendChild(name);
+  tEl.appendChild(lvl);
+  cell.appendChild(tEl);
+}
+
+function refreshAll() { for(let i=0;i<16;i++) renderCell(i); }
+
+function buildGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  for (let i=0; i<16; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.i = i;
+    c.addEventListener('click', () => onCellClick(+c.dataset.i));
+    g.appendChild(c);
+  }
+}
+
+function updateHUD() {
+  document.getElementById('score-val').textContent = score;
+  const best = Math.max(score, hiScores[0]||0);
+  document.getElementById('best-val').textContent = best;
+  document.getElementById('lvl-badge').textContent = LEVELS[level].label;
+
+  const nxt = LEVELS[level+1];
+  if (nxt) {
+    const pct = ((score - LEVELS[level].min) / (nxt.min - LEVELS[level].min)) * 100;
+    document.getElementById('prog-fill').style.width = Math.min(pct,100)+'%';
+    document.getElementById('prog-nums').textContent = `${score} / ${nxt.min}`;
+    document.getElementById('prog-label').textContent = 'Επόμενο Level';
+  } else {
+    document.getElementById('prog-fill').style.width = '100%';
+    document.getElementById('prog-label').textContent = 'MAX LEVEL 🔥';
+    document.getElementById('prog-nums').textContent = '';
+  }
+}
+
+function updateNextPreview() {
+  const el = document.getElementById('next-mini');
+  el.innerHTML = '';
+  if (!nextId) return;
+  const t = tileConf(nextId);
+  el.style.cssText = `background:${t.color}; border-color:${t.border}; border-radius:8px;`;
+  const f = document.createElement('div');
+  f.className = 'mini-face';
+  f.style.cssText = tileImageStyle(nextId) + ` background-color:${t.color};`;
+  f.textContent = t.emoji;
+  const img = new Image();
+  img.onload = () => { f.textContent = ''; };
+  img.src = customImages[nextId] || t.file;
+  el.appendChild(f);
+}
+
+// ══════════════════════════════════════════
+//  GAME LOGIC
+// ══════════════════════════════════════════
+function startGame() {
+  grid = Array(16).fill(null);
+  score = 0; level = 0; selected = null; over = false; paused = false;
+  showScreen('game-screen');
+  buildGrid();
+  nextId = randFromPool(LEVELS[0].pool);
+  dropTile(); dropTile();
+  nextId = randFromPool(LEVELS[0].pool);
+  updateNextPreview();
+  updateHUD();
+  scheduleTimer();
+}
+
+function restartGame() {
+  closeOverlay('ov-gameover');
+  startGame();
+}
+
+function dropTile() {
+  const empty = grid.map((v,i)=>v===null?i:-1).filter(i=>i>=0);
+  if (!empty.length) { checkOver(); return; }
+  const idx = empty[Math.floor(Math.random()*empty.length)];
+  grid[idx] = { id: nextId };
+  nextId = randFromPool(LEVELS[level].pool);
+  updateNextPreview();
+  renderCell(idx, true);
+  if (empty.length === 1) checkOver();
+}
+
+function scheduleTimer() {
+  clearTimeout(dropTimeout);
+  const ms = LEVELS[level].ms;
+  // animate timer bar
+  const fill = document.getElementById('timer-fill');
+  fill.style.transition = 'none'; fill.style.width = '100%';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fill.style.transition = `width ${ms}ms linear`;
+    fill.style.width = '0%';
+  }));
+  dropTimeout = setTimeout(() => {
+    if (!over && !paused) { dropTile(); scheduleTimer(); }
+  }, ms);
+}
+
+function onCellClick(i) {
+  if (over || paused) return;
+  const tile = grid[i];
+
+  if (selected === null) {
+    if (tile) { selected = i; renderCell(i); }
+    return;
+  }
+
+  if (selected === i) {
+    selected = null; renderCell(i); return;
+  }
+
+  const selTile = grid[selected];
+
+  if (!tile) {
+    // move
+    grid[i] = selTile; grid[selected] = null;
+    const from = selected; selected = null;
+    renderCell(from); renderCell(i, true);
+  } else if (tile.id === selTile.id) {
+    // MERGE
+    merge(selected, i);
+  } else {
+    // switch selection
+    const old = selected; selected = i;
+    renderCell(old); renderCell(i);
+  }
+}
+
+function merge(from, to) {
+  const id = grid[from].id;
+  const conf = tileConf(id);
+  grid[from] = null;
+
+  const newId = id + 1;
+  if (newId > TILES.length) {
+    grid[to] = null;
+    addScore(conf.pts * 3);
+    burst(to, conf.color);
+    floatScore(conf.pts * 3, to);
+  } else {
+    grid[to] = { id: newId };
+    addScore(conf.pts);
+    burst(to, conf.color);
+    floatScore(conf.pts, to);
+  }
+
+  selected = null;
+  renderCell(from);
+  renderCell(to, false, true);
+  checkLevelUp();
+  checkOver();
+}
+
+function addScore(pts) {
+  score += pts;
+  updateHUD();
+}
+
+function checkLevelUp() {
+  const next = level + 1;
+  if (next < LEVELS.length && score >= LEVELS[next].min) {
+    level = next;
+    updateHUD();
+    scheduleTimer();
+    showLevelUp(next);
+  }
+}
+
+function checkOver() {
+  if (grid.some(c=>c===null)) return;
+  for (let i=0; i<16; i++) {
+    if (!grid[i]) continue;
+    if (i%4!==3 && grid[i+1] && grid[i].id===grid[i+1].id) return;
+    if (i<12 && grid[i+4] && grid[i].id===grid[i+4].id) return;
+  }
+  gameOver();
+}
+
+function gameOver() {
+  over = true;
+  clearTimeout(dropTimeout);
+  saveScore(score);
+  document.getElementById('ov-score').textContent = 'Σκορ: ' + score;
+  document.getElementById('ov-go-msg').textContent =
+    score>=1000 ? '🌟 Εκπληκτικό!' : score>=500 ? '👏 Πολύ καλά!' : score>=200 ? '😊 Ωραία!' : 'Προσπάθησε ξανά!';
+  document.getElementById('ov-gameover').classList.add('active');
+}
+
+// ══════════════════════════════════════════
+//  LEVEL UP OVERLAY
+// ══════════════════════════════════════════
+function showLevelUp(lvl) {
+  paused = true;
+  const pool = LEVELS[lvl].pool;
+  const newId = pool[pool.length-1];
+  const conf = tileConf(newId);
+  document.getElementById('ov-lu-msg').textContent = conf.name + ' εμφανίζεται!';
+  const rf = document.getElementById('reveal-face');
+  rf.style.cssText = tileImageStyle(newId) + ` background-color:${conf.color}; border-color:${conf.border};`;
+  rf.textContent = conf.emoji;
+  const img = new Image();
+  img.onload = () => { rf.textContent = ''; };
+  img.src = customImages[newId] || conf.file;
+  document.getElementById('ov-levelup').classList.add('active');
+}
+
+function closeLevelUp() {
+  closeOverlay('ov-levelup');
+  paused = false;
+  scheduleTimer();
+}
+
+// ══════════════════════════════════════════
+//  EFFECTS
+// ══════════════════════════════════════════
+function burst(cellIdx, color) {
+  const cells = document.querySelectorAll('#grid .cell');
+  const cell = cells[cellIdx];
+  if (!cell) return;
+  const r = cell.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const colors = [color, '#FF9F43', '#FF6B9D', '#A29BFE', '#00B894', '#FDCB6E'];
+  for (let i=0; i<10; i++) {
+    const p = document.createElement('div');
+    const angle = (Math.PI*2/10)*i;
+    const dist = 30 + Math.random()*30;
+    p.className = 'particle';
+    p.style.cssText = `left:${cx}px; top:${cy}px; width:${6+Math.random()*7}px; height:${6+Math.random()*7}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      --dx:${Math.cos(angle)*dist}px; --dy:${Math.sin(angle)*dist}px;
+      animation-delay:${Math.random()*0.1}s;`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
+}
+
+function floatScore(pts, cellIdx) {
+  const cells = document.querySelectorAll('#grid .cell');
+  const cell = cells[cellIdx];
+  if (!cell) return;
+  const r = cell.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'score-float';
+  el.textContent = '+' + pts;
+  el.style.left = (r.left + r.width/2 - 20) + 'px';
+  el.style.top = r.top + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+// ══════════════════════════════════════════
+//  HIGH SCORES
+// ══════════════════════════════════════════
+function saveScore(s) {
+  hiScores.push(s);
+  hiScores.sort((a,b)=>b-a);
+  hiScores = hiScores.slice(0,5);
+  localStorage.setItem('mhi', JSON.stringify(hiScores));
+}
+
+function renderScores() {
+  const list = document.getElementById('scores-list');
+  list.innerHTML = '';
+  if (!hiScores.length) {
+    list.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">Δεν υπάρχουν ακόμα scores!</p>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  hiScores.forEach((s,i) => {
+    const el = document.createElement('div');
+    el.className = 'score-item';
+    el.innerHTML = `<span class="rank-icon">${medals[i]||i+1}</span>
+      <span style="font-weight:900; font-size:1.3rem; flex:1">${s}</span>
+      <span style="color:#aaa; font-size:0.85rem">πόντοι</span>`;
+    list.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════
+//  MENU FACES
+// ══════════════════════════════════════════
+function buildMenuFaces() {
+  const el = document.getElementById('menu-faces');
+  el.innerHTML = '';
+  TILES.forEach((t,idx) => {
+    const f = document.createElement('div');
+    f.className = 'fp';
+    const src = customImages[t.id] || t.file;
+    f.style.cssText = `border-color:${t.border}; background-color:${t.color};
+      background-image:url('${src}'); background-size:${t.bgSize}; background-position:${t.bgPos};
+      animation-delay:${idx*0.2}s;`;
+    f.textContent = t.emoji;
+    const img = new Image();
+    img.onload = () => { f.textContent = ''; };
+    img.src = src;
+    el.appendChild(f);
+  });
+}
+
+// ══════════════════════════════════════════
+//  SETUP / UPLOAD
+// ══════════════════════════════════════════
+function buildSetupSlots() {
+  const wrap = document.getElementById('upload-slots');
+  wrap.innerHTML = '';
+  TILES.forEach(t => {
+    const slot = document.createElement('div');
+    slot.className = 'upload-slot';
+
+    const preview = document.createElement('div');
+    preview.className = 'slot-preview';
+    const src = customImages[t.id] || t.file;
+    preview.style.cssText = `background-image:url('${src}'); background-size:${t.bgSize}; background-position:${t.bgPos}; background-color:${t.color};`;
+    preview.textContent = t.emoji;
+    const chk = new Image(); chk.onload = () => { preview.textContent=''; }; chk.src = src;
+
+    const info = document.createElement('div');
+    info.className = 'slot-info';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = `${t.emoji} ${t.name}`;
+
+    const fileIn = document.createElement('input');
+    fileIn.type = 'file'; fileIn.accept = 'image/*'; fileIn.id = `file_${t.id}`;
+
+    const btn = document.createElement('div');
+    btn.className = 'slot-btn';
+    btn.textContent = customImages[t.id] ? '✓ Φορτώθηκε — Άλλαξε' : '📷 Επιλογή φωτο';
+    btn.onclick = () => fileIn.click();
+
+    const hint = document.createElement('div');
+    hint.className = 'crop-hint';
+    hint.textContent = 'Χρησιμοποιεί αυτόματο crop για πρόσωπο';
+
+    fileIn.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        customImages[t.id] = ev.target.result;
+        preview.style.backgroundImage = `url('${ev.target.result}')`;
+        preview.textContent = '';
+        btn.textContent = '✓ Φορτώθηκε';
+        btn.style.color = 'var(--green)';
+        btn.style.borderColor = 'var(--green)';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    preview.onclick = () => fileIn.click();
+    info.appendChild(lbl); info.appendChild(fileIn); info.appendChild(btn); info.appendChild(hint);
+    slot.appendChild(preview); slot.appendChild(info);
+    wrap.appendChild(slot);
+  });
+}
+
+function saveSetup() {
+  localStorage.setItem('mci', JSON.stringify(customImages));
+  buildMenuFaces();
+  showScreen('menu-screen');
+  alert('✅ Αποθηκεύτηκε! Οι φωτογραφίες είναι έτοιμες!');
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'setup-screen') buildSetupSlots();
+}
+
+function closeOverlay(id) { document.getElementById(id).classList.remove('active'); }
+
+function goMenu() {
+  clearTimeout(dropTimeout);
+  closeOverlay('ov-gameover');
+  closeOverlay('ov-levelup');
+  showScreen('menu-screen');
+  buildMenuFaces();
+}
+
+// ══════════════════════════════════════════
+//  UTILITY
+// ══════════════════════════════════════════
+function lighten(hex, amt) {
+  const n = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, (n>>16)+amt);
+  const g = Math.min(255, ((n>>8)&0xFF)+amt);
+  const b = Math.min(255, (n&0xFF)+amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+buildMenuFaces();
+</script>
+</body>
+</html>
