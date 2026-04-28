@@ -81,7 +81,9 @@ body {
 .tile-face { width: 62%; height: 62%; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; border: 3px solid rgba(255,255,255,0.85); box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; overflow: hidden; flex-shrink: 0; }
 .tile-name { font-size: 0.62rem; font-weight: bold; color: rgba(0,0,0,0.7); margin-top: 3px; text-align: center; line-height: 1.2; letter-spacing: 0.2px; }
 .tile-lvl { position: absolute; top: 2px; right: 3px; background: rgba(0,0,0,0.45); color: white; font-size: 0.5rem; padding: 1px 4px; border-radius: 6px; font-weight: bold; }
-#lives-display { font-size: 1.2rem; letter-spacing: 2px; }
+#lives-row { width:100%; background:white; border-radius:14px; padding:8px 14px; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; gap:8px; }
+#lives-display { font-size: 1.6rem; letter-spacing: 4px; }
+#lives-label { font-size:0.7rem; color:#aaa; text-transform:uppercase; letter-spacing:1px; }
 
 /* ── BOTTOM BAR ── */
 #bottom-bar { width: 100%; display: flex; align-items: center; justify-content: space-between; background: white; border-radius: 16px; padding: 8px 14px; box-shadow: var(--shadow); }
@@ -152,11 +154,13 @@ body {
 <div id="game-screen" class="screen">
   <div id="header">
     <div class="stat"><div class="stat-label">Σκορ</div><div class="stat-value" id="score-val">0</div></div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div id="lvl-badge">Level 1</div>
-      <div id="lives-display">❤️❤️❤️</div>
-    </div>
+    <div id="lvl-badge">Level 1</div>
     <div class="stat"><div class="stat-label">Best</div><div class="stat-value" id="best-val">0</div></div>
+  </div>
+
+  <div id="lives-row">
+    <span id="lives-label">Ζωές:</span>
+    <span id="lives-display">❤️❤️❤️</span>
   </div>
 
   <div id="progress-row">
@@ -247,11 +251,11 @@ const TILES = [
 
 // Levels: tilePool = weighted list of tile ids that can drop
 const LEVELS = [
-  { min:0,    pool:[1,1,1,1],      ms:3000, label:'Level 1' },
-  { min:100,  pool:[1,1,1,2],      ms:2500, label:'Level 2' },
-  { min:300,  pool:[1,1,2,2,3],    ms:2000, label:'Level 3' },
-  { min:600,  pool:[1,2,2,3,3,4],  ms:1500, label:'Level 4' },
-  { min:1000, pool:[1,2,3,4,4,5],  ms:1000, label:'Level 5 🔥' },
+  { min:0,    pool:[1,1,1,2],        ms:2200, label:'Level 1' },
+  { min:100,  pool:[1,1,2,2,3],     ms:1800, label:'Level 2' },
+  { min:300,  pool:[1,2,2,3,3,4],   ms:1400, label:'Level 3' },
+  { min:600,  pool:[1,2,3,4,4,5],   ms:1000, label:'Level 4' },
+  { min:1000, pool:[1,2,3,4,5,5],   ms:700,  label:'Level 5 🔥' },
 ];
 
 // ══════════════════════════════════════════
@@ -521,7 +525,9 @@ function updateLives() {
 
 function gameOver() {
   over = true;
+  paused = false;
   clearTimeout(dropTimeout);
+  closeOverlay('ov-loselife');
   saveScore(score);
   document.getElementById('ov-score').textContent = 'Σκορ: ' + score;
   document.getElementById('ov-go-msg').textContent =
