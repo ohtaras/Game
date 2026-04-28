@@ -488,11 +488,7 @@ function checkLevelUp() {
 
 function checkOver() {
   if (grid.some(c=>c===null)) return;
-  for (let i=0; i<16; i++) {
-    if (!grid[i]) continue;
-    if (i%4!==3 && grid[i+1] && grid[i].id===grid[i+1].id) return;
-    if (i<12 && grid[i+4] && grid[i].id===grid[i+4].id) return;
-  }
+  // Board completely full → lose a life immediately
   loseLife();
 }
 
