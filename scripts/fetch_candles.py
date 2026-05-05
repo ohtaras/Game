@@ -3,9 +3,12 @@ import os
 import time
 import requests
 
+# Tier 1: BTC ETH SOL XRP
+# Tier 2: BNB LINK AVAX ADA DOGE ARB OP APT TRX
+# New:    SUI TON WIF JUP INJ TIA
 PAIRS = [
-    "BTC", "ETH", "SOL", "XRP", "BNB", "LTC", "UNI", "LINK", "AVAX", "DOT",
-    "ADA", "ARB", "OP", "APT", "DOGE", "TRX", "NEAR", "PEPE", "FIL"
+    "BTC", "ETH", "SOL", "XRP", "BNB", "LINK", "AVAX", "ADA", "DOGE", "ARB",
+    "OP", "APT", "TRX", "SUI", "TON", "WIF", "JUP", "INJ", "TIA",
 ]
 
 TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h"]
@@ -19,18 +22,8 @@ FUTURES_INTERVAL = {
     "4h": "Hour4",
 }
 
-SPOT_INTERVAL = {
-    "1m": "1m",
-    "5m": "5m",
-    "15m": "15m",
-    "30m": "30m",
-    "1h": "1h",
-    "4h": "4h",
-}
-
 LIMIT = 500
 FUTURES_BASE = "https://contract.mexc.com/api/v1/contract"
-SPOT_BASE = "https://api.mexc.com/api/v3"
 OUTPUT_DIR = "data/candles"
 
 
@@ -55,27 +48,6 @@ def fetch_futures(symbol: str, tf: str) -> list[dict]:
     ]
 
 
-def fetch_spot(symbol: str, tf: str) -> list[dict]:
-    url = f"{SPOT_BASE}/klines"
-    r = requests.get(
-        url,
-        params={"symbol": f"{symbol}USDT", "interval": SPOT_INTERVAL[tf], "limit": LIMIT},
-        timeout=15,
-    )
-    r.raise_for_status()
-    return [
-        {
-            "time": int(bar[0]) // 1000,
-            "open": float(bar[1]),
-            "high": float(bar[2]),
-            "low": float(bar[3]),
-            "close": float(bar[4]),
-            "volume": float(bar[5]),
-        }
-        for bar in r.json()
-    ]
-
-
 def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     errors = []
@@ -84,7 +56,7 @@ def main() -> None:
         for tf in TIMEFRAMES:
             path = f"{OUTPUT_DIR}/{pair}USDT_{tf}.json"
             try:
-                candles = fetch_spot(pair, tf) if pair == "FIL" else fetch_futures(pair, tf)
+                candles = fetch_futures(pair, tf)
                 with open(path, "w") as f:
                     json.dump(candles, f, separators=(",", ":"))
                 print(f"OK  {pair}USDT_{tf}: {len(candles)} bars")
