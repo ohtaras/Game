@@ -1,5 +1,5 @@
 {
-  "updated": "2026-05-05T18:57:50.986023+00:00",
+  "updated": "2026-05-05T19:18:02.670348+00:00",
   "count": 2,
   "signals": [
     {
@@ -13,8 +13,8 @@
       "setup": "FVG",
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "price": 9.694,
-      "time": "2026-05-05 18:57 UTC"
+      "price": 9.716,
+      "time": "2026-05-05 19:18 UTC"
     },
     {
       "pair": "BNBUSDT",
@@ -27,8 +27,8 @@
       "setup": "OB + FVG",
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "price": 630.8,
-      "time": "2026-05-05 18:57 UTC"
+      "price": 631.0,
+      "time": "2026-05-05 19:18 UTC"
     }
   ]
 }
