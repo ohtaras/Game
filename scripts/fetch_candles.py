@@ -3,15 +3,15 @@ import os
 import time
 import requests
 
-# Tier 1: BTC ETH SOL XRP
-# Tier 2: BNB LINK AVAX ADA DOGE ARB OP APT TRX
-# New:    SUI TON WIF JUP INJ TIA
-PAIRS = [
-    "BTC", "ETH", "SOL", "XRP", "BNB", "LINK", "AVAX", "ADA", "DOGE", "ARB",
-    "OP", "APT", "TRX", "SUI", "TON", "WIF", "JUP", "INJ", "TIA",
-]
+# Primary: full timeframe stack — BTC/ETH are the market makers
+# Secondary: skip 1m and 30m — enough resolution without noise
+PAIRS = {
+    "primary":   ["BTC", "ETH"],
+    "secondary": ["SOL", "BNB", "LINK", "DOGE", "SUI"],
+}
 
-TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h"]
+PRIMARY_TF   = ["1m", "5m", "15m", "30m", "1h", "4h"]
+SECONDARY_TF = ["5m", "15m", "1h", "4h"]
 
 FUTURES_INTERVAL = {
     "1m": "Min1",
@@ -52,18 +52,22 @@ def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     errors = []
 
-    for pair in PAIRS:
-        for tf in TIMEFRAMES:
-            path = f"{OUTPUT_DIR}/{pair}USDT_{tf}.json"
-            try:
-                candles = fetch_futures(pair, tf)
-                with open(path, "w") as f:
-                    json.dump(candles, f, separators=(",", ":"))
-                print(f"OK  {pair}USDT_{tf}: {len(candles)} bars")
-            except Exception as exc:
-                print(f"ERR {pair}USDT_{tf}: {exc}")
-                errors.append(f"{pair}USDT_{tf}")
-            time.sleep(0.15)
+    schedule = (
+        [(p, tf) for p in PAIRS["primary"]   for tf in PRIMARY_TF] +
+        [(p, tf) for p in PAIRS["secondary"] for tf in SECONDARY_TF]
+    )
+
+    for pair, tf in schedule:
+        path = f"{OUTPUT_DIR}/{pair}USDT_{tf}.json"
+        try:
+            candles = fetch_futures(pair, tf)
+            with open(path, "w") as f:
+                json.dump(candles, f, separators=(",", ":"))
+            print(f"OK  {pair}USDT_{tf}: {len(candles)} bars")
+        except Exception as exc:
+            print(f"ERR {pair}USDT_{tf}: {exc}")
+            errors.append(f"{pair}USDT_{tf}")
+        time.sleep(0.15)
 
     if errors:
         print(f"\nFailed ({len(errors)}): {', '.join(errors)}")
