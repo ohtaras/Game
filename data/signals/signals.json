@@ -1,20 +1,5 @@
 {
-  "updated": "2026-05-05T20:23:42.686820+00:00",
-  "count": 1,
-  "signals": [
-    {
-      "pair": "SUIUSDT",
-      "direction": "LONG",
-      "entry": 0.9614,
-      "sl": 0.95788,
-      "tp1": 0.9686,
-      "tp2": 0.978286,
-      "rr": 2.05,
-      "setup": "OB + FVG",
-      "bias_4h": "bullish",
-      "bias_1h": "bullish",
-      "price": 0.9669,
-      "time": "2026-05-05 20:23 UTC"
-    }
-  ]
+  "updated": "2026-05-05T20:33:41.346730+00:00",
+  "count": 0,
+  "signals": []
 }
