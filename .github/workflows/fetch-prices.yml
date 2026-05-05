@@ -1,0 +1,39 @@
+name: Fetch Market Prices
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 min (GitHub minimum)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests --quiet
+
+      - name: Fetch candle data
+        run: python scripts/fetch_candles.py
+
+      - name: Commit & push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/candles/
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "data: candles $(date -u '+%Y-%m-%dT%H:%MZ')"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin ${{ github.ref_name }}
