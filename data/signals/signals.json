@@ -1,5 +1,34 @@
 {
-  "updated": "2026-05-05T20:43:49.691605+00:00",
-  "count": 0,
-  "signals": []
+  "updated": "2026-05-05T20:53:55.412767+00:00",
+  "count": 2,
+  "signals": [
+    {
+      "pair": "DOGEUSDT",
+      "direction": "LONG",
+      "entry": 0.113275,
+      "sl": 0.112834,
+      "tp1": 0.11432,
+      "tp2": 0.115463,
+      "rr": 2.37,
+      "setup": "OB + FVG",
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "price": 0.11396,
+      "time": "2026-05-05 20:53 UTC"
+    },
+    {
+      "pair": "LINKUSDT",
+      "direction": "LONG",
+      "entry": 9.74,
+      "sl": 9.712536,
+      "tp1": 9.799333,
+      "tp2": 9.897327,
+      "rr": 2.16,
+      "setup": "OB + FVG",
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "price": 9.794,
+      "time": "2026-05-05 20:53 UTC"
+    }
+  ]
 }
