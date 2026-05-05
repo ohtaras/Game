@@ -1,4 +1,4 @@
-name: Fetch Market Prices
+name: Fetch & Analyze
 
 on:
   schedule:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  fetch:
+  run:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -28,12 +28,15 @@ jobs:
       - name: Fetch candle data
         run: python scripts/fetch_candles.py
 
+      - name: Run ICT analysis
+        run: python scripts/analyze.py
+
       - name: Commit & push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/candles/
+          git add data/candles/ data/signals/
           git diff --staged --quiet && echo "No changes" && exit 0
-          git commit -m "data: candles $(date -u '+%Y-%m-%dT%H:%MZ')"
+          git commit -m "data: $(date -u '+%Y-%m-%dT%H:%MZ')"
           git pull --rebase origin ${{ github.ref_name }}
           git push origin ${{ github.ref_name }}
