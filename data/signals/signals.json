@@ -1,20 +1,20 @@
 {
-  "updated": "2026-05-05T20:08:38.743039+00:00",
+  "updated": "2026-05-05T20:23:42.686820+00:00",
   "count": 1,
   "signals": [
     {
-      "pair": "LINKUSDT",
+      "pair": "SUIUSDT",
       "direction": "LONG",
-      "entry": 9.6925,
-      "sl": 9.664632,
-      "tp1": 9.8,
-      "tp2": 9.898,
-      "rr": 3.86,
-      "setup": "FVG",
+      "entry": 0.9614,
+      "sl": 0.95788,
+      "tp1": 0.9686,
+      "tp2": 0.978286,
+      "rr": 2.05,
+      "setup": "OB + FVG",
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "price": 9.735,
-      "time": "2026-05-05 20:08 UTC"
+      "price": 0.9669,
+      "time": "2026-05-05 20:23 UTC"
     }
   ]
 }
