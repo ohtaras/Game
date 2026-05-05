@@ -1,21 +1,7 @@
 {
-  "updated": "2026-05-05T17:36:03.202944+00:00",
+  "updated": "2026-05-05T18:31:25.420161+00:00",
   "count": 3,
   "signals": [
-    {
-      "pair": "ETHUSDT",
-      "direction": "LONG",
-      "entry": 2351.725,
-      "sl": 2345.51956,
-      "tp1": 2378.111818,
-      "tp2": 2398.71,
-      "rr": 4.25,
-      "setup": "FVG",
-      "bias_4h": "bullish",
-      "bias_1h": "bullish",
-      "price": 2361.25,
-      "time": "2026-05-05 17:36 UTC"
-    },
     {
       "pair": "LINKUSDT",
       "direction": "LONG",
@@ -27,22 +13,36 @@
       "setup": "FVG",
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "price": 9.685,
-      "time": "2026-05-05 17:36 UTC"
+      "price": 9.697,
+      "time": "2026-05-05 18:31 UTC"
     },
     {
       "pair": "BNBUSDT",
       "direction": "LONG",
-      "entry": 626.95,
-      "sl": 625.3468,
-      "tp1": 630.671429,
-      "tp2": 634.6,
-      "rr": 2.32,
+      "entry": 629.75,
+      "sl": 628.1412,
+      "tp1": 634.6,
+      "tp2": 640.946,
+      "rr": 3.01,
       "setup": "FVG",
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "price": 629.1,
-      "time": "2026-05-05 17:36 UTC"
+      "price": 629.6,
+      "time": "2026-05-05 18:31 UTC"
+    },
+    {
+      "pair": "SUIUSDT",
+      "direction": "LONG",
+      "entry": 0.9512,
+      "sl": 0.947501,
+      "tp1": 0.96155,
+      "tp2": 0.96655,
+      "rr": 2.8,
+      "setup": "OB",
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "price": 0.9577,
+      "time": "2026-05-05 18:31 UTC"
     }
   ]
 }
