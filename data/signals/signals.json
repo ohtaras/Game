@@ -1,5 +1,20 @@
 {
-  "updated": "2026-05-06T19:58:28.492575+00:00",
-  "count": 0,
-  "signals": []
+  "updated": "2026-05-06T20:01:21.600069+00:00",
+  "count": 1,
+  "signals": [
+    {
+      "pair": "LINKUSDT",
+      "direction": "LONG",
+      "entry": 9.999,
+      "sl": 9.96503,
+      "tp1": 10.0805,
+      "tp2": 10.197667,
+      "rr": 2.4,
+      "setup": "FVG",
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "price": 10.021,
+      "time": "2026-05-06 20:01 UTC"
+    }
+  ]
 }
