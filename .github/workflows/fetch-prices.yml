@@ -7,9 +7,15 @@ on:
   push:
     branches:
       - claude/setup-market-data-workflow-SlYwO
+    paths:
+      - '.github/workflows/fetch-prices.yml'
 
 permissions:
   contents: write
+
+concurrency:
+  group: fetch-analyze
+  cancel-in-progress: false
 
 jobs:
   run:

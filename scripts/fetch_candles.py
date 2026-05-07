@@ -29,23 +29,30 @@ OUTPUT_DIR = "data/candles"
 
 def fetch_futures(symbol: str, tf: str) -> list[dict]:
     url = f"{FUTURES_BASE}/kline/{symbol}_USDT"
-    r = requests.get(url, params={"interval": FUTURES_INTERVAL[tf], "limit": LIMIT}, timeout=15)
-    r.raise_for_status()
-    body = r.json()
-    if not body.get("success"):
-        raise ValueError(body)
-    d = body["data"]
-    return [
-        {
-            "time": d["time"][i],
-            "open": float(d["open"][i]),
-            "high": float(d["high"][i]),
-            "low": float(d["low"][i]),
-            "close": float(d["close"][i]),
-            "volume": float(d["vol"][i]),
-        }
-        for i in range(len(d["time"]))
-    ]
+    for attempt in range(3):
+        try:
+            r = requests.get(url, params={"interval": FUTURES_INTERVAL[tf], "limit": LIMIT}, timeout=15)
+            r.raise_for_status()
+            body = r.json()
+            if not body.get("success"):
+                raise ValueError(body)
+            d = body["data"]
+            return [
+                {
+                    "time": d["time"][i],
+                    "open": float(d["open"][i]),
+                    "high": float(d["high"][i]),
+                    "low": float(d["low"][i]),
+                    "close": float(d["close"][i]),
+                    "volume": float(d["vol"][i]),
+                }
+                for i in range(len(d["time"]))
+            ]
+        except Exception as exc:
+            if attempt == 2:
+                raise
+            time.sleep(2 ** attempt)
+    raise RuntimeError("unreachable")
 
 
 def main() -> None:
