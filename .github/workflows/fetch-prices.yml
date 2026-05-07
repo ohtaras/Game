@@ -27,6 +27,11 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Sync to latest remote
+        run: |
+          git fetch origin ${{ github.ref_name }}
+          git reset --hard origin/${{ github.ref_name }}
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -44,10 +49,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin ${{ github.ref_name }}
-          git reset --hard origin/${{ github.ref_name }}
           git add data/candles/ data/signals/
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "data: $(date -u '+%Y-%m-%dT%H:%MZ')"
           git push origin ${{ github.ref_name }}
-# triggered Thu May  7 09:18:42 UTC 2026
+# triggered Thu May  7 09:19:44 UTC 2026
