@@ -1,45 +1,64 @@
 {
-  "updated": "2026-05-07 14:54 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
-  "updated_utc": "2026-05-07T11:54:36.610808+00:00",
+  "updated": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
+  "updated_utc": "2026-05-07T12:30:33.357911+00:00",
   "count": 0,
   "signals": [],
-  "watches": [],
+  "watches": [
+    {
+      "pair": "LINKUSDT",
+      "direction": "LONG",
+      "price": 10.055,
+      "entry": 10.033,
+      "sl": 10.006946,
+      "tp1": 10.1235,
+      "tp2": 10.197667,
+      "rr": 3.47,
+      "dist": 0.022,
+      "dist_pct": 0.22,
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "time": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
+    },
+    {
+      "pair": "SUIUSDT",
+      "direction": "LONG",
+      "price": 0.9989,
+      "entry": 0.9959,
+      "sl": 0.99321,
+      "tp1": 1.000933,
+      "tp2": 1.0336,
+      "rr": 1.87,
+      "dist": 0.003,
+      "dist_pct": 0.3,
+      "bias_4h": "bullish",
+      "bias_1h": "bullish",
+      "time": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
+    }
+  ],
   "radar": [
     {
       "pair": "BTCUSDT",
-      "price": 80819.8,
+      "price": 81030.0,
       "bias_4h": "bullish",
-      "bias_1h": "bearish"
+      "bias_1h": "neutral"
     },
     {
       "pair": "SOLUSDT",
-      "price": 89.41,
+      "price": 89.86,
       "bias_4h": "bullish",
       "bias_1h": "neutral"
     },
     {
       "pair": "BNBUSDT",
-      "price": 647.6,
-      "bias_4h": "bullish",
-      "bias_1h": "neutral"
-    },
-    {
-      "pair": "LINKUSDT",
-      "price": 10.014,
+      "price": 649.7,
       "bias_4h": "bullish",
       "bias_1h": "neutral"
     },
     {
       "pair": "DOGEUSDT",
-      "price": 0.111,
+      "price": 0.11134,
       "bias_4h": "bullish",
       "bias_1h": "bearish"
-    },
-    {
-      "pair": "SUIUSDT",
-      "price": 0.9923,
-      "bias_4h": "bullish",
-      "bias_1h": "neutral"
     }
   ]
 }
