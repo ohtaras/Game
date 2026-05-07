@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICT Scanner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d1117; color: #e6edf3; font-family: 'Courier New', monospace; padding: 20px; }
+
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    h1 { font-size: 1.4rem; color: #58a6ff; letter-spacing: 2px; }
+    #clock { font-size: 0.9rem; color: #8b949e; }
+    #last-update { font-size: 0.75rem; color: #8b949e; text-align: right; margin-top: 2px; }
+
+    .section-title { font-size: 0.7rem; color: #8b949e; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #21262d; padding-bottom: 6px; }
+
+    /* SIGNALS */
+    #signals-box { margin-bottom: 28px; }
+    .no-signal { color: #8b949e; font-size: 0.9rem; padding: 16px 0; }
+
+    .signal-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .signal-card.long  { border-left: 4px solid #3fb950; }
+    .signal-card.short { border-left: 4px solid #f85149; }
+
+    .sig-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .sig-pair   { font-size: 1.2rem; font-weight: bold; }
+    .sig-dir    { font-size: 0.85rem; font-weight: bold; padding: 3px 10px; border-radius: 4px; }
+    .long  .sig-dir  { background: #1a3a22; color: #3fb950; }
+    .short .sig-dir  { background: #3a1a1a; color: #f85149; }
+    .sig-rr     { font-size: 1rem; color: #ffa657; font-weight: bold; }
+
+    .sig-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+    .sig-cell label { display: block; font-size: 0.65rem; color: #8b949e; margin-bottom: 2px; text-transform: uppercase; }
+    .sig-cell span  { font-size: 0.9rem; }
+    .entry-val { color: #58a6ff; }
+    .sl-val    { color: #f85149; }
+    .tp1-val   { color: #3fb950; }
+    .tp2-val   { color: #56d364; }
+
+    .sig-money { display: flex; gap: 16px; font-size: 0.8rem; padding-top: 10px; border-top: 1px solid #21262d; }
+    .sig-money span { color: #8b949e; }
+    .sig-money b    { color: #e6edf3; }
+
+    .sig-meta { font-size: 0.7rem; color: #8b949e; margin-top: 6px; }
+
+    /* PAIRS OVERVIEW */
+    #pairs-box { margin-bottom: 28px; }
+    .pairs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .pair-cell {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+    }
+    .pair-cell .p-name  { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+    .pair-cell .p-price { font-size: 0.8rem; color: #8b949e; margin-bottom: 6px; }
+    .pair-cell .p-bias  { display: flex; gap: 4px; justify-content: center; }
+    .bias-tag {
+      font-size: 0.6rem;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    .bull { background: #1a3a22; color: #3fb950; }
+    .bear { background: #3a1a1a; color: #f85149; }
+    .neut { background: #1c2128; color: #8b949e; }
+    .match-badge { font-size: 0.65rem; margin-top: 4px; color: #ffa657; }
+
+    /* FOOTER */
+    footer { font-size: 0.7rem; color: #484f58; text-align: center; margin-top: 20px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3fb950; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>⬡ ICT SCANNER</h1>
+    <div id="last-update">— ελέγχω...</div>
+  </div>
+  <div>
+    <div id="clock"></div>
+  </div>
+</header>
+
+<div id="signals-box">
+  <div class="section-title">Ενεργά Signals</div>
+  <div id="signals-content"><div class="no-signal">Φορτώνω...</div></div>
+</div>
+
+<div id="pairs-box">
+  <div class="section-title">Ζευγάρια</div>
+  <div class="pairs-grid" id="pairs-grid"></div>
+</div>
+
+<footer>
+  <span class="dot"></span>Ανανεώνεται αυτόματα κάθε 30 δευτερόλεπτα
+</footer>
+
+<script>
+const BRANCH  = 'claude/setup-market-data-workflow-SlYwO';
+const RAW     = `https://raw.githubusercontent.com/ohtaras/Game/${BRANCH}`;
+const PAIRS   = ['BTC','ETH','SOL','BNB','LINK','DOGE','SUI'];
+const ACCOUNT = 100; // €
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function tickClock() {
+  const now = new Date();
+  const gr  = new Intl.DateTimeFormat('el-GR', {
+    timeZone: 'Europe/Athens',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  }).format(now);
+  document.getElementById('clock').textContent = gr + ' Ελλάδος';
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ── Position sizing ────────────────────────────────────────────────────────
+function sizing(entry, sl, tp1, tp2) {
+  const riskEur  = ACCOUNT * 0.01;           // 1% = €1
+  const riskPct  = Math.abs(entry - sl) / entry;
+  const posSizeEur = riskEur / riskPct;
+  const leverage = Math.round(posSizeEur / 30);
+  const margin   = 30;
+  const qty      = (margin * Math.min(leverage, 20)) / entry;
+  const profitTp1 = Math.abs(tp1 - entry) * qty;
+  const profitTp2 = Math.abs(tp2 - entry) * qty;
+  return { margin, leverage: Math.min(leverage, 20), riskEur: riskEur.toFixed(2),
+           profitTp1: profitTp1.toFixed(2), profitTp2: profitTp2.toFixed(2) };
+}
+
+// ── Signals ────────────────────────────────────────────────────────────────
+async function loadSignals() {
+  try {
+    const r = await fetch(`${RAW}/data/signals/signals.json?t=${Date.now()}`);
+    const d = await r.json();
+    const updated = d.updated || d.updated_utc || '—';
+    document.getElementById('last-update').textContent = 'Τελευταία ανανέωση: ' + updated;
+
+    const box = document.getElementById('signals-content');
+    if (!d.signals || d.signals.length === 0) {
+      box.innerHTML = '<div class="no-signal">Δεν υπάρχει setup αυτή τη στιγμή — παρακολουθώ...</div>';
+      return;
+    }
+
+    box.innerHTML = d.signals.map(s => {
+      const dir   = s.direction === 'LONG' ? 'long' : 'short';
+      const sz    = sizing(s.entry, s.sl, s.tp1, s.tp2);
+      return `
+      <div class="signal-card ${dir}">
+        <div class="sig-header">
+          <div>
+            <span class="sig-pair">${s.pair}</span>
+            <span class="sig-dir">${s.direction}</span>
+          </div>
+          <span class="sig-rr">RR ${s.rr}</span>
+        </div>
+        <div class="sig-grid">
+          <div class="sig-cell"><label>Entry</label><span class="entry-val">$${s.entry}</span></div>
+          <div class="sig-cell"><label>Stop Loss</label><span class="sl-val">$${s.sl}</span></div>
+          <div class="sig-cell"><label>TP1</label><span class="tp1-val">$${s.tp1}</span></div>
+          <div class="sig-cell"><label>TP2</label><span class="tp2-val">$${s.tp2}</span></div>
+        </div>
+        <div class="sig-money">
+          <div><span>Leverage </span><b>${sz.leverage}x</b></div>
+          <div><span>Margin </span><b>€${sz.margin}</b></div>
+          <div><span>Ρίσκο </span><b>€${sz.riskEur}</b></div>
+          <div><span>Κέρδος TP1 </span><b>€${sz.profitTp1}</b></div>
+          <div><span>Κέρδος TP2 </span><b>€${sz.profitTp2}</b></div>
+        </div>
+        <div class="sig-meta">${s.setup} · ${s.bias_4h} 4h · ${s.bias_1h} 1h · τιμή $${s.price} · ${s.time}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('signals-content').innerHTML =
+      '<div class="no-signal" style="color:#f85149">Σφάλμα φόρτωσης — ' + e.message + '</div>';
+  }
+}
+
+// ── Pairs overview ─────────────────────────────────────────────────────────
+async function loadPairs() {
+  const grid = document.getElementById('pairs-grid');
+  const results = await Promise.allSettled(
+    PAIRS.map(async p => {
+      const [r5m, r4h, r1h] = await Promise.all([
+        fetch(`${RAW}/data/candles/${p}USDT_5m.json?t=${Date.now()}`),
+        fetch(`${RAW}/data/candles/${p}USDT_4h.json?t=${Date.now()}`),
+        fetch(`${RAW}/data/candles/${p}USDT_1h.json?t=${Date.now()}`),
+      ]);
+      const c5m = await r5m.json();
+      const c4h = await r4h.json();
+      const c1h = await r1h.json();
+      return { pair: p, price: c5m.at(-1).close, b4h: calcBias(c4h), b1h: calcBias(c1h) };
+    })
+  );
+
+  grid.innerHTML = results.map((res, i) => {
+    if (res.status !== 'fulfilled') return `<div class="pair-cell"><div class="p-name">${PAIRS[i]}</div><div class="p-price" style="color:#f85149">ERR</div></div>`;
+    const { pair, price, b4h, b1h } = res.value;
+    const match = b4h === b1h && b4h !== 'neutral';
+    const fmt = v => v === 'bullish' ? 'bull' : v === 'bearish' ? 'bear' : 'neut';
+    const lbl = v => v === 'bullish' ? '↑' : v === 'bearish' ? '↓' : '—';
+    return `<div class="pair-cell">
+      <div class="p-name">${pair}</div>
+      <div class="p-price">$${price}</div>
+      <div class="p-bias">
+        <span class="bias-tag ${fmt(b4h)}">4h ${lbl(b4h)}</span>
+        <span class="bias-tag ${fmt(b1h)}">1h ${lbl(b1h)}</span>
+      </div>
+      ${match ? `<div class="match-badge">★ aligned</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function calcBias(candles) {
+  if (candles.length < 20) return 'neutral';
+  const prev = candles.slice(-20, -10);
+  const last = candles.slice(-10);
+  const ph = Math.max(...prev.map(c => c.high));
+  const pl = Math.min(...prev.map(c => c.low));
+  const lh = Math.max(...last.map(c => c.high));
+  const ll = Math.min(...last.map(c => c.low));
+  if (lh > ph && ll > pl) return 'bullish';
+  if (lh < ph && ll < pl) return 'bearish';
+  return 'neutral';
+}
+
+// ── Auto-refresh ───────────────────────────────────────────────────────────
+async function refresh() {
+  await Promise.all([loadSignals(), loadPairs()]);
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
