@@ -120,6 +120,81 @@ def liquidity(candles: list[dict]) -> dict:
 
 # ── Signal Builder ───────────────────────────────────────────────────────────
 
+def watch(pair: str) -> dict | None:
+    """Return watch info for pairs with aligned bias, even if not in zone yet."""
+    c4h  = load(pair, "4h")
+    c1h  = load(pair, "1h")
+    c15m = load(pair, "15m")
+    c5m  = load(pair, "5m")
+    if not all([c4h, c1h, c15m, c5m]):
+        return None
+    b4h = bias(c4h)
+    b1h = bias(c1h)
+    if b4h != b1h or b4h == "neutral":
+        return None
+    direction = "LONG" if b4h == "bullish" else "SHORT"
+    price = c5m[-1]["close"]
+    obs  = order_blocks(c15m, b4h)
+    gaps = fvgs(c15m, b4h)
+    liq  = liquidity(c1h)
+    # Pick nearest zone regardless of whether price is in it
+    candidates = []
+    if direction == "LONG":
+        for ob in obs:
+            if ob["top"] <= price:  # zone below price
+                candidates.append(ob)
+        for g in gaps:
+            if g["top"] <= price:
+                candidates.append(g)
+        zone = max(candidates, key=lambda z: z["top"]) if candidates else (obs[0] if obs else None)
+        if not zone:
+            return None
+        entry = zone["mid"]
+        sl    = zone["bottom"] * 0.998
+        tgts  = [t for t in liq["resistance"] if t > entry * 1.005]
+        if not tgts:
+            return None
+        tp1 = tgts[-1]
+        tp2 = tgts[0] if len(tgts) > 1 else round(tp1 * 1.01, 8)
+    else:
+        for ob in obs:
+            if ob["bottom"] >= price:
+                candidates.append(ob)
+        for g in gaps:
+            if g["bottom"] >= price:
+                candidates.append(g)
+        zone = min(candidates, key=lambda z: z["bottom"]) if candidates else (obs[0] if obs else None)
+        if not zone:
+            return None
+        entry = zone["mid"]
+        sl    = zone["top"] * 1.002
+        tgts  = [t for t in liq["support"] if t < entry * 0.995]
+        if not tgts:
+            return None
+        tp1 = tgts[0]
+        tp2 = tgts[-1] if len(tgts) > 1 else round(tp1 * 0.99, 8)
+    risk   = abs(entry - sl)
+    reward = abs(tp1 - entry)
+    rr     = round(reward / risk, 2) if risk > 0 else 0
+    dist   = round(abs(price - entry), 4)
+    dist_pct = round(abs(price - entry) / price * 100, 2)
+    return {
+        "pair":      f"{pair}USDT",
+        "direction": direction,
+        "price":     round(price, 6),
+        "entry":     round(entry, 6),
+        "sl":        round(sl, 6),
+        "tp1":       round(tp1, 6),
+        "tp2":       round(tp2, 6),
+        "rr":        rr,
+        "dist":      dist,
+        "dist_pct":  dist_pct,
+        "bias_4h":   b4h,
+        "bias_1h":   b1h,
+        "time":      datetime.now(GR_TZ).strftime("%Y-%m-%d %H:%M (Ελλάδος)"),
+    }
+
+
 def analyze(pair: str) -> dict | None:
     c4h  = load(pair, "4h")
     c1h  = load(pair, "1h")
@@ -208,6 +283,7 @@ def analyze(pair: str) -> dict | None:
 def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     signals = []
+    watches = []
 
     for pair in PAIRS_PRIMARY + PAIRS_SECONDARY:
         sig = analyze(pair)
@@ -217,19 +293,47 @@ def main() -> None:
                   f"entry={sig['entry']}  sl={sig['sl']}  "
                   f"tp1={sig['tp1']}  RR={sig['rr']}")
         else:
-            print(f"NO SETUP {pair}USDT")
+            w = watch(pair)
+            if w:
+                watches.append(w)
+                print(f"WATCH   {w['pair']:12} {w['direction']:5} "
+                      f"entry={w['entry']}  dist={w['dist_pct']}%  RR={w['rr']}")
+            else:
+                print(f"NO SETUP {pair}USDT")
+
+    # Radar: pairs with 4h trend but 1h not yet confirmed
+    radar = []
+    for pair in PAIRS_PRIMARY + PAIRS_SECONDARY:
+        c4h = load(pair, "4h"); c1h = load(pair, "1h"); c5m = load(pair, "5m")
+        if not all([c4h, c1h, c5m]):
+            continue
+        b4h = bias(c4h); b1h = bias(c1h)
+        if b4h == "neutral":
+            continue
+        if b4h == b1h:
+            continue  # already in signals or watches
+        price = c5m[-1]["close"]
+        radar.append({
+            "pair":    f"{pair}USDT",
+            "price":   round(price, 6),
+            "bias_4h": b4h,
+            "bias_1h": b1h,
+        })
 
     signals.sort(key=lambda x: x["rr"], reverse=True)
+    watches.sort(key=lambda x: x["dist_pct"])
 
     with open(f"{OUTPUT_DIR}/signals.json", "w") as f:
         json.dump({
-            "updated":    datetime.now(GR_TZ).strftime("%Y-%m-%d %H:%M (Ελλάδος)"),
+            "updated":     datetime.now(GR_TZ).strftime("%Y-%m-%d %H:%M (Ελλάδος)"),
             "updated_utc": datetime.now(timezone.utc).isoformat(),
-            "count":      len(signals),
-            "signals":    signals,
+            "count":       len(signals),
+            "signals":     signals,
+            "watches":     watches,
+            "radar":       radar,
         }, f, indent=2)
 
-    print(f"\n→ {len(signals)} signal(s)  |  {now_gr()}")
+    print(f"\n→ {len(signals)} signal(s), {len(watches)} watch(es), {len(radar)} radar  |  {now_gr()}")
 
 
 if __name__ == "__main__":

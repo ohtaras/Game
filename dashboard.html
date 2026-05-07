@@ -97,8 +97,18 @@
   <div id="signals-content"><div class="no-signal">Φορτώνω...</div></div>
 </div>
 
+<div id="watch-box" style="margin-bottom:28px">
+  <div class="section-title">Watch — Aligned Bias, Αναμένεται Είσοδος</div>
+  <div id="watch-content"><div class="no-signal" style="font-size:0.8rem">—</div></div>
+</div>
+
+<div id="radar-box" style="margin-bottom:28px">
+  <div class="section-title">Radar — 4h Trend, 1h Αναμένει Επιβεβαίωση</div>
+  <div class="pairs-grid" id="radar-grid"></div>
+</div>
+
 <div id="pairs-box">
-  <div class="section-title">Ζευγάρια</div>
+  <div class="section-title">Όλα τα Ζευγάρια</div>
   <div class="pairs-grid" id="pairs-grid"></div>
 </div>
 
@@ -138,51 +148,81 @@ function sizing(entry, sl, tp1, tp2) {
            profitTp1: profitTp1.toFixed(2), profitTp2: profitTp2.toFixed(2) };
 }
 
-// ── Signals ────────────────────────────────────────────────────────────────
+// ── Signal card HTML ───────────────────────────────────────────────────────
+function signalCard(s, isWatch) {
+  const dir = s.direction === 'LONG' ? 'long' : 'short';
+  const sz  = sizing(s.entry, s.sl, s.tp1, s.tp2);
+  const badge = isWatch
+    ? `<span style="font-size:0.7rem;color:#ffa657;margin-left:8px">WATCH · απέχει $${s.dist} (${s.dist_pct}%)</span>`
+    : '';
+  return `
+  <div class="signal-card ${dir}" style="${isWatch ? 'opacity:0.8;border-style:dashed' : ''}">
+    <div class="sig-header">
+      <div>
+        <span class="sig-pair">${s.pair}</span>
+        <span class="sig-dir">${s.direction}</span>${badge}
+      </div>
+      <span class="sig-rr">RR ${s.rr}</span>
+    </div>
+    <div class="sig-grid">
+      <div class="sig-cell"><label>Τιμή τώρα</label><span style="color:#e6edf3">$${s.price}</span></div>
+      <div class="sig-cell"><label>Entry</label><span class="entry-val">$${s.entry}</span></div>
+      <div class="sig-cell"><label>Stop Loss</label><span class="sl-val">$${s.sl}</span></div>
+      <div class="sig-cell"><label>TP1</label><span class="tp1-val">$${s.tp1}</span></div>
+    </div>
+    <div class="sig-grid" style="margin-top:6px">
+      <div class="sig-cell"><label>TP2</label><span class="tp2-val">$${s.tp2}</span></div>
+      <div class="sig-cell"><label>Leverage</label><span>${sz.leverage}x</span></div>
+      <div class="sig-cell"><label>Margin</label><span>€${sz.margin}</span></div>
+      <div class="sig-cell"><label>Ρίσκο</label><span style="color:#f85149">€${sz.riskEur}</span></div>
+    </div>
+    <div class="sig-money" style="margin-top:8px">
+      <div><span>Κέρδος TP1 </span><b style="color:#3fb950">€${sz.profitTp1}</b></div>
+      <div><span>Κέρδος TP2 </span><b style="color:#56d364">€${sz.profitTp2}</b></div>
+    </div>
+    <div class="sig-meta">${s.bias_4h} 4h · ${s.bias_1h} 1h · ${s.time || ''}</div>
+  </div>`;
+}
+
+// ── Signals + Watches ──────────────────────────────────────────────────────
 async function loadSignals() {
   try {
     const r = await fetch(`${RAW}/data/signals/signals.json?t=${Date.now()}`);
     const d = await r.json();
-    const updated = d.updated || d.updated_utc || '—';
-    document.getElementById('last-update').textContent = 'Τελευταία ανανέωση: ' + updated;
+    document.getElementById('last-update').textContent = 'Τελευταία ανανέωση: ' + (d.updated || '—');
 
+    // Signals
     const box = document.getElementById('signals-content');
-    if (!d.signals || d.signals.length === 0) {
-      box.innerHTML = '<div class="no-signal">Δεν υπάρχει setup αυτή τη στιγμή — παρακολουθώ...</div>';
-      return;
-    }
+    box.innerHTML = d.signals && d.signals.length
+      ? d.signals.map(s => signalCard(s, false)).join('')
+      : '<div class="no-signal">Δεν υπάρχει ενεργό signal — παρακολουθώ...</div>';
 
-    box.innerHTML = d.signals.map(s => {
-      const dir   = s.direction === 'LONG' ? 'long' : 'short';
-      const sz    = sizing(s.entry, s.sl, s.tp1, s.tp2);
-      return `
-      <div class="signal-card ${dir}">
-        <div class="sig-header">
-          <div>
-            <span class="sig-pair">${s.pair}</span>
-            <span class="sig-dir">${s.direction}</span>
-          </div>
-          <span class="sig-rr">RR ${s.rr}</span>
-        </div>
-        <div class="sig-grid">
-          <div class="sig-cell"><label>Entry</label><span class="entry-val">$${s.entry}</span></div>
-          <div class="sig-cell"><label>Stop Loss</label><span class="sl-val">$${s.sl}</span></div>
-          <div class="sig-cell"><label>TP1</label><span class="tp1-val">$${s.tp1}</span></div>
-          <div class="sig-cell"><label>TP2</label><span class="tp2-val">$${s.tp2}</span></div>
-        </div>
-        <div class="sig-money">
-          <div><span>Leverage </span><b>${sz.leverage}x</b></div>
-          <div><span>Margin </span><b>€${sz.margin}</b></div>
-          <div><span>Ρίσκο </span><b>€${sz.riskEur}</b></div>
-          <div><span>Κέρδος TP1 </span><b>€${sz.profitTp1}</b></div>
-          <div><span>Κέρδος TP2 </span><b>€${sz.profitTp2}</b></div>
-        </div>
-        <div class="sig-meta">${s.setup} · ${s.bias_4h} 4h · ${s.bias_1h} 1h · τιμή $${s.price} · ${s.time}</div>
-      </div>`;
-    }).join('');
+    // Watches
+    const wbox = document.getElementById('watch-content');
+    wbox.innerHTML = d.watches && d.watches.length
+      ? d.watches.map(s => signalCard(s, true)).join('')
+      : '<div class="no-signal" style="font-size:0.8rem">Κανένα ζευγάρι με aligned bias αυτή τη στιγμή</div>';
+
+    // Radar
+    const rgrid = document.getElementById('radar-grid');
+    rgrid.innerHTML = d.radar && d.radar.length
+      ? d.radar.map(r => {
+          const fmt = v => v==='bullish'?'bull':v==='bearish'?'bear':'neut';
+          const lbl = v => v==='bullish'?'↑':v==='bearish'?'↓':'—';
+          return `<div class="pair-cell">
+            <div class="p-name">${r.pair}</div>
+            <div class="p-price">$${r.price}</div>
+            <div class="p-bias">
+              <span class="bias-tag ${fmt(r.bias_4h)}">4h ${lbl(r.bias_4h)}</span>
+              <span class="bias-tag ${fmt(r.bias_1h)}">1h ${lbl(r.bias_1h)}</span>
+            </div>
+          </div>`;
+        }).join('')
+      : '<div class="no-signal" style="font-size:0.8rem">—</div>';
+
   } catch(e) {
     document.getElementById('signals-content').innerHTML =
-      '<div class="no-signal" style="color:#f85149">Σφάλμα φόρτωσης — ' + e.message + '</div>';
+      '<div class="no-signal" style="color:#f85149">Σφάλμα: ' + e.message + '</div>';
   }
 }
 
