@@ -1,6 +1,12 @@
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+GR_TZ = timezone(timedelta(hours=3))
+
+
+def now_gr() -> str:
+    return datetime.now(GR_TZ).strftime("%H:%M (Ελλάδος)")
 
 DATA_DIR = "data/candles"
 OUTPUT_DIR = "data/signals"
@@ -193,7 +199,7 @@ def analyze(pair: str) -> dict | None:
         "bias_4h":   b4h,
         "bias_1h":   b1h,
         "price":     round(price, 6),
-        "time":      datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "time":      datetime.now(GR_TZ).strftime("%Y-%m-%d %H:%M (Ελλάδος)"),
     }
 
 
@@ -217,12 +223,13 @@ def main() -> None:
 
     with open(f"{OUTPUT_DIR}/signals.json", "w") as f:
         json.dump({
-            "updated": datetime.now(timezone.utc).isoformat(),
-            "count":   len(signals),
-            "signals": signals,
+            "updated":    datetime.now(GR_TZ).strftime("%Y-%m-%d %H:%M (Ελλάδος)"),
+            "updated_utc": datetime.now(timezone.utc).isoformat(),
+            "count":      len(signals),
+            "signals":    signals,
         }, f, indent=2)
 
-    print(f"\n→ {len(signals)} signal(s)  |  data/signals/signals.json")
+    print(f"\n→ {len(signals)} signal(s)  |  {now_gr()}")
 
 
 if __name__ == "__main__":
