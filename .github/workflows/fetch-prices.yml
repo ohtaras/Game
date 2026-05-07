@@ -38,13 +38,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ github.ref_name }}
+          git reset --hard origin/${{ github.ref_name }}
           git add data/candles/ data/signals/
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "data: $(date -u '+%Y-%m-%dT%H:%MZ')"
-          for i in 1 2 3 4; do
-            git pull --rebase origin ${{ github.ref_name }} && \
-            git push origin ${{ github.ref_name }} && exit 0 || true
-            sleep $((i * 2))
-          done
-          echo "Push failed after retries" && exit 1
+          git push origin ${{ github.ref_name }}
 # triggered Thu May  7 08:45:48 UTC 2026
