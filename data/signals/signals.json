@@ -1,6 +1,6 @@
 {
-  "updated": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
-  "updated_utc": "2026-05-07T12:30:33.357911+00:00",
+  "updated": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
+  "updated_utc": "2026-05-07T15:15:34.882731+00:00",
   "count": 0,
   "signals": [],
   "watches": [
@@ -17,7 +17,7 @@
       "dist_pct": 0.22,
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "time": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
+      "time": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
     },
     {
       "pair": "SUIUSDT",
@@ -32,7 +32,7 @@
       "dist_pct": 0.3,
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "time": "2026-05-07 15:30 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
+      "time": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
     }
   ],
   "radar": [
