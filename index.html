@@ -292,7 +292,7 @@
     let sha; const chk=await fetch(url,{headers:h});
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
     const b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
-    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})})});
+    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha:{}}:{})}),signal:AbortSignal.timeout(300000)});
     if(!r.ok) throw new Error('GitHub API '+r.status);
   }
   async function ghGet(path){
@@ -318,6 +318,23 @@
   }
 
   // ── Shared: build squares occurrences from draws array ───────
+  function sqShiftDown(sq){
+    const res=[];
+    for(const n of sq){
+      const row=Math.floor((n-1)/10),col=(n-1)%10;
+      if(row+1>=8) return null;
+      res.push((row+1)*10+col+1);
+    }
+    return res;
+  }
+  function computePred(sq,bonus){
+    if(!bonus) return null;
+    const down=sqShiftDown(sq);
+    if(!down) return null;
+    const next=(bonus%10===0)?null:bonus+1;
+    if(!next) return null;
+    return [...down,bonus,next];
+  }
   function buildSquaresOccurrences(draws, existingByKey){
     const sqByKey = existingByKey || {};
     for(let i=0;i<draws.length;i++){
@@ -325,14 +342,20 @@
       const squares=findSquares(d.winning_numbers.concat(d.bonus));
       if(!squares.length) continue;
       const p1=draws[i+1]||null, p2=draws[i+2]||null;
+      const trigBonus=d.bonus&&d.bonus.length?d.bonus[0]:null;
+      const p1Set=p1?new Set(p1.winning_numbers.concat(p1.bonus)):null;
+      const p2Set=p2?new Set(p2.winning_numbers.concat(p2.bonus)):null;
       for(const sq of squares){
         const sqKey=sq.join('-'), recKey=d.draw_id+'_'+sqKey;
+        const pred=computePred(sq,trigBonus);
+        const p1w=pred&&p1Set?pred.every(n=>p1Set.has(n)):null;
+        const p2w=pred&&p2Set?pred.every(n=>p2Set.has(n)):null;
         sqByKey[recKey]={
           square:sqKey, date:d.date||'', draw_id:d.draw_id,
           draw_time:d.draw_time,
-          trigger_bonus:d.bonus&&d.bonus.length?d.bonus[0]:null,
-          p1_numbers:p1?p1.winning_numbers.concat(p1.bonus):[],
-          p2_numbers:p2?p2.winning_numbers.concat(p2.bonus):[]
+          trigger_bonus:trigBonus,
+          p1_win:p1w,
+          p2_win:p2w
         };
       }
     }
@@ -661,35 +684,7 @@
     return res;
   }
 
-  function computeGeoPredictions(squaresData){
-    const bySquare={};
-    for(const occ of squaresData.occurrences){
-      if(!bySquare[occ.square])bySquare[occ.square]=[];
-      bySquare[occ.square].push(occ);
-    }
-    const preds={};
-    for(const [sqKey,occs] of Object.entries(bySquare)){
-      const trigNums=sqKey.split('-').map(Number);
-      const nb=getNeighborhood(trigNums);
-      const nbSet=new Set(nb);
-      const c1={},c2={};
-      for(const occ of occs){
-        const p1nb=(occ.p1_numbers||[]).slice(0,20).filter(n=>nbSet.has(n));
-        const p2nb=(occ.p2_numbers||[]).slice(0,20).filter(n=>nbSet.has(n));
-        if(p1nb.length>=4)for(const k of combos4(p1nb))c1[k]=(c1[k]||0)+1;
-        if(p2nb.length>=4)for(const k of combos4(p2nb))c2[k]=(c2[k]||0)+1;
-      }
-      const b1=Object.entries(c1).sort((a,b)=>b[1]-a[1])[0];
-      const b2=Object.entries(c2).sort((a,b)=>b[1]-a[1])[0];
-      const n=occs.length;
-      preds[sqKey]={
-        n, neighborhood:nb.length,
-        p1:b1?{tetrad:b1[0].split('-').map(Number),hits:`${b1[1]}/${n}`,rate:+(b1[1]/n).toFixed(4)}:null,
-        p2:b2?{tetrad:b2[0].split('-').map(Number),hits:`${b2[1]}/${n}`,rate:+(b2[1]/n).toFixed(4)}:null
-      };
-    }
-    return preds;
-  }
+  function computeGeoPredictions(squaresData){ return {}; }
 
   async function recomputePredictions(){
     const btn=document.getElementById('btnRecompute');
