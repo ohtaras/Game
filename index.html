@@ -62,6 +62,9 @@
     .kc.h  { background:#f4a261; color:#0d2137; }
     .kc.sq { background:#ffd166; color:#0d2137; box-shadow:0 0 0 2px #e76f51; }
     .kc.b  { background:#e63946; color:white; }
+    .kc.pred { box-shadow:0 0 0 2px #2ec4b6; color:#2ec4b6; }
+    .kc.pred.h { background:#2ec4b6; color:#0d2137; box-shadow:0 0 0 2px #1a9e8f; }
+    .kc.pred.b { box-shadow:0 0 0 2px #2ec4b6; }
     /* Predictions */
     #predTool { max-width:960px; margin:14px auto 0; padding:0 16px; }
     #predTool details { background:white; border-radius:10px; padding:10px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
@@ -127,8 +130,10 @@
   <details id="dataStatusDetails">
     <summary>📊 Κατάσταση Δεδομένων</summary>
     <div style="margin-top:10px">
-      <button onclick="loadDataStatus()" style="background:#2a9d8f;font-size:.85rem;padding:7px 14px">🔄 Φόρτωση</button>
+      <button onclick="loadDataStatus()" style="background:#2a9d8f;font-size:.85rem;padding:7px 14px">🔄 Κατάσταση</button>
+      <button id="btnRecompute" onclick="recomputePredictions()" style="background:#e76f51;font-size:.85rem;padding:7px 14px;margin-left:8px">🧮 Ανανέωση Προβλέψεων</button>
       <span id="dataStatusLoading" style="display:none;margin-left:10px;font-size:.82rem;color:#888">⏳ Φόρτωση 4–5MB…</span>
+      <div id="recomputeStatus" style="font-size:.82rem;color:#888;margin-top:6px"></div>
       <div id="dataStatusOut" style="margin-top:12px"></div>
     </div>
   </details>
@@ -167,6 +172,28 @@
   <button id="btnUploadMonth" onclick="uploadMonthToGitHub()">📤 Ανέβασμα στο GitHub</button>
 </div>
 
+<!-- Ετήσια φόρτωση -->
+<div class="controls">
+  <label>📅 Έτος:</label>
+  <input type="number" id="yearPicker" min="2020" max="2030" value="2025" style="width:90px;padding:9px 12px;border:2px solid #ddd;border-radius:8px;font-size:1rem;outline:none;">
+  <button id="btnFetchYear" onclick="loadYear()">🔍 Φόρτωση Έτους</button>
+  <button id="btnUploadYear" onclick="uploadYearToGitHub()" style="background:#6a4c93;display:none;">📤 Ανέβασμα Έτους</button>
+</div>
+<div id="yearProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
+  <div id="yearProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="yearProgressBar" style="width:0%"></div></div>
+</div>
+
+<!-- Πλήρης Ανακατασκευή -->
+<div class="controls">
+  <label>🔄 Rebuild:</label>
+  <button id="btnRebuild" onclick="rebuildAllData()" style="background:#c0392b;color:#fff;">🔄 Πλήρης Ανακατασκευή (Jan 2025→σήμερα)</button>
+</div>
+<div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
+  <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="rebuildProgressBar" style="width:0%"></div></div>
+</div>
+
 <div id="monthProgress">
   <div id="monthProgressText" style="font-size:0.85rem;color:#555;"></div>
   <div class="progress-bar-wrap"><div class="progress-bar-fill" id="monthProgressBar" style="width:0%"></div></div>
@@ -188,22 +215,23 @@
     `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
   document.getElementById('monthPicker').value =
     `${today.getFullYear()}-${pad(today.getMonth()+1)}`;
+  document.getElementById('yearPicker').value = today.getFullYear() - 1;
 
   let lastData = null;
   let monthDraws = null;
+  let yearDraws = null;
   const TZ_MS = 3 * 3600 * 1000;
   const REPO = 'ohtaras/Game';
 
   // ── Predictions ───────────────────────────────────────────────
-  // Predictions από 20.585 κληρώσεις (Μάρ-Μάι 2026) — baseline P(≥2 hits)=25.9%
-  const PREDICTIONS = {"1-3-21-23":{"n":63,"p1":{"tetrad":[55,57,75,77],"hits":"24/63","rate":0.381,"pval":0.0224}},"11-13-31-33":{"n":68,"p1":{"tetrad":[51,53,71,73],"hits":"25/68","rate":0.368,"pval":0.0314}},"12-14-32-34":{"n":61,"p1":{"tetrad":[57,59,77,79],"hits":"24/61","rate":0.393,"pval":0.0147},"p2":{"tetrad":[14,16,34,36],"hits":"24/61","rate":0.393,"pval":0.0147}},"13-15-33-35":{"n":65,"p1":{"tetrad":[9,11,29,31],"hits":"26/65","rate":0.4,"pval":0.009},"p2":{"tetrad":[30,32,50,52],"hits":"25/65","rate":0.385,"pval":0.0176}},"14-16-34-36":{"n":67,"p1":{"tetrad":[9,11,29,31],"hits":"26/67","rate":0.388,"pval":0.0139},"p2":{"tetrad":[17,19,37,39],"hits":"27/67","rate":0.403,"pval":0.007}},"15-17-35-37":{"n":70,"p1":{"tetrad":[19,21,39,41],"hits":"26/70","rate":0.371,"pval":0.0251},"p2":{"tetrad":[30,32,50,52],"hits":"26/70","rate":0.371,"pval":0.0251}},"16-18-36-38":{"n":61,"p1":{"tetrad":[33,35,53,55],"hits":"24/61","rate":0.393,"pval":0.0147},"p2":{"tetrad":[19,21,39,41],"hits":"23/61","rate":0.377,"pval":0.0283}},"17-19-37-39":{"n":61,"p1":{"tetrad":[44,46,64,66],"hits":"23/61","rate":0.377,"pval":0.0283},"p2":{"tetrad":[18,20,38,40],"hits":"24/61","rate":0.393,"pval":0.0147}},"18-20-38-40":{"n":50,"p1":{"tetrad":[7,9,27,29],"hits":"21/50","rate":0.42,"pval":0.0096},"p2":{"tetrad":[7,9,27,29],"hits":"20/50","rate":0.4,"pval":0.0203}},"2-4-22-24":{"n":63,"p1":{"tetrad":[44,46,64,66],"hits":"23/63","rate":0.365,"pval":0.041}},"21-23-41-43":{"n":78,"p2":{"tetrad":[21,23,41,43],"hits":"31/78","rate":0.397,"pval":0.0052}},"22-24-42-44":{"n":67,"p1":{"tetrad":[36,38,56,58],"hits":"27/67","rate":0.403,"pval":0.007},"p2":{"tetrad":[46,48,66,68],"hits":"24/67","rate":0.358,"pval":0.0465}},"23-25-43-45":{"n":59,"p1":{"tetrad":[17,19,37,39],"hits":"23/59","rate":0.39,"pval":0.0188},"p2":{"tetrad":[12,14,32,34],"hits":"22/59","rate":0.373,"pval":0.0357}},"24-26-44-46":{"n":62,"p1":{"tetrad":[7,9,27,29],"hits":"24/62","rate":0.387,"pval":0.0182},"p2":{"tetrad":[1,3,21,23],"hits":"24/62","rate":0.387,"pval":0.0182}},"25-27-45-47":{"n":57,"p1":{"tetrad":[25,27,45,47],"hits":"23/57","rate":0.404,"pval":0.012},"p2":{"tetrad":[57,59,77,79],"hits":"24/57","rate":0.421,"pval":0.0056}},"26-28-46-48":{"n":62},"27-29-47-49":{"n":75,"p1":{"tetrad":[14,16,34,36],"hits":"28/75","rate":0.373,"pval":0.0192},"p2":{"tetrad":[48,50,68,70],"hits":"29/75","rate":0.387,"pval":0.0103}},"28-30-48-50":{"n":66,"p1":{"tetrad":[6,8,26,28],"hits":"26/66","rate":0.394,"pval":0.0112}},"3-5-23-25":{"n":63,"p1":{"tetrad":[49,51,69,71],"hits":"23/63","rate":0.365,"pval":0.041},"p2":{"tetrad":[49,51,69,71],"hits":"25/63","rate":0.397,"pval":0.0115}},"31-33-51-53":{"n":66,"p1":{"tetrad":[45,47,65,67],"hits":"24/66","rate":0.364,"pval":0.0392},"p2":{"tetrad":[39,41,59,61],"hits":"24/66","rate":0.364,"pval":0.0392}},"32-34-52-54":{"n":60,"p1":{"tetrad":[43,45,63,65],"hits":"26/60","rate":0.433,"pval":0.0025},"p2":{"tetrad":[31,33,51,53],"hits":"22/60","rate":0.367,"pval":0.0429}},"33-35-53-55":{"n":67,"p1":{"tetrad":[40,42,60,62],"hits":"26/67","rate":0.388,"pval":0.0139},"p2":{"tetrad":[49,51,69,71],"hits":"24/67","rate":0.358,"pval":0.0465}},"34-36-54-56":{"n":49,"p1":{"tetrad":[10,12,30,32],"hits":"19/49","rate":0.388,"pval":0.0327}},"35-37-55-57":{"n":84,"p1":{"tetrad":[5,7,25,27],"hits":"29/84","rate":0.345,"pval":0.0494},"p2":{"tetrad":[14,16,34,36],"hits":"34/84","rate":0.405,"pval":0.0025}},"36-38-56-58":{"n":58,"p1":{"tetrad":[43,45,63,65],"hits":"24/58","rate":0.414,"pval":0.0073},"p2":{"tetrad":[49,51,69,71],"hits":"22/58","rate":0.379,"pval":0.0294}},"37-39-57-59":{"n":73,"p1":{"tetrad":[42,44,62,64],"hits":"29/73","rate":0.397,"pval":0.0067},"p2":{"tetrad":[2,4,22,24],"hits":"28/73","rate":0.384,"pval":0.013}},"38-40-58-60":{"n":66,"p1":{"tetrad":[39,41,59,61],"hits":"28/66","rate":0.424,"pval":0.0026},"p2":{"tetrad":[16,18,36,38],"hits":"29/66","rate":0.439,"pval":0.0011}},"4-6-24-26":{"n":56,"p1":{"tetrad":[9,11,29,31],"hits":"22/56","rate":0.393,"pval":0.0193},"p2":{"tetrad":[14,16,34,36],"hits":"22/56","rate":0.393,"pval":0.0193}},"41-43-61-63":{"n":56},"42-44-62-64":{"n":68,"p1":{"tetrad":[36,38,56,58],"hits":"27/68","rate":0.397,"pval":0.0088},"p2":{"tetrad":[31,33,51,53],"hits":"27/68","rate":0.397,"pval":0.0088}},"43-45-63-65":{"n":64,"p2":{"tetrad":[58,60,78,80],"hits":"24/64","rate":0.375,"pval":0.0272}},"44-46-64-66":{"n":46,"p1":{"tetrad":[49,51,69,71],"hits":"20/46","rate":0.435,"pval":0.0072},"p2":{"tetrad":[52,54,72,74],"hits":"18/46","rate":0.391,"pval":0.0338}},"45-47-65-67":{"n":71,"p1":{"tetrad":[54,56,74,76],"hits":"27/71","rate":0.38,"pval":0.0165}},"46-48-66-68":{"n":59,"p1":{"tetrad":[56,58,76,78],"hits":"22/59","rate":0.373,"pval":0.0357},"p2":{"tetrad":[11,13,31,33],"hits":"23/59","rate":0.39,"pval":0.0188}},"47-49-67-69":{"n":59,"p2":{"tetrad":[12,14,32,34],"hits":"23/59","rate":0.39,"pval":0.0188}},"48-50-68-70":{"n":60,"p1":{"tetrad":[44,46,64,66],"hits":"23/60","rate":0.383,"pval":0.0232},"p2":{"tetrad":[57,59,77,79],"hits":"23/60","rate":0.383,"pval":0.0232}},"5-7-25-27":{"n":53,"p1":{"tetrad":[38,40,58,60],"hits":"24/53","rate":0.453,"pval":0.0018},"p2":{"tetrad":[23,25,43,45],"hits":"23/53","rate":0.434,"pval":0.0042}},"51-53-71-73":{"n":56,"p1":{"tetrad":[47,49,67,69],"hits":"22/56","rate":0.393,"pval":0.0193},"p2":{"tetrad":[36,38,56,58],"hits":"21/56","rate":0.375,"pval":0.0372}},"52-54-72-74":{"n":56,"p1":{"tetrad":[58,60,78,80],"hits":"21/56","rate":0.375,"pval":0.0372}},"53-55-73-75":{"n":73,"p1":{"tetrad":[14,16,34,36],"hits":"26/73","rate":0.356,"pval":0.0422},"p2":{"tetrad":[38,40,58,60],"hits":"26/73","rate":0.356,"pval":0.0422}},"54-56-74-76":{"n":56,"p1":{"tetrad":[14,16,34,36],"hits":"21/56","rate":0.375,"pval":0.0372},"p2":{"tetrad":[33,35,53,55],"hits":"22/56","rate":0.393,"pval":0.0193}},"55-57-75-77":{"n":63,"p1":{"tetrad":[21,23,41,43],"hits":"24/63","rate":0.381,"pval":0.0224},"p2":{"tetrad":[46,48,66,68],"hits":"23/63","rate":0.365,"pval":0.041}},"56-58-76-78":{"n":51,"p1":{"tetrad":[41,43,61,63],"hits":"20/51","rate":0.392,"pval":0.0255},"p2":{"tetrad":[6,8,26,28],"hits":"19/51","rate":0.373,"pval":0.049}},"57-59-77-79":{"n":75,"p1":{"tetrad":[9,11,29,31],"hits":"28/75","rate":0.373,"pval":0.0192}},"58-60-78-80":{"n":62,"p1":{"tetrad":[57,59,77,79],"hits":"23/62","rate":0.371,"pval":0.0342},"p2":{"tetrad":[34,36,54,56],"hits":"26/62","rate":0.419,"pval":0.0043}},"6-8-26-28":{"n":66,"p1":{"tetrad":[9,11,29,31],"hits":"25/66","rate":0.379,"pval":0.0216},"p2":{"tetrad":[52,54,72,74],"hits":"25/66","rate":0.379,"pval":0.0216}},"7-9-27-29":{"n":59,"p2":{"tetrad":[41,43,61,63],"hits":"24/59","rate":0.407,"pval":0.0093}},"8-10-28-30":{"n":66,"p1":{"tetrad":[24,26,44,46],"hits":"27/66","rate":0.409,"pval":0.0055},"p2":{"tetrad":[48,50,68,70],"hits":"26/66","rate":0.394,"pval":0.0112}}};
+  // Predictions από ~46.500 κληρώσεις (Δεκ 2025-Μάι 2026) — most frequent tetrad near trigger in P1/P2
+  let PREDICTIONS = {"1-3-21-23":{"n":448,"neighborhood":25,"p1":{"tetrad":[3,21,34,45],"hits":"8/448","rate":0.0179},"p2":{"tetrad":[11,12,32,33],"hits":"8/448","rate":0.0179}},"11-13-31-33":{"n":420,"neighborhood":30,"p1":{"tetrad":[4,5,11,32],"hits":"8/420","rate":0.019},"p2":{"tetrad":[3,14,31,41],"hits":"8/420","rate":0.019}},"12-14-32-34":{"n":386,"neighborhood":36,"p1":{"tetrad":[12,24,26,56],"hits":"8/386","rate":0.0207},"p2":{"tetrad":[11,13,14,35],"hits":"8/386","rate":0.0207}},"13-15-33-35":{"n":430,"neighborhood":42,"p1":{"tetrad":[1,11,16,46],"hits":"8/430","rate":0.0186},"p2":{"tetrad":[1,4,26,52],"hits":"9/430","rate":0.0209}},"14-16-34-36":{"n":459,"neighborhood":42,"p1":{"tetrad":[3,32,45,53],"hits":"9/459","rate":0.0196},"p2":{"tetrad":[6,22,26,44],"hits":"9/459","rate":0.0196}},"15-17-35-37":{"n":442,"neighborhood":42,"p1":{"tetrad":[15,18,39,53],"hits":"8/442","rate":0.0181},"p2":{"tetrad":[9,16,43,59],"hits":"10/442","rate":0.0226}},"16-18-36-38":{"n":455,"neighborhood":42,"p1":{"tetrad":[6,10,20,30],"hits":"9/455","rate":0.0198},"p2":{"tetrad":[20,29,35,38],"hits":"9/455","rate":0.0198}},"17-19-37-39":{"n":425,"neighborhood":36,"p1":{"tetrad":[9,16,45,57],"hits":"8/425","rate":0.0188},"p2":{"tetrad":[9,17,20,36],"hits":"9/425","rate":0.0212}},"18-20-38-40":{"n":390,"neighborhood":30,"p1":{"tetrad":[10,26,48,50],"hits":"7/390","rate":0.0179},"p2":{"tetrad":[17,19,38,47],"hits":"7/390","rate":0.0179}},"2-4-22-24":{"n":435,"neighborhood":30,"p1":{"tetrad":[4,23,31,43],"hits":"8/435","rate":0.0184},"p2":{"tetrad":[1,5,11,25],"hits":"8/435","rate":0.0184}},"21-23-41-43":{"n":456,"neighborhood":35,"p1":{"tetrad":[1,25,31,35],"hits":"8/456","rate":0.0175},"p2":{"tetrad":[4,5,54,63],"hits":"9/456","rate":0.0197}},"22-24-42-44":{"n":444,"neighborhood":42,"p1":{"tetrad":[11,13,52,53],"hits":"9/444","rate":0.0203},"p2":{"tetrad":[13,15,34,43],"hits":"10/444","rate":0.0225}},"23-25-43-45":{"n":437,"neighborhood":49,"p1":{"tetrad":[6,34,45,64],"hits":"9/437","rate":0.0206},"p2":{"tetrad":[13,14,34,63],"hits":"9/437","rate":0.0206}},"24-26-44-46":{"n":436,"neighborhood":49,"p1":{"tetrad":[5,7,27,52],"hits":"9/436","rate":0.0206},"p2":{"tetrad":[27,32,35,68],"hits":"9/436","rate":0.0206}},"25-27-45-47":{"n":426,"neighborhood":49,"p1":{"tetrad":[45,49,67,69],"hits":"9/426","rate":0.0211},"p2":{"tetrad":[17,39,45,69],"hits":"8/426","rate":0.0188}},"26-28-46-48":{"n":400,"neighborhood":49,"p1":{"tetrad":[14,25,44,46],"hits":"9/400","rate":0.0225},"p2":{"tetrad":[25,27,38,64],"hits":"8/400","rate":0.02}},"27-29-47-49":{"n":471,"neighborhood":42,"p1":{"tetrad":[8,17,28,50],"hits":"9/471","rate":0.0191},"p2":{"tetrad":[10,49,56,69],"hits":"10/471","rate":0.0212}},"28-30-48-50":{"n":423,"neighborhood":35,"p1":{"tetrad":[9,10,20,60],"hits":"8/423","rate":0.0189},"p2":{"tetrad":[19,28,49,56],"hits":"8/423","rate":0.0189}},"3-5-23-25":{"n":491,"neighborhood":35,"p1":{"tetrad":[1,3,33,36],"hits":"11/491","rate":0.0224},"p2":{"tetrad":[1,2,14,37],"hits":"8/491","rate":0.0163}},"31-33-51-53":{"n":436,"neighborhood":35,"p1":{"tetrad":[12,22,43,53],"hits":"7/436","rate":0.0161},"p2":{"tetrad":[15,34,51,65],"hits":"9/436","rate":0.0206}},"32-34-52-54":{"n":420,"neighborhood":42,"p1":{"tetrad":[24,43,52,75],"hits":"9/420","rate":0.0214},"p2":{"tetrad":[13,23,34,76],"hits":"8/420","rate":0.019}},"33-35-53-55":{"n":427,"neighborhood":49,"p1":{"tetrad":[13,24,45,52],"hits":"9/427","rate":0.0211},"p2":{"tetrad":[16,42,53,75],"hits":"9/427","rate":0.0211}},"34-36-54-56":{"n":426,"neighborhood":49,"p1":{"tetrad":[27,45,57,67],"hits":"9/426","rate":0.0211},"p2":{"tetrad":[46,55,56,58],"hits":"9/426","rate":0.0211}},"35-37-55-57":{"n":446,"neighborhood":49,"p1":{"tetrad":[36,38,43,77],"hits":"10/446","rate":0.0224},"p2":{"tetrad":[24,25,46,47],"hits":"9/446","rate":0.0202}},"36-38-56-58":{"n":450,"neighborhood":49,"p1":{"tetrad":[47,50,56,75],"hits":"9/450","rate":0.02},"p2":{"tetrad":[27,44,46,65],"hits":"9/450","rate":0.02}},"37-39-57-59":{"n":454,"neighborhood":42,"p1":{"tetrad":[36,60,68,78],"hits":"8/454","rate":0.0176},"p2":{"tetrad":[15,20,28,70],"hits":"9/454","rate":0.0198}},"38-40-58-60":{"n":440,"neighborhood":35,"p1":{"tetrad":[20,27,58,78],"hits":"8/440","rate":0.0182},"p2":{"tetrad":[16,19,27,48],"hits":"8/440","rate":0.0182}},"4-6-24-26":{"n":382,"neighborhood":35,"p1":{"tetrad":[2,32,35,44],"hits":"8/382","rate":0.0209},"p2":{"tetrad":[32,42,43,44],"hits":"8/382","rate":0.0209}},"41-43-61-63":{"n":434,"neighborhood":30,"p1":{"tetrad":[33,62,71,72],"hits":"8/434","rate":0.0184},"p2":{"tetrad":[25,34,64,74],"hits":"8/434","rate":0.0184}},"42-44-62-64":{"n":431,"neighborhood":36,"p1":{"tetrad":[32,53,71,73],"hits":"8/431","rate":0.0186},"p2":{"tetrad":[24,31,52,73],"hits":"10/431","rate":0.0232}},"43-45-63-65":{"n":435,"neighborhood":42,"p1":{"tetrad":[22,57,64,76],"hits":"9/435","rate":0.0207},"p2":{"tetrad":[22,35,37,57],"hits":"10/435","rate":0.023}},"44-46-64-66":{"n":410,"neighborhood":42,"p1":{"tetrad":[24,36,38,45],"hits":"8/410","rate":0.0195},"p2":{"tetrad":[22,33,53,57],"hits":"9/410","rate":0.022}},"45-47-65-67":{"n":414,"neighborhood":42,"p1":{"tetrad":[35,37,44,63],"hits":"8/414","rate":0.0193},"p2":{"tetrad":[27,33,45,46],"hits":"9/414","rate":0.0217}},"46-48-66-68":{"n":381,"neighborhood":42,"p1":{"tetrad":[47,49,70,79],"hits":"7/381","rate":0.0184},"p2":{"tetrad":[54,60,75,77],"hits":"9/381","rate":0.0236}},"47-49-67-69":{"n":442,"neighborhood":36,"p1":{"tetrad":[28,35,49,55],"hits":"9/442","rate":0.0204},"p2":{"tetrad":[30,66,68,80],"hits":"8/442","rate":0.0181}},"48-50-68-70":{"n":416,"neighborhood":30,"p1":{"tetrad":[26,36,48,78],"hits":"8/416","rate":0.0192},"p2":{"tetrad":[29,50,66,69],"hits":"8/416","rate":0.0192}},"5-7-25-27":{"n":406,"neighborhood":35,"p1":{"tetrad":[8,18,25,29],"hits":"8/406","rate":0.0197},"p2":{"tetrad":[17,19,29,47],"hits":"8/406","rate":0.0197}},"51-53-71-73":{"n":435,"neighborhood":25,"p1":{"tetrad":[33,52,54,71],"hits":"8/435","rate":0.0184},"p2":{"tetrad":[33,53,55,65],"hits":"7/435","rate":0.0161}},"52-54-72-74":{"n":468,"neighborhood":30,"p1":{"tetrad":[51,54,62,73],"hits":"9/468","rate":0.0192},"p2":{"tetrad":[31,33,53,75],"hits":"9/468","rate":0.0192}},"53-55-73-75":{"n":436,"neighborhood":35,"p1":{"tetrad":[31,42,43,72],"hits":"9/436","rate":0.0206},"p2":{"tetrad":[35,57,64,75],"hits":"9/436","rate":0.0206}},"54-56-74-76":{"n":423,"neighborhood":35,"p1":{"tetrad":[45,48,67,74],"hits":"10/423","rate":0.0236},"p2":{"tetrad":[32,47,53,62],"hits":"9/423","rate":0.0213}},"55-57-75-77":{"n":449,"neighborhood":35,"p1":{"tetrad":[36,48,55,59],"hits":"7/449","rate":0.0156},"p2":{"tetrad":[44,57,64,79],"hits":"8/449","rate":0.0178}},"56-58-76-78":{"n":417,"neighborhood":35,"p1":{"tetrad":[59,67,69,78],"hits":"7/417","rate":0.0168},"p2":{"tetrad":[39,58,74,78],"hits":"9/417","rate":0.0216}},"57-59-77-79":{"n":469,"neighborhood":30,"p1":{"tetrad":[35,37,56,70],"hits":"9/469","rate":0.0192},"p2":{"tetrad":[39,56,65,67],"hits":"8/469","rate":0.0171}},"58-60-78-80":{"n":411,"neighborhood":25,"p1":{"tetrad":[48,49,50,66],"hits":"9/411","rate":0.0219},"p2":{"tetrad":[37,46,49,80],"hits":"7/411","rate":0.017}},"6-8-26-28":{"n":451,"neighborhood":35,"p1":{"tetrad":[8,17,35,46],"hits":"8/451","rate":0.0177},"p2":{"tetrad":[5,16,18,28],"hits":"8/451","rate":0.0177}},"7-9-27-29":{"n":457,"neighborhood":30,"p1":{"tetrad":[8,39,47,48],"hits":"8/457","rate":0.0175},"p2":{"tetrad":[18,28,35,38],"hits":"9/457","rate":0.0197}},"8-10-28-30":{"n":429,"neighborhood":25,"p1":{"tetrad":[17,18,26,38],"hits":"7/429","rate":0.0163},"p2":{"tetrad":[19,20,29,37],"hits":"7/429","rate":0.0163}}};
 
   function predRow(label, info) {
     if (!info) return `<div class="pred-row"><span class="pred-label">${label}</span><span class="pred-stat ok">—</span></div>`;
-    const isSig = info.pval < 0.05;
-    const nums = info.tetrad.map(n => `<div class="pred-num${isSig?' sig':''}">${n}</div>`).join('');
-    const statCls = isSig ? 'good' : 'ok';
-    return `<div class="pred-row"><span class="pred-label">${label}</span>${nums}<span class="pred-stat ${statCls}">${Math.round(info.rate*100)}% (${info.hits})${isSig?' ✓':''}</span></div>`;
+    const hi = info.rate >= 0.04;
+    const nums = info.tetrad.map(n => `<div class="pred-num${hi?' sig':''}">${n}</div>`).join('');
+    return `<div class="pred-row"><span class="pred-label">${label}</span>${nums}<span class="pred-stat ${hi?'good':'ok'}">${(info.rate*100).toFixed(1)}% (${info.hits})</span></div>`;
   }
 
   function getPredictionHTML(sqKey, inline=false) {
@@ -263,13 +291,13 @@
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     let sha; const chk=await fetch(url,{headers:h});
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
-    const b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj,null,2))));
+    const b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
     const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})})});
     if(!r.ok) throw new Error('GitHub API '+r.status);
   }
   async function ghGet(path){
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
-    const r=await fetch(url,{headers:h});
+    const r=await fetch(url,{headers:h,cache:'no-store'});
     if(!r.ok) return null;
     const meta=await r.json();
     // GitHub returns empty content for files >1MB — use download_url fallback
@@ -302,6 +330,7 @@
         sqByKey[recKey]={
           square:sqKey, date:d.date||'', draw_id:d.draw_id,
           draw_time:d.draw_time,
+          trigger_bonus:d.bonus&&d.bonus.length?d.bonus[0]:null,
           p1_numbers:p1?p1.winning_numbers.concat(p1.bonus):[],
           p2_numbers:p2?p2.winning_numbers.concat(p2.bonus):[]
         };
@@ -318,27 +347,57 @@
       document.getElementById('tokenDetails').setAttribute('open','');
       alert('Ορίσε πρώτα το GitHub Token!'); return;
     }
-    st.textContent='📤 Ενημέρωση master κληρώσεων…';
-    const existingMaster=await ghGet('data/kino_master.json');
-    const byId={};
-    for(const d of (existingMaster?.draws||[])) byId[d.draw_id]=d;
-    for(const d of draws) byId[d.draw_id]=d;
-    const merged=Object.values(byId).sort((a,b)=>a.draw_id-b.draw_id);
-    await ghPut('data/kino_master.json',{last_updated:label,total_draws:merged.length,draws:merged},
-      `KINO master update ${label}`);
 
-    st.textContent='📤 Ενημέρωση master τετραγώνων…';
+    // ── Step 1: load existing squares master (only file we update now) ──
+    st.textContent='📤 Φόρτωση υπαρχόντων τετραγώνων…';
     const existingSq=await ghGet('data/kino_squares_master.json');
     const sqByKey={};
     for(const o of (existingSq?.occurrences||[])) sqByKey[o.draw_id+'_'+o.square]=o;
-    buildSquaresOccurrences(merged, sqByKey);
+
+    // ── Step 2: build context = tail (last draws of existing) + new draws ──
+    // Tail gives correct p1/p2 for boundary draws
+    const tail=existingSq?.tail||[];
+    const ctxById={};
+    for(const d of tail) ctxById[d.draw_id]=d;
+    for(const d of draws) ctxById[d.draw_id]=d;
+    const contextDraws=Object.values(ctxById).sort((a,b)=>a.draw_id-b.draw_id);
+
+    // ── Step 3: compute squares only for context draws (fast!) ──
+    st.textContent='📤 Υπολογισμός τετραγώνων…';
+    buildSquaresOccurrences(contextDraws, sqByKey);
     const allOcc=Object.values(sqByKey).sort((a,b)=>a.draw_id-b.draw_id);
+
+    // ── Step 4: update month metadata ──
+    const drawsByMonth={...(existingSq?.draws_by_month||{})};
+    const byMonth={};
+    for(const d of draws){const m=d.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+1;}
+    // Only count months not already tracked (avoids double-count on re-upload)
+    let newCount=0;
+    for(const[m,cnt]of Object.entries(byMonth)){
+      if(!existingSq?.draws_by_month?.[m])newCount+=cnt;
+      drawsByMonth[m]=cnt;
+    }
+    const totalDraws=(existingSq?.total_draws||0)+newCount;
+
+    // New tail = last 10 draws of this batch (for next upload's boundary context)
+    const sortedNew=[...draws].sort((a,b)=>a.draw_id-b.draw_id);
+    const newTail=sortedNew.slice(-10);
+
+    // ── Step 5: upload compact squares master (no kino_master.json needed) ──
+    st.textContent='📤 Ανέβασμα στο GitHub…';
     await ghPut('data/kino_squares_master.json',{
-      last_updated:label, total_draws:merged.length,
-      total_occurrences:allOcc.length, occurrences:allOcc
+      last_updated:label,
+      total_draws:totalDraws,
+      draws_by_month:drawsByMonth,
+      tail:newTail,
+      total_occurrences:allOcc.length,
+      occurrences:allOcc
     },`KINO squares update ${label}`);
 
-    st.textContent=`✅ Master: ${merged.length} κληρώσεις | ${allOcc.length} τετράγωνα`;
+    st.textContent=`✅ ${totalDraws.toLocaleString()} κληρώσεις | ${allOcc.length} τετράγωνα`;
+    PREDICTIONS=computeGeoPredictions({occurrences:allOcc});
+    const rs=document.getElementById('recomputeStatus');
+    if(rs){rs.textContent=`✅ Προβλέψεις ανανεώθηκαν: ${Object.keys(PREDICTIONS).length} τετράγωνα`;rs.style.color='#2a9d8f';}
   }
 
   // ── Daily upload ──────────────────────────────────────────────
@@ -415,6 +474,156 @@
     }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
   }
 
+  // ── Year fetch ────────────────────────────────────────────────
+  async function loadYear(){
+    const yearVal=parseInt(document.getElementById('yearPicker').value);
+    if(!yearVal||yearVal<2010||yearVal>2030){alert('Βάλε έγκυρο έτος (π.χ. 2025)');return;}
+    const btn=document.getElementById('btnFetchYear');
+    const st=document.getElementById('status');
+    const prog=document.getElementById('yearProgress');
+    const progText=document.getElementById('yearProgressText');
+    const progBar=document.getElementById('yearProgressBar');
+    btn.disabled=true;
+    document.getElementById('btnUploadYear').style.display='none';
+    yearDraws=null; prog.style.display='block';
+    st.className=''; st.textContent='';
+    const todayDate=new Date();
+    const isCurrentYear=(yearVal===todayDate.getFullYear());
+    const lastMonth=isCurrentYear?todayDate.getMonth()+1:12;
+    let totalDays=0;
+    for(let m=1;m<=lastMonth;m++){
+      totalDays+=(isCurrentYear&&m===lastMonth)?todayDate.getDate():new Date(yearVal,m,0).getDate();
+    }
+    const allDraws=[], seen=new Set();
+    let doneDays=0;
+    for(let month=1;month<=lastMonth;month++){
+      const isCurrentMonth=isCurrentYear&&month===(todayDate.getMonth()+1);
+      const lastDay=isCurrentMonth?todayDate.getDate():new Date(yearVal,month,0).getDate();
+      for(let day=1;day<=lastDay;day++){
+        const dateStr=`${yearVal}-${pad(month)}-${pad(day)}`;
+        doneDays++;
+        progText.textContent=`${yearVal} — Μήνας ${month}/${lastMonth}, ${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
+        progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
+        try{
+          const items=await fetchDaySeq(dateStr,'');
+          const draws=items
+            .filter(i=>i.winningNumbers?.list?.length)
+            .map(i=>({
+              draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
+              date:dateStr,
+              winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
+              bonus:i.winningNumbers.bonus||[]
+            }));
+          for(const d of draws){if(!seen.has(d.draw_id)){seen.add(d.draw_id);allDraws.push(d);}}
+        }catch(e){console.warn('Skip',dateStr,e);}
+        await new Promise(r=>setTimeout(r,150));
+      }
+    }
+    allDraws.sort((a,b)=>a.draw_id-b.draw_id);
+    yearDraws={year:yearVal, total_draws:allDraws.length, draws:allDraws};
+    progBar.style.width='100%';
+    progText.textContent=`✅ ${allDraws.length.toLocaleString()} κληρώσεις — έτος ${yearVal}`;
+    st.textContent=`✅ Έτος ${yearVal}: ${allDraws.length.toLocaleString()} κληρώσεις φορτώθηκαν`;
+    document.getElementById('btnUploadYear').style.display='inline-block';
+    btn.disabled=false;
+  }
+
+  // ── Year upload ───────────────────────────────────────────────
+  async function uploadYearToGitHub(){
+    if(!yearDraws){alert('Φόρτωσε πρώτα το έτος!');return;}
+    const st=document.getElementById('status');
+    try{
+      await uploadDrawsToMaster(yearDraws.draws, String(yearDraws.year));
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+  }
+
+  // ── Full rebuild (Jan 2025 → today, fresh from API) ───────
+  async function rebuildAllData(){
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+    if(!confirm('Πλήρης ανακατασκευή: θα ξαναφορτωθούν όλες οι κληρώσεις από Jan 2025 και θα υπολογιστούν εκ νέου τα τετράγωνα με trigger_bonus. Μπορεί να διαρκέσει 20-30 λεπτά. Συνέχεια;')) return;
+
+    const st=document.getElementById('status');
+    const progWrap=document.getElementById('rebuildProgress');
+    const progText=document.getElementById('rebuildProgressText');
+    const progBar=document.getElementById('rebuildProgressBar');
+    const btn=document.getElementById('btnRebuild');
+
+    btn.disabled=true; progWrap.style.display='block';
+    st.className=''; st.textContent='⏳ Ανακατασκευή σε εξέλιξη…';
+
+    const todayDate=new Date();
+    const startYear=2025, startMonth=1;
+    const endYear=todayDate.getFullYear(), endMonth=todayDate.getMonth()+1, endDay=todayDate.getDate();
+
+    let totalDays=0;
+    for(let y=startYear;y<=endYear;y++){
+      const mS=(y===startYear)?startMonth:1, mE=(y===endYear)?endMonth:12;
+      for(let m=mS;m<=mE;m++){
+        const dE=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
+        totalDays+=dE;
+      }
+    }
+
+    const allDraws=[], seen=new Set();
+    let doneDays=0;
+
+    for(let y=startYear;y<=endYear;y++){
+      const mS=(y===startYear)?startMonth:1, mE=(y===endYear)?endMonth:12;
+      for(let m=mS;m<=mE;m++){
+        const dE=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
+        for(let d=1;d<=dE;d++){
+          const dateStr=`${y}-${pad(m)}-${pad(d)}`;
+          doneDays++;
+          progText.textContent=`${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
+          progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
+          try{
+            const items=await fetchDaySeq(dateStr,'');
+            const draws=items
+              .filter(i=>i.winningNumbers?.list?.length)
+              .map(i=>({
+                draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
+                date:dateStr,
+                winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
+                bonus:i.winningNumbers.bonus||[]
+              }));
+            for(const dr of draws){if(!seen.has(dr.draw_id)){seen.add(dr.draw_id);allDraws.push(dr);}}
+          }catch(e){console.warn('Skip',dateStr,e);}
+          await new Promise(r=>setTimeout(r,150));
+        }
+      }
+    }
+
+    allDraws.sort((a,b)=>a.draw_id-b.draw_id);
+    progText.textContent=`✅ ${allDraws.length.toLocaleString()} κληρώσεις φορτώθηκαν. Υπολογισμός τετραγώνων…`;
+
+    const sqByKey={};
+    buildSquaresOccurrences(allDraws, sqByKey);
+    const allOcc=Object.values(sqByKey).sort((a,b)=>a.draw_id-b.draw_id);
+
+    progText.textContent=`📤 Ανέβασμα ${allOcc.length.toLocaleString()} τετραγώνων στο GitHub…`;
+    const drawsByMonth={};
+    for(const dr of allDraws){const mo=dr.date.slice(0,7);drawsByMonth[mo]=(drawsByMonth[mo]||0)+1;}
+    const newTail=allDraws.slice(-10);
+
+    await ghPut('data/kino_squares_master.json',{
+      last_updated:`rebuild-${todayDate.toISOString().slice(0,10)}`,
+      total_draws:allDraws.length,
+      draws_by_month:drawsByMonth,
+      tail:newTail,
+      total_occurrences:allOcc.length,
+      occurrences:allOcc
+    },`KINO full rebuild ${todayDate.toISOString().slice(0,10)}`);
+
+    st.textContent=`✅ Ανακατασκευή ολοκληρώθηκε: ${allDraws.length.toLocaleString()} κληρώσεις | ${allOcc.length.toLocaleString()} τετράγωνα`;
+    PREDICTIONS=computeGeoPredictions({occurrences:allOcc});
+    progText.textContent=`✅ Έτοιμο — ${allOcc.length.toLocaleString()} τετράγωνα με trigger_bonus`;
+    progBar.style.width='100%';
+    btn.disabled=false;
+  }
+
   // ── Squares ───────────────────────────────────────────────────
   function findSquares(nums){
     const s=new Set(nums),res=[],seen=new Set();
@@ -428,6 +637,75 @@
       }
     }
     return res;
+  }
+
+  // ── Geographic neighborhood analysis ─────────────────────────
+  function gridPos(n){ return {row:Math.floor((n-1)/10), col:(n-1)%10}; }
+
+  function getNeighborhood(trigNums, rRange=2, cRange=2){
+    const rows=trigNums.map(n=>gridPos(n).row), cols=trigNums.map(n=>gridPos(n).col);
+    const minR=Math.min(...rows)-rRange, maxR=Math.max(...rows)+rRange;
+    const minC=Math.min(...cols)-cRange, maxC=Math.max(...cols)+cRange;
+    const nb=[];
+    for(let n=1;n<=80;n++){const {row,col}=gridPos(n);if(row>=minR&&row<=maxR&&col>=minC&&col<=maxC)nb.push(n);}
+    return nb;
+  }
+
+  function combos4(arr){
+    const res=[];
+    for(let a=0;a<arr.length-3;a++)
+    for(let b=a+1;b<arr.length-2;b++)
+    for(let c=b+1;c<arr.length-1;c++)
+    for(let d=c+1;d<arr.length;d++)
+      res.push(arr[a]+'-'+arr[b]+'-'+arr[c]+'-'+arr[d]);
+    return res;
+  }
+
+  function computeGeoPredictions(squaresData){
+    const bySquare={};
+    for(const occ of squaresData.occurrences){
+      if(!bySquare[occ.square])bySquare[occ.square]=[];
+      bySquare[occ.square].push(occ);
+    }
+    const preds={};
+    for(const [sqKey,occs] of Object.entries(bySquare)){
+      const trigNums=sqKey.split('-').map(Number);
+      const nb=getNeighborhood(trigNums);
+      const nbSet=new Set(nb);
+      const c1={},c2={};
+      for(const occ of occs){
+        const p1nb=(occ.p1_numbers||[]).slice(0,20).filter(n=>nbSet.has(n));
+        const p2nb=(occ.p2_numbers||[]).slice(0,20).filter(n=>nbSet.has(n));
+        if(p1nb.length>=4)for(const k of combos4(p1nb))c1[k]=(c1[k]||0)+1;
+        if(p2nb.length>=4)for(const k of combos4(p2nb))c2[k]=(c2[k]||0)+1;
+      }
+      const b1=Object.entries(c1).sort((a,b)=>b[1]-a[1])[0];
+      const b2=Object.entries(c2).sort((a,b)=>b[1]-a[1])[0];
+      const n=occs.length;
+      preds[sqKey]={
+        n, neighborhood:nb.length,
+        p1:b1?{tetrad:b1[0].split('-').map(Number),hits:`${b1[1]}/${n}`,rate:+(b1[1]/n).toFixed(4)}:null,
+        p2:b2?{tetrad:b2[0].split('-').map(Number),hits:`${b2[1]}/${n}`,rate:+(b2[1]/n).toFixed(4)}:null
+      };
+    }
+    return preds;
+  }
+
+  async function recomputePredictions(){
+    const btn=document.getElementById('btnRecompute');
+    const lbl=document.getElementById('recomputeStatus');
+    btn.disabled=true; lbl.textContent='⏳ Φόρτωση δεδομένων…';
+    try{
+      const sq=await ghGet('data/kino_squares_master.json');
+      if(!sq){lbl.textContent='⚠️ Δεν βρέθηκε αρχείο τετραγώνων';return;}
+      lbl.textContent=`⏳ Υπολογισμός (${sq.total_occurrences} εμφανίσεις)…`;
+      await new Promise(r=>setTimeout(r,20));
+      PREDICTIONS=computeGeoPredictions(sq);
+      const n=Object.keys(PREDICTIONS).length;
+      lbl.textContent=`✅ ${n} τετράγωνα | ${sq.total_draws} κληρώσεις | ${sq.total_occurrences} εμφανίσεις`;
+      lbl.style.color='#2a9d8f';
+    }catch(e){lbl.textContent='⚠️ '+e.message;lbl.style.color='#e63946';}
+    finally{btn.disabled=false;}
   }
 
   // ── API ───────────────────────────────────────────────────────
@@ -473,12 +751,13 @@
   }
 
   // ── Grid / UI ─────────────────────────────────────────────────
-  function kinoGrid(winNums,bonus,squareNums){
-    const hSet=new Set(winNums),bSet=new Set(bonus||[]),sSet=new Set(squareNums||[]);
+  function kinoGrid(winNums,bonus,squareNums,predNums){
+    const hSet=new Set(winNums),bSet=new Set(bonus||[]),sSet=new Set(squareNums||[]),pSet=new Set(predNums||[]);
     let html='<div class="kino-grid">';
     for(let n=1;n<=80;n++){
       let cls='kc';
       if(bSet.has(n))cls+=' b'; else if(sSet.has(n))cls+=' sq'; else if(hSet.has(n))cls+=' h';
+      if(pSet.has(n))cls+=' pred';
       html+=`<div class="${cls}">${n}</div>`;
     }
     return html+'</div>';
@@ -507,6 +786,36 @@
     sqStatus.innerHTML=`🔲 <strong>${groups.length}</strong> γκρούπ &mdash; <span style="color:#888;font-size:.85em">από τις ${lastData.total_draws} κληρώσεις</span><br><small style="color:#aaa">🟡=τετράγωνο 🟠=νικητής 🔴=bonus</small>`;
     let html='';
     for(const group of groups){
+      // Κανόνας: shift κάτω + trigger bonus + bonus+1
+      const trigD=group[0];
+      const trigBonus=trigD.trigger_bonus||null;
+      function shiftDown(sq){
+        const res=[];
+        for(const n of sq){
+          const r=(n-1)>>3|0, c=(n-1)%10; // wrong — fix:
+          const row=Math.floor((n-1)/10), col=(n-1)%10;
+          if(row+1>=8) return null;
+          res.push((row+1)*10+col+1);
+        }
+        return res;
+      }
+      const trigSquares=group[0].squares;
+      let p1Pred=[], p2Pred=[];
+      if(trigBonus){
+        const bonusNb = (trigBonus%10===0)?null:trigBonus+1;
+        for(const sq of trigSquares){
+          const down=shiftDown(sq);
+          if(!down) continue;
+          const six=[...down,...(bonusNb?[trigBonus,bonusNb]:[trigBonus])];
+          p1Pred=p1Pred.concat(six);
+          p2Pred=p2Pred.concat(six);
+        }
+      } else {
+        // fallback: παλιές γεωγραφικές προβλέψεις
+        p1Pred=trigSquares.flatMap(sq=>{const p=PREDICTIONS[sq.join('-')];return p?.p1?.tetrad||[];});
+        p2Pred=trigSquares.flatMap(sq=>{const p=PREDICTIONS[sq.join('-')];return p?.p2?.tetrad||[];});
+      }
+
       html+='<div class="draw-group">';
       for(const d of group){
         const cardCls=d.isMatch?'card-match':'card-next';
@@ -514,6 +823,7 @@
         const sqNums=d.squares.flat();
         const tags=d.squares.map(sq=>`<span class="sq-tag"${d.isMatch?'':' style="opacity:.7"'}>${sq.join('–')}</span>`).join(' ');
         const predHtml=d.isMatch?d.squares.map(sq=>getPredictionHTML(sq.join('-'),true)).join(''):'';
+        const predNums=d.offset===1?p1Pred:d.offset===2?p2Pred:[];
         html+=`<div class="draw-card ${cardCls}">
           <div class="card-header">
             <span class="card-label">${label}</span>
@@ -521,7 +831,7 @@
             <span class="draw-id">#${d.draw_id}</span>
             ${tags?`<div class="sq-tags">${tags}</div>`:''}
           </div>
-          ${kinoGrid(d.winning_numbers,d.bonus,sqNums)}${predHtml}</div>`;
+          ${kinoGrid(d.winning_numbers,d.bonus,sqNums,predNums)}${predHtml}</div>`;
       }
       html+='</div><hr class="group-sep">';
     }
@@ -576,31 +886,29 @@
       spin.style.display='none'; return;
     }
     try{
-      out.innerHTML='<span style="color:#888;font-size:.82rem">⏳ Φόρτωση κληρώσεων…</span>';
-      const master=await ghGet('data/kino_master.json');
-      if(!master) throw new Error('Δεν βρέθηκε kino_master.json');
-      const draws=master.draws||[];
-      const months={};
-      for(const d of draws){const m=d.date.slice(0,7);months[m]=(months[m]||0)+1;}
-      const first=draws[0], last=draws[draws.length-1];
-      let monthRows='';
-      for(const m of Object.keys(months).sort())
-        monthRows+=`<div class="month-row"><span><strong>${m}</strong></span><span>${months[m].toLocaleString()} κληρώσεις</span></div>`;
-      out.innerHTML='<span style="color:#888;font-size:.82rem">⏳ Φόρτωση τετραγώνων…</span>';
+      out.innerHTML='<span style="color:#888;font-size:.82rem">⏳ Φόρτωση…</span>';
       const sq=await ghGet('data/kino_squares_master.json');
-      let sqHtml='<div class="val">—</div><div class="sub">—</div>';
-      if(sq){
-        sqHtml=`<div class="val">${(sq.total_occurrences||0).toLocaleString()}</div><div class="sub">${Object.keys(sq.occurrences.reduce((a,o)=>{a[o.square]=1;return a},{})).length} τύποι τετραγώνων</div>`;
-      }
+      if(!sq) throw new Error('Δεν βρέθηκε kino_squares_master.json');
+
+      const drawsByMonth=sq.draws_by_month||{};
+      let monthRows='';
+      for(const m of Object.keys(drawsByMonth).sort())
+        monthRows+=`<div class="month-row"><span><strong>${m}</strong></span><span>${drawsByMonth[m].toLocaleString()} κληρώσεις</span></div>`;
+      if(!monthRows) monthRows='<div class="month-row" style="color:#aaa;font-size:.8rem">Ανέβασε δεδομένα για λεπτομέρειες ανά μήνα</div>';
+
+      const squareTypes=new Set((sq.occurrences||[]).map(o=>o.square)).size;
+
       out.innerHTML=`
         <div class="status-grid">
           <div class="status-card">
             <h4>Σύνολο Κληρώσεων</h4>
-            <div class="val">${draws.length.toLocaleString()}</div>
-            <div class="sub">${first?.date} — ${last?.date}</div>
+            <div class="val">${(sq.total_draws||0).toLocaleString()}</div>
+            <div class="sub">Ενημ. ${sq.last_updated||'—'}</div>
           </div>
           <div class="status-card">
-            <h4>Τετράγωνα</h4>${sqHtml}
+            <h4>Τετράγωνα</h4>
+            <div class="val">${(sq.total_occurrences||0).toLocaleString()}</div>
+            <div class="sub">${squareTypes} τύποι τετραγώνων</div>
           </div>
         </div>
         <div class="status-card" style="margin-top:10px">
