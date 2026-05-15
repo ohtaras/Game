@@ -759,6 +759,33 @@
     return html+'</div>';
   }
 
+  function wrapN(n){ return ((n-1)%80)+1; }
+
+  const PRED_RULES = [
+    { label:'Shift↓+Bonus+1', note:'×5.5', color:'#e63946',
+      fn:(sq,bonus)=>{
+        if(!bonus) return null;
+        const down=[];
+        for(const n of sq){const row=Math.floor((n-1)/10),col=(n-1)%10;if(row+1>=8)return null;down.push((row+1)*10+col+1);}
+        const nxt=(bonus%10===0)?null:bonus+1;
+        if(!nxt) return null;
+        return [...down,bonus,nxt];
+      }
+    },
+    { label:'offsets [28,31,39,45,47,78]', note:'×7.5', color:'#f4a261',
+      fn:(sq,bonus)=>[28,31,39,45,47,78].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [6,7,12,16,26,56]',   note:'×8.2', color:'#2a9d8f',
+      fn:(sq,bonus)=>[6,7,12,16,26,56].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [1,17,29,30,58,64]',  note:'×8.6', color:'#457b9d',
+      fn:(sq,bonus)=>[1,17,29,30,58,64].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [22,23,48,63,66,67]', note:'×9.0', color:'#6a4c93',
+      fn:(sq,bonus)=>[22,23,48,63,66,67].map(o=>wrapN(sq[0]+o))
+    },
+  ];
+
   function applySquareFilter(){
     if(!lastData||!lastData.draws.length) return;
     const draws=lastData.draws;
@@ -779,55 +806,75 @@
     }
     section.style.display='block'; sqStatus.style.display='block';
     if(!groups.length){sqStatus.textContent='Δεν βρέθηκαν κληρώσεις με τετράγωνο.';sqResults.innerHTML='';return;}
-    sqStatus.innerHTML=`🔲 <strong>${groups.length}</strong> γκρούπ &mdash; <span style="color:#888;font-size:.85em">από τις ${lastData.total_draws} κληρώσεις</span><br><small style="color:#aaa">🟡=τετράγωνο 🟠=νικητής 🔴=bonus</small>`;
+    sqStatus.innerHTML=`🔲 <strong>${groups.length}</strong> γκρούπ &mdash; <span style="color:#888;font-size:.85em">από τις ${lastData.total_draws} κληρώσεις</span>`;
     let html='';
     for(const group of groups){
-      // Κανόνας: shift κάτω + trigger bonus + bonus+1
       const trigD=group[0];
-      const trigBonus=trigD.trigger_bonus||null;
-      function shiftDown(sq){
-        const res=[];
-        for(const n of sq){
-          const r=(n-1)>>3|0, c=(n-1)%10; // wrong — fix:
-          const row=Math.floor((n-1)/10), col=(n-1)%10;
-          if(row+1>=8) return null;
-          res.push((row+1)*10+col+1);
+      const trigBonus=trigD.bonus&&trigD.bonus.length?trigD.bonus[0]:null;
+      const p1D=group[1]||null;
+      const p2D=group[2]||null;
+      const p1Set=p1D?new Set([...p1D.winning_numbers,...p1D.bonus]):null;
+      const p2Set=p2D?new Set([...p2D.winning_numbers,...p2D.bonus]):null;
+
+      // Compute predictions for all 5 rules × all trigger squares
+      const rulePreds=PRED_RULES.map(rule=>{
+        const preds=[];
+        for(const sq of trigD.squares){
+          const p=rule.fn(sq,trigBonus);
+          if(p) preds.push(...p);
         }
-        return res;
-      }
-      const trigSquares=group[0].squares;
-      let p1Pred=[], p2Pred=[];
-      if(trigBonus){
-        const bonusNb = (trigBonus%10===0)?null:trigBonus+1;
-        for(const sq of trigSquares){
-          const down=shiftDown(sq);
-          if(!down) continue;
-          const six=[...down,...(bonusNb?[trigBonus,bonusNb]:[trigBonus])];
-          p1Pred=p1Pred.concat(six);
-          p2Pred=p2Pred.concat(six);
-        }
-      } else {
-        // fallback: παλιές γεωγραφικές προβλέψεις
-        p1Pred=trigSquares.flatMap(sq=>{const p=PREDICTIONS[sq.join('-')];return p?.p1?.tetrad||[];});
-        p2Pred=trigSquares.flatMap(sq=>{const p=PREDICTIONS[sq.join('-')];return p?.p2?.tetrad||[];});
-      }
+        return [...new Set(preds)];
+      });
+
+      // Evaluate wins
+      const evalWin=(pred,drawSet)=>pred.length>=6&&drawSet?pred.every(n=>drawSet.has(n)):false;
+
+      // Prediction table
+      let tableHtml='<div style="margin:8px 0 4px 0;overflow-x:auto"><table style="border-collapse:collapse;font-size:0.8rem;width:100%">';
+      tableHtml+='<tr style="background:#f0f0f0"><th style="padding:4px 8px;text-align:left">Κανόνας</th><th>Νούμερα</th><th style="text-align:center">P1</th><th style="text-align:center">P2</th></tr>';
+      rulePreds.forEach((pred,ri)=>{
+        const rule=PRED_RULES[ri];
+        const w1=evalWin(pred,p1Set);
+        const w2=evalWin(pred,p2Set);
+        const nums=pred.length?pred.sort((a,b)=>a-b).join(' · '):'—';
+        const noBonus=ri===0&&!trigBonus?'<span style="color:#aaa;font-size:0.75rem">(χωρίς bonus)</span>':'';
+        tableHtml+=`<tr style="border-bottom:1px solid #eee">
+          <td style="padding:3px 8px;color:${rule.color};font-weight:600;white-space:nowrap">${rule.label} <span style="color:#888;font-weight:400">${rule.note}</span> ${noBonus}</td>
+          <td style="padding:3px 8px;font-family:monospace;color:#333">${nums}</td>
+          <td style="text-align:center;font-size:1.1rem">${w1?'✅':'—'}</td>
+          <td style="text-align:center;font-size:1.1rem">${w2?'✅':'—'}</td>
+        </tr>`;
+      });
+      tableHtml+='</table></div>';
 
       html+='<div class="draw-group">';
-      for(const d of group){
-        const cardCls=d.isMatch?'card-match':'card-next';
-        const label=d.isMatch?'🔲 ΜΟΤΙΒΟ':`+${d.offset}`;
-        const sqNums=d.squares.flat();
-        const tags=d.squares.map(sq=>`<span class="sq-tag"${d.isMatch?'':' style="opacity:.7"'}>${sq.join('–')}</span>`).join(' ');
-        const predHtml=d.isMatch?d.squares.map(sq=>getPredictionHTML(sq.join('-'),true)).join(''):'';
-        const predNums=d.offset===1?p1Pred:d.offset===2?p2Pred:[];
-        html+=`<div class="draw-card ${cardCls}">
+      // Trigger card
+      const sqNums=trigD.squares.flat();
+      const tags=trigD.squares.map(sq=>`<span class="sq-tag">${sq.join('–')}</span>`).join(' ');
+      html+=`<div class="draw-card card-match">
+        <div class="card-header">
+          <span class="card-label">🔲 ΜΟΤΙΒΟ</span>
+          <span class="time">${trigD.draw_time}</span>
+          <span class="draw-id">#${trigD.draw_id}</span>
+          ${tags?`<div class="sq-tags">${tags}</div>`:''}
+          ${trigBonus?`<span style="margin-left:8px;background:#e63946;color:#fff;padding:2px 7px;border-radius:10px;font-size:0.8rem">bonus: ${trigBonus}</span>`:''}
+        </div>
+        ${kinoGrid(trigD.winning_numbers,trigD.bonus,sqNums,[])}
+        ${tableHtml}
+      </div>`;
+
+      // P1 and P2 cards — highlight ALL rule predictions combined
+      for(const d of group.slice(1)){
+        const allPred=[...new Set(rulePreds.flat())];
+        const sqN=d.squares.flat();
+        const label=`+${d.offset}`;
+        html+=`<div class="draw-card card-next">
           <div class="card-header">
             <span class="card-label">${label}</span>
             <span class="time">${d.draw_time}</span>
             <span class="draw-id">#${d.draw_id}</span>
-            ${tags?`<div class="sq-tags">${tags}</div>`:''}
           </div>
-          ${kinoGrid(d.winning_numbers,d.bonus,sqNums,predNums)}${predHtml}</div>`;
+          ${kinoGrid(d.winning_numbers,d.bonus,sqN,allPred)}</div>`;
       }
       html+='</div><hr class="group-sep">';
     }
