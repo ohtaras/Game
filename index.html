@@ -291,7 +291,8 @@
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     let sha; const chk=await fetch(url,{headers:h});
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
-    const b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+    // Fast base64: JSON is pure ASCII so btoa works directly (no encodeURIComponent needed)
+    const b64=btoa(JSON.stringify(obj));
     const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha:{}}:{})}),signal:AbortSignal.timeout(300000)});
     if(!r.ok) throw new Error('GitHub API '+r.status);
   }
