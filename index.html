@@ -796,6 +796,7 @@
     for(let i=0;i<draws.length;i++){
       const squares=findSquares([...draws[i].winning_numbers,...draws[i].bonus]);
       if(!squares.length) continue;
+      if(squares.length>1) continue; // πολλαπλά σήματα → ακύρωση
       const group=[];
       for(let j=i;j<=i+2&&j<draws.length;j++){
         const d=draws[j];
