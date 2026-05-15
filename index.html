@@ -586,8 +586,16 @@
       const chk=await fetch(url,{headers:h});
       if(chk.ok){
         const ex=await chk.json();
-        const existing=JSON.parse(atob(ex.content.replace(/[\n\r]/g,'')));
-        if(existing.last_updated && existing.occurrences?.length){
+        // Files >1MB: content field is empty, use download_url for raw fetch
+        let existing=null;
+        if(ex.content){
+          existing=JSON.parse(atob(ex.content.replace(/[\n\r]/g,'')));
+        } else if(ex.download_url){
+          progText.textContent='📥 Αρχείο μεγάλο — κατέβασμα raw…';
+          const rawR=await fetch(ex.download_url,{signal:AbortSignal.timeout(60000)});
+          if(rawR.ok) existing=await rawR.json();
+        }
+        if(existing?.last_updated && existing?.occurrences?.length){
           const [ly,lm]=existing.last_updated.split('-').map(Number);
           const ny=lm===12?ly+1:ly, nm=lm===12?1:lm+1;
           const resumeLabel=`${ny}-${pad(nm)}`;
