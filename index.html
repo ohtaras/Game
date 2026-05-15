@@ -293,7 +293,7 @@
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
     // Fast base64: JSON is pure ASCII so btoa works directly (no encodeURIComponent needed)
     const b64=btoa(JSON.stringify(obj));
-    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha:{}}:{})}),signal:AbortSignal.timeout(300000)});
+    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
     if(!r.ok) throw new Error('GitHub API '+r.status);
   }
   async function ghGet(path){
