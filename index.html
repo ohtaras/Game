@@ -561,89 +561,101 @@
     }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
   }
 
-  // ── Full rebuild (Jan 2025 → today, fresh from API) ───────
+  // ── Full rebuild month-by-month (Jan 2025 → today) ───────
   async function rebuildAllData(){
     if(!localStorage.getItem('gh_token')){
       document.getElementById('tokenDetails').setAttribute('open','');
       alert('Ορίσε πρώτα το GitHub Token!'); return;
     }
-    if(!confirm('Πλήρης ανακατασκευή: θα ξαναφορτωθούν όλες οι κληρώσεις από Jan 2025 και θα υπολογιστούν εκ νέου τα τετράγωνα με trigger_bonus. Μπορεί να διαρκέσει 20-30 λεπτά. Συνέχεια;')) return;
+    if(!confirm('Πλήρης ανακατασκευή μήνα-μήνα από Jan 2025. Θα πάρει ~20-30 λεπτά. Συνέχεια;')) return;
 
     const st=document.getElementById('status');
     const progWrap=document.getElementById('rebuildProgress');
     const progText=document.getElementById('rebuildProgressText');
     const progBar=document.getElementById('rebuildProgressBar');
     const btn=document.getElementById('btnRebuild');
-
     btn.disabled=true; progWrap.style.display='block';
     st.className=''; st.textContent='⏳ Ανακατασκευή σε εξέλιξη…';
 
     const todayDate=new Date();
-    const startYear=2025, startMonth=1;
     const endYear=todayDate.getFullYear(), endMonth=todayDate.getMonth()+1, endDay=todayDate.getDate();
 
-    let totalDays=0;
-    for(let y=startYear;y<=endYear;y++){
-      const mS=(y===startYear)?startMonth:1, mE=(y===endYear)?endMonth:12;
-      for(let m=mS;m<=mE;m++){
-        const dE=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
-        totalDays+=dE;
-      }
+    // Build list of months to process
+    const months=[];
+    for(let y=2025;y<=endYear;y++){
+      const mS=1, mE=(y===endYear)?endMonth:12;
+      for(let m=mS;m<=mE;m++) months.push({y,m});
     }
 
-    const allDraws=[], seen=new Set();
-    let doneDays=0;
-
-    for(let y=startYear;y<=endYear;y++){
-      const mS=(y===startYear)?startMonth:1, mE=(y===endYear)?endMonth:12;
-      for(let m=mS;m<=mE;m++){
-        const dE=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
-        for(let d=1;d<=dE;d++){
-          const dateStr=`${y}-${pad(m)}-${pad(d)}`;
-          doneDays++;
-          progText.textContent=`${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
-          progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
-          try{
-            const items=await fetchDaySeq(dateStr,'');
-            const draws=items
-              .filter(i=>i.winningNumbers?.list?.length)
-              .map(i=>({
-                draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
-                date:dateStr,
-                winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
-                bonus:i.winningNumbers.bonus||[]
-              }));
-            for(const dr of draws){if(!seen.has(dr.draw_id)){seen.add(dr.draw_id);allDraws.push(dr);}}
-          }catch(e){console.warn('Skip',dateStr,e);}
-          await new Promise(r=>setTimeout(r,150));
-        }
-      }
-    }
-
-    allDraws.sort((a,b)=>a.draw_id-b.draw_id);
-    progText.textContent=`✅ ${allDraws.length.toLocaleString()} κληρώσεις φορτώθηκαν. Υπολογισμός τετραγώνων…`;
-
-    const sqByKey={};
-    buildSquaresOccurrences(allDraws, sqByKey);
-    const allOcc=Object.values(sqByKey).sort((a,b)=>a.draw_id-b.draw_id);
-
-    progText.textContent=`📤 Ανέβασμα ${allOcc.length.toLocaleString()} τετραγώνων στο GitHub…`;
+    const sqByKey={};       // master accumulator
     const drawsByMonth={};
-    for(const dr of allDraws){const mo=dr.date.slice(0,7);drawsByMonth[mo]=(drawsByMonth[mo]||0)+1;}
-    const newTail=allDraws.slice(-10);
+    let totalDraws=0;
+    let tail=[];            // last 10 draws of previous month (boundary context)
+    const seenIds=new Set();
 
-    await ghPut('data/kino_squares_master.json',{
-      last_updated:`rebuild-${todayDate.toISOString().slice(0,10)}`,
-      total_draws:allDraws.length,
-      draws_by_month:drawsByMonth,
-      tail:newTail,
-      total_occurrences:allOcc.length,
-      occurrences:allOcc
-    },`KINO full rebuild ${todayDate.toISOString().slice(0,10)}`);
+    for(let mi=0;mi<months.length;mi++){
+      const {y,m}=months[mi];
+      const monthStr=`${y}-${pad(m)}`;
+      const dEnd=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
+      const monthDraws=[];
 
-    st.textContent=`✅ Ανακατασκευή ολοκληρώθηκε: ${allDraws.length.toLocaleString()} κληρώσεις | ${allOcc.length.toLocaleString()} τετράγωνα`;
-    PREDICTIONS=computeGeoPredictions({occurrences:allOcc});
-    progText.textContent=`✅ Έτοιμο — ${allOcc.length.toLocaleString()} τετράγωνα με trigger_bonus`;
+      // ── Fetch all days of this month ──
+      for(let d=1;d<=dEnd;d++){
+        const dateStr=`${y}-${pad(m)}-${pad(d)}`;
+        progText.textContent=`Μήνας ${mi+1}/${months.length} — ${dateStr} (${totalDraws.toLocaleString()} κληρώσεις, ${Object.keys(sqByKey).length.toLocaleString()} τετράγωνα)`;
+        progBar.style.width=`${Math.round((mi/months.length+d/(dEnd*months.length))*100)}%`;
+        try{
+          const items=await fetchDaySeq(dateStr,'');
+          const draws=items
+            .filter(i=>i.winningNumbers?.list?.length)
+            .map(i=>({
+              draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
+              date:dateStr,
+              winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
+              bonus:i.winningNumbers.bonus||[]
+            }));
+          for(const dr of draws){if(!seenIds.has(dr.draw_id)){seenIds.add(dr.draw_id);monthDraws.push(dr);}}
+        }catch(e){console.warn('Skip',dateStr,e);}
+        await new Promise(r=>setTimeout(r,150));
+      }
+
+      if(!monthDraws.length){progText.textContent=`⚠️ Μήνας ${monthStr}: 0 κληρώσεις, skip`;continue;}
+      monthDraws.sort((a,b)=>a.draw_id-b.draw_id);
+
+      // ── Build squares: context = tail (prev month end) + this month ──
+      const ctxById={};
+      for(const d of tail) ctxById[d.draw_id]=d;
+      for(const d of monthDraws) ctxById[d.draw_id]=d;
+      const contextDraws=Object.values(ctxById).sort((a,b)=>a.draw_id-b.draw_id);
+      buildSquaresOccurrences(contextDraws, sqByKey);
+
+      // ── Update metadata ──
+      drawsByMonth[monthStr]=monthDraws.length;
+      totalDraws+=monthDraws.length;
+      tail=monthDraws.slice(-10);
+
+      // ── Upload after each month ──
+      const allOcc=Object.values(sqByKey).sort((a,b)=>a.draw_id-b.draw_id);
+      progText.textContent=`📤 Μήνας ${monthStr} (${mi+1}/${months.length}): ανέβασμα ${allOcc.length.toLocaleString()} τετραγώνων…`;
+      try{
+        await ghPut('data/kino_squares_master.json',{
+          last_updated:monthStr,
+          total_draws:totalDraws,
+          draws_by_month:drawsByMonth,
+          tail,
+          total_occurrences:allOcc.length,
+          occurrences:allOcc
+        },`KINO rebuild ${monthStr} (${mi+1}/${months.length})`);
+        progText.textContent=`✅ Μήνας ${monthStr} ανέβηκε — ${allOcc.length.toLocaleString()} τετράγωνα σύνολο`;
+      }catch(err){
+        st.className='error'; st.textContent=`⚠️ Upload failed @ ${monthStr}: ${err.message}`;
+        btn.disabled=false; return;
+      }
+    }
+
+    const finalOcc=Object.values(sqByKey).length;
+    st.textContent=`✅ Ανακατασκευή ολοκληρώθηκε: ${totalDraws.toLocaleString()} κληρώσεις | ${finalOcc.toLocaleString()} τετράγωνα`;
+    progText.textContent=`✅ Έτοιμο`;
     progBar.style.width='100%';
     btn.disabled=false;
   }
