@@ -567,31 +567,78 @@
       document.getElementById('tokenDetails').setAttribute('open','');
       alert('Ορίσε πρώτα το GitHub Token!'); return;
     }
-    if(!confirm('Πλήρης ανακατασκευή μήνα-μήνα από Jan 2025. Θα πάρει ~20-30 λεπτά. Συνέχεια;')) return;
 
     const st=document.getElementById('status');
     const progWrap=document.getElementById('rebuildProgress');
     const progText=document.getElementById('rebuildProgressText');
     const progBar=document.getElementById('rebuildProgressBar');
     const btn=document.getElementById('btnRebuild');
-    btn.disabled=true; progWrap.style.display='block';
+    progWrap.style.display='block';
+    progText.textContent='🔍 Έλεγχος υπάρχοντος αρχείου…';
+
+    // ── Check for existing data to resume ──
+    let sqByKey={}, drawsByMonth={}, totalDraws=0, tail=[], seenIds=new Set();
+    let startYear=2025, startMonth=1;
+
+    try{
+      const h=ghHeaders();
+      const url=`https://api.github.com/repos/${REPO}/contents/data/kino_squares_master.json`;
+      const chk=await fetch(url,{headers:h});
+      if(chk.ok){
+        const ex=await chk.json();
+        const existing=JSON.parse(atob(ex.content.replace(/[\n\r]/g,'')));
+        if(existing.last_updated && existing.occurrences?.length){
+          const [ly,lm]=existing.last_updated.split('-').map(Number);
+          const ny=lm===12?ly+1:ly, nm=lm===12?1:lm+1;
+          const resumeLabel=`${ny}-${pad(nm)}`;
+          const msg=`Βρέθηκαν δεδομένα μέχρι ${existing.last_updated} (${existing.occurrences.length.toLocaleString()} τετράγωνα).\n\nΣυνέχεια από ${resumeLabel};\n\n(ΟΧΙ = ξεκίνα από Jan 2025)`;
+          if(confirm(msg)){
+            progText.textContent=`📂 Φόρτωση ${existing.occurrences.length.toLocaleString()} υπαρχόντων…`;
+            for(const o of existing.occurrences) sqByKey[o.draw_id+'_'+o.square]=o;
+            drawsByMonth=existing.draws_by_month||{};
+            totalDraws=existing.total_draws||0;
+            tail=existing.tail||[];
+            startYear=ny; startMonth=nm;
+          } else {
+            if(!confirm('Πλήρης ανακατασκευή από Jan 2025. Θα πάρει ~30 λεπτά. Συνέχεια;')){
+              progWrap.style.display='none'; return;
+            }
+          }
+        } else {
+          if(!confirm('Πλήρης ανακατασκευή από Jan 2025. Θα πάρει ~30 λεπτά. Συνέχεια;')){
+            progWrap.style.display='none'; return;
+          }
+        }
+      } else {
+        if(!confirm('Πλήρης ανακατασκευή από Jan 2025. Θα πάρει ~30 λεπτά. Συνέχεια;')){
+          progWrap.style.display='none'; return;
+        }
+      }
+    }catch(e){
+      if(!confirm('Πλήρης ανακατασκευή από Jan 2025. Θα πάρει ~30 λεπτά. Συνέχεια;')){
+        progWrap.style.display='none'; return;
+      }
+    }
+
+    btn.disabled=true;
     st.className=''; st.textContent='⏳ Ανακατασκευή σε εξέλιξη…';
 
     const todayDate=new Date();
     const endYear=todayDate.getFullYear(), endMonth=todayDate.getMonth()+1, endDay=todayDate.getDate();
 
-    // Build list of months to process
+    // Build list of months to process (from resume point onward)
     const months=[];
-    for(let y=2025;y<=endYear;y++){
-      const mS=1, mE=(y===endYear)?endMonth:12;
+    for(let y=startYear;y<=endYear;y++){
+      const mS=(y===startYear)?startMonth:1;
+      const mE=(y===endYear)?endMonth:12;
       for(let m=mS;m<=mE;m++) months.push({y,m});
     }
 
-    const sqByKey={};       // master accumulator
-    const drawsByMonth={};
-    let totalDraws=0;
-    let tail=[];            // last 10 draws of previous month (boundary context)
-    const seenIds=new Set();
+    if(!months.length){
+      st.textContent='✅ Ήδη ενημερωμένο!';
+      progText.textContent='Δεν υπάρχουν νέοι μήνες για επεξεργασία.';
+      btn.disabled=false; return;
+    }
 
     for(let mi=0;mi<months.length;mi++){
       const {y,m}=months[mi];
@@ -602,8 +649,8 @@
       // ── Fetch all days of this month ──
       for(let d=1;d<=dEnd;d++){
         const dateStr=`${y}-${pad(m)}-${pad(d)}`;
-        progText.textContent=`Μήνας ${mi+1}/${months.length} — ${dateStr} (${totalDraws.toLocaleString()} κληρώσεις, ${Object.keys(sqByKey).length.toLocaleString()} τετράγωνα)`;
-        progBar.style.width=`${Math.round((mi/months.length+d/(dEnd*months.length))*100)}%`;
+        progText.textContent=`Μήνας ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις, ${Object.keys(sqByKey).length.toLocaleString()} τετράγωνα`;
+        progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
         try{
           const items=await fetchDaySeq(dateStr,'');
           const draws=items
