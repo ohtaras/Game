@@ -188,6 +188,7 @@
 <div class="controls">
   <label>🔄 Rebuild:</label>
   <button id="btnRebuild" onclick="rebuildAllData()" style="background:#c0392b;color:#fff;">🔄 Πλήρης Ανακατασκευή (Jan 2025→σήμερα)</button>
+  <button id="btnExport" onclick="exportRawDraws()" style="background:#6a4c93;color:#fff;margin-left:8px;">📥 Export Raw Draws (για 80-sq brute-force)</button>
 </div>
 <div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
   <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
@@ -711,6 +712,96 @@
     const finalOcc=Object.values(sqByKey).length;
     st.textContent=`✅ Ανακατασκευή ολοκληρώθηκε: ${totalDraws.toLocaleString()} κληρώσεις | ${finalOcc.toLocaleString()} τετράγωνα`;
     progText.textContent=`✅ Έτοιμο`;
+    progBar.style.width='100%';
+    btn.disabled=false;
+  }
+
+  // ── Export Raw Draws (για 80-sq brute-force) ──────────────────
+  async function exportRawDraws(){
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+    if(!confirm('Export raw draws μήνα-μήνα Jan 2025→σήμερα στο data/raw/. Θα πάρει ~15 λεπτά. Συνέχεια;')) return;
+
+    const st=document.getElementById('status');
+    const progWrap=document.getElementById('rebuildProgress');
+    const progText=document.getElementById('rebuildProgressText');
+    const progBar=document.getElementById('rebuildProgressBar');
+    const btn=document.getElementById('btnExport');
+    btn.disabled=true; progWrap.style.display='block';
+    st.className=''; st.textContent='⏳ Export raw draws σε εξέλιξη…';
+
+    const todayDate=new Date();
+    const endYear=todayDate.getFullYear(), endMonth=todayDate.getMonth()+1, endDay=todayDate.getDate();
+    const months=[];
+    for(let y=2025;y<=endYear;y++){
+      const mS=1, mE=(y===endYear)?endMonth:12;
+      for(let m=mS;m<=mE;m++) months.push({y,m});
+    }
+
+    let totalDraws=0;
+    for(let mi=0;mi<months.length;mi++){
+      const {y,m}=months[mi];
+      const monthStr=`${y}-${pad(m)}`;
+      const dEnd=(y===endYear&&m===endMonth)?endDay:new Date(y,m,0).getDate();
+
+      // Check if already exported
+      const h=ghHeaders();
+      const checkUrl=`https://api.github.com/repos/${REPO}/contents/data/raw/kino_raw_${y}_${pad(m)}.json`;
+      const chk=await fetch(checkUrl,{headers:h});
+      if(chk.ok){
+        progText.textContent=`✅ ${monthStr} ήδη υπάρχει — skip`;
+        progBar.style.width=`${Math.round(((mi+1)/months.length)*100)}%`;
+        continue;
+      }
+
+      // Fetch all days of month
+      const monthDraws=[];
+      const seenIds=new Set();
+      for(let d=1;d<=dEnd;d++){
+        const dateStr=`${y}-${pad(m)}-${pad(d)}`;
+        progText.textContent=`📥 ${monthStr} — ${dateStr} (${mi+1}/${months.length})`;
+        progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
+        try{
+          const items=await fetchDaySeq(dateStr,'');
+          for(const i of items){
+            if(!i.winningNumbers?.list?.length) continue;
+            if(seenIds.has(i.drawId)) continue;
+            seenIds.add(i.drawId);
+            // Compact format: just what we need for 80-sq analysis
+            monthDraws.push({
+              id:i.drawId,
+              n:[...i.winningNumbers.list].sort((a,b)=>a-b),
+              b:(i.winningNumbers.bonus||[])[0]||null
+            });
+          }
+        }catch(e){console.warn('Skip',dateStr,e);}
+        await new Promise(r=>setTimeout(r,120));
+      }
+
+      if(!monthDraws.length){
+        progText.textContent=`⚠️ ${monthStr}: 0 κληρώσεις, skip`;
+        continue;
+      }
+      monthDraws.sort((a,b)=>a.id-b.id);
+      totalDraws+=monthDraws.length;
+
+      // Upload compact monthly file
+      progText.textContent=`📤 Upload ${monthStr}: ${monthDraws.length.toLocaleString()} κληρώσεις…`;
+      try{
+        await ghPut(`data/raw/kino_raw_${y}_${pad(m)}.json`,
+          {month:monthStr, draws:monthDraws},
+          `Raw draws ${monthStr} (${mi+1}/${months.length})`);
+        progText.textContent=`✅ ${monthStr}: ${monthDraws.length.toLocaleString()} κληρώσεις ανέβηκαν`;
+      }catch(err){
+        st.className='error'; st.textContent=`⚠️ Upload failed @ ${monthStr}: ${err.message}`;
+        btn.disabled=false; return;
+      }
+    }
+
+    st.textContent=`✅ Export ολοκληρώθηκε: ${totalDraws.toLocaleString()} κληρώσεις σε ${months.length} αρχεία`;
+    progText.textContent='✅ Έτοιμο — τώρα μπορεί να γίνει το 80-sq brute-force!';
     progBar.style.width='100%';
     btn.disabled=false;
   }
