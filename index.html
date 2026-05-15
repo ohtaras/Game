@@ -188,7 +188,7 @@
 <div class="controls">
   <label>🔄 Rebuild:</label>
   <button id="btnRebuild" onclick="rebuildAllData()" style="background:#c0392b;color:#fff;">🔄 Πλήρης Ανακατασκευή (Jan 2025→σήμερα)</button>
-  <button id="btnExport" onclick="exportRawDraws()" style="background:#6a4c93;color:#fff;margin-left:8px;">📥 Export Raw Draws (για 80-sq brute-force)</button>
+  <button id="btnExportRaw" onclick="exportRawDraws()" style="background:#6a4c93;color:#fff;margin-left:8px;">📥 Export Raw Draws (για 80-sq brute-force)</button>
 </div>
 <div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
   <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
@@ -728,7 +728,7 @@
     const progWrap=document.getElementById('rebuildProgress');
     const progText=document.getElementById('rebuildProgressText');
     const progBar=document.getElementById('rebuildProgressBar');
-    const btn=document.getElementById('btnExport');
+    const btn=document.getElementById('btnExportRaw');
     btn.disabled=true; progWrap.style.display='block';
     st.className=''; st.textContent='⏳ Export raw draws σε εξέλιξη…';
 
