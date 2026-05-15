@@ -826,23 +826,33 @@
         return [...new Set(preds)];
       });
 
-      // Evaluate wins
-      const evalWin=(pred,drawSet)=>pred.length>=6&&drawSet?pred.every(n=>drawSet.has(n)):false;
+      // Evaluate: count how many of the 6 predicted numbers appear in draw
+      const evalScore=(pred,drawSet)=>{
+        if(!pred.length||!drawSet) return null;
+        const hits=pred.filter(n=>drawSet.has(n)).length;
+        return {hits, total:pred.length};
+      };
+      const scoreCell=(sc)=>{
+        if(!sc) return '<td style="text-align:center;color:#aaa">—</td>';
+        const pct=sc.hits/sc.total;
+        const color=sc.hits===sc.total?'#2a9d8f':sc.hits>=4?'#f4a261':sc.hits>=2?'#888':'#ccc';
+        const bold=sc.hits===sc.total?'font-weight:700;':'';
+        return `<td style="text-align:center;color:${color};${bold}">${sc.hits}/${sc.total}</td>`;
+      };
 
       // Prediction table
       let tableHtml='<div style="margin:8px 0 4px 0;overflow-x:auto"><table style="border-collapse:collapse;font-size:0.8rem;width:100%">';
       tableHtml+='<tr style="background:#f0f0f0"><th style="padding:4px 8px;text-align:left">Κανόνας</th><th>Νούμερα</th><th style="text-align:center">P1</th><th style="text-align:center">P2</th></tr>';
       rulePreds.forEach((pred,ri)=>{
         const rule=PRED_RULES[ri];
-        const w1=evalWin(pred,p1Set);
-        const w2=evalWin(pred,p2Set);
+        const sc1=evalScore(pred,p1Set);
+        const sc2=evalScore(pred,p2Set);
         const nums=pred.length?pred.sort((a,b)=>a-b).join(' · '):'—';
         const noBonus=ri===0&&!trigBonus?'<span style="color:#aaa;font-size:0.75rem">(χωρίς bonus)</span>':'';
         tableHtml+=`<tr style="border-bottom:1px solid #eee">
           <td style="padding:3px 8px;color:${rule.color};font-weight:600;white-space:nowrap">${rule.label} <span style="color:#888;font-weight:400">${rule.note}</span> ${noBonus}</td>
           <td style="padding:3px 8px;font-family:monospace;color:#333">${nums}</td>
-          <td style="text-align:center;font-size:1.1rem">${w1?'✅':'—'}</td>
-          <td style="text-align:center;font-size:1.1rem">${w2?'✅':'—'}</td>
+          ${scoreCell(sc1)}${scoreCell(sc2)}
         </tr>`;
       });
       tableHtml+='</table></div>';
