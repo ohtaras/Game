@@ -610,7 +610,7 @@
         progText.textContent=`${yearVal} — Μήνας ${month}/${lastMonth}, ${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
         progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'',300);
+          const items=await fetchDaySeq(dateStr,'',10);
           const draws=items
             .filter(i=>i.winningNumbers?.list?.length)
             .map(i=>({
@@ -741,7 +741,7 @@
         progText.textContent=`Μήνας ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις, ${Object.keys(sqByKey).length.toLocaleString()} τετράγωνα`;
         progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'',300);
+          const items=await fetchDaySeq(dateStr,'',10);
           const draws=items
             .filter(i=>i.winningNumbers?.list?.length)
             .map(i=>({
@@ -844,7 +844,7 @@
         progText.textContent=`📥 ${monthStr} — ${dateStr} (${mi+1}/${months.length})`;
         progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'',300);
+          const items=await fetchDaySeq(dateStr,'',10);
           for(const i of items){
             if(!i.winningNumbers?.list?.length) continue;
             if(seenIds.has(i.drawId)) continue;
@@ -942,7 +942,7 @@
           progText.textContent=`📥 ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις`;
           progBar.style.width=`${Math.round((mi+d/dEnd)/months.length*100)}%`;
           try{
-            const items=await fetchDaySeq(dateStr,'',300);
+            const items=await fetchDaySeq(dateStr,'',10);
             for(const i of items){
               if(!i.winningNumbers?.list?.length) continue;
               if(seenIds.has(i.drawId)) continue;
@@ -1013,17 +1013,35 @@
       const today=new Date();
       const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
 
-      st.textContent=`ℹ️ Τελευταία γνωστή: ~${lastDateStr} | Σήμερα: ${todayStr}`;
-      progText.textContent=`Ελέγχω από ${lastDateStr} έως ${todayStr}…`;
+      // Detect days with < 200 draws (incomplete — should have ~288)
+      const drawsByDay={};
+      for(const d of latestData.draws){
+        const dayN=Math.floor((d.id-BASE_ID)/288);
+        drawsByDay[dayN]=(drawsByDay[dayN]||0)+1;
+      }
+      const incompleteDates=new Set();
+      for(const [dayNStr,count] of Object.entries(drawsByDay)){
+        if(count<200){
+          const dayN=parseInt(dayNStr);
+          const dt=new Date(Date.UTC(2025,0,1)+dayN*86400000);
+          incompleteDates.add(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+        }
+      }
+      const incompleteCount=incompleteDates.size;
 
-      // Λίστα ημερών για fetch
-      const datesToFetch=[];
+      st.textContent=`ℹ️ Τελευταία γνωστή: ~${lastDateStr} | Σήμερα: ${todayStr}${incompleteCount?` | ⚠️ ${incompleteCount} ελλιπείς ημέρες`:''} `;
+      progText.textContent=`Ελέγχω από ${lastDateStr} έως ${todayStr}${incompleteCount?` (+${incompleteCount} επισκευή)`:''}…`;
+
+      // Λίστα ημερών για fetch: ελλιπείς ημέρες + ημέρες από lastDate έως σήμερα
+      const datesToFetch=[...incompleteDates].sort();
       const cur=new Date(lastDate);
       const todayUTC=new Date(Date.UTC(today.getFullYear(),today.getMonth(),today.getDate()));
       while(cur<=todayUTC){
-        datesToFetch.push(`${cur.getUTCFullYear()}-${pad(cur.getUTCMonth()+1)}-${pad(cur.getUTCDate())}`);
+        const ds=`${cur.getUTCFullYear()}-${pad(cur.getUTCMonth()+1)}-${pad(cur.getUTCDate())}`;
+        if(!incompleteDates.has(ds)) datesToFetch.push(ds);
         cur.setUTCDate(cur.getUTCDate()+1);
       }
+      datesToFetch.sort();
 
       // Φέρε νέες κληρώσεις
       const newByMonth={};
@@ -1033,7 +1051,7 @@
         progText.textContent=`📥 ${dateStr} (${di+1}/${datesToFetch.length}) | +${totalNew} νέες`;
         progBar.style.width=`${Math.round((di+1)/datesToFetch.length*80)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'',300);
+          const items=await fetchDaySeq(dateStr,'',10);
           for(const i of items){
             if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
             knownIds.add(i.drawId);
@@ -1802,7 +1820,7 @@
     const res = document.getElementById('simResults');
     st.textContent = '⏳ Φόρτωση…'; res.innerHTML = '';
     try {
-      const items = await fetchDaySeq(dateStr, '', 300);
+      const items = await fetchDaySeq(dateStr, '', 10);
       const draws = items
         .filter(i => i.winningNumbers?.list?.length)
         .map(i => ({
