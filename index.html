@@ -101,6 +101,33 @@
     #monthProgress { max-width:960px; margin:8px auto 0; padding:0 16px; display:none; }
     .progress-bar-wrap { background:#e0e0e0; border-radius:8px; height:10px; overflow:hidden; margin-top:4px; }
     .progress-bar-fill { background:#4361ee; height:100%; border-radius:8px; transition:width .3s; }
+    /* ── Live Monitor ── */
+    #liveSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #liveSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #liveSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;display:flex;align-items:center;gap:10px;}
+    #liveSection summary::-webkit-details-marker{display:none;}
+    .live-badge{padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;}
+    .live-badge.on{background:#e63946;color:white;animation:livepulse .8s infinite alternate;}
+    .live-badge.off{background:#ddd;color:#666;}
+    @keyframes livepulse{from{opacity:1}to{opacity:.5}}
+    .live-row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap;}
+    .live-trigger-box{margin-top:8px;padding:8px 12px;border-radius:8px;background:#fff3ee;border-left:4px solid #e76f51;}
+    .live-eval-box{margin-top:6px;padding:8px 12px;border-radius:8px;background:#f0fff8;border-left:4px solid #2a9d8f;}
+    .live-rule-row{display:flex;align-items:center;gap:4px;margin:2px 0;flex-wrap:wrap;}
+    .live-rule-lbl{font-size:0.72rem;font-weight:700;min-width:26px;display:inline-block;}
+    .rule-ball{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;color:white;margin:1px;}
+    .win-badge{background:#2a9d8f;color:white;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;}
+    .miss-badge{color:#aaa;font-size:0.72rem;}
+    /* ── Day Simulation ── */
+    #daySimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #daySimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #daySimSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;}
+    #daySimSection summary::-webkit-details-marker{display:none;}
+    .sim-block{border-radius:8px;overflow:hidden;border:1px solid #eee;margin-bottom:8px;}
+    .sim-trig{background:#fff3ee;border-left:4px solid #e76f51;padding:8px 12px;}
+    .sim-p1{background:#f8f9ff;border-left:4px solid #4361ee;padding:6px 12px;}
+    .sim-p2{background:#f0f9ff;border-left:4px solid #2ec4b6;padding:6px 12px;}
+    .sim-hdr{display:flex;align-items:center;gap:8px;font-size:0.8rem;flex-wrap:wrap;margin-bottom:3px;}
   </style>
 </head>
 <body>
@@ -154,6 +181,29 @@
   </details>
 </div>
 
+<!-- ── Live Monitor ── -->
+<div id="liveSection">
+  <details id="liveDetails">
+    <summary>
+      📡 Live Monitor — Αυτόματη Ενημέρωση
+      <span id="liveBadge" class="live-badge off">ΣΤΑΜΑΤΗΜΕΝΟ</span>
+      <button id="liveBtn" onclick="toggleLive()" style="padding:4px 12px;font-size:0.8rem;margin-left:auto">▶ Εκκίνηση</button>
+    </summary>
+    <div style="margin-top:8px">
+      <div class="live-row">
+        <span id="liveTime" style="font-weight:700;color:#4361ee;font-size:1rem">—</span>
+        <span id="liveDrawId" style="font-size:0.8rem;color:#aaa">—</span>
+        <span id="liveCountdown" style="font-size:0.85rem;color:#888;font-family:monospace">Επόμενη: —</span>
+        <button onclick="fetchLiveNow()" style="padding:4px 10px;font-size:0.8rem;background:#2a9d8f;margin-left:auto">⟳ Ανανέωση</button>
+      </div>
+      <div id="liveGrid" style="max-width:440px;margin-bottom:6px"></div>
+      <div id="liveTrigger"></div>
+      <div id="liveEval"></div>
+      <div id="liveSaveStatus" style="font-size:0.75rem;color:#aaa;margin-top:4px"></div>
+    </div>
+  </details>
+</div>
+
 <!-- Ημερήσια φόρτωση -->
 <div class="controls">
   <label>📅 Ημέρα:</label>
@@ -200,6 +250,19 @@
 <div id="monthProgress">
   <div id="monthProgressText" style="font-size:0.85rem;color:#555;"></div>
   <div class="progress-bar-wrap"><div class="progress-bar-fill" id="monthProgressBar" style="width:0%"></div></div>
+</div>
+
+<!-- ── Day Simulation ── -->
+<div id="daySimSection">
+  <details>
+    <summary>📅 Προσομοίωση Ημέρας — Τετράγωνα &amp; Κανόνες</summary>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <input type="date" id="simDatePicker" style="padding:7px 10px;border:2px solid #ddd;border-radius:6px;font-size:0.9rem">
+      <button onclick="runDaySim()" style="background:#457b9d;padding:7px 14px;font-size:0.85rem">▶ Εκτέλεση</button>
+    </div>
+    <div id="simStatus" style="font-size:0.82rem;color:#888;margin-top:6px"></div>
+    <div id="simResults" style="margin-top:10px"></div>
+  </details>
 </div>
 
 <div id="status"></div>
@@ -1328,6 +1391,323 @@
     const blob=new Blob([JSON.stringify(lastData,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download=`kino_${lastData.date.replace(/-/g,'')}.json`; a.click();
+  }
+
+  // ── Toroidal Squares & Offset Rules ──────────────────────────
+  const OFFSET_RULES = [
+    {id:1, label:'R1', offsets:[6,8,33,38,45,61],    wins:26, x:'×3.9', color:'#e63946'},
+    {id:2, label:'R2', offsets:[28,31,39,45,47,78],  wins:20, x:'×3.0', color:'#f4a261'},
+    {id:3, label:'R3', offsets:[1,17,29,30,58,64],   wins:20, x:'×3.0', color:'#2a9d8f'},
+    {id:4, label:'R4', offsets:[22,23,48,63,66,67],  wins:19, x:'×2.8', color:'#457b9d'},
+    {id:5, label:'R5', offsets:[6,7,12,16,26,56],    wins:17, x:'×2.5', color:'#6a4c93'},
+    {id:6, label:'R6', offsets:[0,3,24,32,35,51,73], wins:13, x:'×10.2',color:'#e76f51'},
+  ];
+
+  function torSqNums(root) {
+    const r = Math.floor((root-1)/10), c = (root-1)%10;
+    return [root, r*10+((c+2)%10)+1, ((r+2)%8)*10+c+1, ((r+2)%8)*10+((c+2)%10)+1];
+  }
+
+  function findTorSquares(nums) {
+    const s = new Set(nums), found = [];
+    for (let n = 1; n <= 80; n++) {
+      const sq = torSqNums(n);
+      if (sq.every(x => s.has(x))) found.push({root:n, sq});
+    }
+    return found;
+  }
+
+  function getOffsetPreds(root) {
+    return OFFSET_RULES.map(r => ({...r, numbers: r.offsets.map(d => wrapN(root+d))}));
+  }
+
+  // ── Timer helpers ─────────────────────────────────────────────
+  function msToNext() {
+    const now = new Date(), m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds()/1000;
+    const cur5 = Math.floor(m/5)*5;
+    let diff = (cur5+5)*60 + 15 - (m*60+s);
+    if (diff <= 0) diff += 300;
+    return diff * 1000;
+  }
+  function fmtMs(ms) {
+    const s = Math.round(ms/1000);
+    return `${pad(Math.floor(s/60))}:${pad(s%60)}`;
+  }
+
+  // ── Live Monitor State ────────────────────────────────────────
+  let liveRunning = false, liveTimerId = null, liveCountdownId = null;
+  let liveLastDrawId = null;
+  let liveBuffer = new Map(); // drawId → {id,n,b}
+  let liveLastSavedCount = 0;
+  let liveP1 = null; // trigger waiting for P1 eval: {root,preds,drawId,sq}
+  let liveP2 = null; // after P1, waiting for P2: {root,preds,drawId,sq}
+
+  function toggleLive() { if (liveRunning) stopLive(); else startLive(); }
+
+  function startLive() {
+    liveRunning = true;
+    document.getElementById('liveBadge').className = 'live-badge on';
+    document.getElementById('liveBadge').textContent = '● ΖΩΝΤΑΝΑ';
+    document.getElementById('liveBtn').textContent = '⏹ Διακοπή';
+    document.getElementById('liveDetails').setAttribute('open', '');
+    fetchLiveNow();
+    scheduleLive();
+    liveCountdownId = setInterval(() => {
+      if (!liveRunning) { clearInterval(liveCountdownId); return; }
+      document.getElementById('liveCountdown').textContent = `Επόμενη σε: ${fmtMs(msToNext())}`;
+    }, 500);
+  }
+
+  function stopLive() {
+    liveRunning = false;
+    clearTimeout(liveTimerId);
+    clearInterval(liveCountdownId);
+    document.getElementById('liveBadge').className = 'live-badge off';
+    document.getElementById('liveBadge').textContent = 'ΣΤΑΜΑΤΗΜΕΝΟ';
+    document.getElementById('liveBtn').textContent = '▶ Εκκίνηση';
+    document.getElementById('liveCountdown').textContent = 'Επόμενη: —';
+  }
+
+  function scheduleLive() {
+    if (!liveRunning) return;
+    liveTimerId = setTimeout(() => { fetchLiveNow(); scheduleLive(); }, msToNext());
+  }
+
+  async function fetchLiveNow() {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    try {
+      const items = await fetchDaySeq(todayStr, '');
+      const draws = items
+        .filter(i => i.winningNumbers?.list?.length)
+        .sort((a,b) => a.drawId - b.drawId);
+      if (!draws.length) return;
+
+      for (const d of draws) {
+        if (!liveBuffer.has(d.drawId)) {
+          liveBuffer.set(d.drawId, {
+            id: d.drawId,
+            n: [...d.winningNumbers.list].sort((a,b) => a-b),
+            b: (d.winningNumbers.bonus||[])[0]||null
+          });
+        }
+      }
+
+      const latest = draws[draws.length-1];
+      if (latest.drawId === liveLastDrawId) return;
+      liveLastDrawId = latest.drawId;
+
+      processLiveDraw({
+        id: latest.drawId,
+        time: localTimeStr(toMs(latest.drawTime)),
+        nums: [...latest.winningNumbers.list].sort((a,b) => a-b),
+        bonus: (latest.winningNumbers.bonus||[])[0]||null
+      });
+
+      if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
+    } catch(e) { console.error('fetchLiveNow:', e); }
+  }
+
+  function renderEvalBlock(label, ev, numSet) {
+    const wins = ev.preds.filter(r => r.numbers.every(n => numSet.has(n)));
+    const rows = ev.preds.map(r => {
+      const hits = r.numbers.filter(n => numSet.has(n)).length;
+      const win = hits === r.numbers.length;
+      const numsHtml = r.numbers.map(n =>
+        `<span style="color:${numSet.has(n)?r.color:'#ccc'};font-weight:${numSet.has(n)?'700':'400'}">${n}</span>`
+      ).join(' ');
+      return `<div style="font-size:0.76rem;margin:1px 0">
+        <span style="color:${r.color};font-weight:700;display:inline-block;min-width:28px">${r.label}</span>
+        ${numsHtml}
+        ${win?'<strong style="color:#2a9d8f;margin-left:4px">✓ WIN</strong>':hits?`<span style="color:#f4a261;margin-left:4px">${hits}/${r.numbers.length}</span>`:''}
+      </div>`;
+    });
+    return `<div class="live-eval-box">
+      <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px">
+        📊 ${label} — Trigger #${ev.drawId} (root ${ev.root})
+        ${wins.length?`<span class="win-badge">✓ ${wins.length} νίκ${wins.length===1?'η':'ες'}</span>`:'<span class="miss-badge">miss</span>'}
+      </div>
+      ${rows.join('')}
+    </div>`;
+  }
+
+  function processLiveDraw(draw) {
+    const {id, time, nums, bonus} = draw;
+    const numSet = new Set(nums);
+    let evalHtml = '';
+
+    // Evaluate P2 first (oldest pending)
+    if (liveP2) { evalHtml += renderEvalBlock('P2', liveP2, numSet); liveP2 = null; }
+
+    // Evaluate P1, then move to P2 slot
+    if (liveP1) { evalHtml += renderEvalBlock('P1', liveP1, numSet); liveP2 = liveP1; liveP1 = null; }
+
+    // Detect single toroidal trigger in this draw
+    const torSqs = findTorSquares(nums);
+    let trigHtml = '';
+
+    if (torSqs.length === 1) {
+      const {root, sq} = torSqs[0];
+      const preds = getOffsetPreds(root);
+      liveP1 = {root, preds, drawId: id, sq};
+
+      const ruleRows = preds.map(r => {
+        const balls = r.numbers.map(n =>
+          `<div class="rule-ball" style="background:${r.color}">${n}</div>`
+        ).join('');
+        return `<div class="live-rule-row">
+          <span class="live-rule-lbl" style="color:${r.color}">${r.label}</span>
+          ${balls}
+          <span style="font-size:0.7rem;color:#aaa;margin-left:4px">${r.x} (${r.wins}νίκ)</span>
+        </div>`;
+      });
+
+      trigHtml = `<div class="live-trigger-box">
+        <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px">🔲 Trigger! Root: <strong>${root}</strong> — [${sq.join(',')}]</div>
+        ${ruleRows.join('')}
+      </div>`;
+    }
+
+    // Show predicted numbers for the active pending trigger in the grid
+    const sqNums = torSqs.length === 1 ? torSqs[0].sq : [];
+    const pendingPreds = liveP1 ? [...new Set(liveP1.preds.flatMap(r => r.numbers))] : [];
+
+    document.getElementById('liveGrid').innerHTML = kinoGrid(nums, bonus ? [bonus] : [], sqNums, pendingPreds);
+    document.getElementById('liveDrawId').textContent = `#${id}`;
+    document.getElementById('liveTime').textContent = time;
+    document.getElementById('liveTrigger').innerHTML = trigHtml;
+    document.getElementById('liveEval').innerHTML = evalHtml;
+  }
+
+  async function autoSaveLiveBuffer() {
+    if (!localStorage.getItem('gh_token') || !liveBuffer.size) return;
+    const el = document.getElementById('liveSaveStatus');
+    el.textContent = '💾 Αποθήκευση…';
+    try {
+      const BASE_ID = 1155022;
+      const byMonth = {};
+      for (const [id, d] of liveBuffer) {
+        const dayN = Math.floor((id - BASE_ID) / 288);
+        const dt = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+        const mStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}`;
+        if (!byMonth[mStr]) byMonth[mStr] = [];
+        byMonth[mStr].push(d);
+      }
+      for (const [mStr, draws] of Object.entries(byMonth)) {
+        const [y, m] = mStr.split('-');
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const exArr = existing?.draws || [];
+        const exIds = new Set(exArr.map(d => d.id));
+        const newOnes = draws.filter(d => !exIds.has(d.id));
+        if (!newOnes.length) continue;
+        const merged = [...exArr, ...newOnes].sort((a,b) => a.id - b.id);
+        await ghPut(`data/raw/kino_raw_${y}_${m}.json`, {month:mStr, draws:merged}, `Live +${newOnes.length} ${mStr}`);
+      }
+      liveLastSavedCount = liveBuffer.size;
+      el.textContent = `✅ Αποθηκεύτηκε ${new Date().toLocaleTimeString('el-GR')}`;
+    } catch(e) { el.textContent = '⚠️ ' + e.message; }
+  }
+
+  // Initialize sim date picker to today
+  document.getElementById('simDatePicker').value =
+    `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+  // ── Day Simulation ────────────────────────────────────────────
+  async function runDaySim() {
+    const dateStr = document.getElementById('simDatePicker').value;
+    if (!dateStr) { alert('Επιλέξτε ημερομηνία'); return; }
+    const st = document.getElementById('simStatus');
+    const res = document.getElementById('simResults');
+    st.textContent = '⏳ Φόρτωση…'; res.innerHTML = '';
+    try {
+      const items = await fetchDaySeq(dateStr, '');
+      const draws = items
+        .filter(i => i.winningNumbers?.list?.length)
+        .map(i => ({
+          id: i.drawId,
+          time: localTimeStr(toMs(i.drawTime)),
+          nums: [...i.winningNumbers.list].sort((a,b) => a-b),
+          bonus: (i.winningNumbers.bonus||[])[0]||null
+        }))
+        .sort((a,b) => a.id - b.id);
+
+      if (!draws.length) {
+        st.textContent = '⚠️ Καμία κλήρωση';
+        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν κληρώσεις.</div>';
+        return;
+      }
+
+      let html = '', totalTriggers = 0, totalWins = 0;
+
+      for (let i = 0; i < draws.length; i++) {
+        const d = draws[i];
+        const torSqs = findTorSquares(d.nums);
+        if (torSqs.length !== 1) continue;
+
+        totalTriggers++;
+        const {root, sq} = torSqs[0];
+        const preds = getOffsetPreds(root);
+        const p1 = draws[i+1] || null;
+        const p2 = draws[i+2] || null;
+
+        const evalP = (px) => {
+          if (!px) return null;
+          const s = new Set(px.nums);
+          return preds.map(r => ({...r, hits: r.numbers.filter(n => s.has(n)).length, win: r.numbers.every(n => s.has(n))}));
+        };
+        const p1Eval = evalP(p1), p2Eval = evalP(p2);
+        const anyWin = p1Eval?.some(r => r.win) || p2Eval?.some(r => r.win);
+        if (anyWin) totalWins++;
+
+        const predBalls = (r) => r.numbers.map(n =>
+          `<div class="rule-ball" style="background:${r.color}">${n}</div>`
+        ).join('');
+
+        const evalRow = (evalArr, label, pDraw) => {
+          if (!pDraw || !evalArr) return '';
+          const wins = evalArr.filter(r => r.win);
+          const color = label === 'P1' ? '#4361ee' : '#2ec4b6';
+          const rowHtml = evalArr.map(r => {
+            const col = r.win ? r.color : r.hits > 0 ? '#888' : '#ddd';
+            return `<span style="color:${col};font-weight:${r.win?'700':'400'};margin-right:6px;font-size:0.75rem">${r.label}: ${r.hits}/${r.numbers.length}</span>`;
+          }).join('');
+          return `<div class="${label==='P1'?'sim-p1':'sim-p2'}">
+            <div class="sim-hdr">
+              <span style="font-weight:700;color:${color}">${label} #${pDraw.id} ${pDraw.time}</span>
+              ${wins.length?`<span class="win-badge">✓ WIN: ${wins.map(r=>r.label).join(' ')}</span>`:''}
+            </div>
+            <div>${rowHtml}</div>
+          </div>`;
+        };
+
+        html += `<div class="sim-block">
+          <div class="sim-trig">
+            <div class="sim-hdr">
+              <span style="font-weight:700;color:#e76f51">🔲 #${d.id} ${d.time}</span>
+              <span style="color:#888;font-size:0.75rem">Root:${root} [${sq.join(',')}]</span>
+              ${anyWin?'<span class="win-badge">✓ WIN</span>':''}
+            </div>
+            <div style="margin-top:4px">
+              ${preds.map(r=>`<div class="live-rule-row">
+                <span class="live-rule-lbl" style="color:${r.color}">${r.label}</span>
+                ${predBalls(r)}
+                <span style="font-size:0.7rem;color:#aaa;margin-left:4px">${r.x}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          ${evalRow(p1Eval,'P1',p1)}
+          ${evalRow(p2Eval,'P2',p2)}
+        </div>`;
+      }
+
+      if (!totalTriggers) {
+        st.textContent = `✅ ${draws.length} κληρώσεις — 0 triggers`;
+        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν single-fire 80-sq τετράγωνα.</div>';
+      } else {
+        st.textContent = `✅ ${draws.length} κληρώσεις | ${totalTriggers} triggers | ${totalWins} νίκες (P1+P2)`;
+        res.innerHTML = html;
+      }
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
   }
 </script>
 </body>
