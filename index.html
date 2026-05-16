@@ -252,7 +252,7 @@
 <!-- Ενημέρωση Raw -->
 <div class="controls">
   <label>📊 Raw:</label>
-  <button id="btnUpdateRawDay" onclick="updateRawByDay()" style="background:#f4a261;color:#fff;">📅 Συμπλήρωση ανά ημέρα</button>
+  <button id="btnUpdateRawDay" onclick="updateRawByDay()" style="background:#f4a261;color:#fff;">📅 Ενημέρωση (2024→σήμερα)</button>
 </div>
 <div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
   <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
@@ -639,7 +639,7 @@
     }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
   }
 
-  // ── Update Raw by Day (smart: only adds missing draws) ────────
+  // ── Update Raw (2024-01-01 → today): creates missing months, repairs incomplete days) ──
   async function updateRawByDay(){
     if(!localStorage.getItem('gh_token')){
       document.getElementById('tokenDetails').setAttribute('open','');
@@ -654,107 +654,114 @@
     st.className=''; progBar.style.width='0%';
     try{
       const h=ghHeaders();
-      progText.textContent='🔍 Έλεγχος τελευταίας κλήρωσης…';
-      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
-      if(!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία — κάνε πρώτα Export Raw');
-      const fileList=await listR.json();
-      const rawFiles=fileList
-        .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
-        .sort((a,b)=>a.name.localeCompare(b.name));
-      if(!rawFiles.length) throw new Error('Δεν υπάρχουν raw αρχεία');
-
-      const latestName=rawFiles[rawFiles.length-1].name;
-      progText.textContent=`📥 Φόρτωση ${latestName}…`;
-      const latestData=await ghGet(`data/raw/${latestName}`);
-      if(!latestData?.draws?.length) throw new Error('Άδειο αρχείο');
-
-      const knownIds=new Set(latestData.draws.map(d=>d.id));
-      const lastId=Math.max(...latestData.draws.map(d=>d.id));
       const BASE_ID=1155022;
-      const daysDiff=Math.floor((lastId-BASE_ID)/288);
-      const lastDate=new Date(Date.UTC(2025,0,1)+daysDiff*86400000);
-      const lastDateStr=`${lastDate.getUTCFullYear()}-${pad(lastDate.getUTCMonth()+1)}-${pad(lastDate.getUTCDate())}`;
+      const BASE_MS=Date.UTC(2025,0,1);
+      const FETCH_FROM_YEAR=2024;
+
+      // 1. Λίστα υπαρχόντων αρχείων
+      progText.textContent='🔍 Έλεγχος υπαρχόντων αρχείων…';
+      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
+      if(!listR.ok) throw new Error('Αποτυχία ανάγνωσης data/raw');
+      const existingFiles=new Set((await listR.json())
+        .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .map(f=>f.name));
+
+      // 2. Μήνες: Jan 2024 → σήμερα
       const today=new Date();
-      const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-
-      // Detect days with < 200 draws (incomplete — should have ~288)
-      const drawsByDay={};
-      for(const d of latestData.draws){
-        const dayN=Math.floor((d.id-BASE_ID)/288);
-        drawsByDay[dayN]=(drawsByDay[dayN]||0)+1;
+      const todayY=today.getFullYear(),todayM=today.getMonth()+1,todayD=today.getDate();
+      const months=[];
+      for(let y=FETCH_FROM_YEAR;y<=todayY;y++){
+        const mEnd=(y===todayY)?todayM:12;
+        for(let m=1;m<=mEnd;m++) months.push({y,m});
       }
-      const incompleteDates=new Set();
-      for(const [dayNStr,count] of Object.entries(drawsByDay)){
-        if(count<200){
-          const dayN=parseInt(dayNStr);
-          const dt=new Date(Date.UTC(2025,0,1)+dayN*86400000);
-          incompleteDates.add(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+      const missing=months.filter(({y,m})=>!existingFiles.has(`kino_raw_${y}_${pad(m)}.json`)).length;
+      st.textContent=`ℹ️ ${months.length} μήνες συνολικά | ${existingFiles.size} υπάρχουν | ${missing} λείπουν`;
+
+      let grandTotal=0;
+      for(let mi=0;mi<months.length;mi++){
+        const {y,m}=months[mi];
+        const monthStr=`${y}-${pad(m)}`;
+        const filename=`kino_raw_${y}_${pad(m)}.json`;
+        const isCurrent=(y===todayY&&m===todayM);
+        const exists=existingFiles.has(filename);
+
+        // Παλιοί ολοκληρωμένοι μήνες → skip
+        if(exists&&!isCurrent){
+          progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
+          progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+          continue;
         }
-      }
-      const incompleteCount=incompleteDates.size;
 
-      st.textContent=`ℹ️ Τελευταία γνωστή: ~${lastDateStr} | Σήμερα: ${todayStr}${incompleteCount?` | ⚠️ ${incompleteCount} ελλιπείς ημέρες`:''} `;
-      progText.textContent=`Ελέγχω από ${lastDateStr} έως ${todayStr}${incompleteCount?` (+${incompleteCount} επισκευή)`:''}…`;
-
-      // Λίστα ημερών για fetch: ελλιπείς ημέρες + ημέρες από lastDate έως σήμερα
-      const datesToFetch=[...incompleteDates].sort();
-      const cur=new Date(lastDate);
-      const todayUTC=new Date(Date.UTC(today.getFullYear(),today.getMonth(),today.getDate()));
-      while(cur<=todayUTC){
-        const ds=`${cur.getUTCFullYear()}-${pad(cur.getUTCMonth()+1)}-${pad(cur.getUTCDate())}`;
-        if(!incompleteDates.has(ds)) datesToFetch.push(ds);
-        cur.setUTCDate(cur.getUTCDate()+1);
-      }
-      datesToFetch.sort();
-
-      // Φέρε νέες κληρώσεις
-      const newByMonth={};
-      let totalNew=0;
-      for(let di=0;di<datesToFetch.length;di++){
-        const dateStr=datesToFetch[di];
-        progText.textContent=`📥 ${dateStr} (${di+1}/${datesToFetch.length}) | +${totalNew} νέες`;
-        progBar.style.width=`${Math.round((di+1)/datesToFetch.length*80)}%`;
-        try{
-          const items=await fetchDaySeq(dateStr,'',10);
-          for(const i of items){
-            if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
-            knownIds.add(i.drawId);
-            const dayN=Math.floor((i.drawId-BASE_ID)/288);
-            const dt=new Date(Date.UTC(2025,0,1)+dayN*86400000);
-            const mStr=`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}`;
-            if(!newByMonth[mStr]) newByMonth[mStr]=[];
-            newByMonth[mStr].push({id:i.drawId,n:[...i.winningNumbers.list].sort((a,b)=>a-b),b:(i.winningNumbers.bonus||[])[0]||null});
-            totalNew++;
+        // Φόρτωσε υπάρχοντα (μόνο αν υπάρχει το αρχείο)
+        let existing=[],knownIds=new Set(),drawsByDay={};
+        if(exists){
+          progText.textContent=`📥 Φόρτωση ${filename}…`;
+          const ex=await ghGet(`data/raw/${filename}`);
+          existing=ex?.draws||[];
+          for(const d of existing){
+            knownIds.add(d.id);
+            const dayN=Math.floor((d.id-BASE_ID)/288);
+            drawsByDay[dayN]=(drawsByDay[dayN]||0)+1;
           }
-        }catch(e){console.warn('Skip',dateStr,e);}
-        await new Promise(r=>setTimeout(r,120));
-      }
+        }
 
-      if(!totalNew){
-        st.textContent=`✅ Ήδη ενημερωμένο — τελευταία ~${lastDateStr}, καμία νέα κλήρωση`;
-        progText.textContent='✅ Κανένα νέο'; progBar.style.width='100%';
-        return;
-      }
+        // Ποιές ημέρες να φέρουμε
+        const dEnd=isCurrent?todayD:new Date(y,m,0).getDate();
+        const datesToFetch=[];
+        if(!exists){
+          for(let d=1;d<=dEnd;d++) datesToFetch.push(`${y}-${pad(m)}-${pad(d)}`);
+        } else {
+          // Τρέχων μήνας: ελλιπείς + νέες
+          const toRepair=new Set();
+          for(const [dayNStr,count] of Object.entries(drawsByDay)){
+            if(count<200){
+              const dt=new Date(BASE_MS+parseInt(dayNStr)*86400000);
+              toRepair.add(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+            }
+          }
+          const maxId=existing.length?Math.max(...existing.map(d=>d.id)):0;
+          const lastDay=maxId?new Date(BASE_MS+Math.floor((maxId-BASE_ID)/288)*86400000).getUTCDate():0;
+          for(let d=lastDay;d<=dEnd;d++) toRepair.add(`${y}-${pad(m)}-${pad(d)}`);
+          datesToFetch.push(...[...toRepair].sort());
+        }
 
-      // Ενημέρωσε μόνο τους affected μήνες
-      let upCount=0;
-      for(const [monthStr,newDraws] of Object.entries(newByMonth)){
-        const [y,m]=monthStr.split('-');
-        progText.textContent=`📤 Ενημέρωση ${monthStr}: +${newDraws.length} κληρώσεις…`;
-        let existing=[];
-        if(monthStr===latestData.month) existing=latestData.draws;
-        else{ const ex=await ghGet(`data/raw/kino_raw_${y}_${m}.json`); existing=ex?.draws||[]; }
+        if(!datesToFetch.length){progText.textContent=`✅ ${monthStr} ενημερωμένο`;continue;}
+
+        // Φέρε κληρώσεις ημέρα-ημέρα
+        const newDraws=[];
+        for(let di=0;di<datesToFetch.length;di++){
+          const dateStr=datesToFetch[di];
+          progText.textContent=`📥 ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | +${grandTotal+newDraws.length} νέες`;
+          progBar.style.width=`${Math.round(mi/months.length*80+di/datesToFetch.length*(80/months.length))}%`;
+          try{
+            const items=await fetchDaySeq(dateStr,'',10);
+            for(const i of items){
+              if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
+              knownIds.add(i.drawId);
+              newDraws.push({id:i.drawId,n:[...i.winningNumbers.list].sort((a,b)=>a-b),b:(i.winningNumbers.bonus||[])[0]||null});
+            }
+          }catch(e){console.warn('Skip',dateStr,e);}
+          await new Promise(r=>setTimeout(r,80));
+        }
+
+        if(!newDraws.length&&exists){progText.textContent=`✅ ${monthStr} ήδη πλήρης`;continue;}
+
+        // Merge & save
         const existIds=new Set(existing.map(d=>d.id));
         const merged=[...existing,...newDraws.filter(d=>!existIds.has(d.id))];
         merged.sort((a,b)=>a.id-b.id);
-        await ghPut(`data/raw/kino_raw_${y}_${m}.json`,{month:monthStr,draws:merged},`Raw +${newDraws.length} ${monthStr}`);
-        progText.textContent=`✅ ${monthStr}: +${newDraws.length} → σύνολο ${merged.length} κληρώσεις`;
-        upCount+=newDraws.length;
-        progBar.style.width=`${80+Math.round(upCount/totalNew*20)}%`;
+        grandTotal+=newDraws.length;
+        progText.textContent=`📤 ${monthStr}: +${newDraws.length} → ${merged.length.toLocaleString()} κλ.…`;
+        progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+        await ghPut(`data/raw/${filename}`,{month:monthStr,draws:merged},`Raw ${monthStr}: +${newDraws.length}`);
+        progText.textContent=`✅ ${monthStr}: ${merged.length.toLocaleString()} κληρώσεις`;
       }
 
       progBar.style.width='100%';
-      st.textContent=`✅ Προστέθηκαν ${totalNew.toLocaleString()} νέες κληρώσεις (${Object.keys(newByMonth).length} μήνες)`;
+      st.textContent=grandTotal
+        ?`✅ Ολοκληρώθηκε: +${grandTotal.toLocaleString()} νέες κληρώσεις`
+        :`✅ Ήδη ενημερωμένο — καμία νέα κλήρωση`;
+      progText.textContent='✅ Έτοιμο!';
     }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
     finally{btn.disabled=false;}
   }
