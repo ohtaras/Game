@@ -610,7 +610,7 @@
         progText.textContent=`${yearVal} — Μήνας ${month}/${lastMonth}, ${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
         progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'');
+          const items=await fetchDaySeq(dateStr,'',300);
           const draws=items
             .filter(i=>i.winningNumbers?.list?.length)
             .map(i=>({
@@ -741,7 +741,7 @@
         progText.textContent=`Μήνας ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις, ${Object.keys(sqByKey).length.toLocaleString()} τετράγωνα`;
         progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'');
+          const items=await fetchDaySeq(dateStr,'',300);
           const draws=items
             .filter(i=>i.winningNumbers?.list?.length)
             .map(i=>({
@@ -844,7 +844,7 @@
         progText.textContent=`📥 ${monthStr} — ${dateStr} (${mi+1}/${months.length})`;
         progBar.style.width=`${Math.round(((mi+d/dEnd)/months.length)*100)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'');
+          const items=await fetchDaySeq(dateStr,'',300);
           for(const i of items){
             if(!i.winningNumbers?.list?.length) continue;
             if(seenIds.has(i.drawId)) continue;
@@ -942,7 +942,7 @@
           progText.textContent=`📥 ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις`;
           progBar.style.width=`${Math.round((mi+d/dEnd)/months.length*100)}%`;
           try{
-            const items=await fetchDaySeq(dateStr,'');
+            const items=await fetchDaySeq(dateStr,'',300);
             for(const i of items){
               if(!i.winningNumbers?.list?.length) continue;
               if(seenIds.has(i.drawId)) continue;
@@ -1033,7 +1033,7 @@
         progText.textContent=`📥 ${dateStr} (${di+1}/${datesToFetch.length}) | +${totalNew} νέες`;
         progBar.style.width=`${Math.round((di+1)/datesToFetch.length*80)}%`;
         try{
-          const items=await fetchDaySeq(dateStr,'');
+          const items=await fetchDaySeq(dateStr,'',300);
           for(const i of items){
             if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
             knownIds.add(i.drawId);
@@ -1143,20 +1143,20 @@
   }
   function toMs(t){return t>1e11?t:t*1000;}
   function localTimeStr(ms){const d=new Date(ms+TZ_MS);return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;}
-  async function fetchDaySeq(dayStr,label){
+  async function fetchDaySeq(dayStr,label,size=10){
     const st=document.getElementById('status');
     let items=[],page=0;
     while(true){
-      const url=`https://api.opap.gr/draws/v3.0/1100/draw-date/${dayStr}/${dayStr}?page=${page}&size=10`;
+      const url=`https://api.opap.gr/draws/v3.0/1100/draw-date/${dayStr}/${dayStr}?page=${page}&size=${size}`;
       let raw=null; try{raw=await apiFetch(url);}catch(_){}
       if(raw){
         if(Array.isArray(raw)){items=items.concat(raw);break;}
         const pg=raw.content||raw.draws||[];
         items=items.concat(pg);
         if(label) st.textContent=`⏳ ${label}: ${items.length}…`;
-        if(raw.last!==false||pg.length===0) break;
-      }
-      page++; if(page>30) break;
+        if(raw.last===true||pg.length===0||pg.length<size) break;
+      } else break;
+      page++; if(page>10) break;
     }
     return items;
   }
@@ -1802,7 +1802,7 @@
     const res = document.getElementById('simResults');
     st.textContent = '⏳ Φόρτωση…'; res.innerHTML = '';
     try {
-      const items = await fetchDaySeq(dateStr, '');
+      const items = await fetchDaySeq(dateStr, '', 300);
       const draws = items
         .filter(i => i.winningNumbers?.list?.length)
         .map(i => ({
