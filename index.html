@@ -118,6 +118,16 @@
     .rule-ball{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;color:white;margin:1px;}
     .win-badge{background:#2a9d8f;color:white;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;}
     .miss-badge{color:#aaa;font-size:0.72rem;}
+    /* ── Rule Stats Table ── */
+    .stats-tbl{width:100%;border-collapse:collapse;font-size:0.77rem;margin-top:6px;}
+    .stats-tbl th{padding:4px 6px;background:#f5f5f5;font-weight:600;color:#555;border-bottom:1px solid #e0e0e0;}
+    .stats-tbl th:not(:first-child){text-align:right;}
+    .stats-tbl td{padding:4px 6px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .stats-tbl td:not(:first-child){text-align:right;}
+    .stats-tbl tr:last-child td{border-bottom:none;}
+    .delay-bar-wrap{display:flex;align-items:center;gap:4px;}
+    .delay-bar-bg{flex:1;background:#eee;border-radius:3px;height:6px;overflow:hidden;min-width:40px;}
+    .delay-bar-fill{height:100%;border-radius:3px;}
     /* ── Day Simulation ── */
     #daySimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
     #daySimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
@@ -200,6 +210,11 @@
       <div id="liveTrigger"></div>
       <div id="liveEval"></div>
       <div id="liveSaveStatus" style="font-size:0.75rem;color:#aaa;margin-top:4px"></div>
+      <div id="liveStatsWrap" style="margin-top:10px">
+        <button id="btnLoadStats" onclick="loadRuleStats()" style="padding:5px 12px;font-size:0.8rem;background:#6a4c93">📊 Φόρτωση Στατιστικών</button>
+        <span id="liveStatsStatus" style="font-size:0.78rem;color:#888;margin-left:8px"></span>
+        <div id="liveStatsTable"></div>
+      </div>
     </div>
   </details>
 </div>
@@ -1440,7 +1455,8 @@
   let liveBuffer = new Map(); // drawId → {id,n,b}
   let liveLastSavedCount = 0;
   let liveP1 = null; // trigger waiting for P1 eval: {root,preds,drawId,sq}
-  let liveP2 = null; // after P1, waiting for P2: {root,preds,drawId,sq}
+  let liveP2 = null; // after P1, waiting for P2: {root,preds,drawId,sq,p1WinIds}
+  let ruleStats = null; // loaded from GitHub raw files
 
   function toggleLive() { if (liveRunning) stopLive(); else startLive(); }
 
@@ -1536,11 +1552,30 @@
     const numSet = new Set(nums);
     let evalHtml = '';
 
-    // Evaluate P2 first (oldest pending)
-    if (liveP2) { evalHtml += renderEvalBlock('P2', liveP2, numSet); liveP2 = null; }
+    // Evaluate P2 first (oldest pending) — final verdict for that trigger
+    if (liveP2) {
+      if (ruleStats) {
+        for (const pred of liveP2.preds) {
+          const p2Win = pred.numbers.every(n => numSet.has(n));
+          const won = p2Win || liveP2.p1WinIds.has(pred.id);
+          const s = ruleStats[pred.id];
+          if (won) { s.currentDelay = 0; s.wins++; }
+          else s.currentDelay++;
+          s.totalTriggers++;
+        }
+        renderStatsTable();
+      }
+      evalHtml += renderEvalBlock('P2', liveP2, numSet);
+      liveP2 = null;
+    }
 
-    // Evaluate P1, then move to P2 slot
-    if (liveP1) { evalHtml += renderEvalBlock('P1', liveP1, numSet); liveP2 = liveP1; liveP1 = null; }
+    // Evaluate P1, record wins, then move to P2 slot
+    if (liveP1) {
+      const p1WinIds = new Set(liveP1.preds.filter(p => p.numbers.every(n => numSet.has(n))).map(p => p.id));
+      evalHtml += renderEvalBlock('P1', liveP1, numSet);
+      liveP2 = {...liveP1, p1WinIds};
+      liveP1 = null;
+    }
 
     // Detect single toroidal trigger in this draw
     const torSqs = findTorSquares(nums);
@@ -1611,6 +1646,115 @@
   // Initialize sim date picker to today
   document.getElementById('simDatePicker').value =
     `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+  // ── Rule Stats ────────────────────────────────────────────────
+  async function loadRuleStats() {
+    const btn = document.getElementById('btnLoadStats');
+    const st  = document.getElementById('liveStatsStatus');
+    btn.disabled = true;
+    st.textContent = '⏳ Φόρτωση αρχείων…';
+    try {
+      if (!localStorage.getItem('gh_token')) { st.textContent = '⚠️ Χρειάζεται GitHub Token'; return; }
+
+      const h = ghHeaders();
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers: h});
+      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
+      const fileList = await listR.json();
+      const rawFiles = fileList
+        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+      // Init per-rule accumulators
+      const stats = {};
+      for (const r of OFFSET_RULES)
+        stats[r.id] = {wins: 0, lastWinTrigger: 0, maxDelay: 0, currentDelay: 0, totalTriggers: 0};
+
+      let totalTriggers = 0;
+      let prevTail = []; // last 2 draw arrays from previous file for boundary triggers
+
+      for (let fi = 0; fi < rawFiles.length; fi++) {
+        st.textContent = `⏳ ${rawFiles[fi].name} (${fi+1}/${rawFiles.length}) | ${totalTriggers.toLocaleString()} triggers…`;
+        const data = await ghGet(`data/raw/${rawFiles[fi].name}`);
+        if (!data?.draws?.length) continue;
+
+        const nums = data.draws.map(d => d.n);
+        const combined = [...prevTail, ...nums];
+        const offset = prevTail.length;
+
+        for (let i = offset; i < combined.length - 2; i++) {
+          const torSqs = findTorSquares(combined[i]);
+          if (torSqs.length !== 1) continue;
+          totalTriggers++;
+          const preds = getOffsetPreds(torSqs[0].root);
+          const p1Set = new Set(combined[i+1]);
+          const p2Set = new Set(combined[i+2]);
+          for (const pred of preds) {
+            const won = pred.numbers.every(n => p1Set.has(n)) || pred.numbers.every(n => p2Set.has(n));
+            const s = stats[pred.id];
+            if (won) {
+              const gap = totalTriggers - s.lastWinTrigger;
+              if (gap > s.maxDelay) s.maxDelay = gap;
+              s.wins++;
+              s.lastWinTrigger = totalTriggers;
+            }
+          }
+        }
+        prevTail = nums.slice(-2);
+        await new Promise(r => setTimeout(r, 5)); // yield UI
+      }
+
+      // Finalise
+      for (const r of OFFSET_RULES) {
+        const s = stats[r.id];
+        s.totalTriggers = totalTriggers;
+        s.avgInterval  = s.wins ? Math.round(totalTriggers / s.wins) : totalTriggers;
+        s.currentDelay = totalTriggers - s.lastWinTrigger;
+        // max delay: also consider current open gap
+        if (s.currentDelay > s.maxDelay) s.maxDelay = s.currentDelay;
+      }
+      ruleStats = stats;
+      st.textContent = `✅ ${totalTriggers.toLocaleString()} triggers — ανανεώθηκε ${new Date().toLocaleTimeString('el-GR')}`;
+      renderStatsTable();
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
+    finally { btn.disabled = false; }
+  }
+
+  function renderStatsTable() {
+    if (!ruleStats) return;
+    const el = document.getElementById('liveStatsTable');
+    if (!el) return;
+    const totalTriggers = ruleStats[OFFSET_RULES[0].id]?.totalTriggers || 0;
+    let html = `<div style="font-size:0.71rem;color:#aaa;margin-top:6px">Σύνολο triggers: <strong>${totalTriggers.toLocaleString()}</strong></div>`;
+    html += '<table class="stats-tbl"><thead><tr>';
+    html += '<th>Κανόνας</th><th>Νίκες</th><th>Μ.Ο./trig</th><th>Μέγ.Καθ.</th><th>Τρέχ.Καθ.</th><th style="min-width:100px;text-align:left;padding-left:8px">Κατάσταση</th>';
+    html += '</tr></thead><tbody>';
+    for (const r of OFFSET_RULES) {
+      const s = ruleStats[r.id];
+      const pct = s.avgInterval ? Math.round(s.currentDelay / s.avgInterval * 100) : 0;
+      const isRecord = s.currentDelay > 0 && s.currentDelay >= s.maxDelay;
+      const barColor = isRecord ? '#e63946' : pct >= 100 ? '#f4a261' : pct >= 60 ? '#ffd166' : '#2a9d8f';
+      const icon = isRecord ? '🔴' : pct >= 100 ? '🟠' : pct >= 60 ? '🟡' : '🟢';
+      const delayColor = isRecord ? '#e63946' : pct >= 100 ? '#f4a261' : '#333';
+      const delayFmt = s.currentDelay === 0 ? '<span style="color:#2a9d8f;font-weight:700">✓ WIN</span>' :
+        `<span style="color:${delayColor};font-weight:${isRecord?'700':'400'}">${s.currentDelay.toLocaleString()}${isRecord?' 🔴':''}</span>`;
+      html += `<tr>
+        <td><span style="color:${r.color};font-weight:700">${r.label}</span> <span style="color:#aaa;font-size:0.7rem">${r.x}</span></td>
+        <td>${s.wins}</td>
+        <td style="color:#888">${s.avgInterval.toLocaleString()}</td>
+        <td style="color:#888">${s.maxDelay.toLocaleString()}</td>
+        <td>${delayFmt}</td>
+        <td style="text-align:left;padding-left:8px">
+          <div class="delay-bar-wrap">
+            <span>${icon}</span>
+            <div class="delay-bar-bg"><div class="delay-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+            <span style="font-size:0.68rem;color:#888;white-space:nowrap">${pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
 
   // ── Day Simulation ────────────────────────────────────────────
   async function runDaySim() {
