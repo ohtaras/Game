@@ -190,6 +190,7 @@
   <button id="btnRebuild" onclick="rebuildAllData()" style="background:#c0392b;color:#fff;">🔄 Πλήρης Ανακατασκευή (Jan 2025→σήμερα)</button>
   <button id="btnExportRaw" onclick="exportRawDraws()" style="background:#6a4c93;color:#fff;margin-left:8px;">📥 Export Raw Draws (για 80-sq brute-force)</button>
   <button id="btnUpdateRaw" onclick="updateRawDraws()" style="background:#2a9d8f;color:#fff;margin-left:8px;">🔄 Ενημέρωση Raw (έως τώρα)</button>
+  <button id="btnUpdateRawDay" onclick="updateRawByDay()" style="background:#f4a261;color:#fff;margin-left:8px;">📅 Συμπλήρωση ανά ημέρα</button>
 </div>
 <div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
   <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
@@ -892,6 +893,108 @@
       progBar.style.width='100%';
       st.textContent=`✅ Ενημέρωση ολοκληρώθηκε: ${months.length} μήνες, ${totalDraws.toLocaleString()} κληρώσεις`;
       progText.textContent='✅ Έτοιμο!';
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+    finally{btn.disabled=false;}
+  }
+
+  // ── Update Raw by Day (smart: only adds missing draws) ────────
+  async function updateRawByDay(){
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+    const st=document.getElementById('status');
+    const progWrap=document.getElementById('rebuildProgress');
+    const progText=document.getElementById('rebuildProgressText');
+    const progBar=document.getElementById('rebuildProgressBar');
+    const btn=document.getElementById('btnUpdateRawDay');
+    btn.disabled=true; progWrap.style.display='block';
+    st.className=''; progBar.style.width='0%';
+    try{
+      const h=ghHeaders();
+      progText.textContent='🔍 Έλεγχος τελευταίας κλήρωσης…';
+      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
+      if(!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία — κάνε πρώτα Export Raw');
+      const fileList=await listR.json();
+      const rawFiles=fileList
+        .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .sort((a,b)=>a.name.localeCompare(b.name));
+      if(!rawFiles.length) throw new Error('Δεν υπάρχουν raw αρχεία');
+
+      const latestName=rawFiles[rawFiles.length-1].name;
+      progText.textContent=`📥 Φόρτωση ${latestName}…`;
+      const latestData=await ghGet(`data/raw/${latestName}`);
+      if(!latestData?.draws?.length) throw new Error('Άδειο αρχείο');
+
+      const knownIds=new Set(latestData.draws.map(d=>d.id));
+      const lastId=Math.max(...latestData.draws.map(d=>d.id));
+      const BASE_ID=1155022;
+      const daysDiff=Math.floor((lastId-BASE_ID)/288);
+      const lastDate=new Date(Date.UTC(2025,0,1)+daysDiff*86400000);
+      const lastDateStr=`${lastDate.getUTCFullYear()}-${pad(lastDate.getUTCMonth()+1)}-${pad(lastDate.getUTCDate())}`;
+      const today=new Date();
+      const todayStr=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+      st.textContent=`ℹ️ Τελευταία γνωστή: ~${lastDateStr} | Σήμερα: ${todayStr}`;
+      progText.textContent=`Ελέγχω από ${lastDateStr} έως ${todayStr}…`;
+
+      // Λίστα ημερών για fetch
+      const datesToFetch=[];
+      const cur=new Date(lastDate);
+      const todayUTC=new Date(Date.UTC(today.getFullYear(),today.getMonth(),today.getDate()));
+      while(cur<=todayUTC){
+        datesToFetch.push(`${cur.getUTCFullYear()}-${pad(cur.getUTCMonth()+1)}-${pad(cur.getUTCDate())}`);
+        cur.setUTCDate(cur.getUTCDate()+1);
+      }
+
+      // Φέρε νέες κληρώσεις
+      const newByMonth={};
+      let totalNew=0;
+      for(let di=0;di<datesToFetch.length;di++){
+        const dateStr=datesToFetch[di];
+        progText.textContent=`📥 ${dateStr} (${di+1}/${datesToFetch.length}) | +${totalNew} νέες`;
+        progBar.style.width=`${Math.round((di+1)/datesToFetch.length*80)}%`;
+        try{
+          const items=await fetchDaySeq(dateStr,'');
+          for(const i of items){
+            if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
+            knownIds.add(i.drawId);
+            const dayN=Math.floor((i.drawId-BASE_ID)/288);
+            const dt=new Date(Date.UTC(2025,0,1)+dayN*86400000);
+            const mStr=`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}`;
+            if(!newByMonth[mStr]) newByMonth[mStr]=[];
+            newByMonth[mStr].push({id:i.drawId,n:[...i.winningNumbers.list].sort((a,b)=>a-b),b:(i.winningNumbers.bonus||[])[0]||null});
+            totalNew++;
+          }
+        }catch(e){console.warn('Skip',dateStr,e);}
+        await new Promise(r=>setTimeout(r,120));
+      }
+
+      if(!totalNew){
+        st.textContent=`✅ Ήδη ενημερωμένο — τελευταία ~${lastDateStr}, καμία νέα κλήρωση`;
+        progText.textContent='✅ Κανένα νέο'; progBar.style.width='100%';
+        return;
+      }
+
+      // Ενημέρωσε μόνο τους affected μήνες
+      let upCount=0;
+      for(const [monthStr,newDraws] of Object.entries(newByMonth)){
+        const [y,m]=monthStr.split('-');
+        progText.textContent=`📤 Ενημέρωση ${monthStr}: +${newDraws.length} κληρώσεις…`;
+        let existing=[];
+        if(monthStr===latestData.month) existing=latestData.draws;
+        else{ const ex=await ghGet(`data/raw/kino_raw_${y}_${m}.json`); existing=ex?.draws||[]; }
+        const existIds=new Set(existing.map(d=>d.id));
+        const merged=[...existing,...newDraws.filter(d=>!existIds.has(d.id))];
+        merged.sort((a,b)=>a.id-b.id);
+        await ghPut(`data/raw/kino_raw_${y}_${m}.json`,{month:monthStr,draws:merged},`Raw +${newDraws.length} ${monthStr}`);
+        progText.textContent=`✅ ${monthStr}: +${newDraws.length} → σύνολο ${merged.length} κληρώσεις`;
+        upCount+=newDraws.length;
+        progBar.style.width=`${80+Math.round(upCount/totalNew*20)}%`;
+      }
+
+      progBar.style.width='100%';
+      st.textContent=`✅ Προστέθηκαν ${totalNew.toLocaleString()} νέες κληρώσεις (${Object.keys(newByMonth).length} μήνες)`;
     }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
     finally{btn.disabled=false;}
   }
