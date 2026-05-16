@@ -189,6 +189,7 @@
   <label>🔄 Rebuild:</label>
   <button id="btnRebuild" onclick="rebuildAllData()" style="background:#c0392b;color:#fff;">🔄 Πλήρης Ανακατασκευή (Jan 2025→σήμερα)</button>
   <button id="btnExportRaw" onclick="exportRawDraws()" style="background:#6a4c93;color:#fff;margin-left:8px;">📥 Export Raw Draws (για 80-sq brute-force)</button>
+  <button id="btnUpdateRaw" onclick="updateRawDraws()" style="background:#2a9d8f;color:#fff;margin-left:8px;">🔄 Ενημέρωση Raw (έως τώρα)</button>
 </div>
 <div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
   <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
@@ -804,6 +805,95 @@
     progText.textContent='✅ Έτοιμο — τώρα μπορεί να γίνει το 80-sq brute-force!';
     progBar.style.width='100%';
     btn.disabled=false;
+  }
+
+  // ── Update Raw Draws (from last file to today) ────────────────
+  async function updateRawDraws(){
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+    const st=document.getElementById('status');
+    const progWrap=document.getElementById('rebuildProgress');
+    const progText=document.getElementById('rebuildProgressText');
+    const progBar=document.getElementById('rebuildProgressBar');
+    const btn=document.getElementById('btnUpdateRaw');
+    btn.disabled=true; progWrap.style.display='block';
+    st.className=''; st.textContent='⏳ Έλεγχος υπαρχόντων raw αρχείων…';
+    try{
+      // 1. Βρες τον τελευταίο μήνα στα υπάρχοντα αρχεία
+      const h=ghHeaders();
+      progText.textContent='🔍 Ανάγνωση υπαρχόντων αρχείων…';
+      let startYear=2025, startMonth=1, foundFiles=0;
+      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
+      if(listR.ok){
+        const files=await listR.json();
+        const rawFiles=files
+          .filter(f=>f.name&&/^kino_raw_\d{4}_\d{2}\.json$/.test(f.name))
+          .map(f=>f.name).sort();
+        foundFiles=rawFiles.length;
+        if(rawFiles.length>0){
+          const latest=rawFiles[rawFiles.length-1];
+          const m=latest.match(/kino_raw_(\d{4})_(\d{2})\.json/);
+          if(m){startYear=parseInt(m[1]);startMonth=parseInt(m[2]);}
+        }
+      }
+      progText.textContent=`✅ Βρέθηκαν ${foundFiles} αρχεία — ξεκινώ από ${startYear}-${pad(startMonth)}`;
+
+      // 2. Φτιάξε λίστα μηνών: από τον τελευταίο υπάρχοντα μέχρι σήμερα
+      const todayDate=new Date();
+      const endYear=todayDate.getFullYear(), endMonth=todayDate.getMonth()+1, endDay=todayDate.getDate();
+      const months=[];
+      for(let y=startYear;y<=endYear;y++){
+        const mS=(y===startYear)?startMonth:1;
+        const mE=(y===endYear)?endMonth:12;
+        for(let m=mS;m<=mE;m++) months.push({y,m});
+      }
+
+      let totalDraws=0;
+      for(let mi=0;mi<months.length;mi++){
+        const {y,m}=months[mi];
+        const monthStr=`${y}-${pad(m)}`;
+        const isCurrentMonth=(y===endYear&&m===endMonth);
+        const dEnd=isCurrentMonth?endDay:new Date(y,m,0).getDate();
+        const monthDraws=[], seenIds=new Set();
+
+        for(let d=1;d<=dEnd;d++){
+          const dateStr=`${y}-${pad(m)}-${pad(d)}`;
+          progText.textContent=`📥 ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | ${totalDraws.toLocaleString()} κληρώσεις`;
+          progBar.style.width=`${Math.round((mi+d/dEnd)/months.length*100)}%`;
+          try{
+            const items=await fetchDaySeq(dateStr,'');
+            for(const i of items){
+              if(!i.winningNumbers?.list?.length) continue;
+              if(seenIds.has(i.drawId)) continue;
+              seenIds.add(i.drawId);
+              monthDraws.push({
+                id:i.drawId,
+                n:[...i.winningNumbers.list].sort((a,b)=>a-b),
+                b:(i.winningNumbers.bonus||[])[0]||null
+              });
+            }
+          }catch(e){console.warn('Skip',dateStr,e);}
+          await new Promise(r=>setTimeout(r,120));
+        }
+
+        if(!monthDraws.length){progText.textContent=`⚠️ ${monthStr}: 0 κληρώσεις, skip`;continue;}
+        monthDraws.sort((a,b)=>a.id-b.id);
+        totalDraws+=monthDraws.length;
+
+        progText.textContent=`📤 Upload ${monthStr}: ${monthDraws.length.toLocaleString()} κληρώσεις…`;
+        await ghPut(`data/raw/kino_raw_${y}_${pad(m)}.json`,
+          {month:monthStr,draws:monthDraws},
+          `Raw draws update ${monthStr}`);
+        progText.textContent=`✅ ${monthStr}: ${monthDraws.length.toLocaleString()} κληρώσεις`;
+      }
+
+      progBar.style.width='100%';
+      st.textContent=`✅ Ενημέρωση ολοκληρώθηκε: ${months.length} μήνες, ${totalDraws.toLocaleString()} κληρώσεις`;
+      progText.textContent='✅ Έτοιμο!';
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+    finally{btn.disabled=false;}
   }
 
   // ── Squares ───────────────────────────────────────────────────
