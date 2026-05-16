@@ -1457,6 +1457,7 @@
   let liveP1 = null; // trigger waiting for P1 eval: {root,preds,drawId,sq}
   let liveP2 = null; // after P1, waiting for P2: {root,preds,drawId,sq,p1WinIds}
   let ruleStats = null; // loaded from GitHub raw files
+  let liveLastDrawTime = null; // timestamp of latest processed draw
 
   function toggleLive() { if (liveRunning) stopLive(); else startLive(); }
 
@@ -1612,6 +1613,8 @@
     document.getElementById('liveTime').textContent = time;
     document.getElementById('liveTrigger').innerHTML = trigHtml;
     document.getElementById('liveEval').innerHTML = evalHtml;
+    liveLastDrawTime = time;
+    if (ruleStats) renderStatsTable();
   }
 
   async function autoSaveLiveBuffer() {
@@ -1724,7 +1727,9 @@
     const el = document.getElementById('liveStatsTable');
     if (!el) return;
     const totalTriggers = ruleStats[OFFSET_RULES[0].id]?.totalTriggers || 0;
-    let html = `<div style="font-size:0.71rem;color:#aaa;margin-top:6px">Σύνολο triggers: <strong>${totalTriggers.toLocaleString()}</strong></div>`;
+    const drawInfo = liveLastDrawTime ? ` &nbsp;·&nbsp; Τελ. κλήρωση: <strong>${liveLastDrawTime}</strong>` : '';
+    const pending = liveP1 || liveP2 ? ' &nbsp;·&nbsp; <span style="color:#f4a261">⏳ trigger υπό αξιολόγηση</span>' : '';
+    let html = `<div style="font-size:0.71rem;color:#aaa;margin-top:6px">Σύνολο triggers: <strong>${totalTriggers.toLocaleString()}</strong>${drawInfo}${pending}</div>`;
     html += '<table class="stats-tbl"><thead><tr>';
     html += '<th>Κανόνας</th><th>Νίκες</th><th>Μ.Ο./trig</th><th>Μέγ.Καθ.</th><th>Τρέχ.Καθ.</th><th style="min-width:100px;text-align:left;padding-left:8px">Κατάσταση</th>';
     html += '</tr></thead><tbody>';
