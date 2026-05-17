@@ -137,6 +137,19 @@
     .sim-trig{background:#fff3ee;border-left:4px solid #e76f51;padding:8px 12px;}
     .sim-p1{background:#f8f9ff;border-left:4px solid #4361ee;padding:6px 12px;}
     .sim-p2{background:#f0f9ff;border-left:4px solid #2ec4b6;padding:6px 12px;}
+    /* ── Column Sim ── */
+    #colSimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #colSimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #colSimSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;}
+    #colSimSection summary::-webkit-details-marker{display:none;}
+    .col-tbl{width:100%;border-collapse:collapse;font-size:0.77rem;margin-top:8px;}
+    .col-tbl th{padding:7px 10px;background:#1a1a2e;color:white;font-size:0.72rem;text-transform:uppercase;letter-spacing:.04em;}
+    .col-tbl th:not(:first-child){text-align:right;}
+    .col-tbl td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .col-tbl td:not(:first-child){text-align:right;}
+    .col-tbl tr:last-child td{border-bottom:none;}
+    .col-tbl tr:hover td{background:#f8f9ff;}
+    .col-num-tag{display:inline-block;background:#e8f4f8;border-radius:4px;padding:1px 5px;font-size:0.68rem;color:#457b9d;margin-left:4px;}
     .sim-hdr{display:flex;align-items:center;gap:8px;font-size:0.8rem;flex-wrap:wrap;margin-bottom:3px;}
   </style>
 </head>
@@ -274,6 +287,36 @@
     </div>
     <div id="simStatus" style="font-size:0.82rem;color:#888;margin-top:6px"></div>
     <div id="simResults" style="margin-top:10px"></div>
+  </details>
+</div>
+
+<!-- ── Column Simulation ── -->
+<div id="colSimSection">
+  <details>
+    <summary>📊 Ανάλυση Κάθετης Στήλης — Τι θα είχα κερδίσει;</summary>
+    <p style="font-size:.8rem;color:#888;margin-top:8px">
+      Στρατηγική: όταν μια κάθετη στήλη (8 νούμερα) δεν εμφανιστεί σε <strong>X</strong> συνεχόμενες κληρώσεις,
+      παίζω εκείνη τη στήλη στην επόμενη κλήρωση ως 8-spot ticket.
+    </p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:3px">Αναμονή X κληρώσεων:</label>
+        <input type="number" id="colX" value="5" min="1" max="100"
+          style="width:70px;padding:7px;border:2px solid #ddd;border-radius:6px;font-size:1rem;text-align:center">
+      </div>
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:3px">Στοίχημα (€):</label>
+        <input type="number" id="colBet" value="0.50" min="0.50" step="0.50"
+          style="width:80px;padding:7px;border:2px solid #ddd;border-radius:6px;font-size:1rem;text-align:center">
+      </div>
+      <button onclick="runColSim()" style="background:#2a9d8f;padding:7px 16px;font-size:.9rem">▶ Εκτέλεση</button>
+    </div>
+    <div style="font-size:.75rem;color:#aaa;margin-top:8px">
+      Αποδόσεις 8-spot ανά €0.50: <strong style="color:#555">5/8→€2 · 6/8→€15 · 7/8→€200 · 8/8→€100,000</strong>
+      <span style="margin-left:4px">(επαλήθευσε με επίσημο πίνακα OPAP)</span>
+    </div>
+    <div id="colSimStatus" style="font-size:.82rem;color:#888;margin-top:8px"></div>
+    <div id="colSimResults" style="margin-top:10px"></div>
   </details>
 </div>
 
@@ -1614,6 +1657,133 @@
         st.textContent = `✅ ${draws.length} κληρώσεις | ${totalTriggers} triggers | κόστος ${totalSpent.toFixed(2)}€ | κέρδη ${totalWon.toFixed(2)}€ | καθαρό ${net>=0?'+':''}${net.toFixed(2)}€`;
         res.innerHTML = summaryHtml + html;
       }
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
+  }
+
+  // ── Column Simulation ─────────────────────────────────────────
+  // 10 vertical columns: col i (1-based) = {i, i+10, i+20, ..., i+70}
+  const KINO_COLS = Array.from({length:10}, (_,i) =>
+    Array.from({length:8}, (_,j) => (i+1) + j*10)
+  );
+  // OPAP 8-spot payouts per €0.50 bet (verify with official OPAP table)
+  const COL_PAYOUTS_8 = {5:2.00, 6:15.00, 7:200.00, 8:100000.00};
+
+  async function runColSim() {
+    const X   = Math.max(1, parseInt(document.getElementById('colX').value) || 5);
+    const bet = Math.max(0.50, parseFloat(document.getElementById('colBet').value) || 0.50);
+    const mult = bet / 0.50;
+    const st  = document.getElementById('colSimStatus');
+    const res = document.getElementById('colSimResults');
+    st.textContent = '⏳ Φόρτωση αρχείων…'; res.innerHTML = '';
+
+    if (!localStorage.getItem('gh_token')) {
+      st.textContent = '⚠️ Χρειάζεται GitHub Token';
+      return;
+    }
+    try {
+      const h = ghHeaders();
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h});
+      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
+      const rawFiles = (await listR.json())
+        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+      // Per-column accumulators
+      const stats = KINO_COLS.map((nums, i) => ({
+        col:i+1, nums,
+        bets:0, spent:0, won:0,
+        hitBins:{5:0,6:0,7:0,8:0}
+      }));
+      // delays[c] = how many consecutive draws column c has had 0 hits
+      const delays = new Array(10).fill(0);
+      let totalDraws = 0;
+
+      for (let fi = 0; fi < rawFiles.length; fi++) {
+        const totalBetsSoFar = stats.reduce((s,c)=>s+c.bets,0);
+        st.textContent = `⏳ ${rawFiles[fi].name} (${fi+1}/${rawFiles.length}) | ${totalDraws.toLocaleString()} κλ. | ${totalBetsSoFar} στοιχ.…`;
+        const data = await ghGet(`data/raw/${rawFiles[fi].name}`);
+        if (!data?.draws?.length) continue;
+
+        for (const draw of data.draws) {
+          const numSet = new Set(draw.n);
+          for (let c = 0; c < 10; c++) {
+            const colNums = KINO_COLS[c];
+            // Trigger: column has been missing for >= X draws → bet on THIS draw
+            if (delays[c] >= X) {
+              const hits = colNums.filter(n => numSet.has(n)).length;
+              const payout = (COL_PAYOUTS_8[hits] || 0) * mult;
+              stats[c].bets++;
+              stats[c].spent += bet;
+              stats[c].won   += payout;
+              if (hits >= 5) stats[c].hitBins[hits] = (stats[c].hitBins[hits]||0) + 1;
+            }
+            // Update delay counter
+            if (colNums.some(n => numSet.has(n))) delays[c] = 0;
+            else delays[c]++;
+          }
+          totalDraws++;
+        }
+        await new Promise(r => setTimeout(r, 5));
+      }
+
+      // ── Render ────────────────────────────────────────────────
+      const totalBets  = stats.reduce((s,c)=>s+c.bets,0);
+      const totalSpent = stats.reduce((s,c)=>s+c.spent,0);
+      const totalWon   = stats.reduce((s,c)=>s+c.won,0);
+      const net        = totalWon - totalSpent;
+      const netColor   = net >= 0 ? '#2a9d8f' : '#e63946';
+      const roi        = totalSpent > 0 ? (totalWon/totalSpent*100).toFixed(1) : '—';
+
+      let html = `<div style="background:white;border-radius:10px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+        <div style="font-size:.85rem;font-weight:700;margin-bottom:8px">
+          📊 Σύνοψη — X=${X} κλ. αναμονής · ${totalDraws.toLocaleString()} κληρώσεις · στοίχημα ${bet.toFixed(2)}€
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:.82rem;color:#555">
+          <span>Στοιχήματα: <strong>${totalBets.toLocaleString()}</strong></span>
+          <span>Κόστος: <strong>${totalSpent.toFixed(2)}€</strong></span>
+          <span>Κέρδη: <strong>${totalWon.toFixed(2)}€</strong></span>
+          <span style="color:${netColor}">Καθαρό: <strong>${net>=0?'+':''}${net.toFixed(2)}€</strong></span>
+          <span>Απόδοση: <strong>${roi}%</strong></span>
+        </div>
+      </div>`;
+
+      // Per-column table sorted by net
+      const sorted = [...stats].sort((a,b) => (b.won-b.spent)-(a.won-a.spent));
+      html += `<div style="overflow-x:auto"><table class="col-tbl">
+        <thead><tr>
+          <th style="text-align:left">Στήλη</th>
+          <th>Στοιχ.</th><th>Κόστος</th><th>Κέρδη</th>
+          <th>Καθαρό</th><th>Απόδ.%</th>
+          <th style="text-align:left">Hits 5-8</th>
+          <th style="text-align:right">Τρέχ.Καθ.</th>
+        </tr></thead><tbody>`;
+
+      for (const s of sorted) {
+        const n   = s.won - s.spent;
+        const nC  = n >= 0 ? '#2a9d8f' : '#e63946';
+        const r   = s.spent > 0 ? (s.won/s.spent*100).toFixed(1) : '—';
+        const hitsHtml = [5,6,7,8]
+          .filter(k => s.hitBins[k])
+          .map(k => `<span style="margin-right:6px"><strong>${k}/8</strong>:${s.hitBins[k]}</span>`)
+          .join('') || '<span style="color:#ddd">καμία</span>';
+        const curDelay = delays[s.col-1];
+        const delayColor = curDelay >= X ? '#e63946' : curDelay >= X*0.7 ? '#f4a261' : '#aaa';
+
+        html += `<tr>
+          <td style="font-weight:700">Σ${s.col}<span class="col-num-tag">${s.nums.join(' ')}</span></td>
+          <td>${s.bets}</td>
+          <td>${s.spent.toFixed(0)}€</td>
+          <td>${s.won.toFixed(2)}€</td>
+          <td style="color:${nC};font-weight:700">${n>=0?'+':''}${n.toFixed(2)}€</td>
+          <td>${r}%</td>
+          <td style="text-align:left">${hitsHtml}</td>
+          <td style="color:${delayColor};font-weight:${curDelay>=X?'700':'400'}">${curDelay}${curDelay>=X?' 🔴':''}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+
+      st.textContent = `✅ ${totalDraws.toLocaleString()} κληρώσεις | ${totalBets.toLocaleString()} στοιχήματα | καθαρό ${net>=0?'+':''}${net.toFixed(2)}€`;
+      res.innerHTML = html;
     } catch(e) { st.textContent = '⚠️ ' + e.message; }
   }
 </script>
