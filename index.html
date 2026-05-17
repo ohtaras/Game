@@ -296,7 +296,7 @@
     <summary>📊 Ανάλυση Κάθετης Στήλης — Τι θα είχα κερδίσει;</summary>
     <p style="font-size:.8rem;color:#888;margin-top:8px">
       Στρατηγική: όταν μια κάθετη στήλη (8 νούμερα) δεν εμφανιστεί σε <strong>X</strong> συνεχόμενες κληρώσεις,
-      παίζω εκείνη τη στήλη στην επόμενη κλήρωση ως 8-spot ticket.
+      παίζω εκείνη τη στήλη για τις επόμενες <strong>X</strong> κληρώσεις ως 8-spot ticket.
     </p>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
       <div>
@@ -312,8 +312,7 @@
       <button onclick="runColSim()" style="background:#2a9d8f;padding:7px 16px;font-size:.9rem">▶ Εκτέλεση</button>
     </div>
     <div style="font-size:.75rem;color:#aaa;margin-top:8px">
-      Αποδόσεις 8-spot ανά €0.50: <strong style="color:#555">5/8→€2 · 6/8→€15 · 7/8→€200 · 8/8→€100,000</strong>
-      <span style="margin-left:4px">(επαλήθευσε με επίσημο πίνακα OPAP)</span>
+      Αποδόσεις 8-spot: <strong style="color:#555">4/8→€1 · 5/8→€5 · 6/8→€25 · 7/8→€500 · 8/8→€2,500</strong>
     </div>
     <div id="colSimStatus" style="font-size:.82rem;color:#888;margin-top:8px"></div>
     <div id="colSimResults" style="margin-top:10px"></div>
@@ -1665,8 +1664,8 @@
   const KINO_COLS = Array.from({length:10}, (_,i) =>
     Array.from({length:8}, (_,j) => (i+1) + j*10)
   );
-  // OPAP 8-spot payouts per €0.50 bet (verify with official OPAP table)
-  const COL_PAYOUTS_8 = {5:2.00, 6:15.00, 7:200.00, 8:100000.00};
+  // OPAP 8-spot payouts per bet
+  const COL_PAYOUTS_8 = {4:1.00, 5:5.00, 6:25.00, 7:500.00, 8:2500.00};
 
   async function runColSim() {
     const X   = Math.max(1, parseInt(document.getElementById('colX').value) || 5);
@@ -1692,10 +1691,12 @@
       const stats = KINO_COLS.map((nums, i) => ({
         col:i+1, nums,
         bets:0, spent:0, won:0,
-        hitBins:{5:0,6:0,7:0,8:0}
+        hitBins:{4:0,5:0,6:0,7:0,8:0}
       }));
-      // delays[c] = how many consecutive draws column c has had 0 hits
+      // delays[c] = consecutive draws without a hit for column c
       const delays = new Array(10).fill(0);
+      // activeBets[c] = remaining draws to bet on column c (after trigger)
+      const activeBets = new Array(10).fill(0);
       let totalDraws = 0;
 
       for (let fi = 0; fi < rawFiles.length; fi++) {
@@ -1708,14 +1709,19 @@
           const numSet = new Set(draw.n);
           for (let c = 0; c < 10; c++) {
             const colNums = KINO_COLS[c];
-            // Trigger: column has been missing for >= X draws → bet on THIS draw
-            if (delays[c] >= X) {
+            // Trigger: delay reached X → start betting for X draws
+            if (delays[c] >= X && activeBets[c] === 0) {
+              activeBets[c] = X;
+            }
+            // Place bet if in active betting phase
+            if (activeBets[c] > 0) {
               const hits = colNums.filter(n => numSet.has(n)).length;
               const payout = (COL_PAYOUTS_8[hits] || 0) * mult;
               stats[c].bets++;
               stats[c].spent += bet;
               stats[c].won   += payout;
-              if (hits >= 5) stats[c].hitBins[hits] = (stats[c].hitBins[hits]||0) + 1;
+              if (hits >= 4) stats[c].hitBins[hits] = (stats[c].hitBins[hits]||0) + 1;
+              activeBets[c]--;
             }
             // Update delay counter
             if (colNums.some(n => numSet.has(n))) delays[c] = 0;
@@ -1762,7 +1768,7 @@
         const n   = s.won - s.spent;
         const nC  = n >= 0 ? '#2a9d8f' : '#e63946';
         const r   = s.spent > 0 ? (s.won/s.spent*100).toFixed(1) : '—';
-        const hitsHtml = [5,6,7,8]
+        const hitsHtml = [4,5,6,7,8]
           .filter(k => s.hitBins[k])
           .map(k => `<span style="margin-right:6px"><strong>${k}/8</strong>:${s.hitBins[k]}</span>`)
           .join('') || '<span style="color:#ddd">καμία</span>';
