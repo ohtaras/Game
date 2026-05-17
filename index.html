@@ -456,6 +456,16 @@
     return files;
   }
 
+  // ── localStorage cache of confirmed-existing raw files ───────
+  const KNOWN_KEY = 'kino_known_raw';
+  function knownRaw() {
+    try { return new Set(JSON.parse(localStorage.getItem(KNOWN_KEY)||'[]')); } catch { return new Set(); }
+  }
+  function markKnown(filename) {
+    const s = knownRaw(); s.add(filename);
+    localStorage.setItem(KNOWN_KEY, JSON.stringify([...s]));
+  }
+
   // ── Shared: build squares occurrences from draws array ───────
   function sqShiftDown(sq){
     const res=[];
@@ -735,16 +745,22 @@
         const isCurrent=(y===todayY&&m===todayM);
         progBar.style.width=`${Math.round(mi/months.length*80)}%`;
 
-        // Παλιοί ολοκληρωμένοι μήνες → GET headers only (δεν διαβάζουμε body)
+        // Παλιοί ολοκληρωμένοι μήνες → έλεγχος cache πρώτα, αλλιώς ένα GET
         if(!isCurrent){
+          if(knownRaw().has(filename)){
+            progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
+            progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+            continue;
+          }
           progText.textContent=`🔍 ${monthStr}…`;
           let fileExists=false;
           try{
             const ck=await fetch(`https://raw.githubusercontent.com/${REPO}/main/data/raw/${filename}`,
               {signal:AbortSignal.timeout(8000)});
-            fileExists=ck.ok; // resolve on headers, body not read
+            fileExists=ck.ok;
           }catch(_){}
           if(fileExists){
+            markKnown(filename);
             progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
             progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
             continue;
@@ -813,6 +829,7 @@
         progText.textContent=`📤 ${monthStr}: +${newDraws.length} → ${merged.length.toLocaleString()} κλ.…`;
         progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
         await ghPut(`data/raw/${filename}`,{month:monthStr,draws:merged},`Raw ${monthStr}: +${newDraws.length}`);
+        if(!isCurrent) markKnown(filename);
         progText.textContent=`✅ ${monthStr}: ${merged.length.toLocaleString()} κληρώσεις`;
       }
 
