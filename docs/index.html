@@ -7,253 +7,1785 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
-
-    header {
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      color: white;
-      padding: 24px 32px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    header h1 { font-size: 1.6rem; font-weight: 700; }
-    header span { font-size: 2rem; }
-
-    .controls {
-      max-width: 900px;
-      margin: 32px auto 0;
-      padding: 0 16px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .controls label { font-weight: 600; font-size: 0.95rem; }
-    .controls input[type=date] {
-      padding: 10px 14px;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color .2s;
-    }
-    .controls input[type=date]:focus { border-color: #4361ee; }
-    .controls button {
-      padding: 10px 24px;
-      background: #4361ee;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .2s;
-    }
-    .controls button:hover { background: #3251d4; }
-    .controls button:disabled { background: #aaa; cursor: not-allowed; }
-    #btnExport {
-      background: #2ec4b6;
-      margin-left: auto;
-      display: none;
-    }
-    #btnExport:hover { background: #25a99d; }
-
-    #status {
-      max-width: 900px;
-      margin: 16px auto 0;
-      padding: 0 16px;
-      font-size: 0.92rem;
-      color: #555;
-    }
+    header { background: linear-gradient(135deg, #1a1a2e, #16213e); color: white; padding: 20px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    #tokenBar { max-width: 960px; margin: 16px auto 0; padding: 0 16px; }
+    #tokenBar details { background: white; border-radius: 10px; padding: 10px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    #tokenBar summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #555; list-style: none; }
+    #tokenBar summary::-webkit-details-marker { display:none; }
+    .token-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+    .token-row input { flex: 1; min-width: 200px; padding: 7px 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 0.9rem; font-family: monospace; }
+    .token-row button { padding: 7px 14px; font-size: 0.85rem; }
+    #tokenStatus { font-size: 0.8rem; margin-top: 6px; }
+    .controls { max-width: 960px; margin: 12px auto 0; padding: 0 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .controls label { font-weight: 600; font-size: 0.9rem; }
+    input[type=date], input[type=month] { padding: 9px 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; }
+    .ctrl-sep { width: 100%; height: 0; border-top: 1px dashed #ddd; margin: 2px 0; }
+    button { padding: 9px 20px; background: #4361ee; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    button:hover { opacity: 0.85; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    #btnExport     { background: #2ec4b6; display: none; }
+    #btnSquares    { background: #e76f51; display: none; }
+    #btnUpload     { background: #6a4c93; display: none; }
+    #btnUploadMonth{ background: #6a4c93; display: none; }
+    #status { max-width: 960px; margin: 12px auto 0; padding: 0 16px; font-size: 0.9rem; color: #555; }
     #status.error { color: #e63946; font-weight: 600; }
-
-    #spinner {
-      display: none;
-      max-width: 900px;
-      margin: 32px auto;
-      text-align: center;
-      color: #4361ee;
-      font-size: 1.1rem;
-    }
-    .spin {
-      display: inline-block;
-      width: 32px; height: 32px;
-      border: 4px solid #cdd;
-      border-top-color: #4361ee;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: middle;
-      margin-right: 10px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    #results {
-      max-width: 900px;
-      margin: 24px auto 48px;
-      padding: 0 16px;
-    }
-    .summary {
-      background: white;
-      border-radius: 10px;
-      padding: 14px 20px;
-      margin-bottom: 16px;
-      font-size: 0.95rem;
-      color: #555;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08);
-    }
+    #results { max-width: 960px; margin: 20px auto 0; padding: 0 16px; }
+    #sqSection { max-width: 960px; margin: 32px auto 48px; padding: 0 16px; display: none; }
+    #sqSection h2 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #e76f51; }
+    .summary { background: white; border-radius: 10px; padding: 12px 18px; margin-bottom: 14px; color: #555; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
     .summary strong { color: #1a1a2e; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,.08);
-    }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 24px; }
     thead tr { background: #1a1a2e; color: white; }
-    th { padding: 14px 16px; text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: .05em; }
-    td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; vertical-align: top; font-size: 0.92rem; }
+    th { padding: 11px 14px; text-align: left; font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #f8f9ff; }
-
-    .draw-id { color: #888; font-size: 0.82rem; }
-    .time { font-weight: 700; color: #4361ee; font-size: 1rem; }
-    .numbers { display: flex; flex-wrap: wrap; gap: 6px; }
-    .ball {
-      width: 30px; height: 30px;
-      border-radius: 50%;
-      background: #4361ee;
-      color: white;
-      font-size: 0.78rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .draw-id { color: #aaa; font-size: 0.78rem; }
+    .time { font-weight: 700; color: #4361ee; }
+    .numbers { display: flex; flex-wrap: wrap; gap: 4px; }
+    .ball { width: 26px; height: 26px; border-radius: 50%; background: #4361ee; color: white; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
     .ball.bonus { background: #e63946; }
+    .draw-group { margin-bottom: 28px; }
+    .group-sep { border: none; border-top: 2px dashed #ccc; margin: 4px 0 24px; }
+    .draw-card { background: white; border-radius: 12px; padding: 10px 12px 12px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); border-left: 5px solid #ddd; }
+    .draw-card.card-match { border-left-color: #e76f51; }
+    .draw-card.card-next  { border-left-color: #bbb; opacity:.92; }
+    .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .card-label { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+    .card-match .card-label { background: #e76f51; color: white; }
+    .card-next  .card-label { background: #e0e0e0; color: #666; }
+    .sq-tags { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+    .sq-tag { background: #fff3ee; border: 1px solid #e76f51; border-radius: 4px; padding: 2px 6px; color: #c1440e; font-size: 0.7rem; font-weight: 700; }
+    .kino-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; background: #0d2137; padding: 8px; border-radius: 8px; }
+    .kc { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:0.65rem; font-weight:600; color:#5a7a9a; }
+    .kc.h  { background:#f4a261; color:#0d2137; }
+    .kc.sq { background:#ffd166; color:#0d2137; box-shadow:0 0 0 2px #e76f51; }
+    .kc.b  { background:#e63946; color:white; }
+    .kc.pred { box-shadow:0 0 0 2px #2ec4b6; color:#2ec4b6; }
+    .kc.pred.h { background:#2ec4b6; color:#0d2137; box-shadow:0 0 0 2px #1a9e8f; }
+    .kc.pred.b { box-shadow:0 0 0 2px #2ec4b6; }
+    /* Predictions */
+    #predTool { max-width:960px; margin:14px auto 0; padding:0 16px; }
+    #predTool details { background:white; border-radius:10px; padding:10px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    #predTool summary { cursor:pointer; font-size:0.85rem; font-weight:600; color:#555; list-style:none; }
+    #predTool summary::-webkit-details-marker { display:none; }
+    #predTool summary::before { content:'🎯 '; }
+    .pred-input-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center; }
+    .pred-input-row input[type=number] { width:58px; padding:7px 6px; border:2px solid #ddd; border-radius:6px; font-size:1rem; text-align:center; font-weight:700; }
+    .pred-output { margin-top:10px; }
+    .pred-card { background:#f0fff4; border-radius:8px; padding:8px 12px; margin-top:6px; border-left:4px solid #2ec4b6; }
+    .pred-card-inline { background:#effffc; border-radius:8px; padding:6px 10px; margin-top:6px; border-left:4px solid #2ec4b6; }
+    .pred-card h4 { font-size:0.75rem; color:#2a9d8f; font-weight:700; margin-bottom:6px; }
+    .pred-row { display:flex; align-items:center; gap:5px; margin:3px 0; flex-wrap:wrap; }
+    .pred-label { font-size:0.72rem; font-weight:700; color:#666; min-width:22px; }
+    .pred-num { width:24px; height:24px; border-radius:50%; background:#2ec4b6; color:white; font-size:0.68rem; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .pred-num.sig { background:#1a9e8f; }
+    .pred-stat { font-size:0.68rem; margin-left:4px; }
+    .pred-stat.good { color:#1a9e8f; font-weight:700; }
+    .pred-stat.ok { color:#aaa; }
+    .pred-none { font-size:0.78rem; color:#aaa; font-style:italic; padding:2px 0; }
+    /* Data status */
+    #dataStatus { max-width:960px; margin:14px auto 0; padding:0 16px; }
+    #dataStatus details { background:white; border-radius:10px; padding:10px 16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    #dataStatus summary { cursor:pointer; font-size:0.85rem; font-weight:600; color:#555; list-style:none; }
+    #dataStatus summary::-webkit-details-marker { display:none; }
+    .status-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .status-card { background:#f8f9ff; border-radius:8px; padding:10px 14px; }
+    .status-card h4 { font-size:0.72rem; text-transform:uppercase; color:#888; letter-spacing:.05em; margin-bottom:6px; }
+    .status-card .val { font-size:1.1rem; font-weight:700; color:#1a1a2e; }
+    .status-card .sub { font-size:0.75rem; color:#888; margin-top:2px; }
+    .month-row { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid #eee; font-size:0.82rem; }
+    .month-row:last-child { border-bottom:none; }
+    /* Month progress */
+    #monthProgress { max-width:960px; margin:8px auto 0; padding:0 16px; display:none; }
+    .progress-bar-wrap { background:#e0e0e0; border-radius:8px; height:10px; overflow:hidden; margin-top:4px; }
+    .progress-bar-fill { background:#4361ee; height:100%; border-radius:8px; transition:width .3s; }
+    /* ── Live Monitor ── */
+    #liveSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #liveSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #liveSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;display:flex;align-items:center;gap:10px;}
+    #liveSection summary::-webkit-details-marker{display:none;}
+    .live-badge{padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;}
+    .live-badge.on{background:#e63946;color:white;animation:livepulse .8s infinite alternate;}
+    .live-badge.off{background:#ddd;color:#666;}
+    @keyframes livepulse{from{opacity:1}to{opacity:.5}}
+    .live-row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap;}
+    .live-trigger-box{margin-top:8px;padding:8px 12px;border-radius:8px;background:#fff3ee;border-left:4px solid #e76f51;}
+    .live-eval-box{margin-top:6px;padding:8px 12px;border-radius:8px;background:#f0fff8;border-left:4px solid #2a9d8f;}
+    .live-rule-row{display:flex;align-items:center;gap:4px;margin:2px 0;flex-wrap:wrap;}
+    .live-rule-lbl{font-size:0.72rem;font-weight:700;min-width:26px;display:inline-block;}
+    .rule-ball{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:700;color:white;margin:1px;}
+    .win-badge{background:#2a9d8f;color:white;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;}
+    .miss-badge{color:#aaa;font-size:0.72rem;}
+    /* ── Rule Stats Table ── */
+    .stats-tbl{width:100%;border-collapse:collapse;font-size:0.77rem;margin-top:6px;}
+    .stats-tbl th{padding:4px 6px;background:#f5f5f5;font-weight:600;color:#555;border-bottom:1px solid #e0e0e0;}
+    .stats-tbl th:not(:first-child){text-align:right;}
+    .stats-tbl td{padding:4px 6px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .stats-tbl td:not(:first-child){text-align:right;}
+    .stats-tbl tr:last-child td{border-bottom:none;}
+    .delay-bar-wrap{display:flex;align-items:center;gap:4px;}
+    .delay-bar-bg{flex:1;background:#eee;border-radius:3px;height:6px;overflow:hidden;min-width:40px;}
+    .delay-bar-fill{height:100%;border-radius:3px;}
+    /* ── Day Simulation ── */
+    #daySimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #daySimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #daySimSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;}
+    #daySimSection summary::-webkit-details-marker{display:none;}
+    .sim-block{border-radius:8px;overflow:hidden;border:1px solid #eee;margin-bottom:8px;}
+    .sim-trig{background:#fff3ee;border-left:4px solid #e76f51;padding:8px 12px;}
+    .sim-p1{background:#f8f9ff;border-left:4px solid #4361ee;padding:6px 12px;}
+    .sim-p2{background:#f0f9ff;border-left:4px solid #2ec4b6;padding:6px 12px;}
+    /* ── Column Sim ── */
+    #colSimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #colSimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #colSimSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;}
+    #colSimSection summary::-webkit-details-marker{display:none;}
+    .col-tbl{width:100%;border-collapse:collapse;font-size:0.77rem;margin-top:8px;}
+    .col-tbl th{padding:7px 10px;background:#1a1a2e;color:white;font-size:0.72rem;text-transform:uppercase;letter-spacing:.04em;}
+    .col-tbl th:not(:first-child){text-align:right;}
+    .col-tbl td{padding:7px 10px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .col-tbl td:not(:first-child){text-align:right;}
+    .col-tbl tr:last-child td{border-bottom:none;}
+    .col-tbl tr:hover td{background:#f8f9ff;}
+    .col-num-tag{display:inline-block;background:#e8f4f8;border-radius:4px;padding:1px 5px;font-size:0.68rem;color:#457b9d;margin-left:4px;}
+    .sim-hdr{display:flex;align-items:center;gap:8px;font-size:0.8rem;flex-wrap:wrap;margin-bottom:3px;}
   </style>
 </head>
 <body>
 
 <header>
-  <span>🎱</span>
+  <span style="font-size:1.8rem">🎱</span>
   <div>
     <h1>KINO — Κληρώσεις ΟΠΑΠ</h1>
-    <div style="font-size:.85rem;opacity:.7;margin-top:4px">Επιλέξτε ημερομηνία για να δείτε τα αποτελέσματα</div>
+    <div style="font-size:.8rem;opacity:.7">Επιλέξτε ημερομηνία ή μήνα</div>
   </div>
 </header>
 
+<div id="tokenBar">
+  <details id="tokenDetails">
+    <summary>🔑 GitHub Token</summary>
+    <div class="token-row">
+      <input type="password" id="tokenInput" placeholder="ghp_..." autocomplete="off">
+      <button onclick="saveToken()">✔ Αποθήκευση</button>
+      <button onclick="clearToken()" style="background:#e63946">✕ Διαγραφή</button>
+    </div>
+    <div id="tokenStatus"></div>
+    <p style="font-size:.75rem;color:#aaa;margin-top:8px">Αποθηκεύεται μόνιμα στον browser σου (localStorage). Δεν μπαίνει ποτέ στον κώδικα ή σε δημόσιο αρχείο.</p>
+  </details>
+</div>
+
+<div id="dataStatus">
+  <details id="dataStatusDetails">
+    <summary>📊 Κατάσταση Δεδομένων</summary>
+    <div style="margin-top:10px">
+      <button onclick="loadDataStatus()" style="background:#2a9d8f;font-size:.85rem;padding:7px 14px">🔄 Κατάσταση</button>
+      <button id="btnRecompute" onclick="recomputePredictions()" style="background:#e76f51;font-size:.85rem;padding:7px 14px;margin-left:8px">🧮 Ανανέωση Προβλέψεων</button>
+      <span id="dataStatusLoading" style="display:none;margin-left:10px;font-size:.82rem;color:#888">⏳ Φόρτωση 4–5MB…</span>
+      <div id="recomputeStatus" style="font-size:.82rem;color:#888;margin-top:6px"></div>
+      <div id="dataStatusOut" style="margin-top:12px"></div>
+    </div>
+  </details>
+</div>
+
+<div id="predTool">
+  <details>
+    <summary>Πρόβλεψη Τετραγώνου — εισάγετε αριθμούς</summary>
+    <p style="font-size:0.78rem;color:#888;margin-top:8px">Δώστε τους 4 αριθμούς του τετραγώνου που εμφανίστηκε:</p>
+    <div class="pred-input-row">
+      <input type="number" id="pn1" placeholder="π.χ. 13" min="1" max="80">
+      <input type="number" id="pn2" placeholder="" min="1" max="80">
+      <input type="number" id="pn3" placeholder="" min="1" max="80">
+      <input type="number" id="pn4" placeholder="" min="1" max="80">
+      <button onclick="lookupPrediction()" style="background:#2ec4b6">🔍 Πρόβλεψη</button>
+    </div>
+    <div class="pred-output" id="predOutput"></div>
+  </details>
+</div>
+
+<!-- ── Live Monitor ── -->
+<div id="liveSection">
+  <details id="liveDetails">
+    <summary>
+      📡 Live Monitor — Αυτόματη Ενημέρωση
+      <span id="liveBadge" class="live-badge off">ΣΤΑΜΑΤΗΜΕΝΟ</span>
+      <button id="liveBtn" onclick="toggleLive()" style="padding:4px 12px;font-size:0.8rem;margin-left:auto">▶ Εκκίνηση</button>
+    </summary>
+    <div style="margin-top:8px">
+      <div class="live-row">
+        <span id="liveTime" style="font-weight:700;color:#4361ee;font-size:1rem">—</span>
+        <span id="liveDrawId" style="font-size:0.8rem;color:#aaa">—</span>
+        <span id="liveCountdown" style="font-size:0.85rem;color:#888;font-family:monospace">Επόμενη: —</span>
+        <button onclick="fetchLiveNow()" style="padding:4px 10px;font-size:0.8rem;background:#2a9d8f;margin-left:auto">⟳ Ανανέωση</button>
+      </div>
+      <div id="liveGrid" style="max-width:440px;margin-bottom:6px"></div>
+      <div id="liveTrigger"></div>
+      <div id="liveEval"></div>
+      <div id="liveSaveStatus" style="font-size:0.75rem;color:#aaa;margin-top:4px"></div>
+      <div id="liveStatsWrap" style="margin-top:10px">
+        <button id="btnLoadStats" onclick="loadRuleStats()" style="padding:5px 12px;font-size:0.8rem;background:#6a4c93">📊 Φόρτωση Στατιστικών</button>
+        <span id="liveStatsStatus" style="font-size:0.78rem;color:#888;margin-left:8px"></span>
+        <div id="liveStatsTable"></div>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- Ημερήσια φόρτωση -->
 <div class="controls">
-  <label for="datePicker">Ημερομηνία:</label>
+  <label>📅 Ημέρα:</label>
   <input type="date" id="datePicker">
-  <button id="btnFetch" onclick="loadDraws()">🔍 Φόρτωση Κληρώσεων</button>
-  <button id="btnExport" onclick="exportJSON()">💾 Αποθήκευση JSON</button>
+  <button id="btnFetch" onclick="loadDraws()">🔍 Φόρτωση</button>
+  <button id="btnExport" onclick="exportJSON()">💾 JSON</button>
+  <button id="btnUpload" onclick="uploadToGitHub()">📤 GitHub</button>
+  <button id="btnSquares" onclick="applySquareFilter()">🔲 Τετράγωνα</button>
+</div>
+
+<!-- Μηνιαία φόρτωση -->
+<div class="controls">
+  <label>📆 Μήνας:</label>
+  <input type="month" id="monthPicker">
+  <button id="btnFetchMonth" onclick="loadMonth()">🔍 Φόρτωση Μήνα</button>
+  <button id="btnUploadMonth" onclick="uploadMonthToGitHub()">📤 Ανέβασμα στο GitHub</button>
+</div>
+
+<!-- Ετήσια φόρτωση -->
+<div class="controls">
+  <label>📅 Έτος:</label>
+  <input type="number" id="yearPicker" min="2020" max="2030" value="2025" style="width:90px;padding:9px 12px;border:2px solid #ddd;border-radius:8px;font-size:1rem;outline:none;">
+  <button id="btnFetchYear" onclick="loadYear()">🔍 Φόρτωση Έτους</button>
+  <button id="btnUploadYear" onclick="uploadYearToGitHub()" style="background:#6a4c93;display:none;">📤 Ανέβασμα Έτους</button>
+</div>
+<div id="yearProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
+  <div id="yearProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="yearProgressBar" style="width:0%"></div></div>
+</div>
+
+<!-- Ενημέρωση Raw -->
+<div class="controls">
+  <label>📊 Raw:</label>
+  <button id="btnUpdateRawDay" onclick="updateRawByDay()" style="background:#f4a261;color:#fff;">📅 Ενημέρωση (2024→σήμερα)</button>
+</div>
+<div id="rebuildProgress" style="display:none;max-width:960px;margin:4px auto 0;padding:0 16px;">
+  <div id="rebuildProgressText" style="font-size:0.85rem;color:#555;margin-bottom:4px;"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="rebuildProgressBar" style="width:0%"></div></div>
+</div>
+
+<div id="monthProgress">
+  <div id="monthProgressText" style="font-size:0.85rem;color:#555;"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="monthProgressBar" style="width:0%"></div></div>
+</div>
+
+<!-- ── Day Simulation ── -->
+<div id="daySimSection">
+  <details>
+    <summary>📅 Προσομοίωση Ημέρας — Τετράγωνα &amp; Κανόνες</summary>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <input type="date" id="simDatePicker" style="padding:7px 10px;border:2px solid #ddd;border-radius:6px;font-size:0.9rem">
+      <button onclick="runDaySim()" style="background:#457b9d;padding:7px 14px;font-size:0.85rem">▶ Εκτέλεση</button>
+    </div>
+    <div id="simStatus" style="font-size:0.82rem;color:#888;margin-top:6px"></div>
+    <div id="simResults" style="margin-top:10px"></div>
+  </details>
+</div>
+
+<!-- ── Column Simulation ── -->
+<div id="colSimSection">
+  <details>
+    <summary>📊 Ανάλυση Κάθετης Στήλης — Τι θα είχα κερδίσει;</summary>
+    <p style="font-size:.8rem;color:#888;margin-top:8px">
+      Στρατηγική: όταν μια κάθετη στήλη (8 νούμερα) δεν εμφανιστεί σε <strong>X</strong> συνεχόμενες κληρώσεις,
+      παίζω εκείνη τη στήλη στην επόμενη κλήρωση ως 8-spot ticket.
+    </p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:3px">Αναμονή X κληρώσεων:</label>
+        <input type="number" id="colX" value="5" min="1" max="100"
+          style="width:70px;padding:7px;border:2px solid #ddd;border-radius:6px;font-size:1rem;text-align:center">
+      </div>
+      <div>
+        <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:3px">Στοίχημα (€):</label>
+        <input type="number" id="colBet" value="0.50" min="0.50" step="0.50"
+          style="width:80px;padding:7px;border:2px solid #ddd;border-radius:6px;font-size:1rem;text-align:center">
+      </div>
+      <button onclick="runColSim()" style="background:#2a9d8f;padding:7px 16px;font-size:.9rem">▶ Εκτέλεση</button>
+    </div>
+    <div style="font-size:.75rem;color:#aaa;margin-top:8px">
+      Αποδόσεις 8-spot ανά €0.50: <strong style="color:#555">5/8→€2 · 6/8→€15 · 7/8→€200 · 8/8→€100,000</strong>
+      <span style="margin-left:4px">(επαλήθευσε με επίσημο πίνακα OPAP)</span>
+    </div>
+    <div id="colSimStatus" style="font-size:.82rem;color:#888;margin-top:8px"></div>
+    <div id="colSimResults" style="margin-top:10px"></div>
+  </details>
 </div>
 
 <div id="status"></div>
-<div id="spinner"><div class="spin"></div>Φόρτωση κληρώσεων…</div>
 <div id="results"></div>
 
+<div id="sqSection">
+  <h2>🔲 Κληρώσεις με Τετράγωνο + επόμενες 2</h2>
+  <div id="sqStatus" class="summary" style="display:none"></div>
+  <div id="sqResults"></div>
+</div>
+
 <script>
-  // Default to today
-  const today = new Date();
   const pad = n => String(n).padStart(2,'0');
+  const today = new Date();
   document.getElementById('datePicker').value =
     `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  document.getElementById('monthPicker').value =
+    `${today.getFullYear()}-${pad(today.getMonth()+1)}`;
+  document.getElementById('yearPicker').value = today.getFullYear() - 1;
 
   let lastData = null;
+  let monthDraws = null;
+  let yearDraws = null;
+  const TZ_MS = 3 * 3600 * 1000;
+  const REPO = 'ohtaras/Game';
 
-  async function loadDraws() {
-    const date = document.getElementById('datePicker').value;
-    if (!date) return;
+  // ── Predictions ───────────────────────────────────────────────
+  // Predictions από ~46.500 κληρώσεις (Δεκ 2025-Μάι 2026) — most frequent tetrad near trigger in P1/P2
+  let PREDICTIONS = {"1-3-21-23":{"n":448,"neighborhood":25,"p1":{"tetrad":[3,21,34,45],"hits":"8/448","rate":0.0179},"p2":{"tetrad":[11,12,32,33],"hits":"8/448","rate":0.0179}},"11-13-31-33":{"n":420,"neighborhood":30,"p1":{"tetrad":[4,5,11,32],"hits":"8/420","rate":0.019},"p2":{"tetrad":[3,14,31,41],"hits":"8/420","rate":0.019}},"12-14-32-34":{"n":386,"neighborhood":36,"p1":{"tetrad":[12,24,26,56],"hits":"8/386","rate":0.0207},"p2":{"tetrad":[11,13,14,35],"hits":"8/386","rate":0.0207}},"13-15-33-35":{"n":430,"neighborhood":42,"p1":{"tetrad":[1,11,16,46],"hits":"8/430","rate":0.0186},"p2":{"tetrad":[1,4,26,52],"hits":"9/430","rate":0.0209}},"14-16-34-36":{"n":459,"neighborhood":42,"p1":{"tetrad":[3,32,45,53],"hits":"9/459","rate":0.0196},"p2":{"tetrad":[6,22,26,44],"hits":"9/459","rate":0.0196}},"15-17-35-37":{"n":442,"neighborhood":42,"p1":{"tetrad":[15,18,39,53],"hits":"8/442","rate":0.0181},"p2":{"tetrad":[9,16,43,59],"hits":"10/442","rate":0.0226}},"16-18-36-38":{"n":455,"neighborhood":42,"p1":{"tetrad":[6,10,20,30],"hits":"9/455","rate":0.0198},"p2":{"tetrad":[20,29,35,38],"hits":"9/455","rate":0.0198}},"17-19-37-39":{"n":425,"neighborhood":36,"p1":{"tetrad":[9,16,45,57],"hits":"8/425","rate":0.0188},"p2":{"tetrad":[9,17,20,36],"hits":"9/425","rate":0.0212}},"18-20-38-40":{"n":390,"neighborhood":30,"p1":{"tetrad":[10,26,48,50],"hits":"7/390","rate":0.0179},"p2":{"tetrad":[17,19,38,47],"hits":"7/390","rate":0.0179}},"2-4-22-24":{"n":435,"neighborhood":30,"p1":{"tetrad":[4,23,31,43],"hits":"8/435","rate":0.0184},"p2":{"tetrad":[1,5,11,25],"hits":"8/435","rate":0.0184}},"21-23-41-43":{"n":456,"neighborhood":35,"p1":{"tetrad":[1,25,31,35],"hits":"8/456","rate":0.0175},"p2":{"tetrad":[4,5,54,63],"hits":"9/456","rate":0.0197}},"22-24-42-44":{"n":444,"neighborhood":42,"p1":{"tetrad":[11,13,52,53],"hits":"9/444","rate":0.0203},"p2":{"tetrad":[13,15,34,43],"hits":"10/444","rate":0.0225}},"23-25-43-45":{"n":437,"neighborhood":49,"p1":{"tetrad":[6,34,45,64],"hits":"9/437","rate":0.0206},"p2":{"tetrad":[13,14,34,63],"hits":"9/437","rate":0.0206}},"24-26-44-46":{"n":436,"neighborhood":49,"p1":{"tetrad":[5,7,27,52],"hits":"9/436","rate":0.0206},"p2":{"tetrad":[27,32,35,68],"hits":"9/436","rate":0.0206}},"25-27-45-47":{"n":426,"neighborhood":49,"p1":{"tetrad":[45,49,67,69],"hits":"9/426","rate":0.0211},"p2":{"tetrad":[17,39,45,69],"hits":"8/426","rate":0.0188}},"26-28-46-48":{"n":400,"neighborhood":49,"p1":{"tetrad":[14,25,44,46],"hits":"9/400","rate":0.0225},"p2":{"tetrad":[25,27,38,64],"hits":"8/400","rate":0.02}},"27-29-47-49":{"n":471,"neighborhood":42,"p1":{"tetrad":[8,17,28,50],"hits":"9/471","rate":0.0191},"p2":{"tetrad":[10,49,56,69],"hits":"10/471","rate":0.0212}},"28-30-48-50":{"n":423,"neighborhood":35,"p1":{"tetrad":[9,10,20,60],"hits":"8/423","rate":0.0189},"p2":{"tetrad":[19,28,49,56],"hits":"8/423","rate":0.0189}},"3-5-23-25":{"n":491,"neighborhood":35,"p1":{"tetrad":[1,3,33,36],"hits":"11/491","rate":0.0224},"p2":{"tetrad":[1,2,14,37],"hits":"8/491","rate":0.0163}},"31-33-51-53":{"n":436,"neighborhood":35,"p1":{"tetrad":[12,22,43,53],"hits":"7/436","rate":0.0161},"p2":{"tetrad":[15,34,51,65],"hits":"9/436","rate":0.0206}},"32-34-52-54":{"n":420,"neighborhood":42,"p1":{"tetrad":[24,43,52,75],"hits":"9/420","rate":0.0214},"p2":{"tetrad":[13,23,34,76],"hits":"8/420","rate":0.019}},"33-35-53-55":{"n":427,"neighborhood":49,"p1":{"tetrad":[13,24,45,52],"hits":"9/427","rate":0.0211},"p2":{"tetrad":[16,42,53,75],"hits":"9/427","rate":0.0211}},"34-36-54-56":{"n":426,"neighborhood":49,"p1":{"tetrad":[27,45,57,67],"hits":"9/426","rate":0.0211},"p2":{"tetrad":[46,55,56,58],"hits":"9/426","rate":0.0211}},"35-37-55-57":{"n":446,"neighborhood":49,"p1":{"tetrad":[36,38,43,77],"hits":"10/446","rate":0.0224},"p2":{"tetrad":[24,25,46,47],"hits":"9/446","rate":0.0202}},"36-38-56-58":{"n":450,"neighborhood":49,"p1":{"tetrad":[47,50,56,75],"hits":"9/450","rate":0.02},"p2":{"tetrad":[27,44,46,65],"hits":"9/450","rate":0.02}},"37-39-57-59":{"n":454,"neighborhood":42,"p1":{"tetrad":[36,60,68,78],"hits":"8/454","rate":0.0176},"p2":{"tetrad":[15,20,28,70],"hits":"9/454","rate":0.0198}},"38-40-58-60":{"n":440,"neighborhood":35,"p1":{"tetrad":[20,27,58,78],"hits":"8/440","rate":0.0182},"p2":{"tetrad":[16,19,27,48],"hits":"8/440","rate":0.0182}},"4-6-24-26":{"n":382,"neighborhood":35,"p1":{"tetrad":[2,32,35,44],"hits":"8/382","rate":0.0209},"p2":{"tetrad":[32,42,43,44],"hits":"8/382","rate":0.0209}},"41-43-61-63":{"n":434,"neighborhood":30,"p1":{"tetrad":[33,62,71,72],"hits":"8/434","rate":0.0184},"p2":{"tetrad":[25,34,64,74],"hits":"8/434","rate":0.0184}},"42-44-62-64":{"n":431,"neighborhood":36,"p1":{"tetrad":[32,53,71,73],"hits":"8/431","rate":0.0186},"p2":{"tetrad":[24,31,52,73],"hits":"10/431","rate":0.0232}},"43-45-63-65":{"n":435,"neighborhood":42,"p1":{"tetrad":[22,57,64,76],"hits":"9/435","rate":0.0207},"p2":{"tetrad":[22,35,37,57],"hits":"10/435","rate":0.023}},"44-46-64-66":{"n":410,"neighborhood":42,"p1":{"tetrad":[24,36,38,45],"hits":"8/410","rate":0.0195},"p2":{"tetrad":[22,33,53,57],"hits":"9/410","rate":0.022}},"45-47-65-67":{"n":414,"neighborhood":42,"p1":{"tetrad":[35,37,44,63],"hits":"8/414","rate":0.0193},"p2":{"tetrad":[27,33,45,46],"hits":"9/414","rate":0.0217}},"46-48-66-68":{"n":381,"neighborhood":42,"p1":{"tetrad":[47,49,70,79],"hits":"7/381","rate":0.0184},"p2":{"tetrad":[54,60,75,77],"hits":"9/381","rate":0.0236}},"47-49-67-69":{"n":442,"neighborhood":36,"p1":{"tetrad":[28,35,49,55],"hits":"9/442","rate":0.0204},"p2":{"tetrad":[30,66,68,80],"hits":"8/442","rate":0.0181}},"48-50-68-70":{"n":416,"neighborhood":30,"p1":{"tetrad":[26,36,48,78],"hits":"8/416","rate":0.0192},"p2":{"tetrad":[29,50,66,69],"hits":"8/416","rate":0.0192}},"5-7-25-27":{"n":406,"neighborhood":35,"p1":{"tetrad":[8,18,25,29],"hits":"8/406","rate":0.0197},"p2":{"tetrad":[17,19,29,47],"hits":"8/406","rate":0.0197}},"51-53-71-73":{"n":435,"neighborhood":25,"p1":{"tetrad":[33,52,54,71],"hits":"8/435","rate":0.0184},"p2":{"tetrad":[33,53,55,65],"hits":"7/435","rate":0.0161}},"52-54-72-74":{"n":468,"neighborhood":30,"p1":{"tetrad":[51,54,62,73],"hits":"9/468","rate":0.0192},"p2":{"tetrad":[31,33,53,75],"hits":"9/468","rate":0.0192}},"53-55-73-75":{"n":436,"neighborhood":35,"p1":{"tetrad":[31,42,43,72],"hits":"9/436","rate":0.0206},"p2":{"tetrad":[35,57,64,75],"hits":"9/436","rate":0.0206}},"54-56-74-76":{"n":423,"neighborhood":35,"p1":{"tetrad":[45,48,67,74],"hits":"10/423","rate":0.0236},"p2":{"tetrad":[32,47,53,62],"hits":"9/423","rate":0.0213}},"55-57-75-77":{"n":449,"neighborhood":35,"p1":{"tetrad":[36,48,55,59],"hits":"7/449","rate":0.0156},"p2":{"tetrad":[44,57,64,79],"hits":"8/449","rate":0.0178}},"56-58-76-78":{"n":417,"neighborhood":35,"p1":{"tetrad":[59,67,69,78],"hits":"7/417","rate":0.0168},"p2":{"tetrad":[39,58,74,78],"hits":"9/417","rate":0.0216}},"57-59-77-79":{"n":469,"neighborhood":30,"p1":{"tetrad":[35,37,56,70],"hits":"9/469","rate":0.0192},"p2":{"tetrad":[39,56,65,67],"hits":"8/469","rate":0.0171}},"58-60-78-80":{"n":411,"neighborhood":25,"p1":{"tetrad":[48,49,50,66],"hits":"9/411","rate":0.0219},"p2":{"tetrad":[37,46,49,80],"hits":"7/411","rate":0.017}},"6-8-26-28":{"n":451,"neighborhood":35,"p1":{"tetrad":[8,17,35,46],"hits":"8/451","rate":0.0177},"p2":{"tetrad":[5,16,18,28],"hits":"8/451","rate":0.0177}},"7-9-27-29":{"n":457,"neighborhood":30,"p1":{"tetrad":[8,39,47,48],"hits":"8/457","rate":0.0175},"p2":{"tetrad":[18,28,35,38],"hits":"9/457","rate":0.0197}},"8-10-28-30":{"n":429,"neighborhood":25,"p1":{"tetrad":[17,18,26,38],"hits":"7/429","rate":0.0163},"p2":{"tetrad":[19,20,29,37],"hits":"7/429","rate":0.0163}}};
 
-    const btn = document.getElementById('btnFetch');
-    const status = document.getElementById('status');
-    const spinner = document.getElementById('spinner');
-    const results = document.getElementById('results');
-    const btnExport = document.getElementById('btnExport');
+  function predRow(label, info) {
+    if (!info) return `<div class="pred-row"><span class="pred-label">${label}</span><span class="pred-stat ok">—</span></div>`;
+    const hi = info.rate >= 0.04;
+    const nums = info.tetrad.map(n => `<div class="pred-num${hi?' sig':''}">${n}</div>`).join('');
+    return `<div class="pred-row"><span class="pred-label">${label}</span>${nums}<span class="pred-stat ${hi?'good':'ok'}">${(info.rate*100).toFixed(1)}% (${info.hits})</span></div>`;
+  }
 
-    btn.disabled = true;
-    status.className = '';
-    status.textContent = '';
-    spinner.style.display = 'block';
-    results.innerHTML = '';
-    btnExport.style.display = 'none';
-    lastData = null;
+  function getPredictionHTML(sqKey, inline=false) {
+    const pred = PREDICTIONS[sqKey];
+    const cls = inline ? 'pred-card-inline' : 'pred-card';
+    if (!pred || (!pred.p1 && !pred.p2))
+      return `<div class="${cls}"><span class="pred-none">Ανεπαρκή δεδομένα${pred?' ('+pred.n+' εμφανίσεις)':''}</span></div>`;
+    const header = inline ? '' : `<h4>🎯 Πρόβλεψη — ${pred.n} εμφανίσεις ιστορικού</h4>`;
+    return `<div class="${cls}">${header}${predRow('+1', pred.p1)}${predRow('+2', pred.p2)}</div>`;
+  }
 
-    try {
-      const url = `https://api.opap.gr/draws/v3.0/1100/draw-date/${date}`;
-      const resp = await fetch(url, {
-        headers: { 'Accept': 'application/json' }
-      });
+  function lookupPrediction() {
+    const vals = [1,2,3,4].map(i => parseInt(document.getElementById('pn'+i).value)||0);
+    if (vals.some(v => v < 1 || v > 80)) {
+      document.getElementById('predOutput').innerHTML='<p style="color:#e63946;margin-top:6px">Εισάγετε 4 αριθμούς (1–80)</p>';
+      return;
+    }
+    const key = [...vals].sort((a,b)=>a-b).join('-');
+    const pred = PREDICTIONS[key];
+    const info = pred
+      ? `<p style="font-size:.8rem;color:#555;margin-bottom:4px">Τετράγωνο: <strong>${key}</strong> | ${pred.n} εμφανίσεις</p>`
+      : `<p style="font-size:.8rem;color:#e63946;margin-bottom:4px">Τετράγωνο <strong>${key}</strong> δεν βρέθηκε στα δεδομένα</p>`;
+    document.getElementById('predOutput').innerHTML = info + getPredictionHTML(key);
+  }
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+  // ── Token ─────────────────────────────────────────────────────
+  function saveToken(){
+    const t=document.getElementById('tokenInput').value.trim();
+    if(!t){alert('Εισάγε το token!');return;}
+    localStorage.setItem('gh_token',t);
+    document.getElementById('tokenInput').value='';
+    document.getElementById('tokenStatus').innerHTML='<span style="color:green">✅ Token αποθηκεύτηκε μόνιμα.</span>';
+    document.getElementById('tokenDetails').removeAttribute('open');
+    updateTokenStatus();
+  }
+  function clearToken(){
+    localStorage.removeItem('gh_token');
+    document.getElementById('tokenStatus').innerHTML='<span style="color:#e63946">❌ Token διαγράφηκε.</span>';
+    updateTokenStatus();
+  }
+  function updateTokenStatus(){
+    const exists=!!localStorage.getItem('gh_token');
+    document.querySelector('#tokenDetails summary').textContent=
+      exists?'🔑 GitHub Token (✅ αποθηκευμένο)':'🔑 GitHub Token (για αποθήκευση δεδομένων)';
+  }
+  updateTokenStatus();
 
-      const raw = await resp.json();
-      const draws = (raw.content || []).map(item => ({
-        draw_id: item.drawId,
-        draw_time: item.drawTime,
-        winning_numbers: (item.winningNumbers?.list || []).sort((a,b)=>a-b),
-        bonus: item.winningNumbers?.bonus || []
-      }));
-
-      lastData = { date, total_draws: draws.length, draws };
-
-      if (draws.length === 0) {
-        status.textContent = 'Δεν βρέθηκαν κληρώσεις για αυτή την ημερομηνία.';
-        return;
+  // ── GitHub helpers ────────────────────────────────────────────
+  function ghHeaders(){
+    return {
+      'Authorization':'token '+localStorage.getItem('gh_token'),
+      'Accept':'application/vnd.github.v3+json',
+      'Content-Type':'application/json'
+    };
+  }
+  async function ghPut(path,obj,message){
+    const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
+    let sha; const chk=await fetch(url,{headers:h});
+    if(chk.ok){const ex=await chk.json();sha=ex.sha;}
+    // Fast base64: JSON is pure ASCII so btoa works directly (no encodeURIComponent needed)
+    const b64=btoa(JSON.stringify(obj));
+    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+    if(!r.ok) throw new Error('GitHub API '+r.status);
+  }
+  async function ghGet(path){
+    const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
+    const r=await fetch(url,{headers:h,cache:'no-store'});
+    if(!r.ok) return null;
+    const meta=await r.json();
+    // GitHub returns empty content for files >1MB — use download_url fallback
+    if((!meta.content||meta.content==='')&&meta.download_url){
+      const dr=await fetch(meta.download_url,{cache:'no-store'});
+      return dr.ok?dr.json():null;
+    }
+    if(!meta.content) return null;
+    try{
+      return JSON.parse(atob(meta.content.replace(/\n/g,'')));
+    }catch(e){
+      if(meta.download_url){
+        const dr=await fetch(meta.download_url,{cache:'no-store'});
+        return dr.ok?dr.json():null;
       }
-
-      status.textContent = `Βρέθηκαν ${draws.length} κληρώσεις για ${formatDate(date)}.`;
-      btnExport.style.display = 'inline-block';
-      renderTable(draws);
-
-    } catch (err) {
-      status.className = 'error';
-      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        status.textContent = '⚠️ Αδύνατη η σύνδεση με το OPAP API. Βεβαιωθείτε ότι έχετε σύνδεση στο internet.';
-      } else {
-        status.textContent = `Σφάλμα: ${err.message}`;
-      }
-    } finally {
-      btn.disabled = false;
-      spinner.style.display = 'none';
+      return null;
     }
   }
 
-  function renderTable(draws) {
-    const results = document.getElementById('results');
-    let html = `<div class="summary">📅 <strong>${draws.length}</strong> κληρώσεις &nbsp;|&nbsp; ⏱ ${draws[0]?.draw_time} – ${draws[draws.length-1]?.draw_time}</div>`;
-    html += '<table><thead><tr><th>Ώρα</th><th>Κλήρωση #</th><th>Αριθμοί (20 από 80)</th></tr></thead><tbody>';
-    for (const d of draws) {
-      const balls = d.winning_numbers.map(n => `<div class="ball">${n}</div>`).join('');
-      const bonus = d.bonus.map(n => `<div class="ball bonus">${n}</div>`).join('');
+  // ── Shared: build squares occurrences from draws array ───────
+  function sqShiftDown(sq){
+    const res=[];
+    for(const n of sq){
+      const row=Math.floor((n-1)/10),col=(n-1)%10;
+      if(row+1>=8) return null;
+      res.push((row+1)*10+col+1);
+    }
+    return res;
+  }
+  function computePred(sq,bonus){
+    if(!bonus) return null;
+    const down=sqShiftDown(sq);
+    if(!down) return null;
+    const next=(bonus%10===0)?null:bonus+1;
+    if(!next) return null;
+    return [...down,bonus,next];
+  }
+  function buildSquaresOccurrences(draws, existingByKey){
+    const sqByKey = existingByKey || {};
+    for(let i=0;i<draws.length;i++){
+      const d=draws[i];
+      const squares=findSquares(d.winning_numbers.concat(d.bonus));
+      if(!squares.length) continue;
+      const p1=draws[i+1]||null, p2=draws[i+2]||null;
+      const trigBonus=d.bonus&&d.bonus.length?d.bonus[0]:null;
+      const p1Set=p1?new Set(p1.winning_numbers.concat(p1.bonus)):null;
+      const p2Set=p2?new Set(p2.winning_numbers.concat(p2.bonus)):null;
+      for(const sq of squares){
+        const sqKey=sq.join('-'), recKey=d.draw_id+'_'+sqKey;
+        const pred=computePred(sq,trigBonus);
+        const p1w=pred&&p1Set?pred.every(n=>p1Set.has(n)):null;
+        const p2w=pred&&p2Set?pred.every(n=>p2Set.has(n)):null;
+        sqByKey[recKey]={
+          square:sqKey, date:d.date||'', draw_id:d.draw_id,
+          draw_time:d.draw_time,
+          trigger_bonus:trigBonus,
+          p1_win:p1w,
+          p2_win:p2w
+        };
+      }
+    }
+    return sqByKey;
+  }
+
+  // ── Shared: upload draws to master files ──────────────────────
+  async function uploadDrawsToMaster(draws, label){
+    const st=document.getElementById('status');
+    st.className='';
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+
+    // ── Step 1: load existing squares master (only file we update now) ──
+    st.textContent='📤 Φόρτωση υπαρχόντων τετραγώνων…';
+    const existingSq=await ghGet('data/kino_squares_master.json');
+    const sqByKey={};
+    for(const o of (existingSq?.occurrences||[])) sqByKey[o.draw_id+'_'+o.square]=o;
+
+    // ── Step 2: build context = tail (last draws of existing) + new draws ──
+    // Tail gives correct p1/p2 for boundary draws
+    const tail=existingSq?.tail||[];
+    const ctxById={};
+    for(const d of tail) ctxById[d.draw_id]=d;
+    for(const d of draws) ctxById[d.draw_id]=d;
+    const contextDraws=Object.values(ctxById).sort((a,b)=>a.draw_id-b.draw_id);
+
+    // ── Step 3: compute squares only for context draws (fast!) ──
+    st.textContent='📤 Υπολογισμός τετραγώνων…';
+    buildSquaresOccurrences(contextDraws, sqByKey);
+    const allOcc=Object.values(sqByKey).sort((a,b)=>a.draw_id-b.draw_id);
+
+    // ── Step 4: update month metadata ──
+    const drawsByMonth={...(existingSq?.draws_by_month||{})};
+    const byMonth={};
+    for(const d of draws){const m=d.date.slice(0,7);byMonth[m]=(byMonth[m]||0)+1;}
+    // Only count months not already tracked (avoids double-count on re-upload)
+    let newCount=0;
+    for(const[m,cnt]of Object.entries(byMonth)){
+      if(!existingSq?.draws_by_month?.[m])newCount+=cnt;
+      drawsByMonth[m]=cnt;
+    }
+    const totalDraws=(existingSq?.total_draws||0)+newCount;
+
+    // New tail = last 10 draws of this batch (for next upload's boundary context)
+    const sortedNew=[...draws].sort((a,b)=>a.draw_id-b.draw_id);
+    const newTail=sortedNew.slice(-10);
+
+    // ── Step 5: upload compact squares master (no kino_master.json needed) ──
+    st.textContent='📤 Ανέβασμα στο GitHub…';
+    await ghPut('data/kino_squares_master.json',{
+      last_updated:label,
+      total_draws:totalDraws,
+      draws_by_month:drawsByMonth,
+      tail:newTail,
+      total_occurrences:allOcc.length,
+      occurrences:allOcc
+    },`KINO squares update ${label}`);
+
+    st.textContent=`✅ ${totalDraws.toLocaleString()} κληρώσεις | ${allOcc.length} τετράγωνα`;
+    PREDICTIONS=computeGeoPredictions({occurrences:allOcc});
+    const rs=document.getElementById('recomputeStatus');
+    if(rs){rs.textContent=`✅ Προβλέψεις ανανεώθηκαν: ${Object.keys(PREDICTIONS).length} τετράγωνα`;rs.style.color='#2a9d8f';}
+  }
+
+  // ── Daily upload ──────────────────────────────────────────────
+  async function uploadToGitHub(){
+    if(!lastData){alert('Φόρτωσε πρώτα κληρώσεις!');return;}
+    const st=document.getElementById('status');
+    try{
+      const filename=`kino_${lastData.date.replace(/-/g,'')}.json`;
+      st.textContent=`📤 Αποθήκευση ${filename}…`;
+      await ghPut(`data/${filename}`,lastData,`KINO data ${lastData.date}`);
+      await uploadDrawsToMaster(lastData.draws, lastData.date);
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+  }
+
+  // ── Month fetch ───────────────────────────────────────────────
+  async function loadMonth(){
+    const monthStr=document.getElementById('monthPicker').value;
+    if(!monthStr) return;
+    const [year,month]=monthStr.split('-').map(Number);
+    const lastDayOfMonth=new Date(year,month,0).getDate();
+    const todayDate=new Date();
+    const isCurrentMonth=(year===todayDate.getFullYear()&&month===todayDate.getMonth()+1);
+    const endDay=isCurrentMonth?todayDate.getDate():lastDayOfMonth;
+
+    const btn=document.getElementById('btnFetchMonth');
+    const st=document.getElementById('status');
+    const prog=document.getElementById('monthProgress');
+    const progText=document.getElementById('monthProgressText');
+    const progBar=document.getElementById('monthProgressBar');
+
+    btn.disabled=true;
+    document.getElementById('btnUploadMonth').style.display='none';
+    monthDraws=null;
+    prog.style.display='block';
+    st.className=''; st.textContent='';
+
+    const allDraws=[], seen=new Set();
+    for(let day=1;day<=endDay;day++){
+      const dateStr=`${year}-${pad(month)}-${pad(day)}`;
+      progText.textContent=`Φόρτωση ${day}/${endDay} — ${dateStr}`;
+      progBar.style.width=`${Math.round(day/endDay*100)}%`;
+      try{
+        const items=await fetchAllDraws(dateStr);
+        const draws=items
+          .filter(i=>i.winningNumbers?.list?.length)
+          .map(i=>({
+            draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
+            date:dateStr,
+            winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
+            bonus:i.winningNumbers.bonus||[]
+          }));
+        for(const d of draws){
+          if(!seen.has(d.draw_id)){seen.add(d.draw_id);allDraws.push(d);}
+        }
+      }catch(e){console.warn('Skip',dateStr,e);}
+      await new Promise(r=>setTimeout(r,200));
+    }
+
+    allDraws.sort((a,b)=>a.draw_id-b.draw_id);
+    monthDraws={month:monthStr, total_draws:allDraws.length, draws:allDraws};
+    progBar.style.width='100%';
+    progText.textContent=`✅ ${allDraws.length} κληρώσεις — ${endDay} ημέρες`;
+    st.textContent=`✅ Μήνας ${monthStr}: ${allDraws.length} κληρώσεις φορτώθηκαν`;
+    document.getElementById('btnUploadMonth').style.display='inline-block';
+    btn.disabled=false;
+  }
+
+  // ── Month upload ──────────────────────────────────────────────
+  async function uploadMonthToGitHub(){
+    if(!monthDraws){alert('Φόρτωσε πρώτα τον μήνα!');return;}
+    const st=document.getElementById('status');
+    try{
+      await uploadDrawsToMaster(monthDraws.draws, monthDraws.month);
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+  }
+
+  // ── Year fetch ────────────────────────────────────────────────
+  async function loadYear(){
+    const yearVal=parseInt(document.getElementById('yearPicker').value);
+    if(!yearVal||yearVal<2010||yearVal>2030){alert('Βάλε έγκυρο έτος (π.χ. 2025)');return;}
+    const btn=document.getElementById('btnFetchYear');
+    const st=document.getElementById('status');
+    const prog=document.getElementById('yearProgress');
+    const progText=document.getElementById('yearProgressText');
+    const progBar=document.getElementById('yearProgressBar');
+    btn.disabled=true;
+    document.getElementById('btnUploadYear').style.display='none';
+    yearDraws=null; prog.style.display='block';
+    st.className=''; st.textContent='';
+    const todayDate=new Date();
+    const isCurrentYear=(yearVal===todayDate.getFullYear());
+    const lastMonth=isCurrentYear?todayDate.getMonth()+1:12;
+    let totalDays=0;
+    for(let m=1;m<=lastMonth;m++){
+      totalDays+=(isCurrentYear&&m===lastMonth)?todayDate.getDate():new Date(yearVal,m,0).getDate();
+    }
+    const allDraws=[], seen=new Set();
+    let doneDays=0;
+    for(let month=1;month<=lastMonth;month++){
+      const isCurrentMonth=isCurrentYear&&month===(todayDate.getMonth()+1);
+      const lastDay=isCurrentMonth?todayDate.getDate():new Date(yearVal,month,0).getDate();
+      for(let day=1;day<=lastDay;day++){
+        const dateStr=`${yearVal}-${pad(month)}-${pad(day)}`;
+        doneDays++;
+        progText.textContent=`${yearVal} — Μήνας ${month}/${lastMonth}, ${dateStr} (${doneDays}/${totalDays} ημέρες, ${allDraws.length.toLocaleString()} κληρώσεις)`;
+        progBar.style.width=`${Math.round(doneDays/totalDays*100)}%`;
+        try{
+          const items=await fetchDaySeq(dateStr,'',10);
+          const draws=items
+            .filter(i=>i.winningNumbers?.list?.length)
+            .map(i=>({
+              draw_id:i.drawId, draw_time:localTimeStr(toMs(i.drawTime)),
+              date:dateStr,
+              winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),
+              bonus:i.winningNumbers.bonus||[]
+            }));
+          for(const d of draws){if(!seen.has(d.draw_id)){seen.add(d.draw_id);allDraws.push(d);}}
+        }catch(e){console.warn('Skip',dateStr,e);}
+        await new Promise(r=>setTimeout(r,150));
+      }
+    }
+    allDraws.sort((a,b)=>a.draw_id-b.draw_id);
+    yearDraws={year:yearVal, total_draws:allDraws.length, draws:allDraws};
+    progBar.style.width='100%';
+    progText.textContent=`✅ ${allDraws.length.toLocaleString()} κληρώσεις — έτος ${yearVal}`;
+    st.textContent=`✅ Έτος ${yearVal}: ${allDraws.length.toLocaleString()} κληρώσεις φορτώθηκαν`;
+    document.getElementById('btnUploadYear').style.display='inline-block';
+    btn.disabled=false;
+  }
+
+  // ── Year upload ───────────────────────────────────────────────
+  async function uploadYearToGitHub(){
+    if(!yearDraws){alert('Φόρτωσε πρώτα το έτος!');return;}
+    const st=document.getElementById('status');
+    try{
+      await uploadDrawsToMaster(yearDraws.draws, String(yearDraws.year));
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+  }
+
+  // ── Update Raw (2024-01-01 → today): creates missing months, repairs incomplete days) ──
+  async function updateRawByDay(){
+    if(!localStorage.getItem('gh_token')){
+      document.getElementById('tokenDetails').setAttribute('open','');
+      alert('Ορίσε πρώτα το GitHub Token!'); return;
+    }
+    const st=document.getElementById('status');
+    const progWrap=document.getElementById('rebuildProgress');
+    const progText=document.getElementById('rebuildProgressText');
+    const progBar=document.getElementById('rebuildProgressBar');
+    const btn=document.getElementById('btnUpdateRawDay');
+    btn.disabled=true; progWrap.style.display='block';
+    st.className=''; progBar.style.width='0%';
+    try{
+      const h=ghHeaders();
+      const BASE_ID=1155022;
+      const BASE_MS=Date.UTC(2025,0,1);
+      const FETCH_FROM_YEAR=2024;
+
+      // 1. Λίστα υπαρχόντων αρχείων
+      progText.textContent='🔍 Έλεγχος υπαρχόντων αρχείων…';
+      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
+      if(!listR.ok) throw new Error('Αποτυχία ανάγνωσης data/raw');
+      const existingFiles=new Set((await listR.json())
+        .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .map(f=>f.name));
+
+      // 2. Μήνες: Jan 2024 → σήμερα
+      const today=new Date();
+      const todayY=today.getFullYear(),todayM=today.getMonth()+1,todayD=today.getDate();
+      const months=[];
+      for(let y=FETCH_FROM_YEAR;y<=todayY;y++){
+        const mEnd=(y===todayY)?todayM:12;
+        for(let m=1;m<=mEnd;m++) months.push({y,m});
+      }
+      const missing=months.filter(({y,m})=>!existingFiles.has(`kino_raw_${y}_${pad(m)}.json`)).length;
+      st.textContent=`ℹ️ ${months.length} μήνες συνολικά | ${existingFiles.size} υπάρχουν | ${missing} λείπουν`;
+
+      let grandTotal=0;
+      for(let mi=0;mi<months.length;mi++){
+        const {y,m}=months[mi];
+        const monthStr=`${y}-${pad(m)}`;
+        const filename=`kino_raw_${y}_${pad(m)}.json`;
+        const isCurrent=(y===todayY&&m===todayM);
+        const exists=existingFiles.has(filename);
+
+        // Παλιοί ολοκληρωμένοι μήνες → skip
+        if(exists&&!isCurrent){
+          progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
+          progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+          continue;
+        }
+
+        // Φόρτωσε υπάρχοντα (μόνο αν υπάρχει το αρχείο)
+        let existing=[],knownIds=new Set(),drawsByDay={};
+        if(exists){
+          progText.textContent=`📥 Φόρτωση ${filename}…`;
+          const ex=await ghGet(`data/raw/${filename}`);
+          existing=ex?.draws||[];
+          for(const d of existing){
+            knownIds.add(d.id);
+            const dayN=Math.floor((d.id-BASE_ID)/288);
+            drawsByDay[dayN]=(drawsByDay[dayN]||0)+1;
+          }
+        }
+
+        // Ποιές ημέρες να φέρουμε
+        const dEnd=isCurrent?todayD:new Date(y,m,0).getDate();
+        const datesToFetch=[];
+        if(!exists){
+          for(let d=1;d<=dEnd;d++) datesToFetch.push(`${y}-${pad(m)}-${pad(d)}`);
+        } else {
+          // Τρέχων μήνας: ελλιπείς + νέες
+          const toRepair=new Set();
+          for(const [dayNStr,count] of Object.entries(drawsByDay)){
+            if(count<200){
+              const dt=new Date(BASE_MS+parseInt(dayNStr)*86400000);
+              toRepair.add(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+            }
+          }
+          const maxId=existing.length?Math.max(...existing.map(d=>d.id)):0;
+          const lastDay=maxId?new Date(BASE_MS+Math.floor((maxId-BASE_ID)/288)*86400000).getUTCDate():0;
+          for(let d=lastDay;d<=dEnd;d++) toRepair.add(`${y}-${pad(m)}-${pad(d)}`);
+          datesToFetch.push(...[...toRepair].sort());
+        }
+
+        if(!datesToFetch.length){progText.textContent=`✅ ${monthStr} ενημερωμένο`;continue;}
+
+        // Φέρε κληρώσεις ημέρα-ημέρα
+        const newDraws=[];
+        for(let di=0;di<datesToFetch.length;di++){
+          const dateStr=datesToFetch[di];
+          progText.textContent=`📥 ${monthStr} (${mi+1}/${months.length}) — ${dateStr} | +${grandTotal+newDraws.length} νέες`;
+          progBar.style.width=`${Math.round(mi/months.length*80+di/datesToFetch.length*(80/months.length))}%`;
+          try{
+            const items=await fetchDaySeq(dateStr,'',10);
+            for(const i of items){
+              if(!i.winningNumbers?.list?.length||knownIds.has(i.drawId)) continue;
+              knownIds.add(i.drawId);
+              newDraws.push({id:i.drawId,n:[...i.winningNumbers.list].sort((a,b)=>a-b),b:(i.winningNumbers.bonus||[])[0]||null});
+            }
+          }catch(e){console.warn('Skip',dateStr,e);}
+          await new Promise(r=>setTimeout(r,80));
+        }
+
+        if(!newDraws.length&&exists){progText.textContent=`✅ ${monthStr} ήδη πλήρης`;continue;}
+
+        // Merge & save
+        const existIds=new Set(existing.map(d=>d.id));
+        const merged=[...existing,...newDraws.filter(d=>!existIds.has(d.id))];
+        merged.sort((a,b)=>a.id-b.id);
+        grandTotal+=newDraws.length;
+        progText.textContent=`📤 ${monthStr}: +${newDraws.length} → ${merged.length.toLocaleString()} κλ.…`;
+        progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+        await ghPut(`data/raw/${filename}`,{month:monthStr,draws:merged},`Raw ${monthStr}: +${newDraws.length}`);
+        progText.textContent=`✅ ${monthStr}: ${merged.length.toLocaleString()} κληρώσεις`;
+      }
+
+      progBar.style.width='100%';
+      st.textContent=grandTotal
+        ?`✅ Ολοκληρώθηκε: +${grandTotal.toLocaleString()} νέες κληρώσεις`
+        :`✅ Ήδη ενημερωμένο — καμία νέα κλήρωση`;
+      progText.textContent='✅ Έτοιμο!';
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+    finally{btn.disabled=false;}
+  }
+
+  // ── Squares ───────────────────────────────────────────────────
+  function findSquares(nums){
+    const s=new Set(nums),res=[],seen=new Set();
+    for(const n of [...nums].sort((a,b)=>a-b)){
+      if((n-1)%10+2>9) continue;
+      const n2=n+2,n3=n+20,n4=n+22;
+      if(n4>80) continue;
+      if(s.has(n2)&&s.has(n3)&&s.has(n4)){
+        const k=`${n},${n2},${n3},${n4}`;
+        if(!seen.has(k)){seen.add(k);res.push([n,n2,n3,n4]);}
+      }
+    }
+    return res;
+  }
+
+  // ── Geographic neighborhood analysis ─────────────────────────
+  function gridPos(n){ return {row:Math.floor((n-1)/10), col:(n-1)%10}; }
+
+  function getNeighborhood(trigNums, rRange=2, cRange=2){
+    const rows=trigNums.map(n=>gridPos(n).row), cols=trigNums.map(n=>gridPos(n).col);
+    const minR=Math.min(...rows)-rRange, maxR=Math.max(...rows)+rRange;
+    const minC=Math.min(...cols)-cRange, maxC=Math.max(...cols)+cRange;
+    const nb=[];
+    for(let n=1;n<=80;n++){const {row,col}=gridPos(n);if(row>=minR&&row<=maxR&&col>=minC&&col<=maxC)nb.push(n);}
+    return nb;
+  }
+
+  function combos4(arr){
+    const res=[];
+    for(let a=0;a<arr.length-3;a++)
+    for(let b=a+1;b<arr.length-2;b++)
+    for(let c=b+1;c<arr.length-1;c++)
+    for(let d=c+1;d<arr.length;d++)
+      res.push(arr[a]+'-'+arr[b]+'-'+arr[c]+'-'+arr[d]);
+    return res;
+  }
+
+  function computeGeoPredictions(squaresData){ return {}; }
+
+  async function recomputePredictions(){
+    const btn=document.getElementById('btnRecompute');
+    const lbl=document.getElementById('recomputeStatus');
+    btn.disabled=true; lbl.textContent='⏳ Φόρτωση δεδομένων…';
+    try{
+      const sq=await ghGet('data/kino_squares_master.json');
+      if(!sq){lbl.textContent='⚠️ Δεν βρέθηκε αρχείο τετραγώνων';return;}
+      lbl.textContent=`⏳ Υπολογισμός (${sq.total_occurrences} εμφανίσεις)…`;
+      await new Promise(r=>setTimeout(r,20));
+      PREDICTIONS=computeGeoPredictions(sq);
+      const n=Object.keys(PREDICTIONS).length;
+      lbl.textContent=`✅ ${n} τετράγωνα | ${sq.total_draws} κληρώσεις | ${sq.total_occurrences} εμφανίσεις`;
+      lbl.style.color='#2a9d8f';
+    }catch(e){lbl.textContent='⚠️ '+e.message;lbl.style.color='#e63946';}
+    finally{btn.disabled=false;}
+  }
+
+  // ── API ───────────────────────────────────────────────────────
+  async function apiFetch(url){
+    try{const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});if(r.ok)return r.json();}catch(_){}
+    try{const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});if(r.ok)return r.json();}catch(_){}
+    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return JSON.parse((await r.json()).contents);
+  }
+  function toMs(t){return t>1e11?t:t*1000;}
+  function localTimeStr(ms){const d=new Date(ms+TZ_MS);return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;}
+  async function fetchDaySeq(dayStr,label,size=10){
+    const st=document.getElementById('status');
+    let items=[],page=0;
+    while(true){
+      const url=`https://api.opap.gr/draws/v3.0/1100/draw-date/${dayStr}/${dayStr}?page=${page}&size=${size}`;
+      let raw=null; try{raw=await apiFetch(url);}catch(_){}
+      if(raw){
+        if(Array.isArray(raw)){items=items.concat(raw);break;}
+        const pg=raw.content||raw.draws||[];
+        items=items.concat(pg);
+        if(label) st.textContent=`⏳ ${label}: ${items.length}…`;
+        if(raw.last===true||pg.length===0||pg.length<size) break;
+      } else break;
+      page++; if(page>35) break;
+    }
+    return items;
+  }
+  async function fetchAllDraws(dateStr){
+    const d=new Date(dateStr+'T12:00:00Z');
+    const prev=new Date(d-86400000).toISOString().slice(0,10);
+    const dayStart=new Date(dateStr+'T00:00:00+03:00').getTime();
+    const dayEnd  =new Date(dateStr+'T23:59:59+03:00').getTime();
+    const pI=await fetchDaySeq(prev,'Προηγ.'); const cI=await fetchDaySeq(dateStr,'Φόρτωση');
+    const seen=new Set();
+    return [...pI,...cI].filter(item=>{
+      const t=toMs(item.drawTime);
+      if(t<dayStart||t>dayEnd) return false;
+      if(seen.has(item.drawId)) return false;
+      seen.add(item.drawId); return true;
+    });
+  }
+
+  // ── Grid / UI ─────────────────────────────────────────────────
+  function kinoGrid(winNums,bonus,squareNums,predNums){
+    const hSet=new Set(winNums),bSet=new Set(bonus||[]),sSet=new Set(squareNums||[]),pSet=new Set(predNums||[]);
+    let html='<div class="kino-grid">';
+    for(let n=1;n<=80;n++){
+      let cls='kc';
+      if(bSet.has(n))cls+=' b'; else if(sSet.has(n))cls+=' sq'; else if(hSet.has(n))cls+=' h';
+      if(pSet.has(n))cls+=' pred';
+      html+=`<div class="${cls}">${n}</div>`;
+    }
+    return html+'</div>';
+  }
+
+  function wrapN(n){ return ((n-1)%80)+1; }
+
+  const PRED_RULES = [
+    { label:'Shift↓+Bonus+1', note:'×5.5', color:'#e63946',
+      fn:(sq,bonus)=>{
+        if(!bonus) return null;
+        const down=[];
+        for(const n of sq){const row=Math.floor((n-1)/10),col=(n-1)%10;if(row+1>=8)return null;down.push((row+1)*10+col+1);}
+        const nxt=(bonus%10===0)?null:bonus+1;
+        if(!nxt) return null;
+        return [...down,bonus,nxt];
+      }
+    },
+    { label:'offsets [28,31,39,45,47,78]', note:'×7.5', color:'#f4a261',
+      fn:(sq,bonus)=>[28,31,39,45,47,78].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [6,7,12,16,26,56]',   note:'×8.2', color:'#2a9d8f',
+      fn:(sq,bonus)=>[6,7,12,16,26,56].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [1,17,29,30,58,64]',  note:'×8.6', color:'#457b9d',
+      fn:(sq,bonus)=>[1,17,29,30,58,64].map(o=>wrapN(sq[0]+o))
+    },
+    { label:'offsets [22,23,48,63,66,67]', note:'×9.0', color:'#6a4c93',
+      fn:(sq,bonus)=>[22,23,48,63,66,67].map(o=>wrapN(sq[0]+o))
+    },
+  ];
+
+  function applySquareFilter(){
+    if(!lastData||!lastData.draws.length) return;
+    const draws=lastData.draws;
+    const section=document.getElementById('sqSection');
+    const sqStatus=document.getElementById('sqStatus');
+    const sqResults=document.getElementById('sqResults');
+    const groups=[];
+    for(let i=0;i<draws.length;i++){
+      // Toroidal single-trigger detection (winning numbers only)
+      const torSqs=findTorSquares(draws[i].winning_numbers);
+      if(torSqs.length!==1) continue;
+      const root=torSqs[0].root;
+      const group=[];
+      for(let j=i;j<=i+2&&j<draws.length;j++){
+        const d=draws[j];
+        const tSqs=j===i?torSqs:findTorSquares(d.winning_numbers);
+        group.push({...d,torSqs:tSqs,isMatch:j===i,offset:j-i});
+      }
+      groups.push({group,root});
+    }
+    section.style.display='block'; sqStatus.style.display='block';
+    if(!groups.length){sqStatus.textContent='Δεν βρέθηκαν κληρώσεις με toroidal τετράγωνο.';sqResults.innerHTML='';return;}
+    sqStatus.innerHTML=`🔲 <strong>${groups.length}</strong> γκρούπ &mdash; <span style="color:#888;font-size:.85em">από τις ${lastData.total_draws} κληρώσεις</span>`;
+    let html='';
+    for(const {group,root} of groups){
+      const trigD=group[0];
+      const trigBonus=trigD.bonus&&trigD.bonus.length?trigD.bonus[0]:null;
+      const p1D=group[1]||null;
+      const p2D=group[2]||null;
+      const p1Set=p1D?new Set([...p1D.winning_numbers,...p1D.bonus]):null;
+      const p2Set=p2D?new Set([...p2D.winning_numbers,...p2D.bonus]):null;
+
+      // Compute predictions using OFFSET_RULES from toroidal root
+      const rulePreds=getOffsetPreds(root);
+
+      // Evaluate: count how many predicted numbers appear in draw
+      const evalScore=(pred,drawSet)=>{
+        if(!pred||!pred.length||!drawSet) return null;
+        const hits=pred.filter(n=>drawSet.has(n)).length;
+        return {hits, total:pred.length};
+      };
+      const scoreCell=(sc)=>{
+        if(!sc) return '<td style="text-align:center;color:#aaa">—</td>';
+        const color=sc.hits===sc.total?'#2a9d8f':sc.hits>=4?'#f4a261':sc.hits>=2?'#888':'#ccc';
+        const bold=sc.hits===sc.total?'font-weight:700;':'';
+        return `<td style="text-align:center;color:${color};${bold}">${sc.hits}/${sc.total}</td>`;
+      };
+
+      // Prediction table using OFFSET_RULES
+      let tableHtml='<div style="margin:8px 0 4px 0;overflow-x:auto"><table style="border-collapse:collapse;font-size:0.8rem;width:100%">';
+      tableHtml+='<tr style="background:#f0f0f0"><th style="padding:4px 8px;text-align:left">Κανόνας</th><th>Νούμερα</th><th style="text-align:center">P1</th><th style="text-align:center">P2</th></tr>';
+      rulePreds.forEach((rule)=>{
+        const pred=rule.numbers;
+        const sc1=evalScore(pred,p1Set);
+        const sc2=evalScore(pred,p2Set);
+        const nums=[...pred].sort((a,b)=>a-b).join(' · ');
+        tableHtml+=`<tr style="border-bottom:1px solid #eee">
+          <td style="padding:3px 8px;color:${rule.color};font-weight:600;white-space:nowrap">${rule.label} <span style="color:#888;font-weight:400">${rule.x}</span></td>
+          <td style="padding:3px 8px;font-family:monospace;color:#333">${nums}</td>
+          ${scoreCell(sc1)}${scoreCell(sc2)}
+        </tr>`;
+      });
+      tableHtml+=`<tr style="background:#f9f9f9;font-size:0.75rem"><td colspan="4" style="padding:3px 8px;color:#888">Root: <strong>${root}</strong> · Toroidal +2r+2c · ${trigD.torSqs[0].sq.join('–')}</td></tr>`;
+      tableHtml+='</table></div>';
+
+      html+='<div class="draw-group">';
+      const sqNums=trigD.torSqs[0].sq;
+      const tag=`<span class="sq-tag">${sqNums.join('–')}</span>`;
+      html+=`<div class="draw-card card-match">
+        <div class="card-header">
+          <span class="card-label">🔲 ΜΟΤΙΒΟ</span>
+          <span class="time">${trigD.draw_time}</span>
+          <span class="draw-id">#${trigD.draw_id}</span>
+          <div class="sq-tags">${tag}</div>
+          ${trigBonus?`<span style="margin-left:8px;background:#e63946;color:#fff;padding:2px 7px;border-radius:10px;font-size:0.8rem">bonus: ${trigBonus}</span>`:''}
+        </div>
+        ${kinoGrid(trigD.winning_numbers,trigD.bonus,sqNums,[])}
+        ${tableHtml}
+      </div>`;
+
+      // P1 and P2 cards — highlight ALL rule predictions combined
+      for(const d of group.slice(1)){
+        const allPred=[...new Set(rulePreds.flatMap(r=>r.numbers))];
+        const sqN=d.torSqs.length?d.torSqs[0].sq:[];
+        const label=`+${d.offset}`;
+        html+=`<div class="draw-card card-next">
+          <div class="card-header">
+            <span class="card-label">${label}</span>
+            <span class="time">${d.draw_time}</span>
+            <span class="draw-id">#${d.draw_id}</span>
+          </div>
+          ${kinoGrid(d.winning_numbers,d.bonus,sqN,allPred)}</div>`;
+      }
+      html+='</div><hr class="group-sep">';
+    }
+    sqResults.innerHTML=html;
+    section.scrollIntoView({behavior:'smooth'});
+  }
+
+  async function loadDraws(){
+    const dateStr=document.getElementById('datePicker').value; if(!dateStr) return;
+    const btn=document.getElementById('btnFetch'), st=document.getElementById('status');
+    btn.disabled=true; st.className=''; st.textContent='⏳ Φόρτωση…';
+    document.getElementById('results').innerHTML='';
+    document.getElementById('sqSection').style.display='none';
+    ['btnExport','btnUpload','btnSquares'].forEach(id=>document.getElementById(id).style.display='none');
+    lastData=null;
+    try{
+      const items=await fetchAllDraws(dateStr);
+      const draws=items
+        .filter(i=>i.winningNumbers?.list?.length)
+        .map(i=>({draw_id:i.drawId,draw_time:localTimeStr(toMs(i.drawTime)),date:dateStr,
+          winning_numbers:[...i.winningNumbers.list].sort((a,b)=>a-b),bonus:i.winningNumbers.bonus||[]}))
+        .sort((a,b)=>a.draw_id-b.draw_id);
+      lastData={date:dateStr,total_draws:draws.length,draws};
+      if(!draws.length){st.textContent='Δεν βρέθηκαν κληρώσεις.';return;}
+      st.textContent=`✅ ${draws.length} κληρώσεις`;
+      ['btnExport','btnUpload','btnSquares'].forEach(id=>document.getElementById(id).style.display='inline-block');
+      renderMainTable(draws);
+    }catch(err){st.className='error';st.textContent='⚠️ '+err.message;}
+    finally{btn.disabled=false;}
+  }
+
+  function renderMainTable(draws){
+    const el=document.getElementById('results');
+    let html=`<div class="summary">📅 <strong>${draws.length}</strong> κληρώσεις &nbsp;⏱ ${draws[0].draw_time} – ${draws[draws.length-1].draw_time}</div>`;
+    html+='<table><thead><tr><th>Ώρα</th><th>Αρ.Κλήρωσης</th><th>Αριθμοί (20/80)</th></tr></thead><tbody>';
+    for(const d of draws){
+      const balls=d.winning_numbers.map(n=>`<div class="ball">${n}</div>`).join('');
+      const bonus=d.bonus.map(n=>`<div class="ball bonus">${n}</div>`).join('');
+      html+=`<tr><td><div class="time">${d.draw_time}</div></td><td><div class="draw-id">${d.draw_id}</div></td><td><div class="numbers">${balls}${bonus}</div></td></tr>`;
+    }
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }
+
+  // ── Data Status ───────────────────────────────────────────────
+  async function loadDataStatus(){
+    const out=document.getElementById('dataStatusOut');
+    const spin=document.getElementById('dataStatusLoading');
+    out.innerHTML=''; spin.style.display='inline';
+    if(!localStorage.getItem('gh_token')){
+      out.innerHTML='<span style="color:#e63946">⚠️ Χρειάζεται GitHub Token</span>';
+      spin.style.display='none'; return;
+    }
+    try{
+      out.innerHTML='<span style="color:#888;font-size:.82rem">⏳ Φόρτωση…</span>';
+      const sq=await ghGet('data/kino_squares_master.json');
+      if(!sq) throw new Error('Δεν βρέθηκε kino_squares_master.json');
+
+      const drawsByMonth=sq.draws_by_month||{};
+      let monthRows='';
+      for(const m of Object.keys(drawsByMonth).sort())
+        monthRows+=`<div class="month-row"><span><strong>${m}</strong></span><span>${drawsByMonth[m].toLocaleString()} κληρώσεις</span></div>`;
+      if(!monthRows) monthRows='<div class="month-row" style="color:#aaa;font-size:.8rem">Ανέβασε δεδομένα για λεπτομέρειες ανά μήνα</div>';
+
+      const squareTypes=new Set((sq.occurrences||[]).map(o=>o.square)).size;
+
+      out.innerHTML=`
+        <div class="status-grid">
+          <div class="status-card">
+            <h4>Σύνολο Κληρώσεων</h4>
+            <div class="val">${(sq.total_draws||0).toLocaleString()}</div>
+            <div class="sub">Ενημ. ${sq.last_updated||'—'}</div>
+          </div>
+          <div class="status-card">
+            <h4>Τετράγωνα</h4>
+            <div class="val">${(sq.total_occurrences||0).toLocaleString()}</div>
+            <div class="sub">${squareTypes} τύποι τετραγώνων</div>
+          </div>
+        </div>
+        <div class="status-card" style="margin-top:10px">
+          <h4>Ανά Μήνα</h4>${monthRows}
+        </div>`;
+    }catch(e){out.innerHTML=`<span style="color:#e63946">⚠️ ${e.message}</span>`;}
+    finally{spin.style.display='none';}
+  }
+
+  function exportJSON(){
+    if(!lastData) return;
+    const blob=new Blob([JSON.stringify(lastData,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=`kino_${lastData.date.replace(/-/g,'')}.json`; a.click();
+  }
+
+  // ── Toroidal Squares & Offset Rules ──────────────────────────
+  const OFFSET_RULES = [
+    {id:1, label:'R1', offsets:[6,8,33,38,45,61],    wins:30, x:'×5.4', color:'#e63946'},
+    {id:2, label:'R2', offsets:[28,31,39,45,47,78],  wins:26, x:'×4.7', color:'#f4a261'},
+    {id:3, label:'R3', offsets:[1,17,29,30,58,64],   wins:24, x:'×4.3', color:'#2a9d8f'},
+    {id:4, label:'R4', offsets:[22,23,48,63,66,67],  wins:24, x:'×4.3', color:'#457b9d'},
+    {id:5, label:'R5', offsets:[6,7,12,16,26,56],    wins:23, x:'×4.2', color:'#6a4c93'},
+    {id:6, label:'R6', offsets:[0,3,24,32,35,51,73], wins:16, x:'×15.3',color:'#e76f51'},
+  ];
+
+  function torSqNums(root) {
+    const r = Math.floor((root-1)/10), c = (root-1)%10;
+    return [root, r*10+((c+2)%10)+1, ((r+2)%8)*10+c+1, ((r+2)%8)*10+((c+2)%10)+1];
+  }
+
+  function findTorSquares(nums) {
+    const s = new Set(nums), found = [];
+    for (let n = 1; n <= 80; n++) {
+      const sq = torSqNums(n);
+      if (sq.every(x => s.has(x))) found.push({root:n, sq});
+    }
+    return found;
+  }
+
+  function getOffsetPreds(root) {
+    return OFFSET_RULES.map(r => ({...r, numbers: r.offsets.map(d => wrapN(root+d))}));
+  }
+
+  // ── Timer helpers ─────────────────────────────────────────────
+  function msToNext() {
+    const now = new Date(), m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds()/1000;
+    const cur5 = Math.floor(m/5)*5;
+    let diff = (cur5+5)*60 + 15 - (m*60+s);
+    if (diff <= 0) diff += 300;
+    return diff * 1000;
+  }
+  function fmtMs(ms) {
+    const s = Math.round(ms/1000);
+    return `${pad(Math.floor(s/60))}:${pad(s%60)}`;
+  }
+
+  // ── Live Monitor State ────────────────────────────────────────
+  let liveRunning = false, liveTimerId = null, liveCountdownId = null;
+  let liveLastDrawId = null;
+  let liveBuffer = new Map(); // drawId → {id,n,b}
+  let liveLastSavedCount = 0;
+  let liveP1 = null; // trigger waiting for P1 eval: {root,preds,drawId,sq}
+  let liveP2 = null; // after P1, waiting for P2: {root,preds,drawId,sq,p1WinIds}
+  let ruleStats = null; // loaded from GitHub raw files
+  let liveLastDrawTime = null; // timestamp of latest processed draw
+
+  function toggleLive() { if (liveRunning) stopLive(); else startLive(); }
+
+  function startLive() {
+    liveRunning = true;
+    document.getElementById('liveBadge').className = 'live-badge on';
+    document.getElementById('liveBadge').textContent = '● ΖΩΝΤΑΝΑ';
+    document.getElementById('liveBtn').textContent = '⏹ Διακοπή';
+    document.getElementById('liveDetails').setAttribute('open', '');
+    fetchLiveNow();
+    scheduleLive();
+    liveCountdownId = setInterval(() => {
+      if (!liveRunning) { clearInterval(liveCountdownId); return; }
+      document.getElementById('liveCountdown').textContent = `Επόμενη σε: ${fmtMs(msToNext())}`;
+    }, 500);
+  }
+
+  function stopLive() {
+    liveRunning = false;
+    clearTimeout(liveTimerId);
+    clearInterval(liveCountdownId);
+    document.getElementById('liveBadge').className = 'live-badge off';
+    document.getElementById('liveBadge').textContent = 'ΣΤΑΜΑΤΗΜΕΝΟ';
+    document.getElementById('liveBtn').textContent = '▶ Εκκίνηση';
+    document.getElementById('liveCountdown').textContent = 'Επόμενη: —';
+  }
+
+  function scheduleLive() {
+    if (!liveRunning) return;
+    liveTimerId = setTimeout(() => { fetchLiveNow(); scheduleLive(); }, msToNext());
+  }
+
+  // Estimated draw ID from current time (BASE_ID = 2025-01-01 00:00 EET = 2024-12-31 22:00 UTC)
+  const LIVE_BASE_MS = Date.UTC(2024, 11, 31, 22, 0, 0);
+  const LIVE_BASE_ID = 1155022;
+  function estDrawId() { return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
+
+  async function fetchLiveNow() {
+    try {
+      let draw = null;
+
+      // 1. Try last-result-and-active (1 request, fastest)
+      try {
+        const d = await apiFetch('https://api.opap.gr/draws/v3.0/1100/last-result-and-active');
+        if (d?.lastResult?.winningNumbers?.list?.length) {
+          const r = d.lastResult;
+          draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
+            nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
+            bonus: (r.winningNumbers.bonus||[])[0]||null};
+        }
+      } catch(_) {}
+
+      // 2. Try fetching by estimated draw ID (1–3 requests)
+      if (!draw) {
+        const est = estDrawId();
+        for (const tryId of [est, est-1, est-2, est+1]) {
+          try {
+            const d = await apiFetch(`https://api.opap.gr/draws/v3.0/1100/${tryId}`);
+            if (d?.winningNumbers?.list?.length) {
+              draw = {id: d.drawId, time: localTimeStr(toMs(d.drawTime)),
+                nums: [...d.winningNumbers.list].sort((a,b)=>a-b),
+                bonus: (d.winningNumbers.bonus||[])[0]||null};
+              break;
+            }
+          } catch(_) {}
+        }
+      }
+
+      // 3. Single-page fallback for today (size=300 = all draws in 1 request)
+      if (!draw) {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+        try {
+          const data = await apiFetch(
+            `https://api.opap.gr/draws/v3.0/1100/draw-date/${todayStr}/${todayStr}?page=0&size=300`
+          );
+          const items = Array.isArray(data) ? data : (data?.content || data?.draws || []);
+          const valid = items.filter(i=>i.winningNumbers?.list?.length).sort((a,b)=>b.drawId-a.drawId);
+          if (valid.length) {
+            const r = valid[0];
+            draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
+              nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
+              bonus: (r.winningNumbers.bonus||[])[0]||null};
+          }
+        } catch(_) {}
+      }
+
+      if (!draw) return;
+
+      if (!liveBuffer.has(draw.id))
+        liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
+
+      if (draw.id === liveLastDrawId) return; // no new draw
+      liveLastDrawId = draw.id;
+
+      processLiveDraw(draw);
+      if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
+    } catch(e) { console.error('fetchLiveNow:', e); }
+  }
+
+  function renderEvalBlock(label, ev, numSet) {
+    const wins = ev.preds.filter(r => r.numbers.every(n => numSet.has(n)));
+    const rows = ev.preds.map(r => {
+      const hits = r.numbers.filter(n => numSet.has(n)).length;
+      const win = hits === r.numbers.length;
+      const numsHtml = r.numbers.map(n =>
+        `<span style="color:${numSet.has(n)?r.color:'#ccc'};font-weight:${numSet.has(n)?'700':'400'}">${n}</span>`
+      ).join(' ');
+      return `<div style="font-size:0.76rem;margin:1px 0">
+        <span style="color:${r.color};font-weight:700;display:inline-block;min-width:28px">${r.label}</span>
+        ${numsHtml}
+        ${win?'<strong style="color:#2a9d8f;margin-left:4px">✓ WIN</strong>':hits?`<span style="color:#f4a261;margin-left:4px">${hits}/${r.numbers.length}</span>`:''}
+      </div>`;
+    });
+    return `<div class="live-eval-box">
+      <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px">
+        📊 ${label} — Trigger #${ev.drawId} (root ${ev.root})
+        ${wins.length?`<span class="win-badge">✓ ${wins.length} νίκ${wins.length===1?'η':'ες'}</span>`:'<span class="miss-badge">miss</span>'}
+      </div>
+      ${rows.join('')}
+    </div>`;
+  }
+
+  function processLiveDraw(draw) {
+    const {id, time, nums, bonus} = draw;
+    const numSet = new Set(nums);
+    let evalHtml = '';
+
+    // Evaluate P2 first (oldest pending) — final verdict for that trigger
+    if (liveP2) {
+      if (ruleStats) {
+        for (const pred of liveP2.preds) {
+          const p2Win = pred.numbers.every(n => numSet.has(n));
+          const won = p2Win || liveP2.p1WinIds.has(pred.id);
+          const s = ruleStats[pred.id];
+          if (won) { s.currentDelay = 0; s.wins++; }
+          else s.currentDelay++;
+          s.totalTriggers++;
+        }
+        renderStatsTable();
+      }
+      evalHtml += renderEvalBlock('P2', liveP2, numSet);
+      liveP2 = null;
+    }
+
+    // Evaluate P1, record wins, then move to P2 slot
+    if (liveP1) {
+      const p1WinIds = new Set(liveP1.preds.filter(p => p.numbers.every(n => numSet.has(n))).map(p => p.id));
+      evalHtml += renderEvalBlock('P1', liveP1, numSet);
+      liveP2 = {...liveP1, p1WinIds};
+      liveP1 = null;
+    }
+
+    // Detect single toroidal trigger in this draw
+    const torSqs = findTorSquares(nums);
+    let trigHtml = '';
+
+    if (torSqs.length === 1) {
+      const {root, sq} = torSqs[0];
+      const preds = getOffsetPreds(root);
+      liveP1 = {root, preds, drawId: id, sq};
+
+      const ruleRows = preds.map(r => {
+        const balls = r.numbers.map(n =>
+          `<div class="rule-ball" style="background:${r.color}">${n}</div>`
+        ).join('');
+        return `<div class="live-rule-row">
+          <span class="live-rule-lbl" style="color:${r.color}">${r.label}</span>
+          ${balls}
+          <span style="font-size:0.7rem;color:#aaa;margin-left:4px">${r.x} (${r.wins}νίκ)</span>
+        </div>`;
+      });
+
+      trigHtml = `<div class="live-trigger-box">
+        <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px">🔲 Trigger! Root: <strong>${root}</strong> — [${sq.join(',')}]</div>
+        ${ruleRows.join('')}
+      </div>`;
+    }
+
+    // Show predicted numbers for the active pending trigger in the grid
+    const sqNums = torSqs.length === 1 ? torSqs[0].sq : [];
+    const pendingPreds = liveP1 ? [...new Set(liveP1.preds.flatMap(r => r.numbers))] : [];
+
+    document.getElementById('liveGrid').innerHTML = kinoGrid(nums, bonus ? [bonus] : [], sqNums, pendingPreds);
+    document.getElementById('liveDrawId').textContent = `#${id}`;
+    document.getElementById('liveTime').textContent = time;
+    document.getElementById('liveTrigger').innerHTML = trigHtml;
+    document.getElementById('liveEval').innerHTML = evalHtml;
+    liveLastDrawTime = time;
+    if (ruleStats) renderStatsTable();
+  }
+
+  async function autoSaveLiveBuffer() {
+    if (!localStorage.getItem('gh_token') || !liveBuffer.size) return;
+    const el = document.getElementById('liveSaveStatus');
+    el.textContent = '💾 Αποθήκευση…';
+    try {
+      const BASE_ID = 1155022;
+      const byMonth = {};
+      for (const [id, d] of liveBuffer) {
+        const dayN = Math.floor((id - BASE_ID) / 288);
+        const dt = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+        const mStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}`;
+        if (!byMonth[mStr]) byMonth[mStr] = [];
+        byMonth[mStr].push(d);
+      }
+      for (const [mStr, draws] of Object.entries(byMonth)) {
+        const [y, m] = mStr.split('-');
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const exArr = existing?.draws || [];
+        const exIds = new Set(exArr.map(d => d.id));
+        const newOnes = draws.filter(d => !exIds.has(d.id));
+        if (!newOnes.length) continue;
+        const merged = [...exArr, ...newOnes].sort((a,b) => a.id - b.id);
+        await ghPut(`data/raw/kino_raw_${y}_${m}.json`, {month:mStr, draws:merged}, `Live +${newOnes.length} ${mStr}`);
+      }
+      liveLastSavedCount = liveBuffer.size;
+      el.textContent = `✅ Αποθηκεύτηκε ${new Date().toLocaleTimeString('el-GR')}`;
+    } catch(e) { el.textContent = '⚠️ ' + e.message; }
+  }
+
+  // Initialize sim date picker to today
+  document.getElementById('simDatePicker').value =
+    `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+  // ── Rule Stats ────────────────────────────────────────────────
+  async function loadRuleStats() {
+    const btn = document.getElementById('btnLoadStats');
+    const st  = document.getElementById('liveStatsStatus');
+    btn.disabled = true;
+    st.textContent = '⏳ Φόρτωση αρχείων…';
+    try {
+      if (!localStorage.getItem('gh_token')) { st.textContent = '⚠️ Χρειάζεται GitHub Token'; return; }
+
+      const h = ghHeaders();
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers: h});
+      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
+      const fileList = await listR.json();
+      const rawFiles = fileList
+        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+      // Init per-rule accumulators
+      const stats = {};
+      for (const r of OFFSET_RULES)
+        stats[r.id] = {wins: 0, lastWinTrigger: 0, maxDelay: 0, currentDelay: 0, totalTriggers: 0};
+
+      let totalTriggers = 0;
+      let prevTail = []; // last 2 draw arrays from previous file for boundary triggers
+
+      for (let fi = 0; fi < rawFiles.length; fi++) {
+        st.textContent = `⏳ ${rawFiles[fi].name} (${fi+1}/${rawFiles.length}) | ${totalTriggers.toLocaleString()} triggers…`;
+        const data = await ghGet(`data/raw/${rawFiles[fi].name}`);
+        if (!data?.draws?.length) continue;
+
+        const nums = data.draws.map(d => d.n);
+        const combined = [...prevTail, ...nums];
+        const offset = prevTail.length;
+
+        for (let i = offset; i < combined.length - 2; i++) {
+          const torSqs = findTorSquares(combined[i]);
+          if (torSqs.length !== 1) continue;
+          totalTriggers++;
+          const preds = getOffsetPreds(torSqs[0].root);
+          const p1Set = new Set(combined[i+1]);
+          const p2Set = new Set(combined[i+2]);
+          for (const pred of preds) {
+            const won = pred.numbers.every(n => p1Set.has(n)) || pred.numbers.every(n => p2Set.has(n));
+            const s = stats[pred.id];
+            if (won) {
+              const gap = totalTriggers - s.lastWinTrigger;
+              if (gap > s.maxDelay) s.maxDelay = gap;
+              s.wins++;
+              s.lastWinTrigger = totalTriggers;
+            }
+          }
+        }
+        prevTail = nums.slice(-2);
+        await new Promise(r => setTimeout(r, 5)); // yield UI
+      }
+
+      // Finalise
+      for (const r of OFFSET_RULES) {
+        const s = stats[r.id];
+        s.totalTriggers = totalTriggers;
+        s.avgInterval  = s.wins ? Math.round(totalTriggers / s.wins) : totalTriggers;
+        s.currentDelay = totalTriggers - s.lastWinTrigger;
+        // max delay: also consider current open gap
+        if (s.currentDelay > s.maxDelay) s.maxDelay = s.currentDelay;
+      }
+      ruleStats = stats;
+      st.textContent = `✅ ${totalTriggers.toLocaleString()} triggers — ανανεώθηκε ${new Date().toLocaleTimeString('el-GR')}`;
+      renderStatsTable();
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
+    finally { btn.disabled = false; }
+  }
+
+  function renderStatsTable() {
+    if (!ruleStats) return;
+    const el = document.getElementById('liveStatsTable');
+    if (!el) return;
+    const totalTriggers = ruleStats[OFFSET_RULES[0].id]?.totalTriggers || 0;
+    const drawInfo = liveLastDrawTime ? ` &nbsp;·&nbsp; Τελ. κλήρωση: <strong>${liveLastDrawTime}</strong>` : '';
+    const pending = liveP1 || liveP2 ? ' &nbsp;·&nbsp; <span style="color:#f4a261">⏳ trigger υπό αξιολόγηση</span>' : '';
+    let html = `<div style="font-size:0.71rem;color:#aaa;margin-top:6px">Σύνολο triggers: <strong>${totalTriggers.toLocaleString()}</strong>${drawInfo}${pending}</div>`;
+    html += '<table class="stats-tbl"><thead><tr>';
+    html += '<th>Κανόνας</th><th>Νίκες</th><th>Μ.Ο./trig</th><th>Μέγ.Καθ.</th><th>Τρέχ.Καθ.</th><th style="min-width:100px;text-align:left;padding-left:8px">Κατάσταση</th>';
+    html += '</tr></thead><tbody>';
+    for (const r of OFFSET_RULES) {
+      const s = ruleStats[r.id];
+      const pct = s.avgInterval ? Math.round(s.currentDelay / s.avgInterval * 100) : 0;
+      const isRecord = s.currentDelay > 0 && s.currentDelay >= s.maxDelay;
+      const barColor = isRecord ? '#e63946' : pct >= 100 ? '#f4a261' : pct >= 60 ? '#ffd166' : '#2a9d8f';
+      const icon = isRecord ? '🔴' : pct >= 100 ? '🟠' : pct >= 60 ? '🟡' : '🟢';
+      const delayColor = isRecord ? '#e63946' : pct >= 100 ? '#f4a261' : '#333';
+      const delayFmt = s.currentDelay === 0 ? '<span style="color:#2a9d8f;font-weight:700">✓ WIN</span>' :
+        `<span style="color:${delayColor};font-weight:${isRecord?'700':'400'}">${s.currentDelay.toLocaleString()}${isRecord?' 🔴':''}</span>`;
       html += `<tr>
-        <td><div class="time">${d.draw_time}</div></td>
-        <td><div class="draw-id">${d.draw_id}</div></td>
-        <td><div class="numbers">${balls}${bonus}</div></td>
+        <td><span style="color:${r.color};font-weight:700">${r.label}</span> <span style="color:#aaa;font-size:0.7rem">${r.x}</span></td>
+        <td>${s.wins}</td>
+        <td style="color:#888">${s.avgInterval.toLocaleString()}</td>
+        <td style="color:#888">${s.maxDelay.toLocaleString()}</td>
+        <td>${delayFmt}</td>
+        <td style="text-align:left;padding-left:8px">
+          <div class="delay-bar-wrap">
+            <span>${icon}</span>
+            <div class="delay-bar-bg"><div class="delay-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+            <span style="font-size:0.68rem;color:#888;white-space:nowrap">${pct}%</span>
+          </div>
+        </td>
       </tr>`;
     }
     html += '</tbody></table>';
-    results.innerHTML = html;
+    el.innerHTML = html;
   }
 
-  function exportJSON() {
-    if (!lastData) return;
-    const blob = new Blob([JSON.stringify(lastData, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `kino_${lastData.date.replace(/-/g,'')}.json`;
-    a.click();
+  // ── Day Simulation ────────────────────────────────────────────
+  async function runDaySim() {
+    const dateStr = document.getElementById('simDatePicker').value;
+    if (!dateStr) { alert('Επιλέξτε ημερομηνία'); return; }
+    const st = document.getElementById('simStatus');
+    const res = document.getElementById('simResults');
+    st.textContent = '⏳ Φόρτωση…'; res.innerHTML = '';
+    try {
+      const items = await fetchDaySeq(dateStr, '', 10);
+      const draws = items
+        .filter(i => i.winningNumbers?.list?.length)
+        .map(i => ({
+          id: i.drawId,
+          time: localTimeStr(toMs(i.drawTime)),
+          nums: [...i.winningNumbers.list].sort((a,b) => a-b),
+          bonus: (i.winningNumbers.bonus||[])[0]||null
+        }))
+        .sort((a,b) => a.id - b.id);
+
+      if (!draws.length) {
+        st.textContent = '⚠️ Καμία κλήρωση';
+        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν κληρώσεις.</div>';
+        return;
+      }
+
+      // KINO αποδόσεις ανά 0.50€ στοίχημα — από επίσημο πίνακα OPAP
+      const PAYOUTS = {
+        6: {3: 0.50, 4: 3.50, 5: 25.00, 6: 800.00},
+        7: {3: 0.50, 4: 1.50, 5: 10.00, 6: 50.00, 7: 2500.00}
+      };
+
+      let html = '', totalTriggers = 0;
+      let totalSpent = 0, totalWon = 0;
+      // hitCounts[n][k] = πόσες φορές k/n hits στο P1
+      const hitCounts = {6:{3:0,4:0,5:0,6:0}, 7:{3:0,4:0,5:0,6:0,7:0}};
+
+      for (let i = 0; i < draws.length; i++) {
+        const d = draws[i];
+        const torSqs = findTorSquares(d.nums);
+        if (torSqs.length !== 1) continue;
+
+        totalTriggers++;
+        const {root, sq} = torSqs[0];
+        const preds = getOffsetPreds(root);
+        const p1 = draws[i+1] || null;
+        const p2 = draws[i+2] || null;
+
+        // Κόστος: 1 στοίχημα 0.50€ ανά rule για P1
+        totalSpent += preds.length * 0.50;
+
+        const evalP = (px, countMoney) => {
+          if (!px) return null;
+          const s = new Set(px.nums);
+          return preds.map(r => {
+            const hits = r.numbers.filter(n => s.has(n)).length;
+            const n = r.numbers.length;
+            const win = hits === n;
+            // Μέτρηση νικών μόνο για P1
+            if (countMoney && hits >= 3) {
+              if (hitCounts[n]) hitCounts[n][hits] = (hitCounts[n][hits]||0) + 1;
+              totalWon += (PAYOUTS[n]?.[hits] || 0);
+            }
+            return {...r, hits, win};
+          });
+        };
+        const p1Eval = evalP(p1, true), p2Eval = evalP(p2, false);
+        const anyPartial = p1Eval?.some(r => r.hits >= 3) || p2Eval?.some(r => r.hits >= 3);
+
+        const predBalls = (r) => r.numbers.map(n =>
+          `<div class="rule-ball" style="background:${r.color}">${n}</div>`
+        ).join('');
+
+        const evalRow = (evalArr, label, pDraw) => {
+          if (!pDraw || !evalArr) return '';
+          const color = label === 'P1' ? '#4361ee' : '#2ec4b6';
+          const rowHtml = evalArr.map(r => {
+            const col = r.win ? r.color : r.hits >= 3 ? '#f4a261' : r.hits > 0 ? '#aaa' : '#ddd';
+            const bold = r.hits >= 3 ? 'font-weight:700;' : '';
+            const payout = PAYOUTS[r.numbers.length]?.[r.hits];
+            const payStr = (label==='P1' && r.hits>=3 && !r.win && payout) ? ` <span style="color:#2a9d8f">+${payout}€</span>` : '';
+            return `<span style="color:${col};${bold}margin-right:8px;font-size:0.75rem">${r.label}: ${r.hits}/${r.numbers.length}${payStr}</span>`;
+          }).join('');
+          return `<div class="${label==='P1'?'sim-p1':'sim-p2'}">
+            <div class="sim-hdr">
+              <span style="font-weight:700;color:${color}">${label} #${pDraw.id} ${pDraw.time}</span>
+            </div>
+            <div>${rowHtml}</div>
+          </div>`;
+        };
+
+        html += `<div class="sim-block">
+          <div class="sim-trig">
+            <div class="sim-hdr">
+              <span style="font-weight:700;color:#e76f51">🔲 #${d.id} ${d.time}</span>
+              <span style="color:#888;font-size:0.75rem">Root:${root} [${sq.join(',')}]</span>
+              ${anyPartial?'<span class="win-badge">≥3 hits</span>':''}
+            </div>
+            <div style="margin-top:4px">
+              ${preds.map(r=>`<div class="live-rule-row">
+                <span class="live-rule-lbl" style="color:${r.color}">${r.label}</span>
+                ${predBalls(r)}
+                <span style="font-size:0.7rem;color:#aaa;margin-left:4px">${r.x}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          ${evalRow(p1Eval,'P1',p1)}
+          ${evalRow(p2Eval,'P2',p2)}
+        </div>`;
+      }
+
+      if (!totalTriggers) {
+        st.textContent = `✅ ${draws.length} κληρώσεις — 0 triggers`;
+        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν single-fire τετράγωνα.</div>';
+      } else {
+        // Σύνοψη αποτελεσμάτων
+        const net = totalWon - totalSpent;
+        const netColor = net >= 0 ? '#2a9d8f' : '#e63946';
+        let hitsHtml = '';
+        for (const [n, counts] of Object.entries(hitCounts)) {
+          for (const [k, cnt] of Object.entries(counts)) {
+            if (cnt > 0) {
+              const pay = cnt * (PAYOUTS[+n]?.[+k]||0);
+              hitsHtml += `<span style="margin-right:10px"><strong>${k}/${n}</strong>: ${cnt}× <span style="color:#2a9d8f">(+${pay.toFixed(2)}€)</span></span>`;
+            }
+          }
+        }
+        const summaryHtml = `<div style="background:white;border-radius:10px;padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+          <div style="font-size:0.85rem;font-weight:700;margin-bottom:6px">📊 Σύνοψη (P1 · 0.50€/rule)</div>
+          <div style="font-size:0.82rem;color:#555;display:flex;flex-wrap:wrap;gap:16px">
+            <span>Triggers: <strong>${totalTriggers}</strong></span>
+            <span>Κόστος: <strong>${totalSpent.toFixed(2)}€</strong></span>
+            <span>Κέρδη: <strong>${totalWon.toFixed(2)}€</strong></span>
+            <span style="color:${netColor}">Καθαρό: <strong>${net>=0?'+':''}${net.toFixed(2)}€</strong></span>
+          </div>
+          ${hitsHtml?`<div style="font-size:0.8rem;color:#555;margin-top:6px">${hitsHtml}</div>`:''}
+        </div>`;
+        st.textContent = `✅ ${draws.length} κληρώσεις | ${totalTriggers} triggers | κόστος ${totalSpent.toFixed(2)}€ | κέρδη ${totalWon.toFixed(2)}€ | καθαρό ${net>=0?'+':''}${net.toFixed(2)}€`;
+        res.innerHTML = summaryHtml + html;
+      }
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
   }
 
-  function formatDate(d) {
-    const [y,m,day] = d.split('-');
-    const months = ['Ιαν','Φεβ','Μαρ','Απρ','Μαΐ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
-    return `${day} ${months[+m-1]} ${y}`;
+  // ── Column Simulation ─────────────────────────────────────────
+  // 10 vertical columns: col i (1-based) = {i, i+10, i+20, ..., i+70}
+  const KINO_COLS = Array.from({length:10}, (_,i) =>
+    Array.from({length:8}, (_,j) => (i+1) + j*10)
+  );
+  // OPAP 8-spot payouts per €0.50 bet (verify with official OPAP table)
+  const COL_PAYOUTS_8 = {5:2.00, 6:15.00, 7:200.00, 8:100000.00};
+
+  async function runColSim() {
+    const X   = Math.max(1, parseInt(document.getElementById('colX').value) || 5);
+    const bet = Math.max(0.50, parseFloat(document.getElementById('colBet').value) || 0.50);
+    const mult = bet / 0.50;
+    const st  = document.getElementById('colSimStatus');
+    const res = document.getElementById('colSimResults');
+    st.textContent = '⏳ Φόρτωση αρχείων…'; res.innerHTML = '';
+
+    if (!localStorage.getItem('gh_token')) {
+      st.textContent = '⚠️ Χρειάζεται GitHub Token';
+      return;
+    }
+    try {
+      const h = ghHeaders();
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h});
+      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
+      const rawFiles = (await listR.json())
+        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+      // Per-column accumulators
+      const stats = KINO_COLS.map((nums, i) => ({
+        col:i+1, nums,
+        bets:0, spent:0, won:0,
+        hitBins:{5:0,6:0,7:0,8:0}
+      }));
+      // delays[c] = how many consecutive draws column c has had 0 hits
+      const delays = new Array(10).fill(0);
+      let totalDraws = 0;
+
+      for (let fi = 0; fi < rawFiles.length; fi++) {
+        const totalBetsSoFar = stats.reduce((s,c)=>s+c.bets,0);
+        st.textContent = `⏳ ${rawFiles[fi].name} (${fi+1}/${rawFiles.length}) | ${totalDraws.toLocaleString()} κλ. | ${totalBetsSoFar} στοιχ.…`;
+        const data = await ghGet(`data/raw/${rawFiles[fi].name}`);
+        if (!data?.draws?.length) continue;
+
+        for (const draw of data.draws) {
+          const numSet = new Set(draw.n);
+          for (let c = 0; c < 10; c++) {
+            const colNums = KINO_COLS[c];
+            // Trigger: column has been missing for >= X draws → bet on THIS draw
+            if (delays[c] >= X) {
+              const hits = colNums.filter(n => numSet.has(n)).length;
+              const payout = (COL_PAYOUTS_8[hits] || 0) * mult;
+              stats[c].bets++;
+              stats[c].spent += bet;
+              stats[c].won   += payout;
+              if (hits >= 5) stats[c].hitBins[hits] = (stats[c].hitBins[hits]||0) + 1;
+            }
+            // Update delay counter
+            if (colNums.some(n => numSet.has(n))) delays[c] = 0;
+            else delays[c]++;
+          }
+          totalDraws++;
+        }
+        await new Promise(r => setTimeout(r, 5));
+      }
+
+      // ── Render ────────────────────────────────────────────────
+      const totalBets  = stats.reduce((s,c)=>s+c.bets,0);
+      const totalSpent = stats.reduce((s,c)=>s+c.spent,0);
+      const totalWon   = stats.reduce((s,c)=>s+c.won,0);
+      const net        = totalWon - totalSpent;
+      const netColor   = net >= 0 ? '#2a9d8f' : '#e63946';
+      const roi        = totalSpent > 0 ? (totalWon/totalSpent*100).toFixed(1) : '—';
+
+      let html = `<div style="background:white;border-radius:10px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+        <div style="font-size:.85rem;font-weight:700;margin-bottom:8px">
+          📊 Σύνοψη — X=${X} κλ. αναμονής · ${totalDraws.toLocaleString()} κληρώσεις · στοίχημα ${bet.toFixed(2)}€
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:.82rem;color:#555">
+          <span>Στοιχήματα: <strong>${totalBets.toLocaleString()}</strong></span>
+          <span>Κόστος: <strong>${totalSpent.toFixed(2)}€</strong></span>
+          <span>Κέρδη: <strong>${totalWon.toFixed(2)}€</strong></span>
+          <span style="color:${netColor}">Καθαρό: <strong>${net>=0?'+':''}${net.toFixed(2)}€</strong></span>
+          <span>Απόδοση: <strong>${roi}%</strong></span>
+        </div>
+      </div>`;
+
+      // Per-column table sorted by net
+      const sorted = [...stats].sort((a,b) => (b.won-b.spent)-(a.won-a.spent));
+      html += `<div style="overflow-x:auto"><table class="col-tbl">
+        <thead><tr>
+          <th style="text-align:left">Στήλη</th>
+          <th>Στοιχ.</th><th>Κόστος</th><th>Κέρδη</th>
+          <th>Καθαρό</th><th>Απόδ.%</th>
+          <th style="text-align:left">Hits 5-8</th>
+          <th style="text-align:right">Τρέχ.Καθ.</th>
+        </tr></thead><tbody>`;
+
+      for (const s of sorted) {
+        const n   = s.won - s.spent;
+        const nC  = n >= 0 ? '#2a9d8f' : '#e63946';
+        const r   = s.spent > 0 ? (s.won/s.spent*100).toFixed(1) : '—';
+        const hitsHtml = [5,6,7,8]
+          .filter(k => s.hitBins[k])
+          .map(k => `<span style="margin-right:6px"><strong>${k}/8</strong>:${s.hitBins[k]}</span>`)
+          .join('') || '<span style="color:#ddd">καμία</span>';
+        const curDelay = delays[s.col-1];
+        const delayColor = curDelay >= X ? '#e63946' : curDelay >= X*0.7 ? '#f4a261' : '#aaa';
+
+        html += `<tr>
+          <td style="font-weight:700">Σ${s.col}<span class="col-num-tag">${s.nums.join(' ')}</span></td>
+          <td>${s.bets}</td>
+          <td>${s.spent.toFixed(0)}€</td>
+          <td>${s.won.toFixed(2)}€</td>
+          <td style="color:${nC};font-weight:700">${n>=0?'+':''}${n.toFixed(2)}€</td>
+          <td>${r}%</td>
+          <td style="text-align:left">${hitsHtml}</td>
+          <td style="color:${delayColor};font-weight:${curDelay>=X?'700':'400'}">${curDelay}${curDelay>=X?' 🔴':''}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+
+      st.textContent = `✅ ${totalDraws.toLocaleString()} κληρώσεις | ${totalBets.toLocaleString()} στοιχήματα | καθαρό ${net>=0?'+':''}${net.toFixed(2)}€`;
+      res.innerHTML = html;
+    } catch(e) { st.textContent = '⚠️ ' + e.message; }
   }
 </script>
-
 </body>
 </html>
