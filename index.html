@@ -1500,16 +1500,16 @@
         return;
       }
 
-      // KINO αποδόσεις ανά 0.50€ στοίχημα (εκτός απολύτου) — από επίσημο πίνακα OPAP /2
+      // KINO αποδόσεις ανά 0.50€ στοίχημα — από επίσημο πίνακα OPAP
       const PAYOUTS = {
-        6: {3: 2.50, 4: 25.00, 5: 265.00},
-        7: {3: 1.00, 4: 6.50,  5: 50.00, 6: 650.00}
+        6: {3: 0.50, 4: 3.50, 5: 25.00, 6: 800.00},
+        7: {3: 0.50, 4: 1.50, 5: 10.00, 6: 50.00, 7: 2500.00}
       };
 
       let html = '', totalTriggers = 0;
       let totalSpent = 0, totalWon = 0;
       // hitCounts[n][k] = πόσες φορές k/n hits στο P1
-      const hitCounts = {6:{3:0,4:0,5:0}, 7:{3:0,4:0,5:0,6:0}};
+      const hitCounts = {6:{3:0,4:0,5:0,6:0}, 7:{3:0,4:0,5:0,6:0,7:0}};
 
       for (let i = 0; i < draws.length; i++) {
         const d = draws[i];
@@ -1532,8 +1532,8 @@
             const hits = r.numbers.filter(n => s.has(n)).length;
             const n = r.numbers.length;
             const win = hits === n;
-            // Μέτρηση μερικών νικών μόνο για P1
-            if (countMoney && hits >= 3 && !win) {
+            // Μέτρηση νικών μόνο για P1
+            if (countMoney && hits >= 3) {
               if (hitCounts[n]) hitCounts[n][hits] = (hitCounts[n][hits]||0) + 1;
               totalWon += (PAYOUTS[n]?.[hits] || 0);
             }
@@ -1595,7 +1595,10 @@
         let hitsHtml = '';
         for (const [n, counts] of Object.entries(hitCounts)) {
           for (const [k, cnt] of Object.entries(counts)) {
-            if (cnt > 0) hitsHtml += `<span style="margin-right:10px"><strong>${k}/${n}</strong>: ${cnt}× (+${(cnt*(PAYOUTS[+n]?.[+k]||0)).toFixed(2)}€)</span>`;
+            if (cnt > 0) {
+              const pay = cnt * (PAYOUTS[+n]?.[+k]||0);
+              hitsHtml += `<span style="margin-right:10px"><strong>${k}/${n}</strong>: ${cnt}× <span style="color:#2a9d8f">(+${pay.toFixed(2)}€)</span></span>`;
+            }
           }
         }
         const summaryHtml = `<div style="background:white;border-radius:10px;padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
