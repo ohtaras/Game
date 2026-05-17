@@ -443,6 +443,19 @@
     }
   }
 
+  // ── Generate raw file list without API directory listing ─────
+  function getRawFileNames() {
+    const today = new Date();
+    const todayY = today.getFullYear(), todayM = today.getMonth() + 1;
+    const files = [];
+    for (let y = 2024; y <= todayY; y++) {
+      const mEnd = (y === todayY) ? todayM : 12;
+      for (let m = 1; m <= mEnd; m++)
+        files.push({ name: `kino_raw_${y}_${pad(m)}.json` });
+    }
+    return files;
+  }
+
   // ── Shared: build squares occurrences from draws array ───────
   function sqShiftDown(sq){
     const res=[];
@@ -705,24 +718,14 @@
       const BASE_MS=Date.UTC(2025,0,1);
       const FETCH_FROM_YEAR=2024;
 
-      // 1. Λίστα υπαρχόντων αρχείων
-      progText.textContent='🔍 Έλεγχος υπαρχόντων αρχείων…';
-      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h,signal:AbortSignal.timeout(15000)});
-      if(!listR.ok) throw new Error('Αποτυχία ανάγνωσης data/raw');
-      const existingFiles=new Set((await listR.json())
-        .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
-        .map(f=>f.name));
-
-      // 2. Μήνες: Jan 2024 → σήμερα
+      // 1. Μήνες: Jan 2024 → σήμερα (χωρίς κλήση directory listing)
       const today=new Date();
       const todayY=today.getFullYear(),todayM=today.getMonth()+1,todayD=today.getDate();
-      const months=[];
-      for(let y=FETCH_FROM_YEAR;y<=todayY;y++){
-        const mEnd=(y===todayY)?todayM:12;
-        for(let m=1;m<=mEnd;m++) months.push({y,m});
-      }
-      const missing=months.filter(({y,m})=>!existingFiles.has(`kino_raw_${y}_${pad(m)}.json`)).length;
-      st.textContent=`ℹ️ ${months.length} μήνες συνολικά | ${existingFiles.size} υπάρχουν | ${missing} λείπουν`;
+      const months=getRawFileNames().map(f=>{
+        const [,y,m]=f.name.match(/kino_raw_(\d{4})_(\d{2})\.json/);
+        return {y:+y,m:+m};
+      });
+      st.textContent=`ℹ️ ${months.length} μήνες συνολικά — ξεκινώ έλεγχο…`;
 
       let grandTotal=0;
       for(let mi=0;mi<months.length;mi++){
@@ -730,7 +733,12 @@
         const monthStr=`${y}-${pad(m)}`;
         const filename=`kino_raw_${y}_${pad(m)}.json`;
         const isCurrent=(y===todayY&&m===todayM);
-        const exists=existingFiles.has(filename);
+
+        // Φόρτωσε υπάρχοντα (αν υπάρχει το αρχείο)
+        progText.textContent=`📥 Έλεγχος ${filename}…`;
+        progBar.style.width=`${Math.round(mi/months.length*80)}%`;
+        const exData=await ghGet(`data/raw/${filename}`);
+        const exists=!!(exData?.draws?.length);
 
         // Παλιοί ολοκληρωμένοι μήνες → skip
         if(exists&&!isCurrent){
@@ -739,12 +747,9 @@
           continue;
         }
 
-        // Φόρτωσε υπάρχοντα (μόνο αν υπάρχει το αρχείο)
         let existing=[],knownIds=new Set(),drawsByDay={};
         if(exists){
-          progText.textContent=`📥 Φόρτωση ${filename}…`;
-          const ex=await ghGet(`data/raw/${filename}`);
-          existing=ex?.draws||[];
+          existing=exData.draws;
           for(const d of existing){
             knownIds.add(d.id);
             const dayN=Math.floor((d.id-BASE_ID)/288);
@@ -1420,13 +1425,7 @@
     try {
       if (!localStorage.getItem('gh_token')) { st.textContent = '⚠️ Χρειάζεται GitHub Token'; return; }
 
-      const h = ghHeaders();
-      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h,signal:AbortSignal.timeout(15000)});
-      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
-      const fileList = await listR.json();
-      const rawFiles = fileList
-        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
-        .sort((a,b) => a.name.localeCompare(b.name));
+      const rawFiles = getRawFileNames();
 
       // Init per-rule accumulators
       const stats = {};
@@ -1686,12 +1685,7 @@
       return;
     }
     try {
-      const h = ghHeaders();
-      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h,signal:AbortSignal.timeout(15000)});
-      if (!listR.ok) throw new Error(`GitHub API ${listR.status} — έλεγξε το token`);
-      const rawFiles = (await listR.json())
-        .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
-        .sort((a,b) => a.name.localeCompare(b.name));
+      const rawFiles = getRawFileNames();
 
       // Per-column accumulators
       const stats = KINO_COLS.map((nums, i) => ({
