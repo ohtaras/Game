@@ -423,12 +423,12 @@
   }
   async function ghGet(path){
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
-    const r=await fetch(url,{headers:h,cache:'no-store'});
+    const r=await fetch(url,{headers:h,cache:'no-store',signal:AbortSignal.timeout(30000)});
     if(!r.ok) return null;
     const meta=await r.json();
     // GitHub returns empty content for files >1MB — use download_url fallback
     if((!meta.content||meta.content==='')&&meta.download_url){
-      const dr=await fetch(meta.download_url,{cache:'no-store'});
+      const dr=await fetch(meta.download_url,{cache:'no-store',signal:AbortSignal.timeout(30000)});
       return dr.ok?dr.json():null;
     }
     if(!meta.content) return null;
