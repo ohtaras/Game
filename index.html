@@ -912,22 +912,23 @@
     const sqResults=document.getElementById('sqResults');
     const groups=[];
     for(let i=0;i<draws.length;i++){
-      const squares=findSquares([...draws[i].winning_numbers,...draws[i].bonus]);
-      if(!squares.length) continue;
-      if(squares.length>1) continue; // πολλαπλά σήματα → ακύρωση
+      // Toroidal single-trigger detection (winning numbers only)
+      const torSqs=findTorSquares(draws[i].winning_numbers);
+      if(torSqs.length!==1) continue;
+      const root=torSqs[0].root;
       const group=[];
       for(let j=i;j<=i+2&&j<draws.length;j++){
         const d=draws[j];
-        const sq=j===i?squares:findSquares([...d.winning_numbers,...d.bonus]);
-        group.push({...d,squares:sq,isMatch:j===i,offset:j-i});
+        const tSqs=j===i?torSqs:findTorSquares(d.winning_numbers);
+        group.push({...d,torSqs:tSqs,isMatch:j===i,offset:j-i});
       }
-      groups.push(group);
+      groups.push({group,root});
     }
     section.style.display='block'; sqStatus.style.display='block';
-    if(!groups.length){sqStatus.textContent='Δεν βρέθηκαν κληρώσεις με τετράγωνο.';sqResults.innerHTML='';return;}
+    if(!groups.length){sqStatus.textContent='Δεν βρέθηκαν κληρώσεις με toroidal τετράγωνο.';sqResults.innerHTML='';return;}
     sqStatus.innerHTML=`🔲 <strong>${groups.length}</strong> γκρούπ &mdash; <span style="color:#888;font-size:.85em">από τις ${lastData.total_draws} κληρώσεις</span>`;
     let html='';
-    for(const group of groups){
+    for(const {group,root} of groups){
       const trigD=group[0];
       const trigBonus=trigD.bonus&&trigD.bonus.length?trigD.bonus[0]:null;
       const p1D=group[1]||null;
@@ -935,57 +936,48 @@
       const p1Set=p1D?new Set([...p1D.winning_numbers,...p1D.bonus]):null;
       const p2Set=p2D?new Set([...p2D.winning_numbers,...p2D.bonus]):null;
 
-      // Compute predictions for all 5 rules × all trigger squares
-      const rulePreds=PRED_RULES.map(rule=>{
-        const preds=[];
-        for(const sq of trigD.squares){
-          const p=rule.fn(sq,trigBonus);
-          if(p) preds.push(...p);
-        }
-        return [...new Set(preds)];
-      });
+      // Compute predictions using OFFSET_RULES from toroidal root
+      const rulePreds=getOffsetPreds(root);
 
-      // Evaluate: count how many of the 6 predicted numbers appear in draw
+      // Evaluate: count how many predicted numbers appear in draw
       const evalScore=(pred,drawSet)=>{
-        if(!pred.length||!drawSet) return null;
+        if(!pred||!pred.length||!drawSet) return null;
         const hits=pred.filter(n=>drawSet.has(n)).length;
         return {hits, total:pred.length};
       };
       const scoreCell=(sc)=>{
         if(!sc) return '<td style="text-align:center;color:#aaa">—</td>';
-        const pct=sc.hits/sc.total;
         const color=sc.hits===sc.total?'#2a9d8f':sc.hits>=4?'#f4a261':sc.hits>=2?'#888':'#ccc';
         const bold=sc.hits===sc.total?'font-weight:700;':'';
         return `<td style="text-align:center;color:${color};${bold}">${sc.hits}/${sc.total}</td>`;
       };
 
-      // Prediction table
+      // Prediction table using OFFSET_RULES
       let tableHtml='<div style="margin:8px 0 4px 0;overflow-x:auto"><table style="border-collapse:collapse;font-size:0.8rem;width:100%">';
       tableHtml+='<tr style="background:#f0f0f0"><th style="padding:4px 8px;text-align:left">Κανόνας</th><th>Νούμερα</th><th style="text-align:center">P1</th><th style="text-align:center">P2</th></tr>';
-      rulePreds.forEach((pred,ri)=>{
-        const rule=PRED_RULES[ri];
+      rulePreds.forEach((rule)=>{
+        const pred=rule.numbers;
         const sc1=evalScore(pred,p1Set);
         const sc2=evalScore(pred,p2Set);
-        const nums=pred.length?pred.sort((a,b)=>a-b).join(' · '):'—';
-        const noBonus=ri===0&&!trigBonus?'<span style="color:#aaa;font-size:0.75rem">(χωρίς bonus)</span>':'';
+        const nums=[...pred].sort((a,b)=>a-b).join(' · ');
         tableHtml+=`<tr style="border-bottom:1px solid #eee">
-          <td style="padding:3px 8px;color:${rule.color};font-weight:600;white-space:nowrap">${rule.label} <span style="color:#888;font-weight:400">${rule.note}</span> ${noBonus}</td>
+          <td style="padding:3px 8px;color:${rule.color};font-weight:600;white-space:nowrap">${rule.label} <span style="color:#888;font-weight:400">${rule.x}</span></td>
           <td style="padding:3px 8px;font-family:monospace;color:#333">${nums}</td>
           ${scoreCell(sc1)}${scoreCell(sc2)}
         </tr>`;
       });
+      tableHtml+=`<tr style="background:#f9f9f9;font-size:0.75rem"><td colspan="4" style="padding:3px 8px;color:#888">Root: <strong>${root}</strong> · Toroidal +2r+2c · ${trigD.torSqs[0].sq.join('–')}</td></tr>`;
       tableHtml+='</table></div>';
 
       html+='<div class="draw-group">';
-      // Trigger card
-      const sqNums=trigD.squares.flat();
-      const tags=trigD.squares.map(sq=>`<span class="sq-tag">${sq.join('–')}</span>`).join(' ');
+      const sqNums=trigD.torSqs[0].sq;
+      const tag=`<span class="sq-tag">${sqNums.join('–')}</span>`;
       html+=`<div class="draw-card card-match">
         <div class="card-header">
           <span class="card-label">🔲 ΜΟΤΙΒΟ</span>
           <span class="time">${trigD.draw_time}</span>
           <span class="draw-id">#${trigD.draw_id}</span>
-          ${tags?`<div class="sq-tags">${tags}</div>`:''}
+          <div class="sq-tags">${tag}</div>
           ${trigBonus?`<span style="margin-left:8px;background:#e63946;color:#fff;padding:2px 7px;border-radius:10px;font-size:0.8rem">bonus: ${trigBonus}</span>`:''}
         </div>
         ${kinoGrid(trigD.winning_numbers,trigD.bonus,sqNums,[])}
@@ -994,8 +986,8 @@
 
       // P1 and P2 cards — highlight ALL rule predictions combined
       for(const d of group.slice(1)){
-        const allPred=[...new Set(rulePreds.flat())];
-        const sqN=d.squares.flat();
+        const allPred=[...new Set(rulePreds.flatMap(r=>r.numbers))];
+        const sqN=d.torSqs.length?d.torSqs[0].sq:[];
         const label=`+${d.offset}`;
         html+=`<div class="draw-card card-next">
           <div class="card-header">
