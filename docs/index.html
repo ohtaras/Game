@@ -707,7 +707,7 @@
 
       // 1. Λίστα υπαρχόντων αρχείων
       progText.textContent='🔍 Έλεγχος υπαρχόντων αρχείων…';
-      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h});
+      const listR=await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`,{headers:h,signal:AbortSignal.timeout(15000)});
       if(!listR.ok) throw new Error('Αποτυχία ανάγνωσης data/raw');
       const existingFiles=new Set((await listR.json())
         .filter(f=>f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
@@ -1421,7 +1421,7 @@
       if (!localStorage.getItem('gh_token')) { st.textContent = '⚠️ Χρειάζεται GitHub Token'; return; }
 
       const h = ghHeaders();
-      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers: h});
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h,signal:AbortSignal.timeout(15000)});
       if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
       const fileList = await listR.json();
       const rawFiles = fileList
@@ -1682,13 +1682,13 @@
     st.textContent = '⏳ Φόρτωση αρχείων…'; res.innerHTML = '';
 
     if (!localStorage.getItem('gh_token')) {
-      st.textContent = '⚠️ Χρειάζεται GitHub Token';
+      st.textContent = '⚠️ Χρειάζεται GitHub Token — άνοιξε 🔑 πάνω';
       return;
     }
     try {
       const h = ghHeaders();
-      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h});
-      if (!listR.ok) throw new Error('Δεν βρέθηκαν raw αρχεία');
+      const listR = await fetch(`https://api.github.com/repos/${REPO}/contents/data/raw`, {headers:h,signal:AbortSignal.timeout(15000)});
+      if (!listR.ok) throw new Error(`GitHub API ${listR.status} — έλεγξε το token`);
       const rawFiles = (await listR.json())
         .filter(f => f.name?.match(/^kino_raw_\d{4}_\d{2}\.json$/))
         .sort((a,b) => a.name.localeCompare(b.name));
