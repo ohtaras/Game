@@ -1500,7 +1500,16 @@
         return;
       }
 
-      let html = '', totalTriggers = 0, totalWins = 0;
+      // KINO αποδόσεις ανά 0.50€ στοίχημα (εκτός απολύτου)
+      const PAYOUTS = {
+        6: {3: 0.50, 4: 2.50, 5: 75.00},
+        7: {3: 0.50, 4: 1.50, 5: 12.50, 6: 250.00}
+      };
+
+      let html = '', totalTriggers = 0;
+      let totalSpent = 0, totalWon = 0;
+      // hitCounts[n][k] = πόσες φορές k/n hits στο P1
+      const hitCounts = {6:{3:0,4:0,5:0}, 7:{3:0,4:0,5:0,6:0}};
 
       for (let i = 0; i < draws.length; i++) {
         const d = draws[i];
@@ -1513,14 +1522,26 @@
         const p1 = draws[i+1] || null;
         const p2 = draws[i+2] || null;
 
-        const evalP = (px) => {
+        // Κόστος: 1 στοίχημα 0.50€ ανά rule για P1
+        totalSpent += preds.length * 0.50;
+
+        const evalP = (px, countMoney) => {
           if (!px) return null;
           const s = new Set(px.nums);
-          return preds.map(r => ({...r, hits: r.numbers.filter(n => s.has(n)).length, win: r.numbers.every(n => s.has(n))}));
+          return preds.map(r => {
+            const hits = r.numbers.filter(n => s.has(n)).length;
+            const n = r.numbers.length;
+            const win = hits === n;
+            // Μέτρηση μερικών νικών μόνο για P1
+            if (countMoney && hits >= 3 && !win) {
+              if (hitCounts[n]) hitCounts[n][hits] = (hitCounts[n][hits]||0) + 1;
+              totalWon += (PAYOUTS[n]?.[hits] || 0);
+            }
+            return {...r, hits, win};
+          });
         };
-        const p1Eval = evalP(p1), p2Eval = evalP(p2);
-        const anyWin = p1Eval?.some(r => r.win) || p2Eval?.some(r => r.win);
-        if (anyWin) totalWins++;
+        const p1Eval = evalP(p1, true), p2Eval = evalP(p2, false);
+        const anyPartial = p1Eval?.some(r => r.hits >= 3) || p2Eval?.some(r => r.hits >= 3);
 
         const predBalls = (r) => r.numbers.map(n =>
           `<div class="rule-ball" style="background:${r.color}">${n}</div>`
@@ -1528,16 +1549,17 @@
 
         const evalRow = (evalArr, label, pDraw) => {
           if (!pDraw || !evalArr) return '';
-          const wins = evalArr.filter(r => r.win);
           const color = label === 'P1' ? '#4361ee' : '#2ec4b6';
           const rowHtml = evalArr.map(r => {
-            const col = r.win ? r.color : r.hits > 0 ? '#888' : '#ddd';
-            return `<span style="color:${col};font-weight:${r.win?'700':'400'};margin-right:6px;font-size:0.75rem">${r.label}: ${r.hits}/${r.numbers.length}</span>`;
+            const col = r.win ? r.color : r.hits >= 3 ? '#f4a261' : r.hits > 0 ? '#aaa' : '#ddd';
+            const bold = r.hits >= 3 ? 'font-weight:700;' : '';
+            const payout = PAYOUTS[r.numbers.length]?.[r.hits];
+            const payStr = (label==='P1' && r.hits>=3 && !r.win && payout) ? ` <span style="color:#2a9d8f">+${payout}€</span>` : '';
+            return `<span style="color:${col};${bold}margin-right:8px;font-size:0.75rem">${r.label}: ${r.hits}/${r.numbers.length}${payStr}</span>`;
           }).join('');
           return `<div class="${label==='P1'?'sim-p1':'sim-p2'}">
             <div class="sim-hdr">
               <span style="font-weight:700;color:${color}">${label} #${pDraw.id} ${pDraw.time}</span>
-              ${wins.length?`<span class="win-badge">✓ WIN: ${wins.map(r=>r.label).join(' ')}</span>`:''}
             </div>
             <div>${rowHtml}</div>
           </div>`;
@@ -1548,7 +1570,7 @@
             <div class="sim-hdr">
               <span style="font-weight:700;color:#e76f51">🔲 #${d.id} ${d.time}</span>
               <span style="color:#888;font-size:0.75rem">Root:${root} [${sq.join(',')}]</span>
-              ${anyWin?'<span class="win-badge">✓ WIN</span>':''}
+              ${anyPartial?'<span class="win-badge">≥3 hits</span>':''}
             </div>
             <div style="margin-top:4px">
               ${preds.map(r=>`<div class="live-rule-row">
@@ -1565,10 +1587,29 @@
 
       if (!totalTriggers) {
         st.textContent = `✅ ${draws.length} κληρώσεις — 0 triggers`;
-        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν single-fire 80-sq τετράγωνα.</div>';
+        res.innerHTML = '<div style="color:#aaa;font-size:.85rem;padding:8px">Δεν βρέθηκαν single-fire τετράγωνα.</div>';
       } else {
-        st.textContent = `✅ ${draws.length} κληρώσεις | ${totalTriggers} triggers | ${totalWins} νίκες (P1+P2)`;
-        res.innerHTML = html;
+        // Σύνοψη αποτελεσμάτων
+        const net = totalWon - totalSpent;
+        const netColor = net >= 0 ? '#2a9d8f' : '#e63946';
+        let hitsHtml = '';
+        for (const [n, counts] of Object.entries(hitCounts)) {
+          for (const [k, cnt] of Object.entries(counts)) {
+            if (cnt > 0) hitsHtml += `<span style="margin-right:10px"><strong>${k}/${n}</strong>: ${cnt}× (+${(cnt*(PAYOUTS[+n]?.[+k]||0)).toFixed(2)}€)</span>`;
+          }
+        }
+        const summaryHtml = `<div style="background:white;border-radius:10px;padding:12px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+          <div style="font-size:0.85rem;font-weight:700;margin-bottom:6px">📊 Σύνοψη (P1 · 0.50€/rule)</div>
+          <div style="font-size:0.82rem;color:#555;display:flex;flex-wrap:wrap;gap:16px">
+            <span>Triggers: <strong>${totalTriggers}</strong></span>
+            <span>Κόστος: <strong>${totalSpent.toFixed(2)}€</strong></span>
+            <span>Κέρδη: <strong>${totalWon.toFixed(2)}€</strong></span>
+            <span style="color:${netColor}">Καθαρό: <strong>${net>=0?'+':''}${net.toFixed(2)}€</strong></span>
+          </div>
+          ${hitsHtml?`<div style="font-size:0.8rem;color:#555;margin-top:6px">${hitsHtml}</div>`:''}
+        </div>`;
+        st.textContent = `✅ ${draws.length} κληρώσεις | ${totalTriggers} triggers | κόστος ${totalSpent.toFixed(2)}€ | κέρδη ${totalWon.toFixed(2)}€ | καθαρό ${net>=0?'+':''}${net.toFixed(2)}€`;
+        res.innerHTML = summaryHtml + html;
       }
     } catch(e) { st.textContent = '⚠️ ' + e.message; }
   }
