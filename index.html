@@ -735,16 +735,16 @@
         const isCurrent=(y===todayY&&m===todayM);
         progBar.style.width=`${Math.round(mi/months.length*80)}%`;
 
-        // Παλιοί ολοκληρωμένοι μήνες → HEAD check only (no body download)
+        // Παλιοί ολοκληρωμένοι μήνες → GET headers only (δεν διαβάζουμε body)
         if(!isCurrent){
           progText.textContent=`🔍 ${monthStr}…`;
-          let headOk=false;
+          let fileExists=false;
           try{
-            const hd=await fetch(`https://raw.githubusercontent.com/${REPO}/main/data/raw/${filename}`,
-              {method:'HEAD',signal:AbortSignal.timeout(8000)});
-            headOk=hd.ok;
+            const ck=await fetch(`https://raw.githubusercontent.com/${REPO}/main/data/raw/${filename}`,
+              {signal:AbortSignal.timeout(8000)});
+            fileExists=ck.ok; // resolve on headers, body not read
           }catch(_){}
-          if(headOk){
+          if(fileExists){
             progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
             progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
             continue;
