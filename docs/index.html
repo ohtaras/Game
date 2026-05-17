@@ -422,25 +422,25 @@
     if(!r.ok) throw new Error('GitHub API '+r.status);
   }
   async function ghGet(path){
-    const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
-    const r=await fetch(url,{headers:h,cache:'no-store',signal:AbortSignal.timeout(30000)});
-    if(!r.ok) return null;
-    const meta=await r.json();
-    // GitHub returns empty content for files >1MB — use download_url fallback
-    if((!meta.content||meta.content==='')&&meta.download_url){
-      const dr=await fetch(meta.download_url,{cache:'no-store',signal:AbortSignal.timeout(30000)});
-      return dr.ok?dr.json():null;
-    }
-    if(!meta.content) return null;
+    // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
+    const rawUrl=`https://raw.githubusercontent.com/${REPO}/main/${path}`;
     try{
-      return JSON.parse(atob(meta.content.replace(/\n/g,'')));
-    }catch(e){
-      if(meta.download_url){
-        const dr=await fetch(meta.download_url,{cache:'no-store'});
+      const r=await fetch(rawUrl,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+      if(r.ok) return r.json();
+    }catch(_){}
+    // Fallback: GitHub API (needed if file was just written and CDN hasn't updated)
+    const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
+    try{
+      const r=await fetch(url,{headers:h,cache:'no-store',signal:AbortSignal.timeout(30000)});
+      if(!r.ok) return null;
+      const meta=await r.json();
+      if((!meta.content||meta.content==='')&&meta.download_url){
+        const dr=await fetch(meta.download_url,{cache:'no-store',signal:AbortSignal.timeout(30000)});
         return dr.ok?dr.json():null;
       }
-      return null;
-    }
+      if(!meta.content) return null;
+      return JSON.parse(atob(meta.content.replace(/\n/g,'')));
+    }catch(_){ return null; }
   }
 
   // ── Generate raw file list without API directory listing ─────
@@ -733,21 +733,28 @@
         const monthStr=`${y}-${pad(m)}`;
         const filename=`kino_raw_${y}_${pad(m)}.json`;
         const isCurrent=(y===todayY&&m===todayM);
-
-        // Φόρτωσε υπάρχοντα (αν υπάρχει το αρχείο)
-        progText.textContent=`📥 Έλεγχος ${filename}…`;
         progBar.style.width=`${Math.round(mi/months.length*80)}%`;
-        const exData=await ghGet(`data/raw/${filename}`);
-        const exists=!!(exData?.draws?.length);
 
-        // Παλιοί ολοκληρωμένοι μήνες → skip
-        if(exists&&!isCurrent){
-          progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
-          progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
-          continue;
+        // Παλιοί ολοκληρωμένοι μήνες → HEAD check only (no body download)
+        if(!isCurrent){
+          progText.textContent=`🔍 ${monthStr}…`;
+          let headOk=false;
+          try{
+            const hd=await fetch(`https://raw.githubusercontent.com/${REPO}/main/data/raw/${filename}`,
+              {method:'HEAD',signal:AbortSignal.timeout(8000)});
+            headOk=hd.ok;
+          }catch(_){}
+          if(headOk){
+            progText.textContent=`✓ ${monthStr} — υπάρχει ήδη`;
+            progBar.style.width=`${Math.round((mi+1)/months.length*80)}%`;
+            continue;
+          }
         }
 
+        // Τρέχων μήνας ή ελλιπής παλιός μήνας → φόρτωσε δεδομένα
         let existing=[],knownIds=new Set(),drawsByDay={};
+        const exData=isCurrent?await ghGet(`data/raw/${filename}`):null;
+        const exists=!!(exData?.draws?.length);
         if(exists){
           existing=exData.draws;
           for(const d of existing){
