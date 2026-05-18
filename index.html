@@ -733,13 +733,6 @@
     st.className=''; progBar.style.width='0%';
     try{
       const h=ghHeaders();
-      // Επαλήθευση token (write access)
-      progText.textContent='🔑 Έλεγχος token…';
-      const authR=await fetch(`https://api.github.com/repos/${REPO}`,{headers:h,cache:'no-store'});
-      if(authR.status===401) throw new Error('Token άκυρο — μπες στο 🔑 και ξαναβάλε το token');
-      if(authR.status===403) throw new Error('Token χωρίς δικαίωμα εγγραφής — χρειάζεται scope "repo"');
-      if(!authR.ok) throw new Error(`GitHub API ${authR.status} κατά έλεγχο token`);
-
       const BASE_ID=1155022;
       const BASE_MS=Date.UTC(2025,0,1);
       const FETCH_FROM_YEAR=2024;
