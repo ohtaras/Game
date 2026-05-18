@@ -421,7 +421,11 @@
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
     const b64=btoa(JSON.stringify(obj));
     const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
-    if(!r.ok) throw new Error('GitHub API '+r.status);
+    if(!r.ok){
+      let msg=`GitHub API ${r.status}`;
+      try{const e=await r.json();if(e.message)msg+=': '+e.message;}catch(_){}
+      throw new Error(msg);
+    }
   }
   async function ghGet(path){
     // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
@@ -726,6 +730,13 @@
     st.className=''; progBar.style.width='0%';
     try{
       const h=ghHeaders();
+      // Επαλήθευση token (write access)
+      progText.textContent='🔑 Έλεγχος token…';
+      const authR=await fetch(`https://api.github.com/repos/${REPO}`,{headers:h,cache:'no-store'});
+      if(authR.status===401) throw new Error('Token άκυρο — μπες στο 🔑 και ξαναβάλε το token');
+      if(authR.status===403) throw new Error('Token χωρίς δικαίωμα εγγραφής — χρειάζεται scope "repo"');
+      if(!authR.ok) throw new Error(`GitHub API ${authR.status} κατά έλεγχο token`);
+
       const BASE_ID=1155022;
       const BASE_MS=Date.UTC(2025,0,1);
       const FETCH_FROM_YEAR=2024;
