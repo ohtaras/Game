@@ -437,7 +437,7 @@
       const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
       if(!chk.ok && chk.status===401) throw new Error('Token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
       if(chk.ok){const ex=await chk.json();sha=ex.sha;}
-      const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
       if(r.ok) return;
       if(r.status===409){await new Promise(res=>setTimeout(res,1000));continue;} // SHA mismatch → retry
       let msg=`GitHub API ${r.status}`;
