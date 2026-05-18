@@ -415,17 +415,20 @@
   }
   async function ghPut(path,obj,message){
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
-    let sha;
-    const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
-    if(!chk.ok && chk.status===401) throw new Error('GitHub token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
-    if(chk.ok){const ex=await chk.json();sha=ex.sha;}
     const b64=btoa(JSON.stringify(obj));
-    const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
-    if(!r.ok){
+    for(let attempt=0;attempt<3;attempt++){
+      let sha;
+      const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
+      if(!chk.ok && chk.status===401) throw new Error('Token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
+      if(chk.ok){const ex=await chk.json();sha=ex.sha;}
+      const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      if(r.ok) return;
+      if(r.status===409){await new Promise(res=>setTimeout(res,1000));continue;} // SHA mismatch → retry
       let msg=`GitHub API ${r.status}`;
       try{const e=await r.json();if(e.message)msg+=': '+e.message;}catch(_){}
       throw new Error(msg);
     }
+    throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες (SHA mismatch)');
   }
   async function ghGet(path){
     // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
