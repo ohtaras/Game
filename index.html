@@ -374,13 +374,13 @@
         <div class="ts-balls" id="tsPrevColdBalls"></div>
         <div class="ts-mini-grid" id="tsPrevGrid"></div>
       </div>
-      <!-- Panel 3: last actual draw -->
+      <!-- Panel 3: last actual draw (fed by Live Monitor) -->
       <div class="ts-panel p-draw">
         <div class="ts-panel-title">
           <span>🎱 Τελευταία Κλήρωση</span>
-          <button onclick="tsFetchLastDraw()" style="padding:2px 8px;font-size:0.66rem;background:#2a9d8f">↻ Φόρτωση</button>
+          <span style="font-size:0.62rem;font-weight:400;color:#1a7a6e">📡 Live Monitor</span>
         </div>
-        <div id="tsDrawInfo" style="font-size:0.7rem;color:#aaa;margin-bottom:2px">Πάτα Φόρτωση →</div>
+        <div id="tsDrawInfo" style="font-size:0.7rem;color:#aaa;margin-bottom:2px">Εκκίνησε το Live Monitor →</div>
         <div class="ts-mini-grid" id="tsDrawGrid"></div>
         <div id="tsDrawHits" style="font-size:0.7rem;color:#666;margin-top:5px;line-height:1.6"></div>
       </div>
@@ -1473,6 +1473,7 @@
   function processLiveDraw(draw) {
     const {id, time, nums, bonus} = draw;
     const numSet = new Set(nums);
+    tsUpdateDrawPanel(draw);
     let evalHtml = '';
 
     // Evaluate P2 first (oldest pending) — final verdict for that trigger
@@ -2042,67 +2043,37 @@
     tsRenderMyGrid();
   }
 
-  async function tsFetchLastDraw() {
-    const info = document.getElementById('tsDrawInfo');
-    info.textContent = '⏳ Φόρτωση…';
-    try {
-      let draw = null;
-      try {
-        const d = await apiFetch('https://api.opap.gr/draws/v3.0/1100/last-result-and-active');
-        if (d?.lastResult?.winningNumbers?.list?.length) {
-          const r = d.lastResult;
-          draw = { id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
-            nums: [...r.winningNumbers.list].sort((a,b)=>a-b) };
-        }
-      } catch(_) {}
-      if (!draw) {
-        const est = estDrawId();
-        for (const tid of [est, est-1, est-2]) {
-          try {
-            const d = await apiFetch(`https://api.opap.gr/draws/v3.0/1100/${tid}`);
-            if (d?.winningNumbers?.list?.length) {
-              draw = { id: d.drawId, time: localTimeStr(toMs(d.drawTime)),
-                nums: [...d.winningNumbers.list].sort((a,b)=>a-b) }; break;
-            }
-          } catch(_) {}
-        }
+  function tsUpdateDrawPanel(draw) {
+    if (!draw || !draw.nums) return;
+    tsLastDraw = draw;
+    const drawn = new Set(draw.nums);
+    document.getElementById('tsDrawInfo').textContent = `#${draw.id} · ${draw.time} · 20 αριθμοί`;
+
+    const dg = document.getElementById('tsDrawGrid');
+    dg.innerHTML = '';
+    for (let row=0; row<8; row++) {
+      for (let col=0; col<10; col++) {
+        const num = col+row*10+1;
+        const cell = document.createElement('div');
+        cell.className = 'ts-mc ' + (drawn.has(num) ? 'drawn' : 'neutral');
+        cell.textContent = num;
+        cell.title = drawn.has(num) ? `${num} ✓` : `${num}`;
+        dg.appendChild(cell);
       }
-      if (!draw) { info.textContent = '⚠️ Δεν βρέθηκε κλήρωση'; return; }
+    }
 
-      tsLastDraw = draw;
-      info.textContent = `#${draw.id} · ${draw.time} · 20 αριθμοί`;
-      const drawn = new Set(draw.nums);
+    const { slot } = currentKinoSlot();
+    const prevSi = (slot - 1 + 288) % 288;
+    const psd = TIME_SLOT_DATA.data[prevSi];
+    const hotHits  = psd.h.map(([d,n])=>n).filter(n=>drawn.has(n));
+    const coldMiss = psd.c.map(([d,n])=>n).filter(n=>!drawn.has(n));
+    document.getElementById('tsDrawHits').innerHTML =
+      `🔴 Ζεστά που βγήκαν: <strong>${hotHits.length}/10</strong> [${hotHits.join(', ')||'—'}]<br>` +
+      `🔵 Κρύα που ΔΕΝ βγήκαν: <strong>${coldMiss.length}/10</strong>`;
 
-      // Build draw grid
-      const dg = document.getElementById('tsDrawGrid');
-      dg.innerHTML = '';
-      for (let row=0; row<8; row++) {
-        for (let col=0; col<10; col++) {
-          const num = col+row*10+1;
-          const cell = document.createElement('div');
-          cell.className = 'ts-mc ' + (drawn.has(num) ? 'drawn' : 'neutral');
-          cell.textContent = num;
-          cell.title = drawn.has(num) ? `${num} ✓` : num;
-          dg.appendChild(cell);
-        }
-      }
-
-      // Compare with prev slot predictions
-      const { slot } = currentKinoSlot();
-      const prevSi = (slot - 1 + 288) % 288;
-      const psd = TIME_SLOT_DATA.data[prevSi];
-      const hotNums  = psd.h.map(([d,n])=>n);
-      const coldNums = psd.c.map(([d,n])=>n);
-      const hotHits  = hotNums.filter(n=>drawn.has(n));
-      const coldHits = coldNums.filter(n=>drawn.has(n));
-      document.getElementById('tsDrawHits').innerHTML =
-        `🔴 Ζεστά που βγήκαν: <strong>${hotHits.length}/10</strong> [${hotHits.join(', ')||'—'}]<br>` +
-        `🔵 Κρύα που ΔΕΝ βγήκαν: <strong>${10-coldHits.length}/10</strong>`;
-
-      // Re-render all grids with drawn overlay
-      renderTimeSlot();
-      tsRenderMyGrid();
-    } catch(e) { info.textContent = '⚠️ ' + e.message; }
+    tsRenderMiniGrid(psd, document.getElementById('tsPrevGrid'), drawn);
+    tsRenderMiniGrid(TIME_SLOT_DATA.data[slot%288], document.getElementById('tsKinoGrid'), drawn);
+    tsRenderMyGrid();
   }
 
   function tsRenderMyGrid() {
