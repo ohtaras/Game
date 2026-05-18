@@ -170,6 +170,7 @@
       <input type="password" id="tokenInput" placeholder="ghp_..." autocomplete="off">
       <button onclick="saveToken()">✔ Αποθήκευση</button>
       <button onclick="clearToken()" style="background:#e63946">✕ Διαγραφή</button>
+      <button onclick="testToken()" style="background:#2a9d8f">🔍 Έλεγχος</button>
     </div>
     <div id="tokenStatus"></div>
     <p style="font-size:.75rem;color:#aaa;margin-top:8px">Αποθηκεύεται μόνιμα στον browser σου (localStorage). Δεν μπαίνει ποτέ στον κώδικα ή σε δημόσιο αρχείο.</p>
@@ -397,6 +398,21 @@
     localStorage.removeItem('gh_token');
     document.getElementById('tokenStatus').innerHTML='<span style="color:#e63946">❌ Token διαγράφηκε.</span>';
     updateTokenStatus();
+  }
+  async function testToken(){
+    const st=document.getElementById('tokenStatus');
+    st.textContent='⏳ Έλεγχος…';
+    const h=ghHeaders();
+    try{
+      const r=await fetch('https://api.github.com/user',{headers:h,cache:'no-store'});
+      if(r.status===401){st.innerHTML='<span style="color:#e63946">❌ Token άκυρο (401) — δημιούργησε νέο classic token με scope "repo"</span>';return;}
+      const u=await r.json();
+      const r2=await fetch(`https://api.github.com/repos/${REPO}`,{headers:h,cache:'no-store'});
+      const repo=await r2.json();
+      const perms=repo.permissions||{};
+      const canPush=perms.push||perms.admin;
+      st.innerHTML=`<span style="color:${canPush?'green':'orange'}">👤 ${u.login} | push: ${canPush?'✅':'❌ — πρόσθεσε το λογαριασμό ως collaborator στο repo'}</span>`;
+    }catch(e){st.textContent='⚠️ '+e.message;}
   }
   function updateTokenStatus(){
     const exists=!!localStorage.getItem('gh_token');
