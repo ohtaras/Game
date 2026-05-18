@@ -421,7 +421,7 @@
       <h4>🎯 Τι παίζω τώρα; — σύγκριση στρατηγικών</h4>
       <div class="ts-strat-cards" id="tsStratCards"></div>
     </div>
-        <p style="font-size:0.65rem;color:#ccc;margin-top:8px">~823 κληρώσεις/slot · Ιαν 2024–σήμερα · σταθερό και στα 3 χρόνια</p>
+        <p id="tsFootnote" style="font-size:0.65rem;color:#ccc;margin-top:8px">~823 κληρώσεις/slot · Ιαν 2024–σήμερα · σταθερό και στα 3 χρόνια</p>
   </details>
 </div>
 
@@ -1986,6 +1986,36 @@
 
   let tsMyPicks = new Set();
   let tsLastDraw = null;
+  const liveSlotBuf = Array.from({length: 288}, () => ({total: 0, hits: new Map()}));
+
+  function updateLiveCounts(draw) {
+    if (!draw || !draw.nums || !draw.time) return;
+    const [hh, mm] = draw.time.split(':').map(Number);
+    const si = Math.floor((hh * 60 + mm) / 5) % 288;
+    const buf = liveSlotBuf[si];
+    buf.total++;
+    for (const num of draw.nums) buf.hits.set(num, (buf.hits.get(num) || 0) + 1);
+  }
+
+  function getUpdatedSlotData(si) {
+    const BASE = TIME_SLOT_DATA.draws_per_slot;
+    const hist = TIME_SLOT_DATA.data[si];
+    const buf = liveSlotBuf[si];
+    if (buf.total === 0) return hist;
+    const total = BASE + buf.total;
+    const devMap = new Map();
+    hist.h.forEach(([dev, num]) => devMap.set(num, dev));
+    hist.c.forEach(([dev, num]) => devMap.set(num, dev));
+    const scored = [];
+    for (let num = 1; num <= 80; num++) {
+      const basedev = devMap.get(num) || 0;
+      const histCount = (0.25 + basedev / 1000) * BASE;
+      const liveCount = buf.hits.get(num) || 0;
+      scored.push([(( histCount + liveCount) / total - 0.25) * 1000, num]);
+    }
+    scored.sort((a, b) => b[0] - a[0]);
+    return { h: scored.slice(0, 10), c: scored.slice(-10).reverse(), total };
+  }
 
   function currentKinoSlot() {
     const now = new Date();
@@ -2060,19 +2090,34 @@
       `Επόμενο slot σε ${String(Math.floor(secsLeft/60)).padStart(2,'0')}:${String(secsLeft%60).padStart(2,'0')}`;
 
     const si = slot % 288;
-    const sd = TIME_SLOT_DATA.data[si];
-    document.getElementById('tsCurSlotLabel').textContent = tsSlotLabel(si);
+    const sd = getUpdatedSlotData(si);
+    const prevSi = (si - 1 + 288) % 288;
+    const psd = getUpdatedSlotData(prevSi);
+    const curTotal = (sd.total || TIME_SLOT_DATA.draws_per_slot) + (liveSlotBuf[si].total > 0 ? 0 : 0);
+    document.getElementById('tsCurSlotLabel').textContent =
+      tsSlotLabel(si) + ` · ${sd.total || TIME_SLOT_DATA.draws_per_slot} κλ.`;
     tsRenderBalls(sd, document.getElementById('tsHotBalls'), document.getElementById('tsColdBalls'));
     tsRenderMiniGrid(sd, document.getElementById('tsKinoGrid'), tsLastDraw ? new Set(tsLastDraw.nums) : null);
 
-    const prevSi = (si - 1 + 288) % 288;
-    const psd = TIME_SLOT_DATA.data[prevSi];
-    document.getElementById('tsPrevSlotLabel').textContent = tsSlotLabel(prevSi);
+    document.getElementById('tsPrevSlotLabel').textContent =
+      tsSlotLabel(prevSi) + ` · ${psd.total || TIME_SLOT_DATA.draws_per_slot} κλ.`;
     tsRenderBalls(psd, document.getElementById('tsPrevHotBalls'), document.getElementById('tsPrevColdBalls'));
     tsRenderMiniGrid(psd, document.getElementById('tsPrevGrid'), tsLastDraw ? new Set(tsLastDraw.nums) : null);
 
     tsRenderMyGrid();
     renderColPanel();
+    // Update footnote with live count
+    const totalLive = liveSlotBuf.reduce((s, b) => s + b.total, 0);
+    const footnote = document.getElementById('tsFootnote');
+    if (footnote) {
+      const base = TIME_SLOT_DATA.draws_per_slot;
+      if (totalLive > 0) {
+        const updated = base + Math.round(totalLive / 288);
+        footnote.textContent = `~${updated} κληρώσεις/slot (βάση ${base} + ${totalLive} live) · σταθερό και στα 3 χρόνια`;
+      } else {
+        footnote.textContent = `~${base} κληρώσεις/slot · Ιαν 2024–σήμερα · σταθερό και στα 3 χρόνια`;
+      }
+    }
   }
 
   function renderColPanel() {
@@ -2147,6 +2192,7 @@
   function tsUpdateDrawPanel(draw) {
     if (!draw || !draw.nums) return;
     tsLastDraw = draw;
+    updateLiveCounts(draw);
     const drawn = new Set(draw.nums);
     document.getElementById('tsDrawInfo').textContent = `#${draw.id} · ${draw.time} · 20 αριθμοί`;
 
@@ -2165,7 +2211,7 @@
 
     const { slot } = currentKinoSlot();
     const prevSi = (slot - 1 + 288) % 288;
-    const psd = TIME_SLOT_DATA.data[prevSi];
+    const psd = getUpdatedSlotData(prevSi);
     const hotHits  = psd.h.map(([d,n])=>n).filter(n=>drawn.has(n));
     const coldMiss = psd.c.map(([d,n])=>n).filter(n=>!drawn.has(n));
     document.getElementById('tsDrawHits').innerHTML =
@@ -2173,7 +2219,7 @@
       `🔵 Κρύα που ΔΕΝ βγήκαν: <strong>${coldMiss.length}/10</strong>`;
 
     tsRenderMiniGrid(psd, document.getElementById('tsPrevGrid'), drawn);
-    tsRenderMiniGrid(TIME_SLOT_DATA.data[slot%288], document.getElementById('tsKinoGrid'), drawn);
+    tsRenderMiniGrid(getUpdatedSlotData(slot%288), document.getElementById('tsKinoGrid'), drawn);
     tsRenderMyGrid();
   }
 
