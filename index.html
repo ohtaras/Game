@@ -408,7 +408,7 @@
   // ── GitHub helpers ────────────────────────────────────────────
   function ghHeaders(){
     return {
-      'Authorization':'token '+localStorage.getItem('gh_token'),
+      'Authorization':'Bearer '+localStorage.getItem('gh_token'),
       'Accept':'application/vnd.github.v3+json',
       'Content-Type':'application/json'
     };
@@ -417,6 +417,7 @@
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     let sha;
     const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
+    if(!chk.ok && chk.status===401) throw new Error('GitHub token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
     if(chk.ok){const ex=await chk.json();sha=ex.sha;}
     const b64=btoa(JSON.stringify(obj));
     const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
