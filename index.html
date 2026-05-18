@@ -1913,17 +1913,19 @@
 
   function currentKinoSlot() {
     const now = new Date();
-    // Greek time (EET/EEST = UTC+2/+3). Use local minutes-of-day.
-    const greekOffsetMs = now.getTimezoneOffset() * 60000 + 3 * 3600000;
-    const greekNow = new Date(now.getTime() + greekOffsetMs);
-    const minutesOfDay = greekNow.getUTCHours() * 60 + greekNow.getUTCMinutes();
+    const fmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Athens',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(now).map(p => [p.type, p.value]));
+    const h = parseInt(parts.hour), m = parseInt(parts.minute), s = parseInt(parts.second);
+    const minutesOfDay = h * 60 + m;
     const slot = Math.floor(minutesOfDay / 5);
-    return { slot, minutesOfDay, greekNow };
+    return { slot, minutesOfDay, h, m, s };
   }
 
   function renderTimeSlot() {
-    const { slot, minutesOfDay, greekNow } = currentKinoSlot();
-    const h = greekNow.getUTCHours(), m = greekNow.getUTCMinutes(), s = greekNow.getUTCSeconds();
+    const { slot, minutesOfDay, h, m, s } = currentKinoSlot();
     document.getElementById('tsClock').textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
 
     const slotStart = slot * 5;
