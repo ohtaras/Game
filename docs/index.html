@@ -408,7 +408,7 @@
   // ── GitHub helpers ────────────────────────────────────────────
   function ghHeaders(){
     return {
-      'Authorization':'Bearer '+localStorage.getItem('gh_token'),
+      'Authorization':'token '+localStorage.getItem('gh_token'),
       'Accept':'application/vnd.github.v3+json',
       'Content-Type':'application/json'
     };
