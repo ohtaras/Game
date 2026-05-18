@@ -205,6 +205,20 @@
     .ts-strat-he.ok{background:#fff8f0;color:#c1440e;}
     .ts-strat-he.bad{background:#f0f0f0;color:#888;}
     .ts-strat-payout{font-size:0.62rem;color:#aaa;margin-top:4px;line-height:1.4;}
+    .ts-eval-section{margin-top:12px;border-top:1px solid #d8cdf0;padding-top:10px;}
+    .ts-eval-title{font-size:0.65rem;font-weight:700;color:#7a6a9a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+    .ts-eval-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+    @media(max-width:540px){.ts-eval-cards{grid-template-columns:1fr;}}
+    .ts-eval-card{border-radius:8px;padding:8px 10px;border:2px solid #e0e0e0;background:white;}
+    .ts-eval-card.ev-win{border-color:#2a9d8f;background:#f0fff8;}
+    .ts-eval-card.ev-loss{border-color:#e0e0e0;background:#fafafa;}
+    .ts-eval-num{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.62rem;font-weight:800;margin:1px;}
+    .ts-eval-num.hit{background:#2a9d8f;color:white;}
+    .ts-eval-num.miss{background:#e8e8e8;color:#aaa;}
+    .ts-eval-result{font-size:0.72rem;font-weight:800;margin-top:6px;padding:3px 6px;border-radius:4px;text-align:center;}
+    .ts-eval-result.win{background:#d4f5ef;color:#1a7a6e;}
+    .ts-eval-result.loss{background:#f0f0f0;color:#999;}
+    .ts-eval-payout{font-size:0.62rem;color:#aaa;margin-top:3px;text-align:center;}
     /* ── Column Sim ── */
     #colSimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
     #colSimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
@@ -420,6 +434,10 @@
     <div class="ts-strat-panel">
       <h4>🎯 Τι παίζω τώρα; — σύγκριση στρατηγικών</h4>
       <div class="ts-strat-cards" id="tsStratCards"></div>
+      <div class="ts-eval-section" id="tsStratEval" style="display:none">
+        <div class="ts-eval-title" id="tsEvalTitle">📊 Αξιολόγηση προηγούμενου slot</div>
+        <div class="ts-eval-cards" id="tsEvalCards"></div>
+      </div>
     </div>
         <p id="tsFootnote" style="font-size:0.65rem;color:#ccc;margin-top:8px">~823 κληρώσεις/slot · Ιαν 2024–σήμερα · σταθερό και στα 3 χρόνια</p>
   </details>
@@ -2135,7 +2153,6 @@
     const he5 = (-ev5/0.50*100).toFixed(1);
     const he8 = (-ev8/0.50*100).toFixed(1);
 
-    // Determine winner (lowest house edge = ev closest to 0 from above, or least negative)
     const evs = [ev3, ev5, ev8];
     const best = evs.indexOf(Math.max(...evs));
 
@@ -2163,7 +2180,6 @@
 
     const container = document.getElementById('tsStratCards');
     container.innerHTML = '';
-
     cards.forEach((c, i) => {
       const isWinner = i === best;
       const heNum = parseFloat(c.he);
@@ -2171,10 +2187,7 @@
       const heLabel = heNum < 0 ? `Πλεονέκτημα ${Math.abs(heNum)}%` : `House edge ${heNum}%`;
       const diffPct = ((c.wp - c.bwp)/c.bwp*100).toFixed(0);
       const sign = diffPct > 0 ? '+' : '';
-
-      const numsHtml = c.nums.map(n =>
-        `<div class="ts-strat-num ${c.cls}">${n}</div>`).join('');
-
+      const numsHtml = c.nums.map(n => `<div class="ts-strat-num ${c.cls}">${n}</div>`).join('');
       const card = document.createElement('div');
       card.className = 'ts-strat-card' + (isWinner ? ' winner' : '');
       card.innerHTML = `
@@ -2186,6 +2199,59 @@
         <div class="ts-strat-he ${heCls}">${heLabel}</div>
         <div class="ts-strat-payout">${c.payout}<br><span style="color:#bbb">${c.desc}</span></div>`;
       container.appendChild(card);
+    });
+
+    // ── Evaluation of previous slot against last draw ──
+    const evalSection = document.getElementById('tsStratEval');
+    if (!tsLastDraw) { evalSection.style.display = 'none'; return; }
+
+    const prevSi = (si - 1 + 288) % 288;
+    const psd = STRAT_DATA.slots[prevSi];
+    if (!psd) { evalSection.style.display = 'none'; return; }
+    evalSection.style.display = '';
+
+    const [ph3, ph5, pBestC] = psd;
+    const drawn = new Set(tsLastDraw.nums);
+    const p8nums = STRAT_COLS[pBestC];
+
+    const hits3 = ph3.filter(n => drawn.has(n));
+    const hits5 = ph5.filter(n => drawn.has(n));
+    const hits8 = p8nums.filter(n => drawn.has(n));
+
+    const pay5 = hits5.length >= 5 ? 250 : hits5.length >= 4 ? 12 : hits5.length >= 3 ? 1.5 : 0;
+    const pay8 = hits8.length >= 8 ? 2500 : hits8.length >= 7 ? 500 : hits8.length >= 6 ? 25 : hits8.length >= 5 ? 5 : hits8.length >= 4 ? 1 : 0;
+
+    const evalSlotLabel = tsSlotLabel(prevSi);
+    document.getElementById('tsEvalTitle').textContent =
+      `📊 Αξιολόγηση slot ${evalSlotLabel} — κλήρωση #${tsLastDraw.id} (${tsLastDraw.time})`;
+
+    const ecards = [
+      { title: '3-Spot', nums: ph3, hits: hits3,
+        win: hits3.length === 3, payout: hits3.length === 3 ? '+€25' : null,
+        label: `${hits3.length}/3 ${hits3.length===3?'✓ ΝΙΚΗ':'✗'}` },
+      { title: '5-Spot', nums: ph5, hits: hits5,
+        win: pay5 > 0, payout: pay5 > 0 ? `+€${pay5}` : null,
+        label: `${hits5.length}/5 ${pay5>0?'✓ ΝΙΚΗ':'✗'}` },
+      { title: `8-Spot Σ${pBestC+1}`, nums: p8nums, hits: hits8,
+        win: pay8 > 0, payout: pay8 > 0 ? `+€${pay8}` : null,
+        label: `${hits8.length}/8 ${pay8>0?'✓ ΝΙΚΗ':'✗'}` }
+    ];
+
+    const ec = document.getElementById('tsEvalCards');
+    ec.innerHTML = '';
+    ecards.forEach(c => {
+      const numsHtml = c.nums.map(n => {
+        const cls = drawn.has(n) ? 'hit' : 'miss';
+        return `<span class="ts-eval-num ${cls}">${n}</span>`;
+      }).join('');
+      const card = document.createElement('div');
+      card.className = 'ts-eval-card' + (c.win ? ' ev-win' : ' ev-loss');
+      card.innerHTML = `
+        <div class="ts-strat-title" style="margin-bottom:4px">${c.title}</div>
+        <div style="margin:4px 0">${numsHtml}</div>
+        <div class="ts-eval-result ${c.win ? 'win' : 'loss'}">${c.label}</div>
+        ${c.payout ? `<div class="ts-eval-payout" style="color:#1a7a6e;font-weight:700">${c.payout} (€0.50 στοίχημα)</div>` : '<div class="ts-eval-payout">—</div>'}`;
+      ec.appendChild(card);
     });
   }
 
@@ -2221,6 +2287,7 @@
     tsRenderMiniGrid(psd, document.getElementById('tsPrevGrid'), drawn);
     tsRenderMiniGrid(getUpdatedSlotData(slot%288), document.getElementById('tsKinoGrid'), drawn);
     tsRenderMyGrid();
+    renderColPanel();
   }
 
   function tsRenderMyGrid() {
