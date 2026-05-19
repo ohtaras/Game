@@ -1,24 +1,9 @@
 {
-  "updated": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
-  "updated_utc": "2026-05-07T15:15:34.882731+00:00",
+  "updated": "2026-05-19 23:50 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)",
+  "updated_utc": "2026-05-19T20:50:28.782743+00:00",
   "count": 0,
   "signals": [],
   "watches": [
-    {
-      "pair": "LINKUSDT",
-      "direction": "LONG",
-      "price": 10.055,
-      "entry": 10.033,
-      "sl": 10.006946,
-      "tp1": 10.1235,
-      "tp2": 10.197667,
-      "rr": 3.47,
-      "dist": 0.022,
-      "dist_pct": 0.22,
-      "bias_4h": "bullish",
-      "bias_1h": "bullish",
-      "time": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
-    },
     {
       "pair": "SUIUSDT",
       "direction": "LONG",
@@ -32,7 +17,7 @@
       "dist_pct": 0.3,
       "bias_4h": "bullish",
       "bias_1h": "bullish",
-      "time": "2026-05-07 18:15 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
+      "time": "2026-05-19 23:50 (\u0395\u03bb\u03bb\u03ac\u03b4\u03bf\u03c2)"
     }
   ],
   "radar": [
