@@ -178,6 +178,9 @@ def watch(pair: str) -> dict | None:
     rr     = round(reward / risk, 2) if risk > 0 else 0
     dist   = round(abs(price - entry), 4)
     dist_pct = round(abs(price - entry) / price * 100, 2)
+    sl_dist_pct = abs(price - sl) / price * 100
+    if sl_dist_pct < 0.5:           # SL too close to current price — wick risk
+        return None
     return {
         "pair":      f"{pair}USDT",
         "direction": direction,
