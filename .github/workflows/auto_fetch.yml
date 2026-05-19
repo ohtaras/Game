@@ -1,0 +1,39 @@
+name: Auto-fetch KINO draws
+
+on:
+  schedule:
+    - cron: '*/5 2-22 * * *'   # κάθε 5 λεπτά, 05:00-01:00 Αθήνα (02:00-22:00 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait 10s for OPAP to publish result
+        run: sleep 10
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch latest draws
+        run: python data/fetch_live.py
+
+      - name: Commit and push if new draws
+        run: |
+          git config user.name "kino-bot"
+          git config user.email "kino-bot@users.noreply.github.com"
+          git add data/raw/
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "Auto-fetch KINO $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push origin main
+          git push origin main:gh-pages --force
