@@ -1612,6 +1612,7 @@
 
       processLiveDraw(draw);
       if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
+      if (window.ctRefresh) window.ctRefresh();
     } catch(e) { console.error('fetchLiveNow:', e); }
   }
 
