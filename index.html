@@ -1454,7 +1454,7 @@
   function msToNext() {
     const now = new Date(), m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds()/1000;
     const cur5 = Math.floor(m/5)*5;
-    let diff = (cur5+5)*60 + 15 - (m*60+s);
+    let diff = 15 - ((m - cur5)*60 + s);
     if (diff <= 0) diff += 300;
     return diff * 1000;
   }
