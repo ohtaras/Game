@@ -1547,6 +1547,15 @@
     liveTimerId = setTimeout(() => { fetchLiveNow(); scheduleLive(); }, msToNext());
   }
 
+  // Catch-up: fetch immediately when tab becomes visible again (browser throttles background tabs)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && liveRunning) {
+      clearTimeout(liveTimerId);
+      fetchLiveNow();
+      scheduleLive();
+    }
+  });
+
   // Estimated draw ID from current time (BASE_ID = 2025-01-01 00:00 EET = 2024-12-31 22:00 UTC)
   const LIVE_BASE_MS = Date.UTC(2024, 11, 31, 22, 0, 0);
   const LIVE_BASE_ID = 1155022;
