@@ -943,10 +943,10 @@
       const newDraws = items
         .filter(i => i.winningNumbers?.list?.length && !knownIds.has(i.drawId))
         .map(i => ({id:i.drawId, n:[...i.winningNumbers.list].sort((a,b)=>a-b), b:(i.winningNumbers.bonus||[])[0]||null}));
-      if (!newDraws.length) { st.textContent = '✅ Auto: ήδη ενημερωμένο'; startCountdown(); return; }
+      if (!newDraws.length) { st.textContent = `✅ Auto: ήδη ενημερωμένο | τελευταία #${existing.length ? existing[existing.length-1].id : '-'}`; startCountdown(); return; }
       const merged = [...existing, ...newDraws].sort((a,b) => a.id - b.id);
       await ghPut(`data/raw/${filename}`, {month: monthStr, draws: merged}, `Raw ${monthStr}: +${newDraws.length}`);
-      st.textContent = `✅ Auto: +${newDraws.length} νέες (${merged.length.toLocaleString()} σύνολο)`;
+      st.textContent = `✅ Auto: +${newDraws.length} νέες | τελευταία #${merged[merged.length-1].id} (${merged.length.toLocaleString()} σύνολο)`;
     } catch(e) {
       st.textContent = '⚠️ Auto-fetch: ' + e.message;
     }
