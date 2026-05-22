@@ -983,9 +983,16 @@
     const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
     const monthStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}`;
     const filename = `kino_raw_${now.getUTCFullYear()}_${pad(now.getUTCMonth()+1)}.json`;
+    // Also fetch previous day — OPAP files early-morning draws (00:00-~06:00) under the previous date
+    const prevDate = new Date(now - 86400000);
+    const prevStr = `${prevDate.getUTCFullYear()}-${pad(prevDate.getUTCMonth()+1)}-${pad(prevDate.getUTCDate())}`;
     try {
       st.textContent = '🔄 Auto-fetch...';
-      const items = await fetchDaySeq(todayStr, '', 10);
+      const [todayItems, prevItems] = await Promise.all([
+        fetchDaySeq(todayStr, '', 10),
+        fetchDaySeq(prevStr, '', 10),
+      ]);
+      const items = [...todayItems, ...prevItems];
       if (!items.length) { st.textContent = '✅ Auto: καμία νέα'; return; }
       const exData = await ghGet(`data/raw/${filename}`);
       const existing = exData?.draws || [];
