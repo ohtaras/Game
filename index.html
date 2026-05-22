@@ -893,12 +893,13 @@
   // ── Auto-update every 5:10 ────────────────────────────────────
   let autoUpdateTimer = null;
   let autoCountdownTimer = null;
-  let autoSecsLeft = 0;
+  let autoUpdateRunning = false;
 
   function toggleAutoUpdate() {
     const btn = document.getElementById('btnAutoUpdate');
-    if (autoUpdateTimer) {
-      clearInterval(autoUpdateTimer);
+    if (autoUpdateRunning) {
+      autoUpdateRunning = false;
+      clearTimeout(autoUpdateTimer);
       clearInterval(autoCountdownTimer);
       autoUpdateTimer = null;
       btn.style.background = '#555';
@@ -908,24 +909,29 @@
       if (!localStorage.getItem('gh_token')) {
         alert('Ορίσε πρώτα το GitHub Token!'); return;
       }
+      autoUpdateRunning = true;
       btn.style.background = '#2a9d8f';
       btn.textContent = '⏱ Auto: ON';
       autoFetchLatest();
-      autoUpdateTimer = setInterval(autoFetchLatest, 310000);
+      scheduleAutoFetch();
+      startCountdown();
     }
   }
 
+  function scheduleAutoFetch() {
+    if (!autoUpdateRunning) return;
+    autoUpdateTimer = setTimeout(() => { autoFetchLatest(); scheduleAutoFetch(); }, msToNext());
+  }
+
   function startCountdown() {
-    autoSecsLeft = 310;
     clearInterval(autoCountdownTimer);
     autoCountdownTimer = setInterval(() => {
-      autoSecsLeft--;
-      const m = Math.floor(autoSecsLeft / 60);
-      const s = autoSecsLeft % 60;
+      if (!autoUpdateRunning) { clearInterval(autoCountdownTimer); return; }
+      const ms = msToNext();
+      const s = Math.round(ms / 1000);
       document.getElementById('autoUpdateCountdown').textContent =
-        `επόμενο: ${m}:${String(s).padStart(2,'0')}`;
-      if (autoSecsLeft <= 0) clearInterval(autoCountdownTimer);
-    }, 1000);
+        `επόμενο: ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }, 500);
   }
 
   async function autoFetchLatest() {
@@ -937,7 +943,7 @@
     try {
       st.textContent = '🔄 Auto-fetch...';
       const items = await fetchDaySeq(todayStr, '', 10);
-      if (!items.length) { st.textContent = '✅ Auto: καμία νέα'; startCountdown(); return; }
+      if (!items.length) { st.textContent = '✅ Auto: καμία νέα'; return; }
       const exData = await ghGet(`data/raw/${filename}`);
       const existing = exData?.draws || [];
       const knownIds = new Set(existing.map(d => d.id));
@@ -949,7 +955,7 @@
         st.textContent = `✅ Auto: ήδη ενημερωμένο | τελευταία #${lastId}`;
         const lrd = document.getElementById('lastRawDraw');
         lrd.style.display = 'inline'; lrd.textContent = `📥 raw: #${lastId}`;
-        startCountdown(); return;
+        return;
       }
       const merged = [...existing, ...newDraws].sort((a,b) => a.id - b.id);
       await ghPut(`data/raw/${filename}`, {month: monthStr, draws: merged}, `Raw ${monthStr}: +${newDraws.length}`);
@@ -959,7 +965,6 @@
     } catch(e) {
       st.textContent = '⚠️ Auto-fetch: ' + e.message;
     }
-    startCountdown();
   }
 
   async function updateRawByDay(){
