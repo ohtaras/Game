@@ -557,7 +557,7 @@
     <div class="cs-controls">
       <label>Από κλήρωση #</label>
       <input type="number" id="csStartId" placeholder="π.χ. 1301000" style="width:120px">
-      <label>Κληρώσεις:</label>
+      <label>Στήλες:</label>
       <input type="number" id="csCount" min="1" max="1000" value="10">
       <label>Λειτουργία:</label>
       <select id="csMode" onchange="csModeChange()">
@@ -2828,7 +2828,8 @@
         let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):allDraws.length-count-1;
         if(startIdx<0){statusEl.textContent='❌ ID δε βρέθηκε';btn.disabled=false;return;}
         startIdx=Math.max(10,startIdx);
-        const simDraws=allDraws.slice(startIdx,startIdx+count);
+        const totalNeeded=mode==='dynamic'?count*repeat:count;
+        const simDraws=allDraws.slice(startIdx,startIdx+totalNeeded);
         if(!simDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
         const pay=CS_PAY[spots]||{};
         const minW=csMinWin(spots);
@@ -2853,7 +2854,7 @@
         const cost=simDraws.length*0.5,profit=totalPay-cost;
         const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=minW).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
         resultsEl.innerHTML=`<div class="cs-summary-box">
-          <strong>${simDraws.length} κλ. × €0.50 = €${cost.toFixed(1)}</strong>${mode==='dynamic'&&repeat>1?` · νέα στήλη κάθε ${repeat} κλ.`:''}
+          <strong>${mode==='dynamic'?`${count} στήλες × ${repeat} κλ. × €0.50 = €${cost.toFixed(1)}`:`${simDraws.length} κλ. × €0.50 = €${cost.toFixed(1)}`}</strong>
           · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong><br>
           <span style="font-size:0.75rem;color:#888">${wins||'Κανένα κέρδος'}</span>
         </div>
