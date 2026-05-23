@@ -2752,27 +2752,30 @@
     }
     function csZone(n){const r=Math.floor((n-1)/10);return r<3?0:r<6?1:2;}
     function csAlgo(draws,spots=7){
+      if(!draws||draws.length<2)return [];
       const chain=csMC(draws[draws.length-1].n);
-      const h=csHalo(chain);
+      const hSet=new Set(csHalo(chain));
+      // zone heat last 10
       const zh=[0,0,0];
       for(const d of draws.slice(-10)){
-        const m=csMC(d.n);const zavg=m.reduce((s,n)=>s+Math.floor((n-1)/10),0)/m.length;
+        const m=csMC(d.n);
+        const zavg=m.reduce((s,x)=>s+Math.floor((x-1)/10),0)/m.length;
         zh[zavg<3?0:zavg<6?1:2]++;
       }
       const cz=zh.indexOf(Math.min(...zh));
-      const coldH=h.filter(n=>csLS(n,draws)>=5);
-      const warmH=h.filter(n=>{const t=csLS(n,draws);return t>=2&&t<=4;});
-      const hotH=h.filter(n=>csLS(n,draws)<=1);
-      let cands;
-      const coldSlots=Math.ceil(spots*0.6),warmSlots=Math.floor(spots*0.3);
-      if(zh[cz]===0){
-        const czN=[];for(let n=1;n<=80;n++)if(csZone(n)===cz&&csLS(n,draws,20)>=5)czN.push(n);
-        czN.sort((a,b)=>csLS(b,draws,20)-csLS(a,draws,20));
-        cands=[...new Set([...czN.slice(0,Math.ceil(spots/2)),...coldH,...warmH,...hotH])];
-      } else {
-        cands=[...new Set([...coldH,...warmH,...hotH,...coldH,...warmH])];
+      const coldZoneActive=zh[cz]===0;
+      // score every number 1-80
+      const scored=[];
+      for(let n=1;n<=80;n++){
+        const temp=csLS(n,draws,20); // 0=hot, 20=very cold
+        const inHalo=hSet.has(n);
+        const inColdZone=coldZoneActive&&csZone(n)===cz;
+        // higher score = better candidate
+        const s=temp*1 + (inHalo?12:0) + (inColdZone?10:0);
+        scored.push([n,s]);
       }
-      return cands.slice(0,spots).sort((a,b)=>a-b);
+      scored.sort((a,b)=>b[1]-a[1]);
+      return scored.slice(0,spots).map(x=>x[0]).sort((a,b)=>a-b);
     }
     // OPAP KINO payouts at €0.50 stake
     const CS_PAY={
@@ -2832,19 +2835,20 @@
         let staticTicket=mode==='static'?csAlgo(allDraws.slice(0,startIdx),spots):null;
         let rows='',totalPay=0;
         const dist={};
-        // dynamic with repeat: recalculate every `repeat` draws
-        let currentTicket=staticTicket;
+        let currentTicket=mode==='static'?staticTicket:null;
+        let ticketNum=0;
         for(let i=0;i<simDraws.length;i++){
           const nxt=simDraws[i];
-          if(mode==='dynamic'&&i%repeat===0) currentTicket=csAlgo(allDraws.slice(0,startIdx+i),spots);
-          const ticket=mode==='static'?staticTicket:currentTicket;
+          const isNewTicket=mode==='static'?false:(i%repeat===0);
+          if(isNewTicket){ticketNum++;currentTicket=csAlgo(allDraws.slice(0,startIdx+i),spots);}
+          const ticket=currentTicket||[];
           const hits=ticket.filter(n=>nxt.n.includes(n));
-          const p=pay[hits.length]||0;
+          const p=(pay[hits.length])||0;
           totalPay+=p;dist[hits.length]=(dist[hits.length]||0)+1;
           const numsHtml=ticket.map(n=>`<span class="${hits.includes(n)?'cs-hit':'cs-miss'}">${n}</span>`).join('');
           const badge=p>0?`<span class="cs-badge-win">${hits.length}/${spots} €${p}</span>`:`<span class="cs-badge-miss">${hits.length}/${spots}</span>`;
-          const groupMark=mode==='dynamic'&&repeat>1&&i%repeat===0?'<span style="font-size:0.65rem;color:#4361ee;margin-right:4px">▶</span>':'';
-          rows+=`<tr><td><span class="draw-id">${groupMark}#${nxt.id}</span></td><td><span class="numbers">${numsHtml}</span></td><td>${badge}</td></tr>`;
+          const ticketLabel=mode==='dynamic'&&repeat>1?`<span style="font-size:0.65rem;color:#4361ee;font-weight:700">Σ${ticketNum}</span> `:'';
+          rows+=`<tr><td><span class="draw-id">${ticketLabel}#${nxt.id}</span></td><td><span class="numbers">${numsHtml}</span></td><td>${badge}</td></tr>`;
         }
         const cost=simDraws.length*0.5,profit=totalPay-cost;
         const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=minW).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
@@ -2853,7 +2857,7 @@
           <span style="font-size:0.75rem;color:#888">${wins||'Κανένα κέρδος'}</span>
         </div>
         <table class="cs-table" style="margin-top:8px">
-          <thead><tr><th>#</th><th>Δελτίο</th><th>Αποτέλεσμα</th></tr></thead>
+          <thead><tr><th>#Κλήρωση</th><th>Δελτίο (${spots} αρ.)</th><th>Αποτέλεσμα</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
       }catch(e){statusEl.textContent='❌ '+e.message;}
