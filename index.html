@@ -2815,22 +2815,22 @@
         let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):allDraws.length-count-repeat;
         if(startIdx<0){statusEl.textContent='❌ ID δε βρέθηκε';btn.disabled=false;return;}
         startIdx=Math.max(10,startIdx);
-        if(startIdx+count+repeat>allDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
+        if(startIdx+count+repeat+1>allDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
         const pay=CS_PAY[spots]||{};
         const minW=csMinWin(spots);
-        // Sliding window: for each of `count` draws, generate a ticket → play it for next `repeat` draws
+        // Draw[startIdx+i] is used as context → ticket plays the NEXT `repeat` draws (startIdx+i+1 .. startIdx+i+repeat)
         let rows='',totalPay=0;
         const dist={};
         for(let i=0;i<count;i++){
-          // ticket generated using history before draw[startIdx+i]
-          const ticket=csAlgo(allDraws.slice(0,startIdx+i),spots);
+          // ticket generated USING draw[startIdx+i] as latest context
+          const ticket=csAlgo(allDraws.slice(0,startIdx+i+1),spots);
+          const genDraw=allDraws[startIdx+i];
           const numsHtml=ticket.map(n=>`<span class="cs-miss">${n}</span>`).join('');
-          // header row for this ticket
           rows+=`<tr style="background:#f0f4ff"><td colspan="3" style="padding:3px 8px;font-size:0.7rem;font-weight:700;color:#4361ee">
-            Σ${i+1}: <span class="numbers" style="display:inline-flex;flex-wrap:wrap;gap:3px">${numsHtml}</span></td></tr>`;
-          // play against next `repeat` draws
+            Σ${i+1} (μετά #${genDraw.id}): <span class="numbers" style="display:inline-flex;flex-wrap:wrap;gap:3px">${numsHtml}</span></td></tr>`;
+          // plays the NEXT `repeat` draws after the context draw
           let ticketPay=0;
-          for(let j=0;j<repeat;j++){
+          for(let j=1;j<=repeat;j++){
             const drawIdx=startIdx+i+j;
             const d=allDraws[drawIdx];
             const hits=ticket.filter(n=>d.n.includes(n));
