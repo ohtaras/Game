@@ -128,6 +128,33 @@
     .delay-bar-wrap{display:flex;align-items:center;gap:4px;}
     .delay-bar-bg{flex:1;background:#eee;border-radius:3px;height:6px;overflow:hidden;min-width:40px;}
     .delay-bar-fill{height:100%;border-radius:3px;}
+    /* ── Chain Simulator ── */
+    #chainSimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #chainSimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #chainSimSection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;display:flex;align-items:center;gap:8px;}
+    #chainSimSection summary::-webkit-details-marker{display:none;}
+    .cs-controls{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center;}
+    .cs-controls label{font-size:0.82rem;font-weight:600;color:#555;}
+    .cs-controls input[type=number]{width:80px;padding:6px 8px;border:2px solid #ddd;border-radius:6px;font-size:0.9rem;text-align:center;}
+    .cs-controls select{padding:6px 10px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem;}
+    .cs-sub{font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4361ee;margin:12px 0 6px;padding-bottom:4px;border-bottom:2px solid #e8e8e8;}
+    .cs-table{width:100%;border-collapse:collapse;font-size:0.78rem;margin-top:6px;}
+    .cs-table th{padding:5px 8px;background:#f5f5f5;font-weight:600;color:#555;border-bottom:1px solid #ddd;text-align:left;}
+    .cs-table td{padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .cs-table tr:last-child td{border-bottom:none;}
+    .cs-table tr:hover td{background:#f8f9ff;}
+    .cs-hit{background:#2a9d8f;color:white;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;margin:1px;}
+    .cs-miss{color:#ccc;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.65rem;margin:1px;border:1px solid #eee;}
+    .cs-badge-win{background:#2a9d8f;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;margin-left:4px;}
+    .cs-badge-miss{color:#aaa;font-size:0.7rem;margin-left:4px;}
+    .cs-summary-box{background:#f0fff8;border:1px solid #2a9d8f;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:0.82rem;}
+    .cs-live-box{background:#f8f4ff;border:1px solid #6a4c93;border-radius:8px;padding:10px 14px;margin-top:8px;}
+    .cs-live-title{font-size:0.75rem;font-weight:700;color:#4a2c7a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+    .cs-nums{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;}
+    .cs-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;}
+    .cs-num.predict{background:#6a4c93;color:white;}
+    .cs-num.hit{background:#2a9d8f;color:white;}
+    .cs-num.miss{background:#e63946;color:white;}
     /* ── Day Simulation ── */
     #daySimSection{max-width:960px;margin:14px auto 0;padding:0 16px;}
     #daySimSection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
@@ -520,6 +547,35 @@
     <div id="ctBody">
       <div class="ct-loading" id="ctLoading">Φόρτωση δεδομένων...</div>
     </div>
+  </details>
+</div>
+
+<div id="chainSimSection">
+  <details>
+    <summary>⛓️ Chain Simulator — Backtest &amp; Live Πρόβλεψη</summary>
+    <div class="cs-sub">Backtest Αλγορίθμου</div>
+    <div class="cs-controls">
+      <label>Από κλήρωση #</label>
+      <input type="number" id="csStartId" placeholder="π.χ. 1301000" style="width:120px">
+      <label>Κληρώσεις:</label>
+      <input type="number" id="csCount" min="1" max="1000" value="10">
+      <label>Λειτουργία:</label>
+      <select id="csMode">
+        <option value="dynamic">Δυναμικό (νέα στήλη/κλήρωση)</option>
+        <option value="static">Στατικό (ίδια στήλη)</option>
+      </select>
+      <label>Τύπος:</label>
+      <select id="csType">
+        <option value="7">7άρα</option>
+        <option value="4">4άρα</option>
+      </select>
+      <button onclick="runChainSim()" id="csBtnRun">▶ Εκτέλεση</button>
+    </div>
+    <div id="csStatus" style="font-size:0.78rem;color:#888;min-height:16px"></div>
+    <div id="csResults"></div>
+    <div class="cs-sub" style="margin-top:16px">Live Πρόβλεψη (αυτόματη)</div>
+    <div style="font-size:0.75rem;color:#888;margin-bottom:6px">Ενημερώνεται αυτόματα με κάθε νέα κλήρωση από το Live Monitor</div>
+    <div id="csLivePred"><div style="font-size:0.78rem;color:#aaa;font-style:italic">Εκκίνηση Live Monitor για ενεργοποίηση...</div></div>
   </details>
 </div>
 
@@ -1724,6 +1780,7 @@
     document.getElementById('liveEval').innerHTML = evalHtml;
     liveLastDrawTime = time;
     if (ruleStats) renderStatsTable();
+    if (window.csOnNewDraw) window.csOnNewDraw({id, time, n: nums, b: bonus});
   }
 
   async function autoSaveLiveBuffer() {
@@ -2648,6 +2705,155 @@
 
     const det = document.querySelector('#chainTracker details');
     if (det) det.addEventListener('toggle', function() { if (this.open && !ctLoaded) ctInit(); });
+
+  // ── Chain Simulator ──
+  (function() {
+    function csGN(n) {
+      const r=Math.floor((n-1)/10),c=(n-1)%10,s=new Set();
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        if(dr===0&&dc===0)continue;
+        const nr=r+dr,nc=c+dc;
+        if(nr>=0&&nr<=7&&nc>=0&&nc<=9)s.add(nr*10+nc+1);
+      }
+      return s;
+    }
+    function csMC(nums){
+      const ns=new Set(nums),vis=new Set();let best=[];
+      for(const n of ns){
+        if(vis.has(n))continue;
+        const comp=[n];vis.add(n);const q=[n];
+        while(q.length){const cur=q.pop();for(const nb of csGN(cur))if(ns.has(nb)&&!vis.has(nb)){vis.add(nb);comp.push(nb);q.push(nb);}}
+        if(comp.length>best.length)best=comp;
+      }
+      return best.sort((a,b)=>a-b);
+    }
+    function csHalo(chain){
+      const cs=new Set(chain),h=new Set();
+      for(const n of chain)for(const nb of csGN(n))if(!cs.has(nb))h.add(nb);
+      return[...h].sort((a,b)=>a-b);
+    }
+    function csLS(n,draws,w=10){
+      const sl=draws.slice(-w);
+      for(let i=sl.length-1;i>=0;i--)if(sl[i].n.includes(n))return sl.length-1-i;
+      return w;
+    }
+    function csZone(n){const r=Math.floor((n-1)/10);return r<3?0:r<6?1:2;}
+    function csAlgo(draws,spots=7){
+      const chain=csMC(draws[draws.length-1].n);
+      const h=csHalo(chain);
+      const zh=[0,0,0];
+      for(const d of draws.slice(-10)){
+        const m=csMC(d.n);const zavg=m.reduce((s,n)=>s+Math.floor((n-1)/10),0)/m.length;
+        zh[zavg<3?0:zavg<6?1:2]++;
+      }
+      const cz=zh.indexOf(Math.min(...zh));
+      const coldH=h.filter(n=>csLS(n,draws)>=5);
+      const warmH=h.filter(n=>{const t=csLS(n,draws);return t>=2&&t<=4;});
+      let cands;
+      if(zh[cz]===0){
+        const czN=[];for(let n=1;n<=80;n++)if(csZone(n)===cz&&csLS(n,draws,20)>=5)czN.push(n);
+        czN.sort((a,b)=>csLS(b,draws,20)-csLS(a,draws,20));
+        cands=[...new Set([...czN.slice(0,spots===7?3:2),...coldH.slice(0,spots===7?4:2),...warmH.slice(0,2)])];
+      } else {
+        cands=[...new Set([...coldH.slice(0,spots===7?5:3),...warmH.slice(0,2),...coldH.slice(spots===7?5:3),...warmH.slice(2)])];
+      }
+      return cands.slice(0,spots).sort((a,b)=>a-b);
+    }
+    const PAY7={3:0.5,4:1.5,5:20,6:200,7:15000};
+    const PAY4={2:2,3:6,4:80};
+
+    async function csLoadAll(statusEl){
+      statusEl.textContent='Φόρτωση δεδομένων...';
+      const now=new Date(Date.now()+3*3600000);
+      const months=[];
+      for(let d=new Date(2024,0,1);d<=now;d.setMonth(d.getMonth()+1))
+        months.push(`kino_raw_${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}`);
+      const draws=[];let loaded=0;
+      await Promise.all(months.map(async fn=>{
+        try{const d=await ghGet(`data/raw/${fn}.json`);if(d?.draws){draws.push(...d.draws);}}catch(_){}
+        loaded++;statusEl.textContent=`Φόρτωση... ${loaded}/${months.length} μήνες`;
+      }));
+      draws.sort((a,b)=>a.id-b.id);
+      statusEl.textContent=`✅ ${draws.length.toLocaleString()} κληρώσεις`;
+      return draws;
+    }
+
+    window.runChainSim = async function(){
+      const startId=parseInt(document.getElementById('csStartId').value)||null;
+      const count=Math.min(1000,Math.max(1,parseInt(document.getElementById('csCount').value)||10));
+      const mode=document.getElementById('csMode').value;
+      const spots=parseInt(document.getElementById('csType').value);
+      const statusEl=document.getElementById('csStatus');
+      const resultsEl=document.getElementById('csResults');
+      const btn=document.getElementById('csBtnRun');
+      btn.disabled=true;resultsEl.innerHTML='';
+      try{
+        const allDraws=await csLoadAll(statusEl);
+        let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):allDraws.length-count-1;
+        if(startIdx<0){statusEl.textContent='❌ ID δε βρέθηκε';btn.disabled=false;return;}
+        startIdx=Math.max(10,startIdx);
+        const simDraws=allDraws.slice(startIdx,startIdx+count);
+        if(!simDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
+        const pay=spots===7?PAY7:PAY4;
+        let staticTicket=mode==='static'?csAlgo(allDraws.slice(0,startIdx),spots):null;
+        let rows='',totalPay=0;
+        const dist={};
+        for(let i=0;i<simDraws.length;i++){
+          const nxt=simDraws[i];
+          const ticket=mode==='static'?staticTicket:csAlgo(allDraws.slice(0,startIdx+i),spots);
+          const hits=ticket.filter(n=>nxt.n.includes(n));
+          const p=pay[hits.length]||0;
+          totalPay+=p;dist[hits.length]=(dist[hits.length]||0)+1;
+          const numsHtml=ticket.map(n=>`<span class="${hits.includes(n)?'cs-hit':'cs-miss'}">${n}</span>`).join('');
+          const badge=p>0?`<span class="cs-badge-win">${hits.length}/${spots} €${p}</span>`:`<span class="cs-badge-miss">${hits.length}/${spots}</span>`;
+          rows+=`<tr><td><span class="draw-id">#${nxt.id}</span></td><td><span class="numbers">${numsHtml}</span></td><td>${badge}</td></tr>`;
+        }
+        const cost=simDraws.length*0.5,profit=totalPay-cost;
+        const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=(spots===7?3:2)).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
+        resultsEl.innerHTML=`<div class="cs-summary-box">
+          <strong>${simDraws.length} κληρώσεις</strong> · Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong><br>
+          <span style="font-size:0.75rem;color:#888">${wins||'Κανένα κέρδος'}</span>
+        </div>
+        <table class="cs-table" style="margin-top:8px">
+          <thead><tr><th>#</th><th>Δελτίο</th><th>Αποτέλεσμα</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }catch(e){statusEl.textContent='❌ '+e.message;}
+      btn.disabled=false;
+    };
+
+    // Live prediction
+    let csHist=[],csTicket=null,csPrevTicket=null;
+    window.csOnNewDraw=function(draw){
+      const spots=7,pay=PAY7;
+      const el=document.getElementById('csLivePred');
+      if(!el)return;
+      let evalHtml='';
+      if(csPrevTicket&&csHist.length>0){
+        const hits=csPrevTicket.filter(n=>draw.n.includes(n));
+        const p=pay[hits.length]||0;
+        const numsHtml=csPrevTicket.map(n=>`<span class="cs-num ${draw.n.includes(n)?'hit':'miss'}">${n}</span>`).join('');
+        evalHtml=`<div style="font-size:0.75rem;margin-bottom:8px;padding:6px 10px;background:#f8f8f8;border-radius:6px">
+          <span style="font-weight:700;color:#555">Αξιολόγηση #${draw.id}:</span>
+          <span class="cs-nums">${numsHtml}</span>
+          ${p>0?`<span class="cs-badge-win">${hits.length}/${spots} €${p}</span>`:`<span class="cs-badge-miss">${hits.length}/${spots}</span>`}
+        </div>`;
+      }
+      csHist.push(draw);
+      if(csHist.length<11){el.innerHTML=`${evalHtml}<div style="font-size:0.78rem;color:#aaa">Συλλέγω ιστορικό (${csHist.length}/11)...</div>`;return;}
+      csPrevTicket=csTicket;
+      csTicket=csAlgo(csHist,spots);
+      const chain=csMC(draw.n);
+      const zavg=chain.reduce((s,n)=>s+Math.floor((n-1)/10),0)/chain.length;
+      const zone=zavg<3?'ΠΑΝΩ':zavg<6?'ΜΕΣΗ':'ΚΑΤΩ';
+      const ticketHtml=csTicket.map(n=>`<span class="cs-num predict">${n}</span>`).join('');
+      el.innerHTML=`${evalHtml}<div class="cs-live-box">
+        <div class="cs-live-title">Πρόβλεψη για #${draw.id+1}</div>
+        <div style="font-size:0.72rem;color:#888;margin-bottom:6px">Αλυσίδα n=${chain.length} ${zone}: ${chain.join(', ')}</div>
+        <div class="cs-nums">${ticketHtml}</div>
+      </div>`;
+    };
+  })();
 
     window.ctRefresh = async function() {
       const d = document.querySelector('#chainTracker details');
