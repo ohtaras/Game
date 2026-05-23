@@ -553,45 +553,61 @@
 <div id="chainSimSection">
   <details>
     <summary>⛓️ Chain Simulator — Backtest &amp; Live Πρόβλεψη</summary>
-    <div class="cs-sub">Backtest Αλγορίθμου</div>
-    <div class="cs-controls">
-      <label>Από κλήρωση #</label>
-      <input type="number" id="csStartId" placeholder="π.χ. 1301000" style="width:120px">
-      <label style="margin-left:8px">Για Κληρώσεις:</label>
-      <input type="number" id="csCount" min="1" max="2000" value="10" style="width:65px">
-      <label style="margin-left:8px">κάθε Στήλη για</label>
-      <input type="number" id="csRepeat" min="1" max="100" value="1" style="width:50px">
-      <label>Κληρώσεις.</label>
-      <label style="margin-left:8px">Αριθμοί:</label>
-      <select id="csType">
-        <option value="3">3άρα</option>
-        <option value="4">4άρα</option>
-        <option value="5">5άρα</option>
-        <option value="6">6άρα</option>
-        <option value="7" selected>7άρα</option>
-        <option value="8">8άρα</option>
-        <option value="9">9άρα</option>
-        <option value="10">10άρα</option>
-        <option value="11">11άρα</option>
-        <option value="12">12άρα</option>
-      </select>
-      <button onclick="runChainSim()" id="csBtnRun" style="margin-left:8px">▶ Εκτέλεση</button>
-    </div>
-    <div id="csStatus" style="font-size:0.78rem;color:#888;min-height:16px"></div>
-    <div id="csResults"></div>
-    <div class="cs-sub" style="margin-top:16px">Live Πρόβλεψη (αυτόματη)</div>
-    <div style="font-size:0.75rem;color:#888;margin-bottom:6px">Ενημερώνεται αυτόματα με κάθε νέα κλήρωση από το Live Monitor</div>
-    <div id="csLivePred"><div style="font-size:0.78rem;color:#aaa;font-style:italic">Εκκίνηση Live Monitor για ενεργοποίηση...</div></div>
+    <details id="csBacktestDetails" open>
+      <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        <span>Backtest Αλγορίθμου</span>
+        <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
+      </summary>
+      <div class="cs-controls">
+        <label>Από κλήρωση #</label>
+        <input type="number" id="csStartId" placeholder="π.χ. 1301000" style="width:120px">
+        <label style="margin-left:8px">Για Κληρώσεις:</label>
+        <input type="number" id="csCount" min="1" max="2000" value="10" style="width:65px">
+        <label style="margin-left:8px">κάθε Στήλη για</label>
+        <input type="number" id="csRepeat" min="1" max="100" value="1" style="width:50px">
+        <label>Κληρώσεις.</label>
+        <label style="margin-left:8px">Αριθμοί:</label>
+        <select id="csType">
+          <option value="3">3άρα</option>
+          <option value="4">4άρα</option>
+          <option value="5">5άρα</option>
+          <option value="6">6άρα</option>
+          <option value="7" selected>7άρα</option>
+          <option value="8">8άρα</option>
+          <option value="9">9άρα</option>
+          <option value="10">10άρα</option>
+          <option value="11">11άρα</option>
+          <option value="12">12άρα</option>
+        </select>
+        <button onclick="runChainSim()" id="csBtnRun" style="margin-left:8px">▶ Εκτέλεση</button>
+        <button onclick="document.getElementById('csResults').innerHTML='';document.getElementById('csStatus').textContent=''" style="margin-left:6px;background:#aaa">🗑 Ρίσετ</button>
+      </div>
+      <div id="csStatus" style="font-size:0.78rem;color:#888;min-height:16px"></div>
+      <div id="csResults"></div>
+    </details>
+    <details id="csLiveDetails" open>
+      <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+        <span>Live Πρόβλεψη (αυτόματη)</span>
+        <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
+      </summary>
+      <div style="font-size:0.75rem;color:#888;margin-bottom:6px">Ενημερώνεται αυτόματα με κάθε νέα κλήρωση από το Live Monitor</div>
+      <div id="csLivePred"><div style="font-size:0.78rem;color:#aaa;font-style:italic">Εκκίνηση Live Monitor για ενεργοποίηση...</div></div>
+    </details>
   </details>
 </div>
 
-<div id="status"></div>
-<div id="results"></div>
+<details id="mainResultsDetails" style="max-width:960px;margin:0 auto;padding:0 16px">
+  <summary style="cursor:pointer;font-weight:700;font-size:0.85rem;color:#555;padding:6px 0">📋 Αποτελέσματα / Κληρώσεις</summary>
+  <div id="status"></div>
+  <div id="results"></div>
+</details>
 
 <div id="sqSection">
-  <h2>🔲 Κληρώσεις με Τετράγωνο + επόμενες 2</h2>
-  <div id="sqStatus" class="summary" style="display:none"></div>
-  <div id="sqResults"></div>
+  <details>
+    <summary>🔲 Κληρώσεις με Τετράγωνο + επόμενες 2</summary>
+    <div id="sqStatus" class="summary" style="display:none"></div>
+    <div id="sqResults"></div>
+  </details>
 </div>
 
 <script>
