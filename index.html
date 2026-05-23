@@ -2853,7 +2853,7 @@
         const cost=simDraws.length*0.5,profit=totalPay-cost;
         const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=minW).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
         resultsEl.innerHTML=`<div class="cs-summary-box">
-          <strong>${simDraws.length} κληρώσεις</strong> · Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong><br>
+          <strong>${simDraws.length} κληρώσεις</strong>${mode==='dynamic'?` · <strong>${ticketNum} μοναδικές στήλες</strong> × ${repeat} κλ.`:''} · Κόστος <strong>€${cost.toFixed(1)}</strong> (${simDraws.length}×€0.50) · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong><br>
           <span style="font-size:0.75rem;color:#888">${wins||'Κανένα κέρδος'}</span>
         </div>
         <table class="cs-table" style="margin-top:8px">
