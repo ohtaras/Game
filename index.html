@@ -564,10 +564,18 @@
         <option value="dynamic">Δυναμικό (νέα στήλη/κλήρωση)</option>
         <option value="static">Στατικό (ίδια στήλη)</option>
       </select>
-      <label>Τύπος:</label>
+      <label>Αριθμοί:</label>
       <select id="csType">
-        <option value="7">7άρα</option>
+        <option value="3">3άρα</option>
         <option value="4">4άρα</option>
+        <option value="5">5άρα</option>
+        <option value="6">6άρα</option>
+        <option value="7" selected>7άρα</option>
+        <option value="8">8άρα</option>
+        <option value="9">9άρα</option>
+        <option value="10">10άρα</option>
+        <option value="11">11άρα</option>
+        <option value="12">12άρα</option>
       </select>
       <button onclick="runChainSim()" id="csBtnRun">▶ Εκτέλεση</button>
     </div>
@@ -2749,18 +2757,32 @@
       const cz=zh.indexOf(Math.min(...zh));
       const coldH=h.filter(n=>csLS(n,draws)>=5);
       const warmH=h.filter(n=>{const t=csLS(n,draws);return t>=2&&t<=4;});
+      const hotH=h.filter(n=>csLS(n,draws)<=1);
       let cands;
+      const coldSlots=Math.ceil(spots*0.6),warmSlots=Math.floor(spots*0.3);
       if(zh[cz]===0){
         const czN=[];for(let n=1;n<=80;n++)if(csZone(n)===cz&&csLS(n,draws,20)>=5)czN.push(n);
         czN.sort((a,b)=>csLS(b,draws,20)-csLS(a,draws,20));
-        cands=[...new Set([...czN.slice(0,spots===7?3:2),...coldH.slice(0,spots===7?4:2),...warmH.slice(0,2)])];
+        cands=[...new Set([...czN.slice(0,Math.ceil(spots/2)),...coldH,...warmH,...hotH])];
       } else {
-        cands=[...new Set([...coldH.slice(0,spots===7?5:3),...warmH.slice(0,2),...coldH.slice(spots===7?5:3),...warmH.slice(2)])];
+        cands=[...new Set([...coldH,...warmH,...hotH,...coldH,...warmH])];
       }
       return cands.slice(0,spots).sort((a,b)=>a-b);
     }
-    const PAY7={3:0.5,4:1.5,5:20,6:200,7:15000};
-    const PAY4={2:2,3:6,4:80};
+    // OPAP KINO payouts at €0.50 stake
+    const CS_PAY={
+      3:{2:1,   3:25},
+      4:{2:0.5, 3:3,   4:40},
+      5:{3:1,   4:7,   5:150},
+      6:{3:0.5, 4:2,   5:25,   6:1000},
+      7:{3:0.5, 4:1.5, 5:20,   6:200,  7:15000},
+      8:{4:1,   5:5,   6:25,   7:500,  8:2500},
+      9:{5:1,   6:7,   7:50,   8:500,  9:5000},
+     10:{5:1,   6:5,   7:30,   8:200,  9:2500,  10:25000},
+     11:{5:0.5, 6:3,   7:20,   8:150,  9:1000,  10:10000, 11:100000},
+     12:{5:0.5, 6:2,   7:10,   8:75,   9:500,   10:5000,  11:50000, 12:500000},
+    };
+    function csMinWin(spots){return Math.min(...Object.keys(CS_PAY[spots]||{}).map(Number));}
 
     async function csLoadAll(statusEl){
       statusEl.textContent='Φόρτωση δεδομένων...';
@@ -2794,7 +2816,8 @@
         startIdx=Math.max(10,startIdx);
         const simDraws=allDraws.slice(startIdx,startIdx+count);
         if(!simDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
-        const pay=spots===7?PAY7:PAY4;
+        const pay=CS_PAY[spots]||{};
+        const minW=csMinWin(spots);
         let staticTicket=mode==='static'?csAlgo(allDraws.slice(0,startIdx),spots):null;
         let rows='',totalPay=0;
         const dist={};
@@ -2809,7 +2832,7 @@
           rows+=`<tr><td><span class="draw-id">#${nxt.id}</span></td><td><span class="numbers">${numsHtml}</span></td><td>${badge}</td></tr>`;
         }
         const cost=simDraws.length*0.5,profit=totalPay-cost;
-        const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=(spots===7?3:2)).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
+        const wins=Object.entries(dist).filter(([k])=>parseInt(k)>=minW).map(([k,v])=>`${k}/${spots}: ${v}×`).join('  ');
         resultsEl.innerHTML=`<div class="cs-summary-box">
           <strong>${simDraws.length} κληρώσεις</strong> · Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong><br>
           <span style="font-size:0.75rem;color:#888">${wins||'Κανένα κέρδος'}</span>
@@ -2825,7 +2848,7 @@
     // Live prediction
     let csHist=[],csTicket=null,csPrevTicket=null;
     window.csOnNewDraw=function(draw){
-      const spots=7,pay=PAY7;
+      const spots=7,pay=CS_PAY[7]||{};
       const el=document.getElementById('csLivePred');
       if(!el)return;
       let evalHtml='';
@@ -2839,7 +2862,7 @@
           ${p>0?`<span class="cs-badge-win">${hits.length}/${spots} €${p}</span>`:`<span class="cs-badge-miss">${hits.length}/${spots}</span>`}
         </div>`;
       }
-      csHist.push(draw);
+      csHist.push({...draw, n: draw.n || []});
       if(csHist.length<11){el.innerHTML=`${evalHtml}<div style="font-size:0.78rem;color:#aaa">Συλλέγω ιστορικό (${csHist.length}/11)...</div>`;return;}
       csPrevTicket=csTicket;
       csTicket=csAlgo(csHist,spots);
