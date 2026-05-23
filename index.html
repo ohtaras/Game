@@ -2801,7 +2801,9 @@
     };
     function csMinWin(spots){return Math.min(...Object.keys(CS_PAY[spots]||{}).map(Number));}
 
+    let _csDrawCache=null;
     async function csLoadAll(statusEl){
+      if(_csDrawCache){statusEl.textContent=`✅ ${_csDrawCache.length.toLocaleString()} κληρώσεις (cache)`;return _csDrawCache;}
       statusEl.textContent='Φόρτωση δεδομένων...';
       const now=new Date(Date.now()+3*3600000);
       const months=[];
@@ -2813,6 +2815,7 @@
         loaded++;statusEl.textContent=`Φόρτωση... ${loaded}/${months.length} μήνες`;
       }));
       draws.sort((a,b)=>a.id-b.id);
+      _csDrawCache=draws;
       statusEl.textContent=`✅ ${draws.length.toLocaleString()} κληρώσεις`;
       return draws;
     }
