@@ -2831,8 +2831,8 @@
       btn.disabled=true;resultsEl.innerHTML='';
       try{
         const allDraws=await csLoadAll(statusEl);
-        let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):allDraws.length-count-repeat;
-        if(startIdx<0){statusEl.textContent='❌ ID δε βρέθηκε';btn.disabled=false;return;}
+        let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):-1;
+        if(startIdx<0) startIdx=allDraws.length-count-repeat-1;
         startIdx=Math.max(10,startIdx);
         if(startIdx+count+repeat+1>allDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
         const pay=CS_PAY[spots]||{};
