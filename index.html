@@ -2803,20 +2803,20 @@
 
     let _csDrawCache=null;
     async function csLoadAll(statusEl){
-      if(_csDrawCache){statusEl.textContent=`✅ ${_csDrawCache.length.toLocaleString()} κληρώσεις (cache)`;return _csDrawCache;}
+      if(_csDrawCache&&_csDrawCache.length>0){statusEl.textContent=`✅ ${_csDrawCache.length.toLocaleString()} κληρώσεις (cache)`;return _csDrawCache;}
       statusEl.textContent='Φόρτωση δεδομένων...';
       const now=new Date(Date.now()+3*3600000);
       const months=[];
       for(let d=new Date(2024,0,1);d<=now;d.setMonth(d.getMonth()+1))
         months.push(`kino_raw_${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}`);
-      const draws=[];let loaded=0;
+      const draws=[];let loaded=0,ok=0;
       await Promise.all(months.map(async fn=>{
-        try{const d=await ghGet(`data/raw/${fn}.json`);if(d?.draws){draws.push(...d.draws);}}catch(_){}
-        loaded++;statusEl.textContent=`Φόρτωση... ${loaded}/${months.length} μήνες`;
+        try{const d=await ghGet(`data/raw/${fn}.json`);if(d?.draws){draws.push(...d.draws);ok++;}}catch(_){}
+        loaded++;statusEl.textContent=`Φόρτωση... ${loaded}/${months.length} μήνες (${draws.length.toLocaleString()} κλ.)`;
       }));
       draws.sort((a,b)=>a.id-b.id);
-      _csDrawCache=draws;
-      statusEl.textContent=`✅ ${draws.length.toLocaleString()} κληρώσεις`;
+      if(draws.length>0) _csDrawCache=draws;
+      statusEl.textContent=draws.length>0?`✅ ${draws.length.toLocaleString()} κληρώσεις`:`❌ Αποτυχία φόρτωσης (${ok}/${months.length} μήνες OK) — ελέγξτε σύνδεση`;
       return draws;
     }
 
@@ -2834,7 +2834,8 @@
         let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):-1;
         if(startIdx<0) startIdx=allDraws.length-count-repeat-1;
         startIdx=Math.max(10,startIdx);
-        if(startIdx+count+repeat+1>allDraws.length){statusEl.textContent='❌ Ανεπαρκείς κληρώσεις';btn.disabled=false;return;}
+        if(allDraws.length===0){statusEl.textContent='❌ Δεν φορτώθηκαν κληρώσεις — ελέγξτε σύνδεση';btn.disabled=false;return;}
+        if(startIdx+count+repeat+1>allDraws.length){statusEl.textContent=`❌ Ανεπαρκείς κληρώσεις (έχουμε ${allDraws.length}, χρειαζόμαστε ${startIdx+count+repeat+1})`;btn.disabled=false;return;}
         const pay=CS_PAY[spots]||{};
         const minW=csMinWin(spots);
         // Draw[startIdx+i] is used as context → ticket plays the NEXT `repeat` draws (startIdx+i+1 .. startIdx+i+repeat)
