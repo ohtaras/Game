@@ -2930,10 +2930,18 @@
       btn.disabled=true;resultsEl.innerHTML='';
       try{
         const allDraws=await csLoadAll(statusEl);
-        let startIdx=startId?allDraws.findIndex(d=>d.id>=startId):-1;
+        if(allDraws.length===0){statusEl.textContent='❌ Δεν φορτώθηκαν κληρώσεις — ελέγξτε σύνδεση';btn.disabled=false;return;}
+        let startIdx=-1;
+        if(startId){
+          startIdx=allDraws.findIndex(d=>d.id>=startId);
+          if(startIdx<0){
+            const last=allDraws[allDraws.length-1];
+            statusEl.textContent=`❌ Κλήρωση #${startId} δε βρέθηκε. Τελευταία διαθέσιμη: #${last.id}`;
+            btn.disabled=false;return;
+          }
+        }
         if(startIdx<0) startIdx=allDraws.length-count-repeat-1;
         startIdx=Math.max(10,startIdx);
-        if(allDraws.length===0){statusEl.textContent='❌ Δεν φορτώθηκαν κληρώσεις — ελέγξτε σύνδεση';btn.disabled=false;return;}
         const maxCount=allDraws.length-startIdx-repeat-1;
         if(maxCount<=0){statusEl.textContent='❌ Δεν υπάρχουν αρκετές κληρώσεις μετά το startId';btn.disabled=false;return;}
         const actualCount=Math.min(count,maxCount);
