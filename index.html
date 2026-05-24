@@ -629,7 +629,22 @@
         <span class="cs-pval" id="csMinChainV">3</span>
         <span class="cs-phint">ελάχ. μέγεθος αλυσίδας</span>
       </div>
-      <button onclick="csResetParams()" style="margin-top:4px;margin-bottom:6px;background:#bbb;font-size:0.72rem;padding:3px 12px;border-radius:6px">↺ Επαναφορά defaults</button>
+      <div style="margin:10px 0 6px;display:flex;flex-direction:column;gap:5px">
+        <div style="font-size:0.78rem;font-weight:700;color:#555;margin-bottom:2px">Λειτουργία στήλης:</div>
+        <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
+          <input type="radio" name="csMode" value="C" checked style="margin-top:2px;flex-shrink:0">
+          <span><strong>Γ — Κορυφαίοι K</strong> <span style="color:#aaa;font-size:0.7rem">Οι K αριθμοί με την υψηλότερη βαθμολογία, ανεξάρτητα θέσης — δεν εγγυάται συνεχόμενη αλυσίδα</span></span>
+        </label>
+        <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
+          <input type="radio" name="csMode" value="A" style="margin-top:2px;flex-shrink:0">
+          <span><strong>Α — Επέκταση αλυσίδας</strong> <span style="color:#aaa;font-size:0.7rem">Ξεκινά από τον καλύτερο αριθμό και επεκτείνεται βήμα-βήμα στον γείτονα με το υψηλότερο σκορ — εγγυημένα συνεχόμενη αλυσίδα</span></span>
+        </label>
+        <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
+          <input type="radio" name="csMode" value="B" style="margin-top:2px;flex-shrink:0">
+          <span><strong>Β — Καλύτερη αλυσίδα</strong> <span style="color:#aaa;font-size:0.7rem">Δοκιμάζει και τους 80 αριθμούς ως αφετηρία επέκτασης και επιλέγει την αλυσίδα με το μέγιστο συνολικό σκορ — πιο αργό, καλύτερη αλυσίδα</span></span>
+        </label>
+      </div>
+      <button onclick="csResetParams()" style="margin-top:2px;margin-bottom:6px;background:#bbb;font-size:0.72rem;padding:3px 12px;border-radius:6px">↺ Επαναφορά defaults</button>
     </details>
     <details id="csBacktestDetails" open>
       <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
@@ -2939,7 +2954,37 @@
         scored.push([n,s]);
       }
       scored.sort((a,b)=>b[1]-a[1]);
-      return scored.slice(0,spots).map(x=>x[0]).sort((a,b)=>a-b);
+      const scoreMap=new Map(scored);
+      const mode=(document.querySelector('input[name="csMode"]:checked')?.value)||'C';
+      if(mode==='C'){
+        return scored.slice(0,spots).map(x=>x[0]).sort((a,b)=>a-b);
+      }
+      // Α & Β: grow a chain greedily from a seed
+      function growChain(seed){
+        const ch=[seed],cs=new Set([seed]);
+        while(ch.length<spots){
+          let bestNb=null,bestSc=-Infinity;
+          for(const n of ch) for(const nb of csGN(n)){
+            if(!cs.has(nb)){const sc=scoreMap.get(nb)??0;if(sc>bestSc){bestSc=sc;bestNb=nb;}}
+          }
+          if(bestNb===null)break;
+          ch.push(bestNb);cs.add(bestNb);
+        }
+        return ch;
+      }
+      if(mode==='A'){
+        // Start from highest-scored number
+        return growChain(scored[0][0]).sort((a,b)=>a-b);
+      }
+      // Β: try all 80 seeds, pick chain with highest total score
+      let bestChain=null,bestTotal=-Infinity;
+      for(let seed=1;seed<=80;seed++){
+        const ch=growChain(seed);
+        if(ch.length<spots)continue;
+        const tot=ch.reduce((s,n)=>s+(scoreMap.get(n)??0),0);
+        if(tot>bestTotal){bestTotal=tot;bestChain=ch;}
+      }
+      return(bestChain||growChain(scored[0][0])).sort((a,b)=>a-b);
     }
     // OPAP KINO payouts at €0.50 stake
     const CS_PAY={
