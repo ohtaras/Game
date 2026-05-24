@@ -566,6 +566,23 @@
         <span>⚙️ Παράμετροι Αλγορίθμου</span>
         <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
       </summary>
+      <div style="margin:8px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <label style="font-size:0.78rem;font-weight:700;color:#4361ee">Preset:</label>
+        <select id="csPreset" onchange="csApplyPreset(this.value)" style="padding:4px 10px;border:2px solid #4361ee;border-radius:6px;font-size:0.8rem;color:#4361ee;font-weight:600;cursor:pointer">
+          <option value="">— Χειροκίνητο —</option>
+          <option value="3">3άρα  (ROI +34.6%)</option>
+          <option value="4">4άρα  (ROI  +0.2%)</option>
+          <option value="5">5άρα  (ROI +35.4%)</option>
+          <option value="6">6άρα  (ROI +72.8%)</option>
+          <option value="7">7άρα  (ROI+114.0%)</option>
+          <option value="8">8άρα  (ROI +53.5%)</option>
+          <option value="9">9άρα  (ROI  -6.4%)</option>
+          <option value="10">10άρα (ROI -20.2%)</option>
+          <option value="11">11άρα (ROI +16.6%)</option>
+          <option value="12">12άρα (ROI +52.3%)</option>
+        </select>
+        <span style="font-size:0.68rem;color:#aaa">Βασισμένο σε 3.000 ιστορικές κληρώσεις · επιλογή ορίζει και τύπο στήλης</span>
+      </div>
       <div class="cs-params-grid">
         <label>Παράθυρο Ζώνης <span class="cs-tip" data-tip="Πόσες τελευταίες κληρώσεις κοιτάμε για να βρούμε ποια ζώνη (πάνω/μέση/κάτω) είναι 'κρύα'. Μικρό=πιο ευαίσθητο, μεγάλο=πιο σταθερό.">i</span></label>
         <input type="range" id="csZoneWin" min="5" max="50" value="10" oninput="document.getElementById('csZoneWinV').textContent=this.value">
@@ -2822,6 +2839,39 @@
       return w;
     }
     function csZone(n){const r=Math.floor((n-1)/10);return r<3?0:r<6?1:2;}
+
+    // Presets από grid search 10368 συνδυασμών σε 3000 ιστορικές κληρώσεις
+    const CS_PRESETS={
+      3:{zoneWindow:10,coldWindow:40,haloBonus:0,coldZoneBonus:8,coldWeight:0.5,coldWeightSlider:5,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+      4:{zoneWindow:10,coldWindow:20,haloBonus:0,coldZoneBonus:8,coldWeight:2.0,coldWeightSlider:20,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+      5:{zoneWindow:5,coldWindow:10,haloBonus:8,coldZoneBonus:16,coldWeight:1.5,coldWeightSlider:15,chainPenalty:0,haloDepth:2,bonusWeight:5,minChainSize:3},
+      6:{zoneWindow:5,coldWindow:10,haloBonus:16,coldZoneBonus:0,coldWeight:1.5,coldWeightSlider:15,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+      7:{zoneWindow:5,coldWindow:20,haloBonus:24,coldZoneBonus:0,coldWeight:2.0,coldWeightSlider:20,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+      8:{zoneWindow:5,coldWindow:10,haloBonus:8,coldZoneBonus:0,coldWeight:1.5,coldWeightSlider:15,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+      9:{zoneWindow:5,coldWindow:20,haloBonus:8,coldZoneBonus:0,coldWeight:0.5,coldWeightSlider:5,chainPenalty:0,haloDepth:2,bonusWeight:0,minChainSize:3},
+      10:{zoneWindow:5,coldWindow:20,haloBonus:24,coldZoneBonus:8,coldWeight:1.0,coldWeightSlider:10,chainPenalty:0,haloDepth:2,bonusWeight:0,minChainSize:6},
+      11:{zoneWindow:5,coldWindow:20,haloBonus:0,coldZoneBonus:16,coldWeight:1.5,coldWeightSlider:15,chainPenalty:8,haloDepth:1,bonusWeight:5,minChainSize:3},
+      12:{zoneWindow:5,coldWindow:20,haloBonus:0,coldZoneBonus:8,coldWeight:1.0,coldWeightSlider:10,chainPenalty:0,haloDepth:1,bonusWeight:5,minChainSize:3},
+    };
+    window.csApplyPreset=function(spots){
+      if(!spots)return;
+      const p=CS_PRESETS[parseInt(spots)];
+      if(!p)return;
+      const sv=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
+      const st=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+      sv('csZoneWin',p.zoneWindow);  st('csZoneWinV',p.zoneWindow);
+      sv('csColdWin',p.coldWindow);  st('csColdWinV',p.coldWindow);
+      sv('csHaloB',p.haloBonus);     st('csHaloBV',p.haloBonus);
+      sv('csColdZoneB',p.coldZoneBonus); st('csColdZoneBV',p.coldZoneBonus);
+      sv('csColdW',p.coldWeightSlider);  st('csColdWV',p.coldWeight.toFixed(1));
+      sv('csChainPen',p.chainPenalty);   st('csChainPenV',p.chainPenalty===0?'0':'-'+p.chainPenalty);
+      sv('csHaloDepth',p.haloDepth);     st('csHaloDepthV',p.haloDepth);
+      sv('csBonusW',p.bonusWeight);      st('csBonusWV',p.bonusWeight);
+      sv('csMinChain',p.minChainSize);   st('csMinChainV',p.minChainSize);
+      // Ορίζει και τον τύπο στήλης στο backtest
+      const t=document.getElementById('csType');if(t)t.value=spots;
+    };
+
     function csGetParams(){
       return{
         zoneWindow: parseInt(document.getElementById('csZoneWin')?.value)||10,
