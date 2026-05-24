@@ -585,7 +585,7 @@
       <div id="csStatus" style="font-size:0.78rem;color:#888;min-height:16px"></div>
       <div id="csResults"></div>
     </details>
-    <details id="csLiveDetails" open ontoggle="if(this.open)csLivePreload()">
+    <details id="csLiveDetails" open ontoggle="if(this.open)csLivePreload()" id="csLiveDetails">
       <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;margin-top:16px">
         <span>Live Πρόβλεψη (αυτόματη)</span>
         <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
@@ -2803,6 +2803,11 @@
     function csMinWin(spots){return Math.min(...Object.keys(CS_PAY[spots]||{}).map(Number));}
 
     let _csDrawCache=null;
+    const CS_RAW_BASE=`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/data/raw/`;
+    async function csGhGet(fn){
+      // Use apiFetch (has CORS proxy fallback) instead of ghGet
+      return apiFetch(CS_RAW_BASE+fn+'.json');
+    }
     // Preload last 3 days from OPAP API directly (no GitHub needed)
     window.csLivePreload=async function(){
       if(_csDrawCache&&_csDrawCache.length>0)return;
@@ -2844,7 +2849,7 @@
         months.push(`kino_raw_${d.getFullYear()}_${String(d.getMonth()+1).padStart(2,'0')}`);
       const draws=[];let loaded=0,ok=0;
       await Promise.all(months.map(async fn=>{
-        try{const d=await ghGet(`data/raw/${fn}.json`);if(d?.draws){draws.push(...d.draws);ok++;}}catch(_){}
+        try{const d=await csGhGet(fn);if(d?.draws){draws.push(...d.draws);ok++;}}catch(_){}
         loaded++;statusEl.textContent=`Φόρτωση... ${loaded}/${months.length} μήνες (${draws.length.toLocaleString()} κλ.)`;
       }));
       draws.sort((a,b)=>a.id-b.id);
@@ -2916,6 +2921,8 @@
 
     // Live prediction
     let csHist=[],csTicket=null,csPrevTicket=null;
+    // Kick off preload immediately on script init
+    setTimeout(()=>window.csLivePreload&&window.csLivePreload(),500);
     window.csOnNewDraw=function(draw){
       const spots=7,pay=CS_PAY[7]||{};
       const el=document.getElementById('csLivePred');
