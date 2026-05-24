@@ -585,12 +585,13 @@
       <div id="csStatus" style="font-size:0.78rem;color:#888;min-height:16px"></div>
       <div id="csResults"></div>
     </details>
-    <details id="csLiveDetails" open>
+    <details id="csLiveDetails" open ontoggle="if(this.open)csLivePreload()">
       <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;margin-top:16px">
         <span>Live Πρόβλεψη (αυτόματη)</span>
         <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
       </summary>
       <div style="font-size:0.75rem;color:#888;margin-bottom:6px">Ενημερώνεται αυτόματα με κάθε νέα κλήρωση από το Live Monitor</div>
+      <div id="csLiveStatus" style="font-size:0.72rem;color:#aaa;min-height:14px"></div>
       <div id="csLivePred"><div style="font-size:0.78rem;color:#aaa;font-style:italic">Εκκίνηση Live Monitor για ενεργοποίηση...</div></div>
     </details>
   </details>
@@ -2802,6 +2803,25 @@
     function csMinWin(spots){return Math.min(...Object.keys(CS_PAY[spots]||{}).map(Number));}
 
     let _csDrawCache=null;
+    // Quick load of last 1 month only (for live prediction seed)
+    window.csLivePreload=async function(){
+      if(_csDrawCache&&_csDrawCache.length>0)return; // already have full cache
+      if(csHist.length>=11)return; // already have enough history
+      const liveStatus=document.getElementById('csLiveStatus');
+      if(!liveStatus||liveStatus.dataset.loading)return;
+      liveStatus.dataset.loading='1';
+      liveStatus.textContent='Φόρτωση ιστορικού...';
+      const now=new Date(Date.now()+3*3600000);
+      const fn=`kino_raw_${now.getFullYear()}_${String(now.getMonth()+1).padStart(2,'0')}`;
+      try{
+        const d=await ghGet(`data/raw/${fn}.json`);
+        if(d?.draws&&d.draws.length>0){
+          csHist=[...d.draws.slice(-50)];
+          liveStatus.textContent=`✅ Ιστορικό έτοιμο (${csHist.length} κλ.) — περιμένω live κλήρωση`;
+        }else{liveStatus.textContent='⚠️ Αποτυχία φόρτωσης ιστορικού';}
+      }catch(e){liveStatus.textContent='⚠️ Σφάλμα: '+e.message;}
+      delete liveStatus.dataset.loading;
+    };
     async function csLoadAll(statusEl){
       if(_csDrawCache&&_csDrawCache.length>0){statusEl.textContent=`✅ ${_csDrawCache.length.toLocaleString()} κληρώσεις (cache)`;return _csDrawCache;}
       statusEl.textContent='Φόρτωση δεδομένων...';
@@ -2887,6 +2907,10 @@
       const spots=7,pay=CS_PAY[7]||{};
       const el=document.getElementById('csLivePred');
       if(!el)return;
+      // Pre-seed history from cache if empty (needs 25 draws for algo)
+      if(csHist.length===0&&_csDrawCache&&_csDrawCache.length>0){
+        csHist=_csDrawCache.slice(-25).map(d=>({...d}));
+      }
       let evalHtml='';
       if(csPrevTicket&&csHist.length>0){
         const hits=csPrevTicket.filter(n=>draw.n.includes(n));
