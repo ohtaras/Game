@@ -2810,9 +2810,14 @@
     }
     // Preload last 3 days from OPAP API directly (no GitHub needed)
     window.csLivePreload=async function(){
-      if(_csDrawCache&&_csDrawCache.length>0)return;
       if(csHist.length>=11)return;
       const liveStatus=document.getElementById('csLiveStatus');
+      // If backtest cache already loaded, seed csHist from it directly
+      if(_csDrawCache&&_csDrawCache.length>0){
+        if(csHist.length===0) csHist=_csDrawCache.slice(-50).map(d=>({...d}));
+        if(liveStatus) liveStatus.textContent=`✅ Ιστορικό έτοιμο (${csHist.length} κλ.) — περιμένω live κλήρωση`;
+        return;
+      }
       if(!liveStatus||liveStatus.dataset.loading)return;
       liveStatus.dataset.loading='1';
       liveStatus.textContent='Φόρτωση ιστορικού από OPAP...';
