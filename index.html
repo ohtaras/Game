@@ -2803,23 +2803,36 @@
     function csMinWin(spots){return Math.min(...Object.keys(CS_PAY[spots]||{}).map(Number));}
 
     let _csDrawCache=null;
-    // Quick load of last 1 month only (for live prediction seed)
+    // Preload last 3 days from OPAP API directly (no GitHub needed)
     window.csLivePreload=async function(){
-      if(_csDrawCache&&_csDrawCache.length>0)return; // already have full cache
-      if(csHist.length>=11)return; // already have enough history
+      if(_csDrawCache&&_csDrawCache.length>0)return;
+      if(csHist.length>=11)return;
       const liveStatus=document.getElementById('csLiveStatus');
       if(!liveStatus||liveStatus.dataset.loading)return;
       liveStatus.dataset.loading='1';
-      liveStatus.textContent='Φόρτωση ιστορικού...';
-      const now=new Date(Date.now()+3*3600000);
-      const fn=`kino_raw_${now.getFullYear()}_${String(now.getMonth()+1).padStart(2,'0')}`;
+      liveStatus.textContent='Φόρτωση ιστορικού από OPAP...';
       try{
-        const d=await ghGet(`data/raw/${fn}.json`);
-        if(d?.draws&&d.draws.length>0){
-          csHist=[...d.draws.slice(-50)];
+        const draws=[];
+        const now=new Date(Date.now()+3*3600000);
+        for(let i=0;i<3&&draws.length<50;i++){
+          const d=new Date(now);d.setDate(d.getDate()-i);
+          const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          try{
+            const r=await apiFetch(`https://api.opap.gr/draws/v3.0/1100/draw-date/${ds}/${ds}?page=0&size=300`);
+            if(r?.content){
+              for(const item of r.content){
+                if(!item.winningNumbers?.list)continue;
+                draws.push({id:item.drawId,n:item.winningNumbers.list.slice(0,20),b:item.winningNumbers.bonus?.[0]||0});
+              }
+            }
+          }catch(_){}
+        }
+        draws.sort((a,b)=>a.id-b.id);
+        if(draws.length>0){
+          csHist=[...draws.slice(-50)];
           liveStatus.textContent=`✅ Ιστορικό έτοιμο (${csHist.length} κλ.) — περιμένω live κλήρωση`;
-        }else{liveStatus.textContent='⚠️ Αποτυχία φόρτωσης ιστορικού';}
-      }catch(e){liveStatus.textContent='⚠️ Σφάλμα: '+e.message;}
+        }else{liveStatus.textContent='⚠️ Αποτυχία — θα συλλεχθεί από live κληρώσεις';}
+      }catch(e){liveStatus.textContent='⚠️ '+e.message;}
       delete liveStatus.dataset.loading;
     };
     async function csLoadAll(statusEl){
