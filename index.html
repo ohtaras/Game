@@ -148,6 +148,11 @@
     .cs-badge-win{background:#2a9d8f;color:white;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:700;margin-left:4px;}
     .cs-badge-miss{color:#aaa;font-size:0.7rem;margin-left:4px;}
     .cs-summary-box{background:#f0fff8;border:1px solid #2a9d8f;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:0.82rem;}
+    .cs-params-grid{display:grid;grid-template-columns:140px 1fr 36px auto;gap:6px 10px;align-items:center;margin:8px 0 4px;}
+    .cs-params-grid label{font-size:0.78rem;font-weight:600;color:#555;text-align:right;}
+    .cs-params-grid input[type=range]{width:100%;accent-color:#4361ee;cursor:pointer;}
+    .cs-params-grid .cs-pval{font-size:0.78rem;font-weight:700;color:#4361ee;text-align:center;min-width:28px;}
+    .cs-params-grid .cs-phint{font-size:0.7rem;color:#aaa;white-space:nowrap;}
     .cs-live-box{background:#f8f4ff;border:1px solid #6a4c93;border-radius:8px;padding:10px 14px;margin-top:8px;}
     .cs-live-title{font-size:0.75rem;font-weight:700;color:#4a2c7a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
     .cs-nums{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;}
@@ -553,6 +558,39 @@
 <div id="chainSimSection">
   <details>
     <summary>⛓️ Chain Simulator — Backtest &amp; Live Πρόβλεψη</summary>
+    <details id="csParamsDetails" open>
+      <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        <span>⚙️ Παράμετροι Αλγορίθμου</span>
+        <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
+      </summary>
+      <div class="cs-params-grid">
+        <label>Παράθυρο Ζώνης</label>
+        <input type="range" id="csZoneWin" min="5" max="50" value="10" oninput="document.getElementById('csZoneWinV').textContent=this.value">
+        <span class="cs-pval" id="csZoneWinV">10</span>
+        <span class="cs-phint">κληρώσεις ιστορικού για κρύα ζώνη</span>
+
+        <label>Παράθυρο Ψυχρότητας</label>
+        <input type="range" id="csColdWin" min="10" max="50" value="20" oninput="document.getElementById('csColdWinV').textContent=this.value">
+        <span class="cs-pval" id="csColdWinV">20</span>
+        <span class="cs-phint">κληρώσεις ιστορικού ανά αριθμό</span>
+
+        <label>Βάρος Halo</label>
+        <input type="range" id="csHaloB" min="0" max="30" value="12" oninput="document.getElementById('csHaloBV').textContent=this.value">
+        <span class="cs-pval" id="csHaloBV">12</span>
+        <span class="cs-phint">πόντοι για αριθμούς γύρω από αλυσίδα</span>
+
+        <label>Βάρος Κρύας Ζώνης</label>
+        <input type="range" id="csColdZoneB" min="0" max="30" value="10" oninput="document.getElementById('csColdZoneBV').textContent=this.value">
+        <span class="cs-pval" id="csColdZoneBV">10</span>
+        <span class="cs-phint">πόντοι για αριθμούς σε κρύα ζώνη</span>
+
+        <label>Βάρος Ψυχρότητας</label>
+        <input type="range" id="csColdW" min="0" max="30" value="10" oninput="document.getElementById('csColdWV').textContent=(this.value/10).toFixed(1)">
+        <span class="cs-pval" id="csColdWV">1.0</span>
+        <span class="cs-phint">× πόντοι ανά κλήρωση απουσίας αριθμού</span>
+      </div>
+      <button onclick="csResetParams()" style="margin-top:4px;margin-bottom:6px;background:#bbb;font-size:0.72rem;padding:3px 12px;border-radius:6px">↺ Επαναφορά defaults</button>
+    </details>
     <details id="csBacktestDetails" open>
       <summary class="cs-sub" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
         <span>Backtest Αλγορίθμου</span>
@@ -2761,13 +2799,32 @@
       return w;
     }
     function csZone(n){const r=Math.floor((n-1)/10);return r<3?0:r<6?1:2;}
+    function csGetParams(){
+      return{
+        zoneWindow: parseInt(document.getElementById('csZoneWin')?.value)||10,
+        coldWindow: parseInt(document.getElementById('csColdWin')?.value)||20,
+        haloBonus:  parseInt(document.getElementById('csHaloB')?.value)||12,
+        coldZoneBonus: parseInt(document.getElementById('csColdZoneB')?.value)||10,
+        coldWeight: (parseInt(document.getElementById('csColdW')?.value)||10)/10,
+      };
+    }
+    window.csResetParams=function(){
+      const el=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
+      el('csZoneWin',10);el('csColdWin',20);el('csHaloB',12);el('csColdZoneB',10);el('csColdW',10);
+      document.getElementById('csZoneWinV').textContent='10';
+      document.getElementById('csColdWinV').textContent='20';
+      document.getElementById('csHaloBV').textContent='12';
+      document.getElementById('csColdZoneBV').textContent='10';
+      document.getElementById('csColdWV').textContent='1.0';
+    };
     function csAlgo(draws,spots=7){
       if(!draws||draws.length<2)return [];
+      const{zoneWindow,coldWindow,haloBonus,coldZoneBonus,coldWeight}=csGetParams();
       const chain=csMC(draws[draws.length-1].n);
       const hSet=new Set(csHalo(chain));
-      // zone heat last 10
+      // zone heat last zoneWindow draws
       const zh=[0,0,0];
-      for(const d of draws.slice(-10)){
+      for(const d of draws.slice(-zoneWindow)){
         const m=csMC(d.n);
         const zavg=m.reduce((s,x)=>s+Math.floor((x-1)/10),0)/m.length;
         zh[zavg<3?0:zavg<6?1:2]++;
@@ -2777,11 +2834,10 @@
       // score every number 1-80
       const scored=[];
       for(let n=1;n<=80;n++){
-        const temp=csLS(n,draws,20); // 0=hot, 20=very cold
+        const temp=csLS(n,draws,coldWindow);
         const inHalo=hSet.has(n);
         const inColdZone=coldZoneActive&&csZone(n)===cz;
-        // higher score = better candidate
-        const s=temp*1 + (inHalo?12:0) + (inColdZone?10:0);
+        const s=temp*coldWeight + (inHalo?haloBonus:0) + (inColdZone?coldZoneBonus:0);
         scored.push([n,s]);
       }
       scored.sort((a,b)=>b[1]-a[1]);
