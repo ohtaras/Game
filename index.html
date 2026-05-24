@@ -632,15 +632,15 @@
       <div style="margin:10px 0 6px;display:flex;flex-direction:column;gap:5px">
         <div style="font-size:0.78rem;font-weight:700;color:#555;margin-bottom:2px">Λειτουργία στήλης:</div>
         <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
-          <input type="radio" name="csMode" value="C" checked style="margin-top:2px;flex-shrink:0">
+          <input type="radio" name="csMode" value="C" checked style="margin-top:2px;flex-shrink:0" onchange="csLiveRecalc()">
           <span><strong>Γ — Κορυφαίοι K</strong> <span style="color:#aaa;font-size:0.7rem">Οι K αριθμοί με την υψηλότερη βαθμολογία, ανεξάρτητα θέσης — δεν εγγυάται συνεχόμενη αλυσίδα</span></span>
         </label>
         <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
-          <input type="radio" name="csMode" value="A" style="margin-top:2px;flex-shrink:0">
+          <input type="radio" name="csMode" value="A" style="margin-top:2px;flex-shrink:0" onchange="csLiveRecalc()">
           <span><strong>Α — Επέκταση αλυσίδας</strong> <span style="color:#aaa;font-size:0.7rem">Ξεκινά από τον καλύτερο αριθμό και επεκτείνεται βήμα-βήμα στον γείτονα με το υψηλότερο σκορ — εγγυημένα συνεχόμενη αλυσίδα</span></span>
         </label>
         <label style="font-size:0.78rem;cursor:pointer;display:flex;gap:8px;align-items:flex-start">
-          <input type="radio" name="csMode" value="B" style="margin-top:2px;flex-shrink:0">
+          <input type="radio" name="csMode" value="B" style="margin-top:2px;flex-shrink:0" onchange="csLiveRecalc()">
           <span><strong>Β — Καλύτερη αλυσίδα</strong> <span style="color:#aaa;font-size:0.7rem">Δοκιμάζει και τους 80 αριθμούς ως αφετηρία επέκτασης και επιλέγει την αλυσίδα με το μέγιστο συνολικό σκορ — πιο αργό, καλύτερη αλυσίδα</span></span>
         </label>
       </div>
@@ -660,7 +660,7 @@
         <input type="number" id="csRepeat" min="1" max="100" value="1" style="width:50px">
         <label>Κληρώσεις.</label>
         <label style="margin-left:8px">Αριθμοί:</label>
-        <select id="csType">
+        <select id="csType" onchange="csLiveRecalc()">
           <option value="3">3άρα</option>
           <option value="4">4άρα</option>
           <option value="5">5άρα</option>
@@ -2885,6 +2885,8 @@
       sv('csMinChain',p.minChainSize);   st('csMinChainV',p.minChainSize);
       // Ορίζει και τον τύπο στήλης στο backtest
       const t=document.getElementById('csType');if(t)t.value=spots;
+      // Ανανεώνει αμέσως τη live πρόβλεψη
+      window.csLiveRecalc&&window.csLiveRecalc();
     };
 
     function csGetParams(){
@@ -3135,6 +3137,34 @@
 
     // Live prediction
     let csHist=[],csTicket=null,csPrevTicket=null;
+
+    // Ανανέωση live πρόβλεψης αμέσως με τις τρέχουσες ρυθμίσεις
+    window.csLiveRecalc=function(){
+      if(csHist.length<11)return;
+      const spots=parseInt(document.getElementById('csType')?.value)||7;
+      const pay=CS_PAY[spots]||{};
+      const mode=(document.querySelector('input[name="csMode"]:checked')?.value)||'C';
+      const modeLabel={A:'Α-Αλυσίδα',B:'Β-Καλύτερη',C:'Γ-ΚορυφαίοιΚ'}[mode];
+      const el=document.getElementById('csLivePred');
+      if(!el)return;
+      csTicket=csAlgo(csHist,spots);
+      const lastDraw=csHist[csHist.length-1];
+      const chain=csMC(lastDraw.n);
+      const zavg=chain.reduce((s,n)=>s+Math.floor((n-1)/10),0)/chain.length;
+      const zone=zavg<3?'ΠΑΝΩ':zavg<6?'ΜΕΣΗ':'ΚΑΤΩ';
+      const ticketHtml=csTicket.map(n=>`<span class="cs-num predict">${n}</span>`).join('');
+      // Διατηρεί την αξιολόγηση αν υπάρχει
+      const existing=el.querySelector('.cs-live-box');
+      const evalHtml=existing?'':el.innerHTML.split('<div class="cs-live-box"')[0];
+      el.innerHTML=`${evalHtml||''}<div class="cs-live-box">
+        <div class="cs-live-title">Πρόβλεψη για #${lastDraw.id+1}
+          <span style="font-size:0.65rem;font-weight:400;color:#a080d0;margin-left:8px">${spots}άρα · ${modeLabel}</span>
+        </div>
+        <div style="font-size:0.72rem;color:#888;margin-bottom:6px">Αλυσίδα n=${chain.length} ${zone}: ${chain.join(', ')}</div>
+        <div class="cs-nums">${ticketHtml}</div>
+      </div>`;
+    };
+
     // Kick off preload immediately on script init
     setTimeout(()=>window.csLivePreload&&window.csLivePreload(),500);
     window.csOnNewDraw=function(draw){
