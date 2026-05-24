@@ -149,10 +149,13 @@
     .cs-badge-miss{color:#aaa;font-size:0.7rem;margin-left:4px;}
     .cs-summary-box{background:#f0fff8;border:1px solid #2a9d8f;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:0.82rem;}
     .cs-params-grid{display:grid;grid-template-columns:140px 1fr 36px auto;gap:6px 10px;align-items:center;margin:8px 0 4px;}
-    .cs-params-grid label{font-size:0.78rem;font-weight:600;color:#555;text-align:right;}
+    .cs-params-grid label{font-size:0.78rem;font-weight:600;color:#555;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px;}
     .cs-params-grid input[type=range]{width:100%;accent-color:#4361ee;cursor:pointer;}
     .cs-params-grid .cs-pval{font-size:0.78rem;font-weight:700;color:#4361ee;text-align:center;min-width:28px;}
     .cs-params-grid .cs-phint{font-size:0.7rem;color:#aaa;white-space:nowrap;}
+    .cs-tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#4361ee;color:#fff;border-radius:50%;font-size:0.6rem;font-weight:700;cursor:help;flex-shrink:0;}
+    .cs-tip::after{content:attr(data-tip);position:absolute;right:0;bottom:calc(100% + 6px);background:#222;color:#fff;font-size:0.69rem;font-weight:400;padding:7px 10px;border-radius:7px;white-space:normal;width:210px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .15s;line-height:1.4;text-align:left;}
+    .cs-tip:hover::after{opacity:1;}
     .cs-live-box{background:#f8f4ff;border:1px solid #6a4c93;border-radius:8px;padding:10px 14px;margin-top:8px;}
     .cs-live-title{font-size:0.75rem;font-weight:700;color:#4a2c7a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
     .cs-nums{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;}
@@ -564,30 +567,50 @@
         <span style="font-size:0.7rem;color:#aaa;font-weight:400">▼</span>
       </summary>
       <div class="cs-params-grid">
-        <label>Παράθυρο Ζώνης</label>
+        <label>Παράθυρο Ζώνης <span class="cs-tip" data-tip="Πόσες τελευταίες κληρώσεις κοιτάμε για να βρούμε ποια ζώνη (πάνω/μέση/κάτω) είναι 'κρύα'. Μικρό=πιο ευαίσθητο, μεγάλο=πιο σταθερό.">i</span></label>
         <input type="range" id="csZoneWin" min="5" max="50" value="10" oninput="document.getElementById('csZoneWinV').textContent=this.value">
         <span class="cs-pval" id="csZoneWinV">10</span>
-        <span class="cs-phint">κληρώσεις ιστορικού για κρύα ζώνη</span>
+        <span class="cs-phint">κληρώσεις</span>
 
-        <label>Παράθυρο Ψυχρότητας</label>
+        <label>Παράθυρο Ψυχρότητας <span class="cs-tip" data-tip="Πόσες κληρώσεις πίσω κοιτάμε για κάθε αριθμό για να μετρήσουμε πότε βγήκε τελευταία φορά. Μεγαλύτερο=πιο 'μακριά μνήμη'.">i</span></label>
         <input type="range" id="csColdWin" min="10" max="50" value="20" oninput="document.getElementById('csColdWinV').textContent=this.value">
         <span class="cs-pval" id="csColdWinV">20</span>
-        <span class="cs-phint">κληρώσεις ιστορικού ανά αριθμό</span>
+        <span class="cs-phint">κληρώσεις</span>
 
-        <label>Βάρος Halo</label>
+        <label>Βάρος Halo <span class="cs-tip" data-tip="Extra πόντοι για αριθμούς που 'αγγίζουν' την αλυσίδα από έξω. Η αλυσίδα τείνει να επεκτείνεται στους γείτονές της.">i</span></label>
         <input type="range" id="csHaloB" min="0" max="30" value="12" oninput="document.getElementById('csHaloBV').textContent=this.value">
         <span class="cs-pval" id="csHaloBV">12</span>
-        <span class="cs-phint">πόντοι για αριθμούς γύρω από αλυσίδα</span>
+        <span class="cs-phint">πόντοι</span>
 
-        <label>Βάρος Κρύας Ζώνης</label>
+        <label>Βάρος Κρύας Ζώνης <span class="cs-tip" data-tip="Extra πόντοι για αριθμούς που βρίσκονται στη ζώνη που δεν εμφανίστηκε καθόλου στο παράθυρο ζώνης. Αν δεν υπάρχει κρύα ζώνη (=0 εμφανίσεις), ο κανόνας αυτός δεν ενεργοποιείται.">i</span></label>
         <input type="range" id="csColdZoneB" min="0" max="30" value="10" oninput="document.getElementById('csColdZoneBV').textContent=this.value">
         <span class="cs-pval" id="csColdZoneBV">10</span>
-        <span class="cs-phint">πόντοι για αριθμούς σε κρύα ζώνη</span>
+        <span class="cs-phint">πόντοι</span>
 
-        <label>Βάρος Ψυχρότητας</label>
+        <label>Βάρος Ψυχρότητας <span class="cs-tip" data-tip="Πολλαπλασιαστής για την ψυχρότητα κάθε αριθμού. Π.χ. ×2 σημαίνει ότι ένας αριθμός που δεν βγήκε για 10 κληρώσεις παίρνει 20 πόντους αντί για 10.">i</span></label>
         <input type="range" id="csColdW" min="0" max="30" value="10" oninput="document.getElementById('csColdWV').textContent=(this.value/10).toFixed(1)">
         <span class="cs-pval" id="csColdWV">1.0</span>
-        <span class="cs-phint">× πόντοι ανά κλήρωση απουσίας αριθμού</span>
+        <span class="cs-phint">× ανά κλήρωση απουσίας</span>
+
+        <label>Ποινή Αλυσίδας <span class="cs-tip" data-tip="Αφαιρούνται πόντοι από αριθμούς που ΜΌΛΙς βγήκαν στην αλυσίδα. Λογική: αν μόλις 'άναψαν', είναι λιγότερο πιθανό να ξαναβγούν αμέσως.">i</span></label>
+        <input type="range" id="csChainPen" min="0" max="20" value="0" oninput="document.getElementById('csChainPenV').textContent=this.value==0?'0':'-'+this.value">
+        <span class="cs-pval" id="csChainPenV">0</span>
+        <span class="cs-phint">ποινή πόντοι</span>
+
+        <label>Βάθος Halo <span class="cs-tip" data-tip="1=μόνο οι άμεσοι γείτονες της αλυσίδας παίρνουν το bonus. 2=και οι γείτονες των γειτόνων (μεγαλύτερη 'ζώνη έλξης' γύρω από την αλυσίδα).">i</span></label>
+        <input type="range" id="csHaloDepth" min="1" max="2" value="1" oninput="document.getElementById('csHaloDepthV').textContent=this.value">
+        <span class="cs-pval" id="csHaloDepthV">1</span>
+        <span class="cs-phint">βήματα (1 ή 2)</span>
+
+        <label>Bonus Ball <span class="cs-tip" data-tip="Ο αριθμός bonus κληρώνεται ξεχωριστά από την OPAP. Αριθμοί που γειτνιάζουν με τον bonus στον πίνακα παίρνουν extra πόντους. 0=αγνοείται.">i</span></label>
+        <input type="range" id="csBonusW" min="0" max="20" value="0" oninput="document.getElementById('csBonusWV').textContent=this.value">
+        <span class="cs-pval" id="csBonusWV">0</span>
+        <span class="cs-phint">πόντοι γείτονες bonus</span>
+
+        <label>Ελάχ. Αλυσίδα Ζώνης <span class="cs-tip" data-tip="Κληρώσεις με μικρή κύρια αλυσίδα (π.χ. n=3) θεωρούνται 'θόρυβος' και αγνοούνται στον υπολογισμό κρύας ζώνης. Π.χ. με τιμή 6, μόνο κληρώσεις με αλυσίδα ≥6 μετράνε.">i</span></label>
+        <input type="range" id="csMinChain" min="3" max="10" value="3" oninput="document.getElementById('csMinChainV').textContent=this.value">
+        <span class="cs-pval" id="csMinChainV">3</span>
+        <span class="cs-phint">ελάχ. μέγεθος αλυσίδας</span>
       </div>
       <button onclick="csResetParams()" style="margin-top:4px;margin-bottom:6px;background:#bbb;font-size:0.72rem;padding:3px 12px;border-radius:6px">↺ Επαναφορά defaults</button>
     </details>
@@ -2806,26 +2829,49 @@
         haloBonus:  parseInt(document.getElementById('csHaloB')?.value)||12,
         coldZoneBonus: parseInt(document.getElementById('csColdZoneB')?.value)||10,
         coldWeight: (parseInt(document.getElementById('csColdW')?.value)||10)/10,
+        chainPenalty: parseInt(document.getElementById('csChainPen')?.value)||0,
+        haloDepth: parseInt(document.getElementById('csHaloDepth')?.value)||1,
+        bonusWeight: parseInt(document.getElementById('csBonusW')?.value)||0,
+        minChainSize: parseInt(document.getElementById('csMinChain')?.value)||3,
       };
     }
     window.csResetParams=function(){
       const el=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
       el('csZoneWin',10);el('csColdWin',20);el('csHaloB',12);el('csColdZoneB',10);el('csColdW',10);
+      el('csChainPen',0);el('csHaloDepth',1);el('csBonusW',0);el('csMinChain',3);
       document.getElementById('csZoneWinV').textContent='10';
       document.getElementById('csColdWinV').textContent='20';
       document.getElementById('csHaloBV').textContent='12';
       document.getElementById('csColdZoneBV').textContent='10';
       document.getElementById('csColdWV').textContent='1.0';
+      document.getElementById('csChainPenV').textContent='0';
+      document.getElementById('csHaloDepthV').textContent='1';
+      document.getElementById('csBonusWV').textContent='0';
+      document.getElementById('csMinChainV').textContent='3';
     };
     function csAlgo(draws,spots=7){
       if(!draws||draws.length<2)return [];
-      const{zoneWindow,coldWindow,haloBonus,coldZoneBonus,coldWeight}=csGetParams();
-      const chain=csMC(draws[draws.length-1].n);
-      const hSet=new Set(csHalo(chain));
-      // zone heat last zoneWindow draws
+      const{zoneWindow,coldWindow,haloBonus,coldZoneBonus,coldWeight,chainPenalty,haloDepth,bonusWeight,minChainSize}=csGetParams();
+      const lastDraw=draws[draws.length-1];
+      const chain=csMC(lastDraw.n);
+      const chainSet=new Set(chain);
+      // build halo up to haloDepth steps from chain
+      const haloSet=new Set();
+      let frontier=new Set(chain);
+      for(let d=0;d<haloDepth;d++){
+        const next=new Set();
+        for(const n of frontier) for(const nb of csGN(n)) if(!chainSet.has(nb)&&!haloSet.has(nb)) next.add(nb);
+        for(const n of next) haloSet.add(n);
+        frontier=next;
+      }
+      // bonus ball neighbors
+      const bonusSet=new Set();
+      if(bonusWeight>0&&lastDraw.b) for(const nb of csGN(lastDraw.b)) bonusSet.add(nb);
+      // zone heat: only draws where chain >= minChainSize
       const zh=[0,0,0];
       for(const d of draws.slice(-zoneWindow)){
         const m=csMC(d.n);
+        if(m.length<minChainSize) continue;
         const zavg=m.reduce((s,x)=>s+Math.floor((x-1)/10),0)/m.length;
         zh[zavg<3?0:zavg<6?1:2]++;
       }
@@ -2835,9 +2881,11 @@
       const scored=[];
       for(let n=1;n<=80;n++){
         const temp=csLS(n,draws,coldWindow);
-        const inHalo=hSet.has(n);
-        const inColdZone=coldZoneActive&&csZone(n)===cz;
-        const s=temp*coldWeight + (inHalo?haloBonus:0) + (inColdZone?coldZoneBonus:0);
+        const s=temp*coldWeight
+          +(haloSet.has(n)?haloBonus:0)
+          +(coldZoneActive&&csZone(n)===cz?coldZoneBonus:0)
+          -(chainSet.has(n)?chainPenalty:0)
+          +(bonusSet.has(n)?bonusWeight:0);
         scored.push([n,s]);
       }
       scored.sort((a,b)=>b[1]-a[1]);
