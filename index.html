@@ -3138,10 +3138,12 @@
     // Kick off preload immediately on script init
     setTimeout(()=>window.csLivePreload&&window.csLivePreload(),500);
     window.csOnNewDraw=function(draw){
-      const spots=7,pay=CS_PAY[7]||{};
+      const spots=parseInt(document.getElementById('csType')?.value)||7;
+      const pay=CS_PAY[spots]||{};
+      const mode=(document.querySelector('input[name="csMode"]:checked')?.value)||'C';
+      const modeLabel={A:'Α-Αλυσίδα',B:'Β-Καλύτερη',C:'Γ-ΚορυφαίοιΚ'}[mode];
       const el=document.getElementById('csLivePred');
       if(!el)return;
-      // Pre-seed history from cache if empty (needs 25 draws for algo)
       if(csHist.length===0&&_csDrawCache&&_csDrawCache.length>0){
         csHist=_csDrawCache.slice(-25).map(d=>({...d}));
       }
@@ -3165,7 +3167,9 @@
       const zone=zavg<3?'ΠΑΝΩ':zavg<6?'ΜΕΣΗ':'ΚΑΤΩ';
       const ticketHtml=csTicket.map(n=>`<span class="cs-num predict">${n}</span>`).join('');
       el.innerHTML=`${evalHtml}<div class="cs-live-box">
-        <div class="cs-live-title">Πρόβλεψη για #${draw.id+1}</div>
+        <div class="cs-live-title">Πρόβλεψη για #${draw.id+1}
+          <span style="font-size:0.65rem;font-weight:400;color:#a080d0;margin-left:8px">${spots}άρα · ${modeLabel}</span>
+        </div>
         <div style="font-size:0.72rem;color:#888;margin-bottom:6px">Αλυσίδα n=${chain.length} ${zone}: ${chain.join(', ')}</div>
         <div class="cs-nums">${ticketHtml}</div>
       </div>`;
