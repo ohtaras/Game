@@ -3409,11 +3409,20 @@
 
     window.dtTryLoad=function(){
       const d=_draws();
-      if(d.length>0){_dtIdx=d.length-1;_render();}
-      else{
-        const s=document.getElementById('dtLoadStatus');
-        if(s) s.textContent='⚠️ Τρέξτε πρώτα το Backtest για φόρτωση ιστορικού, ή περιμένετε live κλήρωση';
+      if(d.length>0){_dtIdx=d.length-1;_render();return;}
+      // Auto-load data (reuses csLoadAll which also fills _csDrawCache)
+      const s=document.getElementById('dtLoadStatus');
+      if(s&&s.dataset.loading) return;
+      if(typeof csLoadAll==='undefined'){
+        if(s) s.textContent='⚠️ Φόρτωση δεν είναι διαθέσιμη — ανανεώστε τη σελίδα';
+        return;
       }
+      if(s) s.dataset.loading='1';
+      csLoadAll(s||{set textContent(v){},get textContent(){return'';}}).then(()=>{
+        if(s) delete s.dataset.loading;
+        const d2=_draws();
+        if(d2.length>0){_dtIdx=d2.length-1;_render();}
+      });
     };
 
     // Called when new live draw arrives
