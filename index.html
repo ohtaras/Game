@@ -149,13 +149,44 @@
     .cs-badge-miss{color:#aaa;font-size:0.7rem;margin-left:4px;}
     .cs-summary-box{background:#f0fff8;border:1px solid #2a9d8f;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:0.82rem;}
     .cs-params-grid{display:grid;grid-template-columns:140px 1fr 36px auto;gap:6px 10px;align-items:center;margin:8px 0 4px;}
-    .cs-params-grid label{font-size:0.78rem;font-weight:600;color:#555;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px;}
-    .cs-params-grid input[type=range]{width:100%;accent-color:#4361ee;cursor:pointer;}
+    .cs-params-grid label{font-size:0.78rem;font-weight:600;color:#555;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px;}    .cs-params-grid input[type=range]{width:100%;accent-color:#4361ee;cursor:pointer;}
     .cs-params-grid .cs-pval{font-size:0.78rem;font-weight:700;color:#4361ee;text-align:center;min-width:28px;}
     .cs-params-grid .cs-phint{font-size:0.7rem;color:#aaa;white-space:nowrap;}
     .cs-tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#4361ee;color:#fff;border-radius:50%;font-size:0.6rem;font-weight:700;cursor:help;flex-shrink:0;}
     .cs-tip::after{content:attr(data-tip);position:absolute;right:0;bottom:calc(100% + 6px);background:#222;color:#fff;font-size:0.69rem;font-weight:400;padding:7px 10px;border-radius:7px;white-space:normal;width:210px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .15s;line-height:1.4;text-align:left;}
     .cs-tip:hover::after{opacity:1;}
+    /* ── Delay Panel ──────────────────────────────────────────── */
+    #delaySection{max-width:960px;margin:14px auto 0;padding:0 16px;}
+    #delaySection details{background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+    #delaySection summary{cursor:pointer;font-size:0.85rem;font-weight:600;color:#555;list-style:none;display:flex;align-items:center;gap:8px;}
+    #delaySection summary::-webkit-details-marker{display:none;}
+    .dt-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin:10px 0;}
+    .dt-cell{border-radius:6px;padding:5px 2px 3px;text-align:center;user-select:none;position:relative;}
+    .dt-cell.dt-pick{outline:2px solid #4361ee;outline-offset:1px;z-index:1;}
+    .dt-cell.dt-hit{outline:2px solid #2a9d8f;outline-offset:1px;z-index:1;}
+    .dt-cell.dt-pick.dt-hit{outline:2px solid #2a9d8f;box-shadow:0 0 0 3px #4361ee44;}
+    .dt-num{font-size:0.72rem;font-weight:700;line-height:1.1;}
+    .dt-delay{font-size:0.62rem;line-height:1.2;}
+    .dt-nav{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;}
+    .dt-nav button{padding:4px 12px;border-radius:6px;border:1.5px solid #ddd;background:#f5f5f5;cursor:pointer;font-size:0.82rem;font-weight:600;}
+    .dt-nav button:hover:not(:disabled){background:#e0e7ff;border-color:#4361ee;color:#4361ee;}
+    .dt-nav button:disabled{opacity:.3;cursor:default;}
+    .dt-nav .dt-livebtn{background:#e63946;color:#fff;border-color:#e63946;}
+    .dt-nav .dt-livebtn:hover{background:#c1121f;}
+    .dt-nav #dtDrawId{font-size:0.82rem;font-weight:700;color:#333;min-width:120px;text-align:center;}
+    .dt-pred-box{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 12px;margin:6px 0;}
+    .dt-pred-title{font-size:0.72rem;font-weight:700;color:#4361ee;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+    .dt-picks{display:flex;flex-wrap:wrap;gap:5px;}
+    .dt-pnum{display:inline-flex;flex-direction:column;align-items:center;background:#4361ee;color:#fff;border-radius:6px;padding:4px 7px;min-width:28px;}
+    .dt-pnum span{font-size:0.75rem;font-weight:700;}
+    .dt-pnum sub{font-size:0.55rem;opacity:.75;line-height:1;}
+    .dt-eval{margin-top:6px;}
+    .dt-eval-table{width:100%;border-collapse:collapse;font-size:0.74rem;margin-top:4px;}
+    .dt-eval-table th{background:#f5f5f5;padding:4px 8px;text-align:left;font-weight:600;color:#555;}
+    .dt-eval-table td{padding:3px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+    .dt-legend{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px;font-size:0.68rem;color:#666;}
+    .dt-legend-item{display:flex;align-items:center;gap:3px;}
+    .dt-legend-swatch{width:12px;height:12px;border-radius:3px;}
     .cs-live-box{background:#f8f4ff;border:1px solid #6a4c93;border-radius:8px;padding:10px 14px;margin-top:8px;}
     .cs-live-title{font-size:0.75rem;font-weight:700;color:#4a2c7a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
     .cs-nums{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;}
@@ -687,6 +718,31 @@
       <div id="csLiveStatus" style="font-size:0.72rem;color:#aaa;min-height:14px"></div>
       <div id="csLivePred"><div style="font-size:0.78rem;color:#aaa;font-style:italic">Εκκίνηση Live Monitor για ενεργοποίηση...</div></div>
     </details>
+  </details>
+</div>
+
+<div id="delaySection">
+  <details ontoggle="if(this.open)dtTryLoad()">
+    <summary>📊 Καθυστερήσεις Αριθμών &amp; Πρόβλεψη Γραμμής</summary>
+    <div id="dtLoadStatus" style="font-size:0.78rem;color:#888;min-height:16px;margin:4px 0"></div>
+    <div class="dt-legend">
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#fff;border:1px solid #ddd"></span>0</span>
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#bfdbfe"></span>1–3</span>
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#fde68a"></span>4–6</span>
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#fb923c"></span>7–9</span>
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#dc2626"></span>10+</span>
+      <span class="dt-legend-item" style="margin-left:8px"><span class="dt-legend-swatch" style="background:#fff;outline:2px solid #4361ee;outline-offset:1px"></span>πρόβλεψη</span>
+      <span class="dt-legend-item"><span class="dt-legend-swatch" style="background:#fff;outline:2px solid #2a9d8f;outline-offset:1px"></span>βγήκε</span>
+    </div>
+    <div class="dt-nav" id="dtNav" style="display:none">
+      <button id="dtPrevBtn" onclick="dtPrev()" title="Προηγούμενη κλήρωση">◀</button>
+      <span id="dtDrawId">—</span>
+      <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
+      <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
+    </div>
+    <div id="dtGrid" class="dt-grid"></div>
+    <div id="dtPred"></div>
+    <div id="dtEval"></div>
   </details>
 </div>
 
@@ -1897,6 +1953,7 @@
     liveLastDrawTime = time;
     if (ruleStats) renderStatsTable();
     if (window.csOnNewDraw) window.csOnNewDraw({id, time, n: nums, b: bonus});
+    if (window.dtOnNewDraw) window.dtOnNewDraw();
   }
 
   async function autoSaveLiveBuffer() {
@@ -3211,6 +3268,162 @@
       if (!d?.open) return;
       ctLoaded = false;
       await ctInit();
+    };
+  })();
+
+  // ── Delay Panel ────────────────────────────────────────────────────────────
+  (function(){
+    let _dtIdx=-1;
+
+    function _draws(){
+      if(typeof _csDrawCache!=='undefined'&&_csDrawCache&&_csDrawCache.length>0) return _csDrawCache;
+      if(typeof csHist!=='undefined'&&csHist&&csHist.length>0) return csHist;
+      return [];
+    }
+
+    function _delays(draws,idx){
+      const W=60,res={};
+      for(let n=1;n<=80;n++){
+        res[n]=W;
+        for(let i=idx;i>=Math.max(0,idx-W);i--){
+          if(draws[i].n.includes(n)){res[n]=idx-i;break;}
+        }
+      }
+      return res;
+    }
+
+    function _color(d){
+      if(d===0) return['#ffffff','#333'];
+      if(d<=3)  return['#bfdbfe','#1e3a5f'];
+      if(d<=6)  return['#fde68a','#7c4a00'];
+      if(d<=9)  return['#fb923c','#fff'];
+      return    ['#dc2626','#fff'];
+    }
+
+    function _algo(delays){
+      const ROWS=[
+        [71,72,73,74,75,76,77,78,79,80],
+        [61,62,63,64,65,66,67,68,69,70],
+        [51,52,53,54,55,56,57,58,59,60],
+        [41,42,43,44,45,46,47,48,49,50],
+        [31,32,33,34,35,36,37,38,39,40],
+        [21,22,23,24,25,26,27,28,29,30],
+        [11,12,13,14,15,16,17,18,19,20],
+        [1,2,3,4,5,6,7,8,9,10],
+      ];
+      const picks=[];
+      let target=1;
+      for(const row of ROWS){
+        let n=row.find(x=>delays[x]===target);
+        let used=target;
+        if(n===undefined){
+          used=1;
+          n=row.find(x=>delays[x]===1);
+        }
+        if(n!==undefined){picks.push({n,d:used});target=used+1;}
+        // if still undefined, skip row — target stays
+      }
+      return picks;
+    }
+
+    function _render(){
+      const draws=_draws();
+      const statusEl=document.getElementById('dtLoadStatus');
+      if(draws.length===0){
+        if(statusEl) statusEl.textContent='⚠️ Τρέξτε πρώτα το Backtest για φόρτωση ιστορικού';
+        return;
+      }
+      if(_dtIdx<0||_dtIdx>=draws.length) _dtIdx=draws.length-1;
+      const idx=_dtIdx, draw=draws[idx];
+      const delays=_delays(draws,idx);
+      const prediction=_algo(delays);
+      const ticket=prediction.map(p=>p.n);
+      const isLive=idx===draws.length-1;
+
+      if(statusEl) statusEl.textContent='';
+      document.getElementById('dtNav').style.display='';
+      document.getElementById('dtDrawId').textContent=`#${draw.id}${isLive?' 🔴':''}`;
+      document.getElementById('dtPrevBtn').disabled=idx<60;
+      document.getElementById('dtNextBtn').disabled=isLive;
+      document.getElementById('dtLiveBtn').style.visibility=isLive?'hidden':'visible';
+
+      // Grid (rows 1-10 at top, 71-80 at bottom)
+      let gh='';
+      for(let r=0;r<=7;r++){
+        for(let c=0;c<10;c++){
+          const n=r*10+c+1;
+          const d=delays[n];
+          const[bg,fg]=_color(d);
+          const isPick=ticket.includes(n);
+          const isHit=draw.n.includes(n);
+          gh+=`<div class="dt-cell${isPick?' dt-pick':''}${isHit?' dt-hit':''}" style="background:${bg};color:${fg}">
+            <div class="dt-num">${n}</div><div class="dt-delay">${d}</div></div>`;
+        }
+      }
+      document.getElementById('dtGrid').innerHTML=gh;
+
+      // Prediction box
+      const predEl=document.getElementById('dtPred');
+      if(prediction.length>0){
+        const ph=prediction.map(p=>`<span class="dt-pnum"><span>${p.n}</span><sub>${p.d}</sub></span>`).join('');
+        predEl.innerHTML=`<div class="dt-pred-box">
+          <div class="dt-pred-title">Πρόβλεψη για #${draw.id+1} (${prediction.length} αρ.) <span style="font-size:0.65rem;font-weight:400;color:#818cf8">— subscript=καθυστέρηση</span></div>
+          <div class="dt-picks">${ph}</div>
+        </div>`;
+      } else predEl.innerHTML='';
+
+      // Evaluation: next up to 10 draws
+      const evalEl=document.getElementById('dtEval');
+      const maxJ=Math.min(10,draws.length-idx-1);
+      if(maxJ>0&&ticket.length>0){
+        const spots=ticket.length;
+        const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
+        let rows='',totalPay=0,cost=maxJ*0.5;
+        for(let j=1;j<=maxJ;j++){
+          const nd=draws[idx+j];
+          const hits=ticket.filter(n=>nd.n.includes(n));
+          const p=pay[hits.length]||0;
+          totalPay+=p;
+          const badge=p>0?`<span class="cs-badge-win">${hits.length}/${spots} €${p}</span>`:`<span class="cs-badge-miss">${hits.length}/${spots}</span>`;
+          rows+=`<tr><td style="color:#888">#${nd.id}</td><td>${badge}</td>
+            <td><span class="numbers" style="display:inline-flex;flex-wrap:wrap;gap:2px">${ticket.map(n=>`<span class="${nd.n.includes(n)?'cs-hit':'cs-miss'}">${n}</span>`).join('')}</span></td></tr>`;
+        }
+        const profit=totalPay-cost;
+        evalEl.innerHTML=`<div class="dt-eval">
+          <div style="font-size:0.75rem;font-weight:700;color:#555;margin-bottom:4px">
+            Αξιολόγηση ${maxJ} κληρώσεων · Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · Κέρδος <strong style="color:${profit>=0?'#2a9d8f':'#e63946'}">${profit>=0?'+':''}€${profit.toFixed(1)}</strong>
+          </div>
+          <table class="dt-eval-table">
+            <thead><tr><th>#</th><th>Αποτέλεσμα</th><th>Δελτίο</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      } else {
+        evalEl.innerHTML=isLive?'<div style="font-size:0.74rem;color:#aaa;margin-top:4px">Αξιολόγηση θα εμφανιστεί με τις επόμενες live κληρώσεις</div>':'';
+      }
+    }
+
+    window.dtPrev=function(){if(_dtIdx>60){_dtIdx--;_render();}};
+    window.dtNext=function(){const d=_draws();if(_dtIdx<d.length-1){_dtIdx++;_render();}};
+    window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
+
+    window.dtTryLoad=function(){
+      const d=_draws();
+      if(d.length>0){_dtIdx=d.length-1;_render();}
+      else{
+        const s=document.getElementById('dtLoadStatus');
+        if(s) s.textContent='⚠️ Τρέξτε πρώτα το Backtest για φόρτωση ιστορικού, ή περιμένετε live κλήρωση';
+      }
+    };
+
+    // Called when new live draw arrives
+    window.dtOnNewDraw=function(){
+      const el=document.querySelector('#delaySection details');
+      if(!el?.open) return;
+      const d=_draws();
+      if(d.length===0) return;
+      if(_dtIdx<0||_dtIdx===d.length-2) _dtIdx=d.length-1;
+      _render();
     };
   })();
 
