@@ -3344,6 +3344,7 @@
 
     // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
     let _dtLive=[];
+    let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3448,34 +3449,53 @@
         </div>`;
       } else predEl.innerHTML='';
 
-      // Evaluation: current prediction vs next N draws (forward only)
+      // Record prediction in history (once per draw index)
+      if(ticket.length>0 && idx>=60 && !_predHistory.find(p=>p.drawIdx===idx)){
+        _predHistory.push({drawIdx:idx, drawId:draw.id, ticket:[...ticket]});
+        if(_predHistory.length>30) _predHistory.shift();
+      }
+
+      // Rolling evaluation table: each prediction × X forward draws
       const evalEl=document.getElementById('dtEval');
-      const evalRows=Math.max(1,Math.min(50,parseInt(document.getElementById('dtEvalRows')?.value)||8));
-      const maxJ=Math.min(evalRows, draws.length-idx-1);
-      if(idx>=60&&ticket.length>0){
-        const spots=ticket.length;
-        const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
-        let rows='',totalPay=0,cost=maxJ*0.5;
-        for(let j=1;j<=maxJ;j++){
-          const nd=draws[idx+j];
-          const hits=ticket.filter(n=>nd.n.includes(n)).length;
-          const p=pay[hits]||0;
-          totalPay+=p;
-          const bg=p>0?'#d1fae5':hits>=(spots/2)?'#fef9c3':'';
-          rows+=`<tr>
-            <td style="color:#888;font-size:0.7rem">+${j} #${nd.id}</td>
-            <td style="text-align:center;font-size:0.8rem;font-weight:${p>0?700:400};background:${bg};color:${p>0?'#059669':'#666'}">${hits}/${spots}${p>0?` €${p}`:''}</td>
-            <td><span style="display:inline-flex;flex-wrap:wrap;gap:2px">${ticket.map(n=>`<span style="padding:1px 4px;border-radius:3px;font-size:0.68rem;background:${nd.n.includes(n)?'#2a9d8f':'#eee'};color:${nd.n.includes(n)?'#fff':'#888'}">${n}</span>`).join('')}</span></td>
+      const evalRows=Math.max(1,Math.min(20,parseInt(document.getElementById('dtEvalRows')?.value)||8));
+      if(idx>=60 && _predHistory.length>0){
+        let hdr='<tr><th style="font-size:0.65rem;white-space:nowrap">Πρόβλεψη</th>';
+        for(let j=1;j<=evalRows;j++) hdr+=`<th style="font-size:0.65rem;text-align:center">+${j}</th>`;
+        hdr+='<th style="font-size:0.65rem;text-align:right">ROI</th></tr>';
+
+        let tbody='', grandPay=0, grandCost=0;
+        const histSlice=[..._predHistory].reverse().slice(0,15);
+        for(const e of histSlice){
+          const epay=(typeof CS_PAY!=='undefined'&&CS_PAY[e.ticket.length])||{};
+          const maxJ=Math.min(evalRows, draws.length-e.drawIdx-1);
+          let rowPay=0, cells='';
+          for(let j=1;j<=evalRows;j++){
+            if(j>draws.length-e.drawIdx-1){
+              cells+=`<td style="color:#ddd;text-align:center;font-size:0.7rem">·</td>`;
+            } else {
+              const nd=draws[e.drawIdx+j];
+              const hits=e.ticket.filter(n=>nd.n.includes(n)).length;
+              const p=epay[hits]||0;
+              rowPay+=p;
+              const bg=p>0?'background:#d1fae5':hits>=e.ticket.length/2?'background:#fef9c3':'';
+              cells+=`<td style="text-align:center;font-size:0.7rem;font-weight:${p>0?700:400};${bg};color:${p>0?'#059669':'#555'}">${hits}${p>0?`<br><span style="font-size:0.6rem">€${p}</span>`:''}</td>`;
+            }
+          }
+          grandPay+=rowPay;
+          grandCost+=maxJ*0.5;
+          const roi=maxJ>0?((rowPay-maxJ*0.5)/(maxJ*0.5)*100):0;
+          const roiColor=roi>=0?'#059669':'#e63946';
+          tbody+=`<tr>
+            <td style="font-size:0.63rem;color:#666;white-space:nowrap">→#${e.drawId+1}<br><span style="color:#999">${e.ticket.join(',')}</span></td>
+            ${cells}
+            <td style="text-align:right;font-size:0.68rem;color:${roiColor};font-weight:700">${roi>=0?'+':''}${roi.toFixed(0)}%</td>
           </tr>`;
         }
-        const profit=totalPay-cost;
-        const roi=cost>0?((profit/cost)*100):0;
-        const summary=maxJ>0
-          ?`Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · ROI <strong style="color:${roi>=0?'#059669':'#e63946'}">${roi>=0?'+':''}${roi.toFixed(0)}%</strong>`
-          :`<span style="color:#aaa">Αξιολόγηση θα εμφανιστεί με τις επόμενες live κληρώσεις</span>`;
+        const totalRoi=grandCost>0?((grandPay-grandCost)/grandCost*100):0;
+        const trColor=totalRoi>=0?'#059669':'#e63946';
         evalEl.innerHTML=`<div class="dt-eval">
-          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">Αξιολόγηση ${maxJ||''} επόμενων · ${summary}</div>
-          ${maxJ>0?`<table class="dt-eval-table"><thead><tr><th>#</th><th>Hits</th><th>Δελτίο</th></tr></thead><tbody>${rows}</tbody></table>`:''}
+          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">Rolling Αξιολόγηση · Συνολικό ROI: <strong style="color:${trColor}">${totalRoi>=0?'+':''}${totalRoi.toFixed(0)}%</strong></div>
+          <div style="overflow-x:auto"><table class="dt-eval-table"><thead>${hdr}</thead><tbody>${tbody}</tbody></table></div>
         </div>`;
       } else {
         evalEl.innerHTML='';
