@@ -739,6 +739,12 @@
       <span id="dtDrawId">—</span>
       <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
+      <label style="margin-left:12px;font-size:0.75rem;color:#666">Αξιολόγηση:
+        <input id="dtEvalCount" type="number" min="1" max="200" value="10"
+          style="width:52px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
+          onchange="dtRender()">
+        κλ.
+      </label>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -3377,7 +3383,8 @@
 
       // Evaluation: next up to 10 draws
       const evalEl=document.getElementById('dtEval');
-      const maxJ=Math.min(10,draws.length-idx-1);
+      const evalCount=Math.max(1,parseInt(document.getElementById('dtEvalCount')?.value)||10);
+      const maxJ=Math.min(evalCount,draws.length-idx-1);
       if(maxJ>0&&ticket.length>0){
         const spots=ticket.length;
         const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
@@ -3406,6 +3413,7 @@
       }
     }
 
+    window.dtRender=_render;
     window.dtPrev=function(){if(_dtIdx>60){_dtIdx--;_render();}};
     window.dtNext=function(){const d=_draws();if(_dtIdx<d.length-1){_dtIdx++;_render();}};
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
