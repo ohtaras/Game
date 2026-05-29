@@ -739,15 +739,11 @@
       <span id="dtDrawId">—</span>
       <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
-      <label style="margin-left:12px;font-size:0.75rem;color:#666">Γραμμές:
+      <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
-          style="width:40px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
+          style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
           onchange="dtRender()">
-      </label>
-      <label style="margin-left:8px;font-size:0.75rem;color:#666">×Επόμ.:
-        <input id="dtEvalCount" type="number" min="1" max="20" value="5"
-          style="width:40px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
-          onchange="dtRender()">
+        κλ.
       </label>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
@@ -3450,49 +3446,34 @@
         </div>`;
       } else predEl.innerHTML='';
 
-      // Multi-row rolling evaluation table
+      // Evaluation: current prediction vs next N draws (forward only)
       const evalEl=document.getElementById('dtEval');
-      const evalCols=Math.max(1,Math.min(20,parseInt(document.getElementById('dtEvalCount')?.value)||5));
       const evalRows=Math.max(1,Math.min(50,parseInt(document.getElementById('dtEvalRows')?.value)||8));
-      const rowStart=Math.max(60,idx-evalRows+1); // need ≥60 prior draws for delay calc
-      if(idx>=60){
-        // header
-        let th='<tr><th>#</th><th>Πρόβλεψη</th>';
-        for(let c=1;c<=evalCols;c++) th+=`<th style="min-width:28px">+${c}</th>`;
-        th+='</tr>';
-        let tbody='';
-        let totalPay=0,totalCost=0;
-        for(let r=rowStart;r<=idx;r++){
-          const rd=_delays(draws,r);
-          const rpred=_algo(rd);
-          const rtkt=rpred.map(p=>p.n);
-          const spots=rtkt.length;
-          const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
-          const isCurrent=(r===idx);
-          tbody+=`<tr style="${isCurrent?'background:#f0f4ff;font-weight:600':''}">`;
-          tbody+=`<td style="color:#888;font-size:0.7rem">#${draws[r].id}</td>`;
-          tbody+=`<td style="font-size:0.68rem;color:#555">${rtkt.join(' ')}</td>`;
-          for(let c=1;c<=evalCols;c++){
-            if(r+c>=draws.length){tbody+='<td style="color:#ccc">—</td>';continue;}
-            const nd=draws[r+c];
-            const hits=rtkt.filter(n=>nd.n.includes(n)).length;
-            const p=pay[hits]||0;
-            if(p>0){totalPay+=p;totalCost+=0.5;}
-            else if(r+c<draws.length){totalCost+=0.5;}
-            const bg=p>0?'#d1fae5':hits>=(spots/2)?'#fef9c3':'';
-            tbody+=`<td style="text-align:center;font-size:0.72rem;background:${bg};${p>0?'font-weight:700;color:#059669':'color:#666'}">${hits}${p>0?'✓':''}</td>`;
-          }
-          tbody+='</tr>';
+      const maxJ=Math.min(evalRows, draws.length-idx-1);
+      if(idx>=60&&ticket.length>0){
+        const spots=ticket.length;
+        const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
+        let rows='',totalPay=0,cost=maxJ*0.5;
+        for(let j=1;j<=maxJ;j++){
+          const nd=draws[idx+j];
+          const hits=ticket.filter(n=>nd.n.includes(n)).length;
+          const p=pay[hits]||0;
+          totalPay+=p;
+          const bg=p>0?'#d1fae5':hits>=(spots/2)?'#fef9c3':'';
+          rows+=`<tr>
+            <td style="color:#888;font-size:0.7rem">+${j} #${nd.id}</td>
+            <td style="text-align:center;font-size:0.8rem;font-weight:${p>0?700:400};background:${bg};color:${p>0?'#059669':'#666'}">${hits}/${spots}${p>0?` €${p}`:''}</td>
+            <td><span style="display:inline-flex;flex-wrap:wrap;gap:2px">${ticket.map(n=>`<span style="padding:1px 4px;border-radius:3px;font-size:0.68rem;background:${nd.n.includes(n)?'#2a9d8f':'#eee'};color:${nd.n.includes(n)?'#fff':'#888'}">${n}</span>`).join('')}</span></td>
+          </tr>`;
         }
-        const profit=totalPay-totalCost;
-        const roi=totalCost>0?((profit/totalCost)*100):0;
-        evalEl.innerHTML=`<div class="dt-eval" style="overflow-x:auto">
-          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">
-            Αξιολόγηση ${evalRows} προβλέψεων × ${evalCols} επόμενες ·
-            Κόστος €${totalCost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} ·
-            ROI <strong style="color:${roi>=0?'#059669':'#e63946'}">${roi>=0?'+':''}${roi.toFixed(0)}%</strong>
-          </div>
-          <table class="dt-eval-table"><thead>${th}</thead><tbody>${tbody}</tbody></table>
+        const profit=totalPay-cost;
+        const roi=cost>0?((profit/cost)*100):0;
+        const summary=maxJ>0
+          ?`Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · ROI <strong style="color:${roi>=0?'#059669':'#e63946'}">${roi>=0?'+':''}${roi.toFixed(0)}%</strong>`
+          :`<span style="color:#aaa">Αξιολόγηση θα εμφανιστεί με τις επόμενες live κληρώσεις</span>`;
+        evalEl.innerHTML=`<div class="dt-eval">
+          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">Αξιολόγηση ${maxJ||''} επόμενων · ${summary}</div>
+          ${maxJ>0?`<table class="dt-eval-table"><thead><tr><th>#</th><th>Hits</th><th>Δελτίο</th></tr></thead><tbody>${rows}</tbody></table>`:''}
         </div>`;
       } else {
         evalEl.innerHTML='';
