@@ -3492,9 +3492,7 @@
       if(cache&&cache.length>0){
         _dtIdx=_draws().length-1;_render();return;
       }
-      const d=_draws();
-      if(d.length>0){_dtIdx=d.length-1;_render();return;}
-      // Auto-load data (reuses csLoadAll which also fills _csDrawCache)
+      // Cache empty — must load from raw files
       const s=document.getElementById('dtLoadStatus');
       if(s&&s.dataset.loading) return;
       if(!window.csLoadAll){
