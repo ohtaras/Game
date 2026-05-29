@@ -3342,17 +3342,19 @@
   (function(){
     let _dtIdx=-1;
 
+    // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
+    let _dtLive=[];
+
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
-      const hist=(typeof csHist!=='undefined'&&csHist)||[];
       if(cache&&cache.length>0){
-        // Append any live draws newer than the cached data
+        // Append only verified live draws (added by dtOnNewDraw with real numbers)
         const lastId=cache[cache.length-1].id;
-        const extra=hist.filter(d=>d.id>lastId);
-        if(extra.length>0){extra.sort((a,b)=>a.id-b.id);cache.push(...extra);}
+        const extra=_dtLive.filter(d=>d.id>lastId);
+        if(extra.length>0) cache.push(...extra);
         return cache;
       }
-      return hist;
+      return _dtLive;
     }
 
     function _delays(draws,idx){
@@ -3507,26 +3509,18 @@
       });
     };
 
-    // Called when new live draw arrives
+    // Called when new live draw arrives — store in _dtLive (verified data only)
     window.dtOnNewDraw=function(draw){
-      // Always push the verified live draw directly into cache (bypasses merge gaps)
-      if(draw&&draw.id&&draw.n){
-        const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
-        if(cache){
-          const lastId=cache.length>0?cache[cache.length-1].id:0;
-          if(draw.id>lastId){
-            cache.push({id:draw.id,n:draw.n,b:draw.b||0});
-          } else if(draw.id===lastId){
-            // Overwrite last entry in case it had wrong data
-            cache[cache.length-1]={id:draw.id,n:draw.n,b:draw.b||0};
-          }
+      if(draw&&draw.id&&draw.n&&draw.n.length===20){
+        const lastLiveId=_dtLive.length?_dtLive[_dtLive.length-1].id:0;
+        if(draw.id>lastLiveId){
+          _dtLive.push({id:draw.id,n:draw.n,b:draw.b||0});
         }
       }
       const el=document.querySelector('#delaySection details');
       if(!el?.open) return;
       const d=_draws();
       if(d.length===0) return;
-      // Auto-advance if user was at live (within 1 of the end before new draw)
       if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
       _render();
     };
