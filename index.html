@@ -3445,22 +3445,43 @@
     window.dtNext=function(){const d=_draws();if(_dtIdx<d.length-1){_dtIdx++;_render();}};
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
 
-    window.dtTryLoad=function(){
+    async function _dtTopUp(){
+      // Fetch today's draws from OPAP to fill any gap after raw files
+      const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
+      if(!cache||cache.length===0) return;
+      try{
+        const lastId=cache[cache.length-1].id;
+        const now=new Date(Date.now()+3*3600000);
+        const ds=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const r=await apiFetch(`https://api.opap.gr/draws/v3.0/1100/draw-date/${ds}/${ds}?page=0&size=300`);
+        if(r?.content){
+          const fresh=r.content
+            .filter(item=>item.winningNumbers?.list&&item.drawId>lastId)
+            .map(item=>({id:item.drawId,n:item.winningNumbers.list.slice(0,20),b:item.winningNumbers.bonus?.[0]||0}));
+          if(fresh.length>0){fresh.sort((a,b)=>a.id-b.id);cache.push(...fresh);}
+        }
+      }catch(e){}
+    }
+
+    window.dtTryLoad=async function(){
       const d=_draws();
-      if(d.length>0){_dtIdx=d.length-1;_render();return;}
+      if(d.length>0){
+        await _dtTopUp();
+        _dtIdx=_draws().length-1;_render();return;
+      }
       // Auto-load data (reuses csLoadAll which also fills _csDrawCache)
       const s=document.getElementById('dtLoadStatus');
       if(s&&s.dataset.loading) return;
-      if(typeof csLoadAll==='undefined'){
+      if(!window.csLoadAll){
         if(s) s.textContent='⚠️ Φόρτωση δεν είναι διαθέσιμη — ανανεώστε τη σελίδα';
         return;
       }
       if(s) s.dataset.loading='1';
-      csLoadAll(s||{set textContent(v){},get textContent(){return'';}}).then(()=>{
-        if(s) delete s.dataset.loading;
-        const d2=_draws();
-        if(d2.length>0){_dtIdx=d2.length-1;_render();}
-      });
+      await window.csLoadAll(s||{set textContent(v){},get textContent(){return'';}});
+      if(s) delete s.dataset.loading;
+      await _dtTopUp();
+      const d2=_draws();
+      if(d2.length>0){_dtIdx=d2.length-1;_render();}
     };
 
     // Called when new live draw arrives
