@@ -857,6 +857,14 @@
   }
   updateTokenStatus();
 
+  // Auto-start if token exists (after DOM is ready)
+  setTimeout(function(){
+    if (localStorage.getItem('gh_token') && !autoUpdateRunning) {
+      toggleAutoUpdate();   // Start auto-fetch loop (Auto: ON)
+      startupGapFill();     // Fill any missing draws from last 3 days
+    }
+  }, 1500);
+
   // ── GitHub helpers ────────────────────────────────────────────
   function ghHeaders(){
     return {
@@ -1175,6 +1183,57 @@
   let autoUpdateTimer = null;
   let autoCountdownTimer = null;
   let autoUpdateRunning = false;
+
+  // ── Startup gap-fill: fetch missing draws for last N days ──────────────────
+  async function startupGapFill() {
+    if (!localStorage.getItem('gh_token')) return;
+    const st = document.getElementById('status');
+    const now = new Date(Date.now() + 3*3600000);
+    // Check last 3 days to catch any missed draws
+    const days = [];
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(now - i*86400000);
+      days.push(`${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${d.getUTCDate().toString().padStart(2,'0')}`);
+    }
+    try {
+      // Collect all new draws across the days
+      const allItems = [];
+      for (const ds of days) {
+        try { allItems.push(...await fetchDaySeq(ds,'',10)); } catch(_){}
+      }
+      if (!allItems.length) return;
+      // Group by month and save
+      const byMonth = {};
+      for (const item of allItems) {
+        if (!item.winningNumbers?.list?.length) continue;
+        const draw = {id:item.drawId, n:[...item.winningNumbers.list].sort((a,b)=>a-b), b:(item.winningNumbers.bonus||[])[0]||null};
+        const now2 = new Date(Date.now()+3*3600000);
+        // Determine month from draw date (use item.drawTime if available, else estimate)
+        const dt = item.drawTime ? new Date(item.drawTime) : now2;
+        const mStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}`;
+        if (!byMonth[mStr]) byMonth[mStr] = [];
+        byMonth[mStr].push(draw);
+      }
+      let totalNew = 0;
+      for (const [mStr, draws] of Object.entries(byMonth)) {
+        const [y, m] = mStr.split('-');
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const exArr = existing?.draws || [];
+        const exIds = new Set(exArr.map(d => d.id));
+        const newOnes = draws.filter(d => !exIds.has(d.id));
+        if (!newOnes.length) continue;
+        const merged = [...exArr, ...newOnes].sort((a,b)=>a.id-b.id);
+        await ghPut(`data/raw/kino_raw_${y}_${m}.json`, {month:mStr, draws:merged}, `Startup gap-fill: +${newOnes.length}`);
+        totalNew += newOnes.length;
+        const lrd = document.getElementById('lastRawDraw');
+        lrd.style.display='inline'; lrd.textContent=`📥 raw: #${merged[merged.length-1].id}`;
+      }
+      if (totalNew > 0)
+        st.textContent = `✅ Startup: +${totalNew} κενές κληρώσεις αποθηκεύτηκαν`;
+    } catch(e) {
+      console.warn('startupGapFill:', e.message);
+    }
+  }
 
   function toggleAutoUpdate() {
     const btn = document.getElementById('btnAutoUpdate');
