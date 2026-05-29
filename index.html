@@ -3289,9 +3289,15 @@
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
-      if(cache&&cache.length>0) return cache;
-      if(typeof csHist!=='undefined'&&csHist&&csHist.length>0) return csHist;
-      return [];
+      const hist=(typeof csHist!=='undefined'&&csHist)||[];
+      if(cache&&cache.length>0){
+        // Append any live draws newer than the cached data
+        const lastId=cache[cache.length-1].id;
+        const extra=hist.filter(d=>d.id>lastId);
+        if(extra.length>0){extra.sort((a,b)=>a.id-b.id);cache.push(...extra);}
+        return cache;
+      }
+      return hist;
     }
 
     function _delays(draws,idx){
