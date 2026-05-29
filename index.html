@@ -3120,6 +3120,8 @@
       statusEl.textContent=draws.length>0?`✅ ${draws.length.toLocaleString()} κληρώσεις`:`❌ Αποτυχία φόρτωσης (${ok}/${months.length} μήνες OK) — ελέγξτε σύνδεση`;
       return draws;
     }
+    window.csLoadAll=csLoadAll;
+    window._csDrawCacheRef=function(){return _csDrawCache;};
 
     window.runChainSim = async function(){
       const startId=parseInt(document.getElementById('csStartId').value)||null;
@@ -3276,7 +3278,8 @@
     let _dtIdx=-1;
 
     function _draws(){
-      if(typeof _csDrawCache!=='undefined'&&_csDrawCache&&_csDrawCache.length>0) return _csDrawCache;
+      const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
+      if(cache&&cache.length>0) return cache;
       if(typeof csHist!=='undefined'&&csHist&&csHist.length>0) return csHist;
       return [];
     }
