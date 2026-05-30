@@ -740,12 +740,22 @@
       <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
       <button id="dtDirBtn" onclick="dtToggleDir()" style="margin-left:10px;font-size:0.72rem;padding:3px 8px;border:1px solid #a5b4fc;border-radius:6px;background:#eef2ff;color:#4338ca;cursor:pointer" title="Εναλλαγή κατεύθυνσης αλγόριθμου">▼ 71→1</button>
+      <button id="dtDistBtn" onclick="dtToggleDist()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #6ee7b7;border-radius:6px;background:#ecfdf5;color:#065f46;cursor:pointer" title="Κατανομή καθυστέρησης">🎯 Κατανομή</button>
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
           onchange="dtRender()">
         κλ.
       </label>
+    </div>
+    <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-weight:600;margin-right:4px">Κατανομή:</span>
+      <label>Delay 0: <input type="number" id="dtD0" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
+      <label style="margin-left:8px">Delay 1: <input type="number" id="dtD1" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
+      <label style="margin-left:8px">Delay 2: <input type="number" id="dtD2" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
+      <label style="margin-left:8px">Delay 3: <input type="number" id="dtD3" min="0" max="20" value="1" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
+      <label style="margin-left:8px">Delay 4+: <input type="number" id="dtD4" min="0" max="20" value="1" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
+      <span id="dtDistTotal" style="margin-left:12px;color:#374151">Σύνολο: <strong>8</strong></span>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -3347,6 +3357,8 @@
     let _dtLive=[];
     let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
     let _algoReverse=false; // false=71→1 (default), true=1→71
+    let _distMode=false;   // distribution-based prediction mode
+    let _distCfg=[2,2,2,1,1]; // how many from delay 0,1,2,3,4+
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3405,6 +3417,22 @@
       return picks;
     }
 
+    function _algoDist(delays){
+      const picks=[];
+      for(let gi=0;gi<5;gi++){
+        const count=_distCfg[gi];
+        if(count<=0) continue;
+        const candidates=[];
+        for(let n=1;n<=80;n++){
+          if(gi===4? delays[n]>=4 : delays[n]===gi) candidates.push(n);
+        }
+        candidates.sort((a,b)=>a-b);
+        for(let i=0;i<count&&i<candidates.length;i++)
+          picks.push({n:candidates[i], d:delays[candidates[i]]});
+      }
+      return picks;
+    }
+
     function _render(){
       const draws=_draws();
       const statusEl=document.getElementById('dtLoadStatus');
@@ -3415,7 +3443,7 @@
       if(_dtIdx<0||_dtIdx>=draws.length) _dtIdx=draws.length-1;
       const idx=_dtIdx, draw=draws[idx];
       const delays=_delays(draws,idx);
-      const prediction=_algo(delays);
+      const prediction=_distMode?_algoDist(delays):_algo(delays);
       const ticket=prediction.map(p=>p.n);
       const isLive=idx===draws.length-1;
 
@@ -3510,9 +3538,35 @@
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
     window.dtToggleDir=function(){
       _algoReverse=!_algoReverse;
-      _predHistory=[]; // clear history — new direction = new series
+      _predHistory=[];
       const btn=document.getElementById('dtDirBtn');
       if(btn) btn.textContent=_algoReverse?'▲ 1→71':'▼ 71→1';
+      _render();
+    };
+    window.dtToggleDist=function(){
+      _distMode=!_distMode;
+      _predHistory=[];
+      const btn=document.getElementById('dtDistBtn');
+      const cfg=document.getElementById('dtDistCfg');
+      if(btn){btn.style.background=_distMode?'#6ee7b7':'#ecfdf5';btn.style.fontWeight=_distMode?'700':'400';}
+      if(cfg) cfg.style.display=_distMode?'flex':'none';
+      // Disable dir button when in dist mode
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode;
+      _render();
+    };
+    window.dtDistChange=function(){
+      _distCfg=[
+        Math.max(0,parseInt(document.getElementById('dtD0')?.value)||0),
+        Math.max(0,parseInt(document.getElementById('dtD1')?.value)||0),
+        Math.max(0,parseInt(document.getElementById('dtD2')?.value)||0),
+        Math.max(0,parseInt(document.getElementById('dtD3')?.value)||0),
+        Math.max(0,parseInt(document.getElementById('dtD4')?.value)||0),
+      ];
+      const total=_distCfg.reduce((a,b)=>a+b,0);
+      const el=document.getElementById('dtDistTotal');
+      if(el) el.innerHTML=`Σύνολο: <strong>${total}</strong>`;
+      _predHistory=[];
       _render();
     };
 
