@@ -750,17 +750,21 @@
     </div>
     <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:4px 8px;align-items:center">
       <span style="font-weight:600;margin-right:4px">Κατανομή:</span>
-      <label>0: <input type="number" id="dtD0" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
-      <label>1: <input type="number" id="dtD1" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
-      <label>2: <input type="number" id="dtD2" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>0: <input type="number" id="dtD0" min="0" max="20" value="3" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>1: <input type="number" id="dtD1" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>2: <input type="number" id="dtD2" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <label>3: <input type="number" id="dtD3" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
-      <label>4: <input type="number" id="dtD4" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
-      <label>5: <input type="number" id="dtD5" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>4: <input type="number" id="dtD4" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>5: <input type="number" id="dtD5" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <label>6: <input type="number" id="dtD6" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <label>7: <input type="number" id="dtD7" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <label>8: <input type="number" id="dtD8" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <label>9+: <input type="number" id="dtD9" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
       <span id="dtDistTotal" style="margin-left:8px;color:#374151">Σύνολο: <strong>8</strong></span>
+      <div style="width:100%;margin-top:4px;display:flex;gap:6px">
+        <button onclick="dtPreset8()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #6ee7b7;border-radius:4px;background:#d1fae5;cursor:pointer;font-weight:600">Preset 8αρι ★</button>
+        <button id="dtPreset4Btn" onclick="dtPreset4()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #a5b4fc;border-radius:4px;background:#ede9fe;cursor:pointer" title="Βέλτιστο 4αρι — θα ενημερωθεί μετά το backtest">Preset 4αρι ★</button>
+      </div>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -3363,7 +3367,7 @@
     let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
     let _algoReverse=false; // false=71→1 (default), true=1→71
     let _distMode=false;   // distribution-based prediction mode
-    let _distCfg=[2,2,1,1,1,1,0,0,0,0]; // how many from delay 0,1,2,3,4,5,6,7,8,9+
+    let _distCfg=[3,0,2,1,0,2,0,0,0,0]; // best 8-spot: 3×d0, 2×d2, 1×d3, 2×d5
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3589,6 +3593,14 @@
       _predHistory=[];
       _render();
     };
+
+    function _applyPreset(cfg){
+      cfg.forEach((v,i)=>{const el=document.getElementById('dtD'+i);if(el)el.value=v;});
+      window.dtDistChange();
+    }
+    window.dtPreset8=function(){ _applyPreset([3,0,2,1,0,2,0,0,0,0]); };
+    // Preset 4 will be set once backtest completes; placeholder until then
+    window.dtPreset4=function(){ _applyPreset([0,1,2,0,0,0,1,0,0,0]); };
 
     window.dtTryLoad=function(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
