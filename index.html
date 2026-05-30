@@ -739,6 +739,7 @@
       <span id="dtDrawId">—</span>
       <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
+      <button id="dtDirBtn" onclick="dtToggleDir()" style="margin-left:10px;font-size:0.72rem;padding:3px 8px;border:1px solid #a5b4fc;border-radius:6px;background:#eef2ff;color:#4338ca;cursor:pointer" title="Εναλλαγή κατεύθυνσης αλγόριθμου">▼ 71→1</button>
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3345,6 +3346,7 @@
     // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
     let _dtLive=[];
     let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
+    let _algoReverse=false; // false=71→1 (default), true=1→71
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3378,7 +3380,7 @@
     }
 
     function _algo(delays){
-      const ROWS=[
+      const ROWS_DESC=[
         [71,72,73,74,75,76,77,78,79,80],
         [61,62,63,64,65,66,67,68,69,70],
         [51,52,53,54,55,56,57,58,59,60],
@@ -3388,6 +3390,7 @@
         [11,12,13,14,15,16,17,18,19,20],
         [1,2,3,4,5,6,7,8,9,10],
       ];
+      const ROWS=_algoReverse?[...ROWS_DESC].reverse():ROWS_DESC;
       const picks=[];
       let target=1;
       for(const row of ROWS){
@@ -3398,7 +3401,6 @@
           n=row.find(x=>delays[x]===1);
         }
         if(n!==undefined){picks.push({n,d:used});target=used+1;}
-        // if still undefined, skip row — target stays
       }
       return picks;
     }
@@ -3506,6 +3508,13 @@
     window.dtPrev=function(){if(_dtIdx>60){_dtIdx--;_render();}};
     window.dtNext=function(){const d=_draws();if(_dtIdx<d.length-1){_dtIdx++;_render();}};
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
+    window.dtToggleDir=function(){
+      _algoReverse=!_algoReverse;
+      _predHistory=[]; // clear history — new direction = new series
+      const btn=document.getElementById('dtDirBtn');
+      if(btn) btn.textContent=_algoReverse?'▲ 1→71':'▼ 71→1';
+      _render();
+    };
 
     window.dtTryLoad=function(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
