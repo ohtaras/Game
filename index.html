@@ -3417,18 +3417,37 @@
       return picks;
     }
 
-    function _algoDist(delays){
-      const picks=[];
+    function _algoDist(delays, seed){
+      let s=seed|0;
+      function rng(){s=Math.imul(s,1664525)+1013904223|0;return(s>>>0)/4294967296;}
+      function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+      const picks=[], usedRows=new Set();
       for(let gi=0;gi<5;gi++){
         const count=_distCfg[gi];
         if(count<=0) continue;
-        const candidates=[];
+        // group candidates by row
+        const byRow={};
         for(let n=1;n<=80;n++){
-          if(gi===4? delays[n]>=4 : delays[n]===gi) candidates.push(n);
+          if(gi===4?delays[n]>=4:delays[n]===gi){
+            const r=Math.floor((n-1)/10);
+            if(!byRow[r]) byRow[r]=[];
+            byRow[r].push(n);
+          }
         }
-        candidates.sort((a,b)=>a-b);
-        for(let i=0;i<count&&i<candidates.length;i++)
-          picks.push({n:candidates[i], d:delays[candidates[i]]});
+        // prefer rows not yet used; shuffle within each priority tier
+        const unused=shuffle(Object.keys(byRow).map(Number).filter(r=>!usedRows.has(r)));
+        const used=shuffle(Object.keys(byRow).map(Number).filter(r=>usedRows.has(r)));
+        const rows=[...unused,...used];
+        let picked=0;
+        for(const r of rows){
+          if(picked>=count) break;
+          const cands=byRow[r];
+          const n=cands[Math.floor(rng()*cands.length)];
+          picks.push({n, d:delays[n]});
+          usedRows.add(r);
+          picked++;
+        }
       }
       return picks;
     }
@@ -3443,7 +3462,7 @@
       if(_dtIdx<0||_dtIdx>=draws.length) _dtIdx=draws.length-1;
       const idx=_dtIdx, draw=draws[idx];
       const delays=_delays(draws,idx);
-      const prediction=_distMode?_algoDist(delays):_algo(delays);
+      const prediction=_distMode?_algoDist(delays,draw.id):_algo(delays);
       const ticket=prediction.map(p=>p.n);
       const isLive=idx===draws.length-1;
 
