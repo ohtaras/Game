@@ -748,14 +748,19 @@
         κλ.
       </label>
     </div>
-    <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:6px;align-items:center">
+    <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:4px 8px;align-items:center">
       <span style="font-weight:600;margin-right:4px">Κατανομή:</span>
-      <label>Delay 0: <input type="number" id="dtD0" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
-      <label style="margin-left:8px">Delay 1: <input type="number" id="dtD1" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
-      <label style="margin-left:8px">Delay 2: <input type="number" id="dtD2" min="0" max="20" value="2" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
-      <label style="margin-left:8px">Delay 3: <input type="number" id="dtD3" min="0" max="20" value="1" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
-      <label style="margin-left:8px">Delay 4+: <input type="number" id="dtD4" min="0" max="20" value="1" style="width:36px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 3px" onchange="dtDistChange()"></label>
-      <span id="dtDistTotal" style="margin-left:12px;color:#374151">Σύνολο: <strong>8</strong></span>
+      <label>0: <input type="number" id="dtD0" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>1: <input type="number" id="dtD1" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>2: <input type="number" id="dtD2" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>3: <input type="number" id="dtD3" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>4: <input type="number" id="dtD4" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>5: <input type="number" id="dtD5" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>6: <input type="number" id="dtD6" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>7: <input type="number" id="dtD7" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>8: <input type="number" id="dtD8" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>9+: <input type="number" id="dtD9" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <span id="dtDistTotal" style="margin-left:8px;color:#374151">Σύνολο: <strong>8</strong></span>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -3358,7 +3363,7 @@
     let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
     let _algoReverse=false; // false=71→1 (default), true=1→71
     let _distMode=false;   // distribution-based prediction mode
-    let _distCfg=[2,2,2,1,1]; // how many from delay 0,1,2,3,4+
+    let _distCfg=[2,2,1,1,1,1,0,0,0,0]; // how many from delay 0,1,2,3,4,5,6,7,8,9+
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3423,19 +3428,18 @@
       function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
       const picks=[], usedRows=new Set();
-      for(let gi=0;gi<5;gi++){
+      // groups 0-8 = exact delay; group 9 = delay >= 9
+      for(let gi=0;gi<10;gi++){
         const count=_distCfg[gi];
         if(count<=0) continue;
-        // group candidates by row
         const byRow={};
         for(let n=1;n<=80;n++){
-          if(gi===4?delays[n]>=4:delays[n]===gi){
+          if(gi===9?delays[n]>=9:delays[n]===gi){
             const r=Math.floor((n-1)/10);
             if(!byRow[r]) byRow[r]=[];
             byRow[r].push(n);
           }
         }
-        // prefer rows not yet used; shuffle within each priority tier
         const unused=shuffle(Object.keys(byRow).map(Number).filter(r=>!usedRows.has(r)));
         const used=shuffle(Object.keys(byRow).map(Number).filter(r=>usedRows.has(r)));
         const rows=[...unused,...used];
@@ -3575,13 +3579,10 @@
       _render();
     };
     window.dtDistChange=function(){
-      _distCfg=[
-        Math.max(0,parseInt(document.getElementById('dtD0')?.value)||0),
-        Math.max(0,parseInt(document.getElementById('dtD1')?.value)||0),
-        Math.max(0,parseInt(document.getElementById('dtD2')?.value)||0),
-        Math.max(0,parseInt(document.getElementById('dtD3')?.value)||0),
-        Math.max(0,parseInt(document.getElementById('dtD4')?.value)||0),
-      ];
+      _distCfg=[0,1,2,3,4,5,6,7,8,9].map(i=>{
+        const el=document.getElementById('dtD'+i);
+        return Math.max(0,parseInt(el?.value)||0);
+      });
       const total=_distCfg.reduce((a,b)=>a+b,0);
       const el=document.getElementById('dtDistTotal');
       if(el) el.innerHTML=`Σύνολο: <strong>${total}</strong>`;
