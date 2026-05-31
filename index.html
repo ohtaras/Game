@@ -742,7 +742,7 @@
       <button id="dtDirBtn" onclick="dtToggleDir()" style="margin-left:10px;font-size:0.72rem;padding:3px 8px;border:1px solid #a5b4fc;border-radius:6px;background:#eef2ff;color:#4338ca;cursor:pointer" title="Εναλλαγή κατεύθυνσης αλγόριθμου">▼ 71→1</button>
       <button id="dtDistBtn" onclick="dtToggleDist()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #6ee7b7;border-radius:6px;background:#ecfdf5;color:#065f46;cursor:pointer" title="Κατανομή καθυστέρησης">🎯 Κατανομή</button>
       <button id="dtSubtractBtn" onclick="dtToggleSubtract()" style="margin-left:4px;font-size:0.72rem;padding:3px 8px;border:1px solid #fcd34d;border-radius:6px;background:#fffbeb;color:#92400e;cursor:pointer" title="Αφαιρετική: αφαίρεσε όλα τα άλλα, παίξε τα υπόλοιπα">🔀 Αφαιρετική</button>
-      <input id="dtSubtractCount" type="number" min="3" max="12" value="8" onchange="if(window._subtractModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #fcd34d;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#92400e" title="Πόσους αριθμούς από τα υπόλοιπα (3-12)">
+      <input id="dtSubtractCount" type="number" min="1" max="12" value="8" onchange="if(window._subtractModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #fcd34d;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#92400e" title="Πόσους αριθμούς από τα υπόλοιπα (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3570,7 +3570,7 @@
           remainder.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
       }
       remainder.sort((a,b)=>b.d-a.d||(b.hot-a.hot));
-      const pickN=Math.max(3,Math.min(12,parseInt(document.getElementById('dtSubtractCount')?.value)||8));
+      const pickN=Math.max(1,Math.min(12,parseInt(document.getElementById('dtSubtractCount')?.value)||8));
       return {picks:remainder.slice(0,pickN), excludedCount:excluded.size, remainCount:remainder.length};
     }
 
