@@ -743,6 +743,9 @@
       <button id="dtDistBtn" onclick="dtToggleDist()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #6ee7b7;border-radius:6px;background:#ecfdf5;color:#065f46;cursor:pointer" title="Κατανομή καθυστέρησης">🎯 Κατανομή</button>
       <button id="dtSubtractBtn" onclick="dtToggleSubtract()" style="margin-left:4px;font-size:0.72rem;padding:3px 8px;border:1px solid #fcd34d;border-radius:6px;background:#fffbeb;color:#92400e;cursor:pointer" title="Αφαιρετική: αφαίρεσε όλα τα άλλα, παίξε τα υπόλοιπα">🔀 Αφαιρετική</button>
       <input id="dtSubtractCount" type="number" min="1" max="12" value="8" onchange="if(window._subtractModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #fcd34d;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#92400e" title="Πόσους αριθμούς από τα υπόλοιπα (1-12)">
+      <button id="dtSubtract2Btn" onclick="dtToggleSubtract2()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Αφαιρετική 2: αφαιρεί ΟΛΑ όσα δοκιμάσαμε + τυχαία από remainder">🎲 Αφαιρετική 2</button>
+      <input id="dtSubtract2Count" type="number" min="1" max="12" value="8" onchange="if(window._subtract2ModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #c084fc;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#6b21a8" title="Πόσους αριθμούς (1-12)">
+      <button id="dtRerollBtn" onclick="dtReroll()" style="margin-left:3px;font-size:0.72rem;padding:3px 6px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Νέα τυχαία πρόβλεψη (μόνο σε Αφαιρετική 2)">↻</button>
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3370,6 +3373,8 @@
     let _algoReverse=false; // false=71→1 (default), true=1→71
     let _distMode=false;     // distribution-based prediction mode
     let _subtractMode=false; // subtractive: exclude all algo predictions, pick from remainder
+    let _subtract2Mode=false; // subtractive 2: exclude EVERYTHING tested + random from remainder
+    let _subtract2Seed=Date.now(); // re-roll seed for random pick
     let _distCfg=[3,0,2,1,0,2,0,0,0,0]; // best 8-spot: 3×d0, 2×d2, 1×d3, 2×d5
 
     function _draws(){
@@ -3574,6 +3579,119 @@
       return {picks:remainder.slice(0,pickN), excludedCount:excluded.size, remainCount:remainder.length};
     }
 
+    // Αφαιρετική 2: αφαιρεί ΟΛΑ όσα έχουμε δοκιμάσει στο thread + τυχαία από remainder
+    // (το random αποδείχτηκε καλύτερο από όλες τις στοχευμένες στρατηγικές στο 6+/8 backtest)
+    function _algoSubtractive2(delays, draw){
+      const excluded=new Set();
+      const hour=new Date().getHours();
+
+      // 1. Αφαιρετική 1 — όλα όσα αφαιρεί + το ίδιο το αποτέλεσμα
+      const sub1=_algoSubtractive(delays, draw);
+      sub1.picks.forEach(p=>excluded.add(p.n));
+
+      // 2. _algo και στις δύο κατευθύνσεις (hot/cold by row score)
+      const savedRev=_algoReverse;
+      _algoReverse=false; _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=true;  _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=savedRev;
+
+      // 3. ΟΛΕΣ οι distribution παραλλαγές (presets)
+      const savedCfg=[..._distCfg];
+      const presets=[
+        [3,0,2,1,0,2,0,0,0,0], // app default (8αρι)
+        [0,1,2,0,0,0,1,0,0,0], // 4αρι
+        [8,0,0,0,0,0,0,0,0,0], // pure hot
+        [0,0,0,0,0,0,0,0,0,8], // pure cold
+        [2,2,2,2,0,0,0,0,0,0], // bottom half
+        [0,0,0,0,2,2,2,2,0,0], // mid
+        [1,1,1,1,1,1,1,1,0,0], // uniform low
+        [0,0,1,1,1,1,1,1,1,1], // uniform high
+      ];
+      for(const cfg of presets){
+        _distCfg=cfg;
+        _algoDist(delays, draw.id).forEach(p=>excluded.add(p.n));
+      }
+      _distCfg=savedCfg;
+
+      // 4. Hour bias — όλα τα top hot/cold numbers για ΟΛΕΣ τις ώρες
+      for(let n=1;n<=80;n++){
+        if(TIME_BIAS[n]) excluded.add(n);
+      }
+
+      // 5. Top 8 by delay (cold) και bottom 8 (hot)
+      const byDelay=[];
+      for(let n=1;n<=80;n++) byDelay.push({n, d:delays[n]});
+      byDelay.sort((a,b)=>b.d-a.d);
+      byDelay.slice(0,8).forEach(p=>excluded.add(p.n)); // top cold
+      byDelay.slice(-8).forEach(p=>excluded.add(p.n)); // top hot
+
+      // 6. OFFSET_RULES από όλα τα toroidal squares
+      const squares=findTorSquares(draw.n);
+      for(const sq of squares){
+        getOffsetPreds(sq.root).forEach(r=>r.numbers.forEach(n=>excluded.add(n)));
+      }
+
+      // 7. Chain numbers — όλοι οι αριθμοί που σχηματίζουν αλυσίδες ≥6 στο τρέχον draw
+      if(typeof findChains==='function'){
+        try{
+          const chains=findChains(draw.n);
+          for(const ch of (chains||[])){
+            if(ch && ch.length>=6) ch.forEach(n=>excluded.add(n));
+          }
+        }catch(e){}
+      }
+
+      // 8. Adjacent (grid-neighbor) numbers του τρέχοντος draw — pair correlations
+      for(const n of draw.n){
+        const r=Math.floor((n-1)/10), c=(n-1)%10;
+        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0) continue;
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0&&nr<8&&nc>=0&&nc<10){
+            excluded.add(nr*10+nc+1);
+          }
+        }
+      }
+
+      // 9. Column extremes — top 2 columns με highest avg delay (cold zones)
+      const colDelay=[];
+      for(let c=0;c<10;c++){
+        let s=0; for(let r=0;r<8;r++) s+=delays[r*10+c+1];
+        colDelay.push({c, avg:s/8});
+      }
+      colDelay.sort((a,b)=>b.avg-a.avg);
+      for(let r=0;r<8;r++){
+        excluded.add(r*10+colDelay[0].c+1);
+        excluded.add(r*10+colDelay[1].c+1);
+      }
+
+      // 10. Random από remainder (BLAS-style: το random αποδείχτηκε καλύτερο)
+      const remainder=[];
+      for(let n=1;n<=80;n++){
+        if(!excluded.has(n)) remainder.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+
+      // Seeded random shuffle (so it's reproducible per draw, but re-rollable)
+      const seed=_subtract2Seed ^ draw.id;
+      let s=seed;
+      const rng=()=>{ s=(s*1664525+1013904223)|0; return ((s>>>0)/4294967296); };
+      for(let i=remainder.length-1;i>0;i--){
+        const j=Math.floor(rng()*(i+1));
+        [remainder[i],remainder[j]]=[remainder[j],remainder[i]];
+      }
+
+      const pickN=Math.max(1,Math.min(12,parseInt(document.getElementById('dtSubtract2Count')?.value)||8));
+
+      // If remainder too small, fill randomly from anywhere not yet picked
+      const picks=remainder.slice(0, pickN);
+      while(picks.length<pickN){
+        const n=Math.floor(rng()*80)+1;
+        if(!picks.find(p=>p.n===n)) picks.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+
+      return {picks, excludedCount:excluded.size, remainCount:remainder.length};
+    }
+
     function _render(){
       const draws=_draws();
       const statusEl=document.getElementById('dtLoadStatus');
@@ -3585,7 +3703,8 @@
       const idx=_dtIdx, draw=draws[idx];
       const delays=_delays(draws,idx);
       let prediction, _subInfo=null;
-      if(_subtractMode){const res=_algoSubtractive(delays,draw);prediction=res.picks;_subInfo=res;}
+      if(_subtract2Mode){const res=_algoSubtractive2(delays,draw);prediction=res.picks;_subInfo={...res, mode:2};}
+      else if(_subtractMode){const res=_algoSubtractive(delays,draw);prediction=res.picks;_subInfo=res;}
       else if(_distMode) prediction=_algoDist(delays,draw.id);
       else prediction=_algo(delays);
       const ticket=prediction.map(p=>p.n);
@@ -3617,10 +3736,11 @@
       const predEl=document.getElementById('dtPred');
       if(prediction.length>0){
         const now=new Date();
-        const timeLabel=(_distMode||_subtractMode)?` · ⏰ ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`:'';
-        const subLabel=_subInfo?` <span style="font-size:0.63rem;color:#92400e;font-weight:500">[${_subInfo.excludedCount} αφαιρέθηκαν · ${_subInfo.remainCount} έμειναν]</span>`:'';
+        const timeLabel=(_distMode||_subtractMode||_subtract2Mode)?` · ⏰ ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`:'';
+        const subLabelColor=_subInfo&&_subInfo.mode===2?'#6b21a8':'#92400e';
+        const subLabel=_subInfo?` <span style="font-size:0.63rem;color:${subLabelColor};font-weight:500">[${_subInfo.excludedCount} αφαιρέθηκαν · ${_subInfo.remainCount} έμειναν${_subInfo.mode===2?' · 🎲 random':''}]</span>`:'';
         const ph=prediction.map(p=>{
-          const hotScore=(_distMode||_subtractMode)&&p.hot!=null?p.hot:null;
+          const hotScore=(_distMode||_subtractMode||_subtract2Mode)&&p.hot!=null?p.hot:null;
           const hotBadge=hotScore!=null&&hotScore>50?`<sup style="color:#f59e0b;font-size:0.55rem">★</sup>`:hotScore!=null&&hotScore<-50?`<sup style="color:#94a3b8;font-size:0.55rem">↓</sup>`:'';
           return `<span class="dt-pnum"><span>${p.n}${hotBadge}</span><sub>${p.d}</sub></span>`;
         }).join('');
@@ -3694,31 +3814,49 @@
       if(btn) btn.textContent=_algoReverse?'▲ 1→71':'▼ 71→1';
       _render();
     };
+    function _clearOtherModes(except){
+      if(except!=='dist' && _distMode){_distMode=false;const db=document.getElementById('dtDistBtn');if(db){db.style.background='#ecfdf5';db.style.fontWeight='400';}const cfg=document.getElementById('dtDistCfg');if(cfg)cfg.style.display='none';}
+      if(except!=='sub' && _subtractMode){_subtractMode=false;window._subtractModeActive=false;const sb=document.getElementById('dtSubtractBtn');if(sb){sb.style.background='#fffbeb';sb.style.fontWeight='400';}}
+      if(except!=='sub2' && _subtract2Mode){_subtract2Mode=false;window._subtract2ModeActive=false;const sb=document.getElementById('dtSubtract2Btn');if(sb){sb.style.background='#faf5ff';sb.style.fontWeight='400';}}
+    }
     window.dtToggleDist=function(){
       _distMode=!_distMode;
-      if(_distMode){_subtractMode=false;const sb=document.getElementById('dtSubtractBtn');if(sb){sb.style.background='#fffbeb';sb.style.fontWeight='400';}}
+      if(_distMode) _clearOtherModes('dist');
       _predHistory=[];
       const btn=document.getElementById('dtDistBtn');
       const cfg=document.getElementById('dtDistCfg');
       if(btn){btn.style.background=_distMode?'#6ee7b7':'#ecfdf5';btn.style.fontWeight=_distMode?'700':'400';}
       if(cfg) cfg.style.display=_distMode?'flex':'none';
       const dir=document.getElementById('dtDirBtn');
-      if(dir) dir.disabled=_distMode||_subtractMode;
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
       _render();
     };
     window.dtToggleSubtract=function(){
       _subtractMode=!_subtractMode;
       window._subtractModeActive=_subtractMode;
-      if(_subtractMode){
-        _distMode=false;
-        const db=document.getElementById('dtDistBtn');if(db){db.style.background='#ecfdf5';db.style.fontWeight='400';}
-        const cfg=document.getElementById('dtDistCfg');if(cfg)cfg.style.display='none';
-      }
+      if(_subtractMode) _clearOtherModes('sub');
       _predHistory=[];
       const btn=document.getElementById('dtSubtractBtn');
       if(btn){btn.style.background=_subtractMode?'#fde68a':'#fffbeb';btn.style.fontWeight=_subtractMode?'700':'400';}
       const dir=document.getElementById('dtDirBtn');
-      if(dir) dir.disabled=_distMode||_subtractMode;
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
+      _render();
+    };
+    window.dtToggleSubtract2=function(){
+      _subtract2Mode=!_subtract2Mode;
+      window._subtract2ModeActive=_subtract2Mode;
+      if(_subtract2Mode){_clearOtherModes('sub2');_subtract2Seed=Date.now();}
+      _predHistory=[];
+      const btn=document.getElementById('dtSubtract2Btn');
+      if(btn){btn.style.background=_subtract2Mode?'#e9d5ff':'#faf5ff';btn.style.fontWeight=_subtract2Mode?'700':'400';}
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
+      _render();
+    };
+    window.dtReroll=function(){
+      if(!_subtract2Mode) return;
+      _subtract2Seed=Date.now()+Math.floor(Math.random()*1000000);
+      _predHistory=[];
       _render();
     };
     window.dtDistChange=function(){
