@@ -741,6 +741,7 @@
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
       <button id="dtDirBtn" onclick="dtToggleDir()" style="margin-left:10px;font-size:0.72rem;padding:3px 8px;border:1px solid #a5b4fc;border-radius:6px;background:#eef2ff;color:#4338ca;cursor:pointer" title="Εναλλαγή κατεύθυνσης αλγόριθμου">▼ 71→1</button>
       <button id="dtDistBtn" onclick="dtToggleDist()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #6ee7b7;border-radius:6px;background:#ecfdf5;color:#065f46;cursor:pointer" title="Κατανομή καθυστέρησης">🎯 Κατανομή</button>
+      <button id="dtSubtractBtn" onclick="dtToggleSubtract()" style="margin-left:4px;font-size:0.72rem;padding:3px 8px;border:1px solid #fcd34d;border-radius:6px;background:#fffbeb;color:#92400e;cursor:pointer" title="Αφαιρετική: αφαίρεσε όλα τα άλλα, παίξε τα υπόλοιπα">🔀 Αφαιρετική</button>
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3366,7 +3367,8 @@
     let _dtLive=[];
     let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
     let _algoReverse=false; // false=71→1 (default), true=1→71
-    let _distMode=false;   // distribution-based prediction mode
+    let _distMode=false;     // distribution-based prediction mode
+    let _subtractMode=false; // subtractive: exclude all algo predictions, pick from remainder
     let _distCfg=[3,0,2,1,0,2,0,0,0,0]; // best 8-spot: 3×d0, 2×d2, 1×d3, 2×d5
 
     function _draws(){
@@ -3543,6 +3545,33 @@
       return picks;
     }
 
+    function _algoSubtractive(delays, draw){
+      const excluded=new Set();
+      // Both algo directions
+      const savedRev=_algoReverse;
+      _algoReverse=false; _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=true;  _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=savedRev;
+      // Both dist presets (8αρι + 4αρι)
+      const savedCfg=[..._distCfg];
+      _distCfg=[3,0,2,1,0,2,0,0,0,0]; _algoDist(delays,draw.id).forEach(p=>excluded.add(p.n));
+      _distCfg=[0,1,2,0,0,0,1,0,0,0]; _algoDist(delays,draw.id).forEach(p=>excluded.add(p.n));
+      _distCfg=savedCfg;
+      // OFFSET_RULES (all 6 rules applied to each toroidal square root)
+      const squares=findTorSquares(draw.n);
+      for(const sq of squares)
+        getOffsetPreds(sq.root).forEach(r=>r.numbers.forEach(n=>excluded.add(n)));
+      // Remainder sorted by delay descending, pick top 8
+      const hour=new Date().getHours();
+      const remainder=[];
+      for(let n=1;n<=80;n++){
+        if(!excluded.has(n))
+          remainder.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+      remainder.sort((a,b)=>b.d-a.d||(b.hot-a.hot));
+      return {picks:remainder.slice(0,8), excludedCount:excluded.size, remainCount:remainder.length};
+    }
+
     function _render(){
       const draws=_draws();
       const statusEl=document.getElementById('dtLoadStatus');
@@ -3553,7 +3582,10 @@
       if(_dtIdx<0||_dtIdx>=draws.length) _dtIdx=draws.length-1;
       const idx=_dtIdx, draw=draws[idx];
       const delays=_delays(draws,idx);
-      const prediction=_distMode?_algoDist(delays,draw.id):_algo(delays);
+      let prediction, _subInfo=null;
+      if(_subtractMode){const res=_algoSubtractive(delays,draw);prediction=res.picks;_subInfo=res;}
+      else if(_distMode) prediction=_algoDist(delays,draw.id);
+      else prediction=_algo(delays);
       const ticket=prediction.map(p=>p.n);
       const isLive=idx===draws.length-1;
 
@@ -3583,14 +3615,15 @@
       const predEl=document.getElementById('dtPred');
       if(prediction.length>0){
         const now=new Date();
-        const timeLabel=_distMode?` · ⏰ ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} hot`:'';
+        const timeLabel=(_distMode||_subtractMode)?` · ⏰ ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`:'';
+        const subLabel=_subInfo?` <span style="font-size:0.63rem;color:#92400e;font-weight:500">[${_subInfo.excludedCount} αφαιρέθηκαν · ${_subInfo.remainCount} έμειναν]</span>`:'';
         const ph=prediction.map(p=>{
-          const hotScore=_distMode&&p.hot!=null?p.hot:null;
+          const hotScore=(_distMode||_subtractMode)&&p.hot!=null?p.hot:null;
           const hotBadge=hotScore!=null&&hotScore>50?`<sup style="color:#f59e0b;font-size:0.55rem">★</sup>`:hotScore!=null&&hotScore<-50?`<sup style="color:#94a3b8;font-size:0.55rem">↓</sup>`:'';
           return `<span class="dt-pnum"><span>${p.n}${hotBadge}</span><sub>${p.d}</sub></span>`;
         }).join('');
         predEl.innerHTML=`<div class="dt-pred-box">
-          <div class="dt-pred-title">Πρόβλεψη για #${draw.id+1} (${prediction.length} αρ.)${timeLabel} <span style="font-size:0.65rem;font-weight:400;color:#818cf8">— subscript=καθυστέρηση</span></div>
+          <div class="dt-pred-title">Πρόβλεψη για #${draw.id+1} (${prediction.length} αρ.)${timeLabel}${subLabel} <span style="font-size:0.65rem;font-weight:400;color:#818cf8">— subscript=καθυστέρηση</span></div>
           <div class="dt-picks">${ph}</div>
         </div>`;
       } else predEl.innerHTML='';
@@ -3661,14 +3694,28 @@
     };
     window.dtToggleDist=function(){
       _distMode=!_distMode;
+      if(_distMode){_subtractMode=false;const sb=document.getElementById('dtSubtractBtn');if(sb){sb.style.background='#fffbeb';sb.style.fontWeight='400';}}
       _predHistory=[];
       const btn=document.getElementById('dtDistBtn');
       const cfg=document.getElementById('dtDistCfg');
       if(btn){btn.style.background=_distMode?'#6ee7b7':'#ecfdf5';btn.style.fontWeight=_distMode?'700':'400';}
       if(cfg) cfg.style.display=_distMode?'flex':'none';
-      // Disable dir button when in dist mode
       const dir=document.getElementById('dtDirBtn');
-      if(dir) dir.disabled=_distMode;
+      if(dir) dir.disabled=_distMode||_subtractMode;
+      _render();
+    };
+    window.dtToggleSubtract=function(){
+      _subtractMode=!_subtractMode;
+      if(_subtractMode){
+        _distMode=false;
+        const db=document.getElementById('dtDistBtn');if(db){db.style.background='#ecfdf5';db.style.fontWeight='400';}
+        const cfg=document.getElementById('dtDistCfg');if(cfg)cfg.style.display='none';
+      }
+      _predHistory=[];
+      const btn=document.getElementById('dtSubtractBtn');
+      if(btn){btn.style.background=_subtractMode?'#fde68a':'#fffbeb';btn.style.fontWeight=_subtractMode?'700':'400';}
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode||_subtractMode;
       _render();
     };
     window.dtDistChange=function(){
