@@ -746,10 +746,12 @@
       <button id="dtSubtract2Btn" onclick="dtToggleSubtract2()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Αφαιρετική 2: αφαιρεί ΟΛΑ όσα δοκιμάσαμε + τυχαία από remainder">🎲 Αφαιρετική 2</button>
       <input id="dtSubtract2Count" type="number" min="1" max="12" value="8" onchange="if(window._subtract2ModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #c084fc;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#6b21a8" title="Πόσους αριθμούς (1-12)">
       <button id="dtRerollBtn" onclick="dtReroll()" style="margin-left:3px;font-size:0.72rem;padding:3px 6px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Νέα τυχαία πρόβλεψη (μόνο σε Αφαιρετική 2)">↻</button>
-      <button id="dtAlchemyBtn" onclick="dtOpenAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου + στιγμή">🔮 Αλχημία</button>
-      <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
-      <button id="dtEnsembleBtn" onclick="dtOpenEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 197 στατιστικά σήματα από 238K κληρώσεις">🎯 Ensemble</button>
-      <input id="dtEnsembleCount" type="number" min="1" max="12" value="8" style="width:38px;padding:2px 4px;border:1px solid #6366f1;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#3730a3" title="Πόσους αριθμούς (1-12)">
+      <button id="dtAlchemyBtn" onclick="dtToggleAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου (auto-evaluation στην επόμενη)">🔮 Αλχημία</button>
+      <button id="dtAlchemyInfoBtn" onclick="dtShowAlchemyInfo()" style="margin-left:1px;font-size:0.72rem;padding:3px 5px;border:1px solid #f472b6;border-radius:6px;background:#fff;color:#9d174b;cursor:pointer" title="Δες πηγές & λεπτομέρειες">ℹ️</button>
+      <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(window._alchemyMode)dtRender();if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
+      <button id="dtEnsembleBtn" onclick="dtToggleEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 197 στατιστικά σήματα · auto-evaluation στην επόμενη">🎯 Ensemble</button>
+      <button id="dtEnsembleInfoBtn" onclick="dtShowEnsembleInfo()" style="margin-left:1px;font-size:0.72rem;padding:3px 5px;border:1px solid #6366f1;border-radius:6px;background:#fff;color:#3730a3;cursor:pointer" title="Δες ενεργά σήματα & breakdown">ℹ️</button>
+      <input id="dtEnsembleCount" type="number" min="1" max="12" value="8" onchange="if(window._ensembleMode)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #6366f1;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#3730a3" title="Πόσους αριθμούς (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3379,6 +3381,8 @@
     let _subtractMode=false; // subtractive: exclude all algo predictions, pick from remainder
     let _subtract2Mode=false; // subtractive 2: exclude EVERYTHING tested + random from remainder
     let _subtract2Seed=Date.now(); // re-roll seed for random pick
+    let _ensembleMode=false; // Bayesian Ensemble auto-prediction mode (197 signals)
+    let _alchemyMode=false;  // Alchemy auto-prediction mode (live cosmic sources)
     let _distCfg=[3,0,2,1,0,2,0,0,0,0]; // best 8-spot: 3×d0, 2×d2, 1×d3, 2×d5
 
     function _draws(){
@@ -3710,6 +3714,8 @@
       if(_subtract2Mode){const res=_algoSubtractive2(delays,draw);prediction=res.picks;_subInfo={...res, mode:2};}
       else if(_subtractMode){const res=_algoSubtractive(delays,draw);prediction=res.picks;_subInfo=res;}
       else if(_distMode) prediction=_algoDist(delays,draw.id);
+      else if(_ensembleMode) prediction=_algoEnsembleSync(draws,idx,delays);
+      else if(_alchemyMode) prediction=_algoAlchemySync(draws,idx,delays);
       else prediction=_algo(delays);
       const ticket=prediction.map(p=>p.n);
       const isLive=idx===draws.length-1;
@@ -3822,6 +3828,8 @@
       if(except!=='dist' && _distMode){_distMode=false;const db=document.getElementById('dtDistBtn');if(db){db.style.background='#ecfdf5';db.style.fontWeight='400';}const cfg=document.getElementById('dtDistCfg');if(cfg)cfg.style.display='none';}
       if(except!=='sub' && _subtractMode){_subtractMode=false;window._subtractModeActive=false;const sb=document.getElementById('dtSubtractBtn');if(sb){sb.style.background='#fffbeb';sb.style.fontWeight='400';}}
       if(except!=='sub2' && _subtract2Mode){_subtract2Mode=false;window._subtract2ModeActive=false;const sb=document.getElementById('dtSubtract2Btn');if(sb){sb.style.background='#faf5ff';sb.style.fontWeight='400';}}
+      if(except!=='ens' && _ensembleMode){_ensembleMode=false;window._ensembleMode=false;const eb=document.getElementById('dtEnsembleBtn');if(eb){eb.style.background='#eef2ff';eb.style.fontWeight='400';}}
+      if(except!=='alch' && _alchemyMode){_alchemyMode=false;window._alchemyMode=false;const ab=document.getElementById('dtAlchemyBtn');if(ab){ab.style.background='#fdf2f8';ab.style.fontWeight='400';}}
     }
     window.dtToggleDist=function(){
       _distMode=!_distMode;
@@ -4282,15 +4290,7 @@
       return _ensembleMaster;
     }
 
-    async function _runEnsemble() {
-      const draws = _draws();
-      if (draws.length < 15) throw new Error('Χρειάζονται τουλάχιστον 15 κληρώσεις. Φορτώστε πρώτα το Backtest.');
-
-      const master = await _loadEnsembleMaster();
-      const idx = draws.length - 1;
-      const delays = _delays(draws, idx);
-
-      const now = new Date();
+    function _computeEnsemble(master, draws, idx, delays, now) {
       const hour = now.getHours();
       const dow = _DOW_NAMES[now.getDay()];
       const month = now.getMonth() + 1;
@@ -4508,6 +4508,55 @@
       return {scores, ranked, fired, ctx: {hour, dow, month, dom, lunarPhase, prevDrawId: draws[idx].id, totalSignals: seen.size}};
     }
 
+    async function _runEnsemble() {
+      const draws = _draws();
+      if (draws.length < 15) throw new Error('Χρειάζονται τουλάχιστον 15 κληρώσεις. Φορτώστε πρώτα το Backtest.');
+      const master = await _loadEnsembleMaster();
+      const idx = draws.length - 1;
+      const delays = _delays(draws, idx);
+      return _computeEnsemble(master, draws, idx, delays, new Date());
+    }
+
+    // Synchronous variant used by auto-prediction mode in _render()
+    function _algoEnsembleSync(draws, idx, delays) {
+      if (!_ensembleMaster) {
+        // Kick off async load; will re-render once ready
+        _loadEnsembleMaster().then(() => { if (_ensembleMode) _render(); }).catch(()=>{});
+        return [];
+      }
+      if (draws.length < 15) return [];
+      const result = _computeEnsemble(_ensembleMaster, draws, idx, delays, new Date());
+      const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtEnsembleCount')?.value)||8));
+      return result.ranked.filter(r => r.score > 0).slice(0, count).map(r => ({n: r.n, d: r.delay}));
+    }
+
+    // Synchronous variant for Alchemy mode (uses cached pool)
+    function _algoAlchemySync(draws, idx, delays) {
+      const cache = _getAlchemyCache();
+      if (!cache || !cache.pool || cache.pool.length === 0) {
+        // No cache → trigger async fetch (background); will re-render when ready
+        if (!window._alchemyFetching) {
+          window._alchemyFetching = true;
+          _fetchAlchemySources().then(result => {
+            window._alchemyFetching = false;
+            _setAlchemyCache({sources:result.sources, pool:result.pool, capturedAt:Date.now(), elapsed:result.elapsed});
+            if (_alchemyMode) _render();
+          }).catch(() => { window._alchemyFetching = false; });
+        }
+        return [];
+      }
+      const pool = [...cache.pool];
+      let s = cache.lockedFor || cache.capturedAt || Date.now();
+      const rng = () => { s = (s*1664525 + 1013904223) | 0; return ((s>>>0)/4294967296); };
+      for (let i = pool.length-1; i > 0; i--) {
+        const j = Math.floor(rng()*(i+1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtAlchemyCount')?.value)||8));
+      const picks = pool.slice(0, count).sort((a,b) => a-b);
+      return picks.map(n => ({n, d: delays[n]}));
+    }
+
     function _renderEnsembleModal(result) {
       const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtEnsembleCount')?.value)||8));
       const {ranked, fired, ctx} = result;
@@ -4581,6 +4630,31 @@
           </div>
         </div>`;
     }
+
+    window.dtShowEnsembleInfo = function() { return window.dtOpenEnsemble(); };
+    window.dtToggleEnsemble = function() {
+      _ensembleMode = !_ensembleMode;
+      window._ensembleMode = _ensembleMode;
+      if (_ensembleMode) { _clearOtherModes('ens'); _loadEnsembleMaster().catch(()=>{}); }
+      _predHistory = [];
+      const btn = document.getElementById('dtEnsembleBtn');
+      if (btn) { btn.style.background = _ensembleMode?'#c7d2fe':'#eef2ff'; btn.style.fontWeight = _ensembleMode?'700':'400'; }
+      const dir = document.getElementById('dtDirBtn');
+      if (dir) dir.disabled = _distMode||_subtractMode||_subtract2Mode||_ensembleMode||_alchemyMode;
+      _render();
+    };
+    window.dtShowAlchemyInfo = function() { return window.dtOpenAlchemy(); };
+    window.dtToggleAlchemy = function() {
+      _alchemyMode = !_alchemyMode;
+      window._alchemyMode = _alchemyMode;
+      if (_alchemyMode) _clearOtherModes('alch');
+      _predHistory = [];
+      const btn = document.getElementById('dtAlchemyBtn');
+      if (btn) { btn.style.background = _alchemyMode?'#fbcfe8':'#fdf2f8'; btn.style.fontWeight = _alchemyMode?'700':'400'; }
+      const dir = document.getElementById('dtDirBtn');
+      if (dir) dir.disabled = _distMode||_subtractMode||_subtract2Mode||_ensembleMode||_alchemyMode;
+      _render();
+    };
 
     window.dtOpenEnsemble = async function(forceRefresh) {
       let m = document.getElementById('dtEnsembleModal');
