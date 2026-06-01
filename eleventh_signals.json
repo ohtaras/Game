@@ -1,0 +1,3635 @@
+{
+  "batch": "eleventh",
+  "signals": [
+    [
+      "word_phrase_subset",
+      "ΤΖΑΚΠΟΤ",
+      3.4577675048712653,
+      "phrase subset (k=6) ΤΖΑΚΠΟΤ"
+    ],
+    [
+      "word_phrase_subset",
+      "ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ",
+      5.944487921829525,
+      "phrase subset (k=10) ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ"
+    ],
+    [
+      "word_phrase_subset",
+      "ΕΡΜΗΣ",
+      -2.582606279498304,
+      "phrase subset (k=5) ΕΡΜΗΣ"
+    ],
+    [
+      "word_phrase_subset",
+      "ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ",
+      5.944487921829525,
+      "phrase subset (k=10) ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ"
+    ],
+    [
+      "word_phrase_subset",
+      "ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ",
+      5.944487921829525,
+      "phrase subset (k=10) ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ"
+    ],
+    [
+      "partial_phrase",
+      "ΤΖΑΚΠΟΤ≥6/6",
+      3.4577675048712653,
+      "partial match 6/6 of 'ΤΖΑΚΠΟΤ'"
+    ],
+    [
+      "partial_phrase",
+      "ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ≥10/10",
+      5.944487921829525,
+      "partial match 10/10 of 'ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ'"
+    ],
+    [
+      "partial_phrase",
+      "ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ≥10/10",
+      5.944487921829525,
+      "partial match 10/10 of 'ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ'"
+    ],
+    [
+      "partial_phrase",
+      "ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ≥10/10",
+      5.944487921829525,
+      "partial match 10/10 of 'ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ'"
+    ],
+    [
+      "partial_phrase",
+      "ΙΑΝΟΥΑΡΙΟΣ≥6/7",
+      3.0000180053868637,
+      "partial match 6/7 of 'ΙΑΝΟΥΑΡΙΟΣ'"
+    ],
+    [
+      "dr_bias",
+      "dr4_n17",
+      -3.779951315570663,
+      "digital_root=4 → #17"
+    ],
+    [
+      "fulfillment",
+      "ΚΙΝΟ_k2+2",
+      -13.102456747014722,
+      "fulfillment 2+2 of 'ΚΙΝΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΤΥΧΗ_k2+2",
+      -9.438307218696144,
+      "fulfillment 2+2 of 'ΤΥΧΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΗ ΤΥΧΗ_k2+5",
+      -3.637479407628899,
+      "fulfillment 2+5 of 'ΚΑΛΗ ΤΥΧΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΕΡΔΟΣ_k2+4",
+      -7.446536436776041,
+      "fulfillment 2+4 of 'ΚΕΡΔΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΕΡΔΟΣ_k3+3",
+      -4.984176099472183,
+      "fulfillment 3+3 of 'ΚΕΡΔΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΙΚΗ_k2+2",
+      -8.896323696884398,
+      "fulfillment 2+2 of 'ΝΙΚΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΗΜΑ_k2+3",
+      -9.57039270080645,
+      "fulfillment 2+3 of 'ΧΡΗΜΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΗΜΑ_k3+2",
+      -5.673055226858775,
+      "fulfillment 3+2 of 'ΧΡΗΜΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΛΟΥΤΟΣ_k2+4",
+      -6.4717823909054095,
+      "fulfillment 2+4 of 'ΠΛΟΥΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΛΟΥΤΟΣ_k3+3",
+      -4.831439878353683,
+      "fulfillment 3+3 of 'ΠΛΟΥΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΛΟΥΤΟΣ_k4+2",
+      -3.0203897437679252,
+      "fulfillment 4+2 of 'ΠΛΟΥΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΤΖΑΚΠΟΤ_k2+4",
+      -5.102919856385809,
+      "fulfillment 2+4 of 'ΤΖΑΚΠΟΤ'"
+    ],
+    [
+      "fulfillment",
+      "ΤΖΑΚΠΟΤ_k3+3",
+      -3.3242047698809962,
+      "fulfillment 3+3 of 'ΤΖΑΚΠΟΤ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΕΛΤΙΟ_k2+4",
+      -7.519012554594621,
+      "fulfillment 2+4 of 'ΔΕΛΤΙΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΕΛΤΙΟ_k3+3",
+      -4.336383174055953,
+      "fulfillment 3+3 of 'ΔΕΛΤΙΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΡΙΘΜΟΣ_k2+5",
+      -4.4651189981957495,
+      "fulfillment 2+5 of 'ΑΡΙΘΜΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΡΙΘΜΟΣ_k3+4",
+      -3.3782825457362615,
+      "fulfillment 3+4 of 'ΑΡΙΘΜΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΚΟΣΙ_k2+3",
+      -10.267660252037464,
+      "fulfillment 2+3 of 'ΕΙΚΟΣΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΚΟΣΙ_k3+2",
+      -4.396017898857856,
+      "fulfillment 3+2 of 'ΕΙΚΟΣΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΟΓΔΟΝΤΑ_k2+4",
+      -6.08775602691429,
+      "fulfillment 2+4 of 'ΟΓΔΟΝΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΟΓΔΟΝΤΑ_k3+3",
+      -3.5121694832694677,
+      "fulfillment 3+3 of 'ΟΓΔΟΝΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΛΗΡΩΣΗ_k2+4",
+      -6.436988818550609,
+      "fulfillment 2+4 of 'ΚΛΗΡΩΣΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΛΗΡΩΣΗ_k3+3",
+      -5.045497581493584,
+      "fulfillment 3+3 of 'ΚΛΗΡΩΣΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΛΗΡΟΣ_k2+4",
+      -5.062662407400612,
+      "fulfillment 2+4 of 'ΚΛΗΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΛΗΡΟΣ_k3+3",
+      -5.7052332068569385,
+      "fulfillment 3+3 of 'ΚΛΗΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΘΕΟΣ_k2+2",
+      -10.713464862585822,
+      "fulfillment 2+2 of 'ΘΕΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΥΡΙΟΣ_k2+4",
+      -7.8984418777400975,
+      "fulfillment 2+4 of 'ΚΥΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΥΡΙΟΣ_k3+3",
+      -3.9023349732614654,
+      "fulfillment 3+3 of 'ΚΥΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΗΣΟΥΣ_k2+3",
+      -10.42587260737985,
+      "fulfillment 2+3 of 'ΙΗΣΟΥΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΗΣΟΥΣ_k3+2",
+      -4.676004541645337,
+      "fulfillment 3+2 of 'ΙΗΣΟΥΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΙΣΤΟΣ_k2+4",
+      -7.2553064541877985,
+      "fulfillment 2+4 of 'ΧΡΙΣΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΙΣΤΟΣ_k3+3",
+      -5.55363998090999,
+      "fulfillment 3+3 of 'ΧΡΙΣΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΝΑΓΙΑ_k2+3",
+      -8.65935099526431,
+      "fulfillment 2+3 of 'ΠΑΝΑΓΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΝΑΓΙΑ_k3+2",
+      -4.498498032263457,
+      "fulfillment 3+2 of 'ΠΑΝΑΓΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΘΕΟΤΟΚΟΣ_k2+4",
+      -4.450800643055224,
+      "fulfillment 2+4 of 'ΘΕΟΤΟΚΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΘΕΟΤΟΚΟΣ_k3+3",
+      -3.2854763514968286,
+      "fulfillment 3+3 of 'ΘΕΟΤΟΚΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΡΙΑ_k2+2",
+      -11.738959817685402,
+      "fulfillment 2+2 of 'ΜΑΡΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΙΟΣ_k2+3",
+      -8.98069609728611,
+      "fulfillment 2+3 of 'ΑΓΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΙΟΣ_k3+2",
+      -5.2503606878720905,
+      "fulfillment 3+2 of 'ΑΓΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΙΑ ΤΡΙΑΣ_k2+4",
+      -6.354087895159543,
+      "fulfillment 2+4 of 'ΑΓΙΑ ΤΡΙΑΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΙΑ ΤΡΙΑΣ_k3+3",
+      -4.1243357838301105,
+      "fulfillment 3+3 of 'ΑΓΙΑ ΤΡΙΑΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΛΟΓΟΣ_k2+2",
+      -11.072647889191597,
+      "fulfillment 2+2 of 'ΛΟΓΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΑΠΗ_k2+2",
+      -11.129550390242251,
+      "fulfillment 2+2 of 'ΑΓΑΠΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΙΣΤΙΣ_k2+2",
+      -11.677448922799284,
+      "fulfillment 2+2 of 'ΠΙΣΤΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΠΙΣ_k2+3",
+      -7.514571479251175,
+      "fulfillment 2+3 of 'ΕΛΠΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΠΙΣ_k3+2",
+      -5.9640420410139185,
+      "fulfillment 3+2 of 'ΕΛΠΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΟΦΙΑ_k2+3",
+      -10.05767365295717,
+      "fulfillment 2+3 of 'ΣΟΦΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΟΦΙΑ_k3+2",
+      -5.310938012972435,
+      "fulfillment 3+2 of 'ΣΟΦΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΛΗΘΕΙΑ_k2+4",
+      -5.241497330385803,
+      "fulfillment 2+4 of 'ΑΛΗΘΕΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΛΗΘΕΙΑ_k3+3",
+      -4.85208380666982,
+      "fulfillment 3+3 of 'ΑΛΗΘΕΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΚΟΤΟΣ_k2+2",
+      -9.646200847937225,
+      "fulfillment 2+2 of 'ΣΚΟΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΓΕΛΟΣ_k2+4",
+      -3.7336972168950466,
+      "fulfillment 2+4 of 'ΑΓΓΕΛΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΓΓΕΛΟΣ_k4+2",
+      -3.033089751704275,
+      "fulfillment 4+2 of 'ΑΓΓΕΛΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΟΥΡΑΝΟΣ_k2+4",
+      -6.9765260199431385,
+      "fulfillment 2+4 of 'ΟΥΡΑΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΜΗΝ_k2+2",
+      -11.165620426726662,
+      "fulfillment 2+2 of 'ΑΜΗΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΛΛΗΛΟΥΙΑ_k2+4",
+      -6.538694807350906,
+      "fulfillment 2+4 of 'ΑΛΛΗΛΟΥΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΛΛΗΛΟΥΙΑ_k3+3",
+      -4.0553632355039495,
+      "fulfillment 3+3 of 'ΑΛΛΗΛΟΥΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΟΞΑ_k2+2",
+      -10.175184670016986,
+      "fulfillment 2+2 of 'ΔΟΞΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΟΞΑ ΤΩ ΘΕΩ_k3+5",
+      -3.114078523217531,
+      "fulfillment 3+5 of 'ΔΟΞΑ ΤΩ ΘΕΩ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΗΔΕΝ ΑΓΑΝ_k2+5",
+      -5.4209693671041315,
+      "fulfillment 2+5 of 'ΜΗΔΕΝ ΑΓΑΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΗΔΕΝ ΑΓΑΝ_k3+4",
+      -3.4059857611284228,
+      "fulfillment 3+4 of 'ΜΗΔΕΝ ΑΓΑΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΝ ΟΙΔΑ ΟΤΙ ΟΥΔΕΝ ΟΙΔΑ_k3+5",
+      -3.1363003056492262,
+      "fulfillment 3+5 of 'ΕΝ ΟΙΔΑ ΟΤΙ ΟΥΔΕΝ ΟΙΔΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΝ ΟΙΔΑ ΟΤΙ ΟΥΔΕΝ ΟΙΔΑ_k5+3",
+      -3.0159964058977193,
+      "fulfillment 5+3 of 'ΕΝ ΟΙΔΑ ΟΤΙ ΟΥΔΕΝ ΟΙΔΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΝΤΑ ΡΕΙ_k2+5",
+      -4.805193958575811,
+      "fulfillment 2+5 of 'ΠΑΝΤΑ ΡΕΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΝΤΑ ΡΕΙ_k3+4",
+      -3.512319615359462,
+      "fulfillment 3+4 of 'ΠΑΝΤΑ ΡΕΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΝΤΑ ΡΕΙ_k4+3",
+      -3.4399533636155213,
+      "fulfillment 4+3 of 'ΠΑΝΤΑ ΡΕΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΟΛΥΜΠΟΣ_k2+4",
+      -5.524062232589068,
+      "fulfillment 2+4 of 'ΟΛΥΜΠΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΟΛΥΜΠΟΣ_k3+3",
+      -6.447156857860964,
+      "fulfillment 3+3 of 'ΟΛΥΜΠΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΖΕΥΣ_k2+2",
+      -11.374045475303511,
+      "fulfillment 2+2 of 'ΖΕΥΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΘΗΝΑ_k2+2",
+      -11.104602421998973,
+      "fulfillment 2+2 of 'ΑΘΗΝΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΠΟΛΛΩΝ_k2+4",
+      -4.518721501899701,
+      "fulfillment 2+4 of 'ΑΠΟΛΛΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΠΟΛΛΩΝ_k3+3",
+      -4.312686951230415,
+      "fulfillment 3+3 of 'ΑΠΟΛΛΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΡΜΗΣ_k2+3",
+      -9.674980458341217,
+      "fulfillment 2+3 of 'ΕΡΜΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΡΜΗΣ_k3+2",
+      -5.763627386875987,
+      "fulfillment 3+2 of 'ΕΡΜΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΡΤΕΜΙΣ_k3+4",
+      -3.5653807928618924,
+      "fulfillment 3+4 of 'ΑΡΤΕΜΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΡΤΕΜΙΣ_k5+2",
+      -3.0550764021389223,
+      "fulfillment 5+2 of 'ΑΡΤΕΜΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΟΣΕΙΔΩΝ_k3+5",
+      -3.4205640245961617,
+      "fulfillment 3+5 of 'ΠΟΣΕΙΔΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΡΗΣ_k2+2",
+      -11.282430709442268,
+      "fulfillment 2+2 of 'ΑΡΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΦΡΟΔΙΤΗ_k3+5",
+      -3.379030235173846,
+      "fulfillment 3+5 of 'ΑΦΡΟΔΙΤΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΦΡΟΔΙΤΗ_k4+4",
+      -3.4200470904159603,
+      "fulfillment 4+4 of 'ΑΦΡΟΔΙΤΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΡΟΣ_k2+2",
+      -12.408677543753496,
+      "fulfillment 2+2 of 'ΕΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΤΥΧΗ ΑΓΑΘΗ_k3+4",
+      -3.1015142413519334,
+      "fulfillment 3+4 of 'ΤΥΧΗ ΑΓΑΘΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΟΣ ΚΑΓΑΘΟΣ_k2+5",
+      -3.7368203230286614,
+      "fulfillment 2+5 of 'ΚΑΛΟΣ ΚΑΓΑΘΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΟΣ ΚΑΓΑΘΟΣ_k3+4",
+      -4.101341696058923,
+      "fulfillment 3+4 of 'ΚΑΛΟΣ ΚΑΓΑΘΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΦΙΛΟΣΟΦΙΑ_k2+4",
+      -6.461068145537518,
+      "fulfillment 2+4 of 'ΦΙΛΟΣΟΦΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΦΙΛΟΣΟΦΙΑ_k3+3",
+      -4.38871870873715,
+      "fulfillment 3+3 of 'ΦΙΛΟΣΟΦΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΘΗΜΑΤΑ_k2+3",
+      -8.684983336699531,
+      "fulfillment 2+3 of 'ΜΑΘΗΜΑΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΘΗΜΑΤΑ_k3+2",
+      -4.955969535868745,
+      "fulfillment 3+2 of 'ΜΑΘΗΜΑΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΛΑΣ_k2+2",
+      -10.497904457651419,
+      "fulfillment 2+2 of 'ΕΛΛΑΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΛΗΝ_k2+2",
+      -11.416295586993797,
+      "fulfillment 2+2 of 'ΕΛΛΗΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΘΗΝΑ_k2+2",
+      -11.104602421998973,
+      "fulfillment 2+2 of 'ΑΘΗΝΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΚΡΟΠΟΛΙΣ_k2+6",
+      -3.335528134161671,
+      "fulfillment 2+6 of 'ΑΚΡΟΠΟΛΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΚΡΟΠΟΛΙΣ_k4+4",
+      -3.9610886658842865,
+      "fulfillment 4+4 of 'ΑΚΡΟΠΟΛΙΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΡΘΕΝΩΝ_k3+4",
+      -4.22436126819765,
+      "fulfillment 3+4 of 'ΠΑΡΘΕΝΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΡΗΤΗ_k2+2",
+      -11.54676124261683,
+      "fulfillment 2+2 of 'ΚΡΗΤΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΥΠΡΟΣ_k2+4",
+      -5.778442122205653,
+      "fulfillment 2+4 of 'ΚΥΠΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΥΠΡΟΣ_k3+3",
+      -5.271955758759227,
+      "fulfillment 3+3 of 'ΚΥΠΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΘΑΚΗ_k2+3",
+      -8.328136086030105,
+      "fulfillment 2+3 of 'ΙΘΑΚΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΘΑΚΗ_k3+2",
+      -6.198623296921282,
+      "fulfillment 3+2 of 'ΙΘΑΚΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΡΟΔΟΣ_k2+2",
+      -10.058187043229141,
+      "fulfillment 2+2 of 'ΡΟΔΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΑΝΤΟΡΙΝΗ_k4+4",
+      -3.7865546851214122,
+      "fulfillment 4+4 of 'ΣΑΝΤΟΡΙΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΥΚΟΝΟΣ_k2+4",
+      -6.548821510468263,
+      "fulfillment 2+4 of 'ΜΥΚΟΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΥΚΟΝΟΣ_k3+3",
+      -5.084278233242077,
+      "fulfillment 3+3 of 'ΜΥΚΟΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΕΥΘΕΡΙΑ_k2+5",
+      -4.591474618063401,
+      "fulfillment 2+5 of 'ΕΛΕΥΘΕΡΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΕΥΘΕΡΙΑ_k3+4",
+      -3.0397579956242557,
+      "fulfillment 3+4 of 'ΕΛΕΥΘΕΡΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΕΥΘΕΡΙΑ_k4+3",
+      -3.5189613776670225,
+      "fulfillment 4+3 of 'ΕΛΕΥΘΕΡΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΤΡΙΔΑ_k2+4",
+      -5.845312247309925,
+      "fulfillment 2+4 of 'ΠΑΤΡΙΔΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΤΡΙΔΑ_k3+3",
+      -5.283688499085267,
+      "fulfillment 3+3 of 'ΠΑΤΡΙΔΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΘΝΟΣ_k2+3",
+      -8.222519280210168,
+      "fulfillment 2+3 of 'ΕΘΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΘΝΟΣ_k3+2",
+      -5.306903002701879,
+      "fulfillment 3+2 of 'ΕΘΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΠΤΑ_k2+2",
+      -10.316566604062054,
+      "fulfillment 2+2 of 'ΕΠΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΩΔΕΚΑ_k2+3",
+      -9.945946794117571,
+      "fulfillment 2+3 of 'ΔΩΔΕΚΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΩΔΕΚΑ_k3+2",
+      -6.239565776264502,
+      "fulfillment 3+2 of 'ΔΩΔΕΚΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΚΟΣΙ_k2+3",
+      -10.267660252037464,
+      "fulfillment 2+3 of 'ΕΙΚΟΣΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΚΟΣΙ_k3+2",
+      -4.396017898857856,
+      "fulfillment 3+2 of 'ΕΙΚΟΣΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΚΑΤΟΝ_k2+4",
+      -5.20059175993851,
+      "fulfillment 2+4 of 'ΕΚΑΤΟΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΚΑΤΟΝ_k3+3",
+      -5.816199568123787,
+      "fulfillment 3+3 of 'ΕΚΑΤΟΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΚΑΤΟΝ_k4+2",
+      -3.680223260206363,
+      "fulfillment 4+2 of 'ΕΚΑΤΟΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΙΛΙΟΙ_k2+2",
+      -12.148166843050811,
+      "fulfillment 2+2 of 'ΧΙΛΙΟΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΩΜΕΓΑ_k2+3",
+      -10.548406386635184,
+      "fulfillment 2+3 of 'ΩΜΕΓΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΩΜΕΓΑ_k3+2",
+      -6.546962078605252,
+      "fulfillment 3+2 of 'ΩΜΕΓΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΟΣΜΟΣ_k2+2",
+      -11.084419734815668,
+      "fulfillment 2+2 of 'ΚΟΣΜΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΥΜΠΑΝ_k2+4",
+      -6.532287999015475,
+      "fulfillment 2+4 of 'ΣΥΜΠΑΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΥΜΠΑΝ_k3+3",
+      -7.05833243473071,
+      "fulfillment 3+3 of 'ΣΥΜΠΑΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΙΩΝΙΟΤΗΤΑ_k2+5",
+      -4.057891148961798,
+      "fulfillment 2+5 of 'ΑΙΩΝΙΟΤΗΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΙΩΝΙΟΤΗΤΑ_k3+4",
+      -4.280677852740847,
+      "fulfillment 3+4 of 'ΑΙΩΝΙΟΤΗΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΙΩΝΙΟΤΗΤΑ_k4+3",
+      -3.5903401429205815,
+      "fulfillment 4+3 of 'ΑΙΩΝΙΟΤΗΤΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΜΑΡΜΕΝΗ_k2+5",
+      -4.588864331160543,
+      "fulfillment 2+5 of 'ΕΙΜΑΡΜΕΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΙΜΑΡΜΕΝΗ_k4+3",
+      -4.106628716290954,
+      "fulfillment 4+3 of 'ΕΙΜΑΡΜΕΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΟΙΡΑ_k2+3",
+      -11.362034852555775,
+      "fulfillment 2+3 of 'ΜΟΙΡΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΟΙΡΑ_k3+2",
+      -4.728132380249708,
+      "fulfillment 3+2 of 'ΜΟΙΡΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΝΑΓΚΗ_k2+3",
+      -8.574831649561999,
+      "fulfillment 2+3 of 'ΑΝΑΓΚΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΝΑΓΚΗ_k3+2",
+      -4.577045433442987,
+      "fulfillment 3+2 of 'ΑΝΑΓΚΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΕΠΡΩΜΕΝΟ_k2+5",
+      -4.268368659969811,
+      "fulfillment 2+5 of 'ΠΕΠΡΩΜΕΝΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΕΠΡΩΜΕΝΟ_k3+4",
+      -4.182038248290887,
+      "fulfillment 3+4 of 'ΠΕΠΡΩΜΕΝΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΕΠΡΩΜΕΝΟ_k4+3",
+      -3.3810993543569148,
+      "fulfillment 4+3 of 'ΠΕΠΡΩΜΕΝΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΟΝΟΣ_k2+3",
+      -9.769680966216544,
+      "fulfillment 2+3 of 'ΧΡΟΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΧΡΟΝΟΣ_k3+2",
+      -5.399659903768333,
+      "fulfillment 3+2 of 'ΧΡΟΝΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΙΩΝ_k2+2",
+      -11.19129528130233,
+      "fulfillment 2+2 of 'ΑΙΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΟΗΣ_k2+2",
+      -11.374044141533037,
+      "fulfillment 2+2 of 'ΝΟΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΒΡΑΑΜ_k2+2",
+      -12.228415516962853,
+      "fulfillment 2+2 of 'ΑΒΡΑΑΜ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΩΥΣΗΣ_k2+3",
+      -9.093741416947243,
+      "fulfillment 2+3 of 'ΜΩΥΣΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΩΥΣΗΣ_k3+2",
+      -5.970136502567009,
+      "fulfillment 3+2 of 'ΜΩΥΣΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΔΑΒΙΔ_k2+2",
+      -12.577747512950085,
+      "fulfillment 2+2 of 'ΔΑΒΙΔ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΟΛΟΜΩΝ_k2+4",
+      -6.654103551202362,
+      "fulfillment 2+4 of 'ΣΟΛΟΜΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΟΛΟΜΩΝ_k3+3",
+      -4.532991040125125,
+      "fulfillment 3+3 of 'ΣΟΛΟΜΩΝ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΩΑΝΝΗΣ_k2+4",
+      -6.146128657724499,
+      "fulfillment 2+4 of 'ΙΩΑΝΝΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΩΑΝΝΗΣ_k3+3",
+      -3.323435648847528,
+      "fulfillment 3+3 of 'ΙΩΑΝΝΗΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΥΛΟΣ_k2+4",
+      -3.8941868429102717,
+      "fulfillment 2+4 of 'ΠΑΥΛΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΑΥΛΟΣ_k3+3",
+      -4.303498039078196,
+      "fulfillment 3+3 of 'ΠΑΥΛΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΕΤΡΟΣ_k2+4",
+      -6.4916102571162115,
+      "fulfillment 2+4 of 'ΠΕΤΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΠΕΤΡΟΣ_k3+3",
+      -4.15306261718602,
+      "fulfillment 3+3 of 'ΠΕΤΡΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΓΕΩΡΓΙΟΣ_k2+5",
+      -3.3853728779202514,
+      "fulfillment 2+5 of 'ΓΕΩΡΓΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΓΕΩΡΓΙΟΣ_k3+4",
+      -4.622297304221227,
+      "fulfillment 3+4 of 'ΓΕΩΡΓΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΙΚΟΛΑΟΣ_k2+5",
+      -5.014896625958802,
+      "fulfillment 2+5 of 'ΝΙΚΟΛΑΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΙΚΟΛΑΟΣ_k3+4",
+      -3.4453275684898115,
+      "fulfillment 3+4 of 'ΝΙΚΟΛΑΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΛΕΝΗ_k2+2",
+      -11.416295586993797,
+      "fulfillment 2+2 of 'ΕΛΕΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΤΟ ΦΩΣ ΤΟΥ ΚΟΣΜΟΥ_k4+4",
+      -3.1399387165190356,
+      "fulfillment 4+4 of 'ΤΟ ΦΩΣ ΤΟΥ ΚΟΣΜΟΥ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΓΩ ΕΙΜΙ Η ΟΔΟ_k4+4",
+      -3.714941944281212,
+      "fulfillment 4+4 of 'ΕΓΩ ΕΙΜΙ Η ΟΔΟ'"
+    ],
+    [
+      "fulfillment",
+      "ΨΥΧΗ_k2+2",
+      -9.61579637094715,
+      "fulfillment 2+2 of 'ΨΥΧΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΩΜΑ_k2+2",
+      -10.966341670768813,
+      "fulfillment 2+2 of 'ΣΩΜΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ_k3+5",
+      -3.836658392324078,
+      "fulfillment 3+5 of 'ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΟΥΣ_k2+2",
+      -11.349954163674889,
+      "fulfillment 2+2 of 'ΝΟΥΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΡΔΙΑ_k2+3",
+      -10.471253270819991,
+      "fulfillment 2+3 of 'ΚΑΡΔΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΡΔΙΑ_k3+2",
+      -5.546712178216848,
+      "fulfillment 3+2 of 'ΚΑΡΔΙΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΗΛΙΟΣ_k2+3",
+      -9.694608184122657,
+      "fulfillment 2+3 of 'ΗΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΗΛΙΟΣ_k3+2",
+      -5.734745484883275,
+      "fulfillment 3+2 of 'ΗΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΕΛΗΝΗ_k2+3",
+      -9.719720200678854,
+      "fulfillment 2+3 of 'ΣΕΛΗΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΕΛΗΝΗ_k3+2",
+      -5.258581237527927,
+      "fulfillment 3+2 of 'ΣΕΛΗΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΣΤΡΑ_k2+2",
+      -11.862115575541374,
+      "fulfillment 2+2 of 'ΑΣΤΡΑ'"
+    ],
+    [
+      "fulfillment",
+      "ΓΑΛΑΞΙΑΣ_k2+4",
+      -5.198539450914665,
+      "fulfillment 2+4 of 'ΓΑΛΑΞΙΑΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΓΑΛΑΞΙΑΣ_k3+3",
+      -4.488532366342785,
+      "fulfillment 3+3 of 'ΓΑΛΑΞΙΑΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΕΙΡΙΟΣ_k2+3",
+      -11.079713926318552,
+      "fulfillment 2+3 of 'ΣΕΙΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΣΕΙΡΙΟΣ_k3+2",
+      -4.595970929641166,
+      "fulfillment 3+2 of 'ΣΕΙΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΚΛΕΙΨΗ_k2+4",
+      -7.4991850820692525,
+      "fulfillment 2+4 of 'ΕΚΛΕΙΨΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΕΚΛΕΙΨΗ_k3+3",
+      -3.4180908496642766,
+      "fulfillment 3+3 of 'ΕΚΛΕΙΨΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΕΑ ΣΕΛΗΝΗ_k2+4",
+      -7.018574355372948,
+      "fulfillment 2+4 of 'ΝΕΑ ΣΕΛΗΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΕΑ ΣΕΛΗΝΗ_k3+3",
+      -4.4590117205756075,
+      "fulfillment 3+3 of 'ΝΕΑ ΣΕΛΗΝΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΝΟΙΞΗ_k2+4",
+      -5.899711190181589,
+      "fulfillment 2+4 of 'ΑΝΟΙΞΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΝΟΙΞΗ_k3+3",
+      -5.5928215888904305,
+      "fulfillment 3+3 of 'ΑΝΟΙΞΗ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΟΚΑΙΡΙ_k2+4",
+      -8.23563399026508,
+      "fulfillment 2+4 of 'ΚΑΛΟΚΑΙΡΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΟΚΑΙΡΙ_k3+3",
+      -4.4694097850944745,
+      "fulfillment 3+3 of 'ΚΑΛΟΚΑΙΡΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΚΑΛΟΚΑΙΡΙ_k4+2",
+      -5.01098063611662,
+      "fulfillment 4+2 of 'ΚΑΛΟΚΑΙΡΙ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΑΝΟΥΑΡΙΟΣ_k2+5",
+      -4.904691985912979,
+      "fulfillment 2+5 of 'ΙΑΝΟΥΑΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΡΤΙΟΣ_k2+5",
+      -3.712204138557362,
+      "fulfillment 2+5 of 'ΜΑΡΤΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΡΤΙΟΣ_k3+4",
+      -3.1989824423821784,
+      "fulfillment 3+4 of 'ΜΑΡΤΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΠΡΙΛΙΟΣ_k2+5",
+      -3.3996058984258175,
+      "fulfillment 2+5 of 'ΑΠΡΙΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΠΡΙΛΙΟΣ_k3+4",
+      -3.0465672159617485,
+      "fulfillment 3+4 of 'ΑΠΡΙΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΙΟΣ_k2+3",
+      -10.547787557967611,
+      "fulfillment 2+3 of 'ΜΑΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΜΑΙΟΣ_k3+2",
+      -4.4600537505130005,
+      "fulfillment 3+2 of 'ΜΑΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΟΥΝΙΟΣ_k2+3",
+      -9.548813054145644,
+      "fulfillment 2+3 of 'ΙΟΥΝΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΟΥΝΙΟΣ_k3+2",
+      -6.082526613397563,
+      "fulfillment 3+2 of 'ΙΟΥΝΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΟΥΛΙΟΣ_k2+3",
+      -9.252683632749894,
+      "fulfillment 2+3 of 'ΙΟΥΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΙΟΥΛΙΟΣ_k3+2",
+      -5.962276848716235,
+      "fulfillment 3+2 of 'ΙΟΥΛΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΥΓΟΥΣΤΟΣ_k2+4",
+      -5.921579627642043,
+      "fulfillment 2+4 of 'ΑΥΓΟΥΣΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΥΓΟΥΣΤΟΣ_k3+3",
+      -3.7056558309539187,
+      "fulfillment 3+3 of 'ΑΥΓΟΥΣΤΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΝΟΕΜΒΡΙΟΣ_k3+5",
+      -3.968429938710365,
+      "fulfillment 3+5 of 'ΝΟΕΜΒΡΙΟΣ'"
+    ],
+    [
+      "fulfillment",
+      "ΑΜΗΝ_k2+2",
+      -11.165620426726662,
+      "fulfillment 2+2 of 'ΑΜΗΝ'"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_399_ΚΕΡΔΟΣ",
+      2217.8927877285128,
+      "draw_sum mod 399 non-uniform (χ²z=2217.89)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_315_ΕΙΚΟΣΙ",
+      712.6222257243986,
+      "draw_sum mod 315 non-uniform (χ²z=712.62)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_284_ΘΕΟΣ",
+      346.95503741909556,
+      "draw_sum mod 284 non-uniform (χ²z=346.96)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_284_ΑΓΙΟΣ",
+      346.95503741909556,
+      "draw_sum mod 284 non-uniform (χ²z=346.96)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_373_ΛΟΓΟΣ",
+      1702.3025175862324,
+      "draw_sum mod 373 non-uniform (χ²z=1702.30)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_325_ΕΛΠΙΣ",
+      859.5516920046261,
+      "draw_sum mod 325 non-uniform (χ²z=859.55)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_312_ΑΓΓΕΛΟΣ",
+      671.7230860344915,
+      "draw_sum mod 312 non-uniform (χ²z=671.72)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_353_ΕΡΜΗΣ",
+      1328.4396066572508,
+      "draw_sum mod 353 non-uniform (χ²z=1328.44)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_309_ΑΡΗΣ",
+      632.0221451146357,
+      "draw_sum mod 309 non-uniform (χ²z=632.02)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_375_ΕΡΟΣ",
+      1741.1356819631233,
+      "draw_sum mod 375 non-uniform (χ²z=1741.14)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_400_ΜΑΘΗΜΑΤΑ",
+      2238.3454482250286,
+      "draw_sum mod 400 non-uniform (χ²z=2238.35)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_266_ΕΛΛΑΣ",
+      200.37933866283237,
+      "draw_sum mod 266 non-uniform (χ²z=200.38)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_334_ΕΘΝΟΣ",
+      1001.5213047609783,
+      "draw_sum mod 334 non-uniform (χ²z=1001.52)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_386_ΕΠΤΑ",
+      1957.2693350145728,
+      "draw_sum mod 386 non-uniform (χ²z=1957.27)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_315_ΕΙΚΟΣΙ",
+      712.6222257243986,
+      "draw_sum mod 315 non-uniform (χ²z=712.62)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_259_ΕΙΜΑΡΜΕΝΗ",
+      157.38026056592656,
+      "draw_sum mod 259 non-uniform (χ²z=157.38)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_221_ΜΟΙΡΑ",
+      26.073720363114393,
+      "draw_sum mod 221 non-uniform (χ²z=26.07)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_328_ΝΟΗΣ",
+      905.5309865152036,
+      "draw_sum mod 328 non-uniform (χ²z=905.53)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_318_ΗΛΙΟΣ",
+      756.0921700997252,
+      "draw_sum mod 318 non-uniform (χ²z=756.09)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_301_ΣΕΛΗΝΗ",
+      529.8327862455968,
+      "draw_sum mod 301 non-uniform (χ²z=529.83)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_306_ΓΑΛΑΞΙΑΣ",
+      592.2849733909536,
+      "draw_sum mod 306 non-uniform (χ²z=592.28)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_357_ΝΕΑ ΣΕΛΗΝΗ",
+      1400.6353902866067,
+      "draw_sum mod 357 non-uniform (χ²z=1400.64)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_199_ΑΝΟΙΞΗ",
+      5.550176851773112,
+      "draw_sum mod 199 non-uniform (χ²z=5.55)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_262_ΚΑΛΟΚΑΙΡΙ",
+      174.93506450913523,
+      "draw_sum mod 262 non-uniform (χ²z=174.94)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_321_ΜΑΙΟΣ",
+      799.4365422862318,
+      "draw_sum mod 321 non-uniform (χ²z=799.44)"
+    ],
+    [
+      "sum_mod_dist",
+      "sum_mod_218_ΙΗΣ",
+      22.921483376744995,
+      "draw_sum mod 218 non-uniform (χ²z=22.92)"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod399_n6_ΚΕΡΔΟΣ",
+      3.7899706888108193,
+      "draw_sum mod 399 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod399_n77_ΚΕΡΔΟΣ",
+      3.6156083055293258,
+      "draw_sum mod 399 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod399_n78_ΚΕΡΔΟΣ",
+      4.0350576378591,
+      "draw_sum mod 399 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod399_n79_ΚΕΡΔΟΣ",
+      3.9389277113386476,
+      "draw_sum mod 399 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod399_n80_ΚΕΡΔΟΣ",
+      3.673957336468057,
+      "draw_sum mod 399 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod749_n1_ΧΡΗΜΑ",
+      4.1915826677231705,
+      "draw_sum mod 749 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n17_ΤΖΑΚΠΟΤ",
+      4.137582975037247,
+      "draw_sum mod 778 = 17 → #17"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n75_ΤΖΑΚΠΟΤ",
+      4.088521730363201,
+      "draw_sum mod 778 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n79_ΤΖΑΚΠΟΤ",
+      3.536607440880224,
+      "draw_sum mod 778 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n1_ΔΕΛΤΙΟ",
+      -4.902803612872836,
+      "draw_sum mod 419 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n54_ΔΕΛΤΙΟ",
+      3.500300107181689,
+      "draw_sum mod 419 = 54 → #54"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n56_ΔΕΛΤΙΟ",
+      3.574870875948078,
+      "draw_sum mod 419 = 56 → #56"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n57_ΔΕΛΤΙΟ",
+      3.578773399870274,
+      "draw_sum mod 419 = 57 → #57"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n62_ΔΕΛΤΙΟ",
+      5.117892194333574,
+      "draw_sum mod 419 = 62 → #62"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n65_ΔΕΛΤΙΟ",
+      3.9418013739970004,
+      "draw_sum mod 419 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n66_ΔΕΛΤΙΟ",
+      3.7285956160339397,
+      "draw_sum mod 419 = 66 → #66"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n70_ΔΕΛΤΙΟ",
+      4.741672759669993,
+      "draw_sum mod 419 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n71_ΔΕΛΤΙΟ",
+      3.677089562999655,
+      "draw_sum mod 419 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n72_ΔΕΛΤΙΟ",
+      4.315081250597954,
+      "draw_sum mod 419 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n74_ΔΕΛΤΙΟ",
+      5.725007643269087,
+      "draw_sum mod 419 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n75_ΔΕΛΤΙΟ",
+      3.5535373401200707,
+      "draw_sum mod 419 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n76_ΔΕΛΤΙΟ",
+      6.058770780841439,
+      "draw_sum mod 419 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n77_ΔΕΛΤΙΟ",
+      5.17820365604215,
+      "draw_sum mod 419 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n78_ΔΕΛΤΙΟ",
+      4.356649189097366,
+      "draw_sum mod 419 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod419_n79_ΔΕΛΤΙΟ",
+      4.18319283967782,
+      "draw_sum mod 419 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n2_ΑΡΙΘΜΟΣ",
+      -4.108738466315773,
+      "draw_sum mod 430 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n3_ΑΡΙΘΜΟΣ",
+      -4.703170810017723,
+      "draw_sum mod 430 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n4_ΑΡΙΘΜΟΣ",
+      -4.289676985974768,
+      "draw_sum mod 430 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n6_ΑΡΙΘΜΟΣ",
+      -4.383600328895342,
+      "draw_sum mod 430 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n9_ΑΡΙΘΜΟΣ",
+      -3.578025504430567,
+      "draw_sum mod 430 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n11_ΑΡΙΘΜΟΣ",
+      -3.8749364392948467,
+      "draw_sum mod 430 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n14_ΑΡΙΘΜΟΣ",
+      -3.547864249320577,
+      "draw_sum mod 430 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n17_ΑΡΙΘΜΟΣ",
+      -3.510324306713832,
+      "draw_sum mod 430 = 17 → #17"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n18_ΑΡΙΘΜΟΣ",
+      -3.593211021380845,
+      "draw_sum mod 430 = 18 → #18"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n59_ΑΡΙΘΜΟΣ",
+      3.612718405018095,
+      "draw_sum mod 430 = 59 → #59"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod430_n65_ΑΡΙΘΜΟΣ",
+      4.9514079821605,
+      "draw_sum mod 430 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n72_ΕΙΚΟΣΙ",
+      -3.53852260548724,
+      "draw_sum mod 315 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n74_ΕΙΚΟΣΙ",
+      -3.918111557053472,
+      "draw_sum mod 315 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n77_ΕΙΚΟΣΙ",
+      -3.994062696663292,
+      "draw_sum mod 315 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n79_ΕΙΚΟΣΙ",
+      -4.397365248197925,
+      "draw_sum mod 315 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n1_ΚΛΗΡΟΣ",
+      -3.612663514877649,
+      "draw_sum mod 428 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n3_ΚΛΗΡΟΣ",
+      -3.806934938134405,
+      "draw_sum mod 428 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n5_ΚΛΗΡΟΣ",
+      -3.5343483039625845,
+      "draw_sum mod 428 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n6_ΚΛΗΡΟΣ",
+      -3.508374854799313,
+      "draw_sum mod 428 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n9_ΚΛΗΡΟΣ",
+      -3.97939900466844,
+      "draw_sum mod 428 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n59_ΚΛΗΡΟΣ",
+      4.370658168495473,
+      "draw_sum mod 428 = 59 → #59"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n63_ΚΛΗΡΟΣ",
+      4.097647049986967,
+      "draw_sum mod 428 = 63 → #63"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n65_ΚΛΗΡΟΣ",
+      4.292473740496782,
+      "draw_sum mod 428 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod428_n67_ΚΛΗΡΟΣ",
+      4.308794992305189,
+      "draw_sum mod 428 = 67 → #67"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod284_n12_ΘΕΟΣ",
+      -3.703280399090206,
+      "draw_sum mod 284 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n72_ΚΥΡΙΟΣ",
+      4.003203845127179,
+      "draw_sum mod 800 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n73_ΚΥΡΙΟΣ",
+      4.033871267209612,
+      "draw_sum mod 800 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n74_ΚΥΡΙΟΣ",
+      4.5615397491264575,
+      "draw_sum mod 800 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n75_ΚΥΡΙΟΣ",
+      3.9614152089267725,
+      "draw_sum mod 800 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n77_ΚΥΡΙΟΣ",
+      3.633493580633615,
+      "draw_sum mod 800 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod744_n3_ΘΕΟΤΟΚΟΣ",
+      4.07059734761192,
+      "draw_sum mod 744 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod744_n16_ΘΕΟΤΟΚΟΣ",
+      4.661412787258131,
+      "draw_sum mod 744 = 16 → #16"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod744_n21_ΘΕΟΤΟΚΟΣ",
+      3.665155924021057,
+      "draw_sum mod 744 = 21 → #21"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod284_n12_ΑΓΙΟΣ",
+      -3.703280399090206,
+      "draw_sum mod 284 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n71_ΑΓΙΑ ΤΡΙΑΣ",
+      -4.673906414784993,
+      "draw_sum mod 626 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n72_ΑΓΙΑ ΤΡΙΑΣ",
+      -4.055283318480828,
+      "draw_sum mod 626 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n73_ΑΓΙΑ ΤΡΙΑΣ",
+      -3.696142379025718,
+      "draw_sum mod 626 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n74_ΑΓΙΑ ΤΡΙΑΣ",
+      -5.817538139110049,
+      "draw_sum mod 626 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n75_ΑΓΙΑ ΤΡΙΑΣ",
+      -5.1661695845278475,
+      "draw_sum mod 626 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n76_ΑΓΙΑ ΤΡΙΑΣ",
+      -4.9284848407273,
+      "draw_sum mod 626 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n77_ΑΓΙΑ ΤΡΙΑΣ",
+      -5.721858034537085,
+      "draw_sum mod 626 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n78_ΑΓΙΑ ΤΡΙΑΣ",
+      -5.02165550805563,
+      "draw_sum mod 626 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n79_ΑΓΙΑ ΤΡΙΑΣ",
+      -5.871209698818092,
+      "draw_sum mod 626 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod626_n80_ΑΓΙΑ ΤΡΙΑΣ",
+      -4.959706927879662,
+      "draw_sum mod 626 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod373_n1_ΛΟΓΟΣ",
+      3.625078667694196,
+      "draw_sum mod 373 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod373_n2_ΛΟΓΟΣ",
+      3.723155570723201,
+      "draw_sum mod 373 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod373_n3_ΛΟΓΟΣ",
+      3.8729833462074184,
+      "draw_sum mod 373 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod373_n4_ΛΟΓΟΣ",
+      3.54620226348497,
+      "draw_sum mod 373 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod373_n10_ΛΟΓΟΣ",
+      4.26938727564267,
+      "draw_sum mod 373 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n1_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      5.969889108830368,
+      "draw_sum mod 710 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n2_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      7.522631810102948,
+      "draw_sum mod 710 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n3_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      5.507768330510172,
+      "draw_sum mod 710 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n4_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      5.280087074177702,
+      "draw_sum mod 710 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n5_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      4.080902282689482,
+      "draw_sum mod 710 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n6_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      4.041451884327381,
+      "draw_sum mod 710 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n7_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      5.70504849651415,
+      "draw_sum mod 710 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n10_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      3.606229993026515,
+      "draw_sum mod 710 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n14_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      4.6068299963376145,
+      "draw_sum mod 710 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n15_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      4.059507604383782,
+      "draw_sum mod 710 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n17_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      3.553635885754153,
+      "draw_sum mod 710 = 17 → #17"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod710_n22_ΠΝΕΥΜΑ ΑΓΙΟΝ",
+      3.508957005607628,
+      "draw_sum mod 710 = 22 → #22"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n72_ΠΙΣΤΙΣ",
+      4.003203845127179,
+      "draw_sum mod 800 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n73_ΠΙΣΤΙΣ",
+      4.033871267209612,
+      "draw_sum mod 800 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n74_ΠΙΣΤΙΣ",
+      4.5615397491264575,
+      "draw_sum mod 800 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n75_ΠΙΣΤΙΣ",
+      3.9614152089267725,
+      "draw_sum mod 800 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod800_n77_ΠΙΣΤΙΣ",
+      3.633493580633615,
+      "draw_sum mod 800 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n65_ΕΛΠΙΣ",
+      -3.884943848240778,
+      "draw_sum mod 325 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n70_ΕΛΠΙΣ",
+      -3.7130070696529507,
+      "draw_sum mod 325 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n71_ΕΛΠΙΣ",
+      -3.645289507463069,
+      "draw_sum mod 325 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n75_ΕΛΠΙΣ",
+      -4.166045151386365,
+      "draw_sum mod 325 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n76_ΕΛΠΙΣ",
+      -4.469118750393768,
+      "draw_sum mod 325 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod325_n80_ΕΛΠΙΣ",
+      -3.9669632761264677,
+      "draw_sum mod 325 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n68_ΣΟΦΙΑ",
+      4.026607034907205,
+      "draw_sum mod 781 = 68 → #68"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n75_ΣΟΦΙΑ",
+      4.228428635837098,
+      "draw_sum mod 781 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n76_ΣΟΦΙΑ",
+      4.601392476844163,
+      "draw_sum mod 781 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n77_ΣΟΦΙΑ",
+      3.779023422469301,
+      "draw_sum mod 781 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod312_n75_ΑΓΓΕΛΟΣ",
+      -4.074255305582087,
+      "draw_sum mod 312 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod312_n76_ΑΓΓΕΛΟΣ",
+      -3.6442856819360916,
+      "draw_sum mod 312 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod312_n79_ΑΓΓΕΛΟΣ",
+      -5.343272573784049,
+      "draw_sum mod 312 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n67_ΠΑΡΑΔΕΙΣΟΣ",
+      -3.9555679414991762,
+      "draw_sum mod 671 = 67 → #67"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n68_ΠΑΡΑΔΕΙΣΟΣ",
+      -3.8516598913337203,
+      "draw_sum mod 671 = 68 → #68"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n70_ΠΑΡΑΔΕΙΣΟΣ",
+      -4.003203845127179,
+      "draw_sum mod 671 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n71_ΠΑΡΑΔΕΙΣΟΣ",
+      -4.242640687119285,
+      "draw_sum mod 671 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n74_ΠΑΡΑΔΕΙΣΟΣ",
+      -3.7624969623297435,
+      "draw_sum mod 671 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n76_ΠΑΡΑΔΕΙΣΟΣ",
+      -4.190910569708826,
+      "draw_sum mod 671 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n78_ΠΑΡΑΔΕΙΣΟΣ",
+      -5.183839248000696,
+      "draw_sum mod 671 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n79_ΠΑΡΑΔΕΙΣΟΣ",
+      -3.840659467634718,
+      "draw_sum mod 671 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod671_n80_ΠΑΡΑΔΕΙΣΟΣ",
+      -4.6781291224517245,
+      "draw_sum mod 671 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n1_ΕΡΜΗΣ",
+      4.822102139020483,
+      "draw_sum mod 353 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n2_ΕΡΜΗΣ",
+      5.121434864806533,
+      "draw_sum mod 353 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n3_ΕΡΜΗΣ",
+      5.35893167767131,
+      "draw_sum mod 353 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n4_ΕΡΜΗΣ",
+      5.817000349588299,
+      "draw_sum mod 353 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n5_ΕΡΜΗΣ",
+      4.543756950066652,
+      "draw_sum mod 353 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n6_ΕΡΜΗΣ",
+      4.796693520942331,
+      "draw_sum mod 353 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n7_ΕΡΜΗΣ",
+      3.5277437657169814,
+      "draw_sum mod 353 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n8_ΕΡΜΗΣ",
+      4.186144947778271,
+      "draw_sum mod 353 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n9_ΕΡΜΗΣ",
+      4.643716460347527,
+      "draw_sum mod 353 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n11_ΕΡΜΗΣ",
+      4.9580177288237985,
+      "draw_sum mod 353 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n13_ΕΡΜΗΣ",
+      4.839595721440786,
+      "draw_sum mod 353 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n14_ΕΡΜΗΣ",
+      3.6905193723863556,
+      "draw_sum mod 353 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n16_ΕΡΜΗΣ",
+      4.085863443495814,
+      "draw_sum mod 353 = 16 → #16"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n18_ΕΡΜΗΣ",
+      4.263696959427937,
+      "draw_sum mod 353 = 18 → #18"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n78_ΕΡΜΗΣ",
+      -3.50099877630955,
+      "draw_sum mod 353 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod353_n79_ΕΡΜΗΣ",
+      -4.748193903511666,
+      "draw_sum mod 353 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n63_ΑΡΤΕΜΙΣ",
+      -3.959924694262429,
+      "draw_sum mod 656 = 63 → #63"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n66_ΑΡΤΕΜΙΣ",
+      -3.604577985859142,
+      "draw_sum mod 656 = 66 → #66"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n67_ΑΡΤΕΜΙΣ",
+      -3.6916244390526614,
+      "draw_sum mod 656 = 67 → #67"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n69_ΑΡΤΕΜΙΣ",
+      -3.524187920289217,
+      "draw_sum mod 656 = 69 → #69"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n71_ΑΡΤΕΜΙΣ",
+      -4.753564886138672,
+      "draw_sum mod 656 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n72_ΑΡΤΕΜΙΣ",
+      -4.256282653793742,
+      "draw_sum mod 656 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n74_ΑΡΤΕΜΙΣ",
+      -4.648860921359677,
+      "draw_sum mod 656 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n75_ΑΡΤΕΜΙΣ",
+      -3.7859388972001824,
+      "draw_sum mod 656 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n77_ΑΡΤΕΜΙΣ",
+      -4.334876430853668,
+      "draw_sum mod 656 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n78_ΑΡΤΕΜΙΣ",
+      -3.827082938070034,
+      "draw_sum mod 656 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n79_ΑΡΤΕΜΙΣ",
+      -4.228036028677359,
+      "draw_sum mod 656 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod656_n80_ΑΡΤΕΜΙΣ",
+      -4.531010333778631,
+      "draw_sum mod 656 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod309_n1_ΑΡΗΣ",
+      -3.8262858142376714,
+      "draw_sum mod 309 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod309_n77_ΑΡΗΣ",
+      -3.882671009518759,
+      "draw_sum mod 309 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod375_n1_ΕΡΟΣ",
+      4.0159860199675546,
+      "draw_sum mod 375 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod375_n3_ΕΡΟΣ",
+      3.8279471248635937,
+      "draw_sum mod 375 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod375_n5_ΕΡΟΣ",
+      4.267133595140178,
+      "draw_sum mod 375 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod375_n7_ΕΡΟΣ",
+      3.9103094350288745,
+      "draw_sum mod 375 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod375_n13_ΕΡΟΣ",
+      4.225758453687533,
+      "draw_sum mod 375 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n72_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -3.7544494151551584,
+      "draw_sum mod 625 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n73_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -4.3632795198844345,
+      "draw_sum mod 625 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n74_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -5.02165550805563,
+      "draw_sum mod 625 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n75_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -4.796917412950391,
+      "draw_sum mod 625 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n76_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -6.670879172254405,
+      "draw_sum mod 625 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n77_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -4.430658089138684,
+      "draw_sum mod 625 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n79_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -6.3471686370855425,
+      "draw_sum mod 625 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod625_n80_ΚΑΛΟΣ ΚΑΓΑΘΟΣ",
+      -5.871209698818092,
+      "draw_sum mod 625 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod400_n72_ΜΑΘΗΜΑΤΑ",
+      3.9807962388796265,
+      "draw_sum mod 400 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod400_n73_ΜΑΘΗΜΑΤΑ",
+      4.033871267209612,
+      "draw_sum mod 400 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod400_n74_ΜΑΘΗΜΑΤΑ",
+      4.5615397491264575,
+      "draw_sum mod 400 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod400_n75_ΜΑΘΗΜΑΤΑ",
+      3.9614152089267725,
+      "draw_sum mod 400 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod400_n77_ΜΑΘΗΜΑΤΑ",
+      3.633493580633615,
+      "draw_sum mod 400 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod266_n6_ΕΛΛΑΣ",
+      3.8771794290699586,
+      "draw_sum mod 266 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n64_ΕΛΛΗΝΙΣΜΟΣ",
+      -3.526102079126505,
+      "draw_sum mod 643 = 64 → #64"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n65_ΕΛΛΗΝΙΣΜΟΣ",
+      -5.155405646636433,
+      "draw_sum mod 643 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n66_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.107488246482162,
+      "draw_sum mod 643 = 66 → #66"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n67_ΕΛΛΗΝΙΣΜΟΣ",
+      -3.7062677739057803,
+      "draw_sum mod 643 = 67 → #67"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n70_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.760952285695234,
+      "draw_sum mod 643 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n72_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.359145620145582,
+      "draw_sum mod 643 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n73_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.3647680350735705,
+      "draw_sum mod 643 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n75_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.107449270547009,
+      "draw_sum mod 643 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n76_ΕΛΛΗΝΙΣΜΟΣ",
+      -5.227100596426406,
+      "draw_sum mod 643 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n77_ΕΛΛΗΝΙΣΜΟΣ",
+      -4.1814568630798234,
+      "draw_sum mod 643 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n79_ΕΛΛΗΝΙΣΜΟΣ",
+      -5.664336834921508,
+      "draw_sum mod 643 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod643_n80_ΕΛΛΗΝΙΣΜΟΣ",
+      -5.55967536001907,
+      "draw_sum mod 643 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n1_ΚΡΗΤΗ",
+      -3.5833881815313813,
+      "draw_sum mod 436 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n3_ΚΡΗΤΗ",
+      -4.931557709072105,
+      "draw_sum mod 436 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n4_ΚΡΗΤΗ",
+      -5.8547895137563435,
+      "draw_sum mod 436 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n6_ΚΡΗΤΗ",
+      -3.593211021380845,
+      "draw_sum mod 436 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n8_ΚΡΗΤΗ",
+      -4.595843532778044,
+      "draw_sum mod 436 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n10_ΚΡΗΤΗ",
+      -4.591125283909056,
+      "draw_sum mod 436 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod436_n15_ΚΡΗΤΗ",
+      -4.964802133648805,
+      "draw_sum mod 436 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n1_ΡΟΔΟΣ",
+      -4.910275409557101,
+      "draw_sum mod 444 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n2_ΡΟΔΟΣ",
+      -4.184788986585501,
+      "draw_sum mod 444 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n3_ΡΟΔΟΣ",
+      -5.574552022548614,
+      "draw_sum mod 444 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n5_ΡΟΔΟΣ",
+      -5.514870180108347,
+      "draw_sum mod 444 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n8_ΡΟΔΟΣ",
+      -4.9178667587278015,
+      "draw_sum mod 444 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n10_ΡΟΔΟΣ",
+      -4.348778154375915,
+      "draw_sum mod 444 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n11_ΡΟΔΟΣ",
+      -5.142497926284037,
+      "draw_sum mod 444 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n12_ΡΟΔΟΣ",
+      -3.507361872061009,
+      "draw_sum mod 444 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n25_ΡΟΔΟΣ",
+      -3.5045230319804843,
+      "draw_sum mod 444 = 25 → #25"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod444_n29_ΡΟΔΟΣ",
+      -4.113497697744891,
+      "draw_sum mod 444 = 29 → #29"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod789_n70_ΣΑΝΤΟΡΙΝΗ",
+      3.6546575406090276,
+      "draw_sum mod 789 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod789_n77_ΣΑΝΤΟΡΙΝΗ",
+      3.6077418636041307,
+      "draw_sum mod 789 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n65_ΕΘΝΟΣ",
+      -3.8842430444708906,
+      "draw_sum mod 334 = 65 → #65"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n69_ΕΘΝΟΣ",
+      -3.594868137091668,
+      "draw_sum mod 334 = 69 → #69"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n70_ΕΘΝΟΣ",
+      -3.7769416919457885,
+      "draw_sum mod 334 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n73_ΕΘΝΟΣ",
+      -4.116194905276066,
+      "draw_sum mod 334 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n75_ΕΘΝΟΣ",
+      -4.474931312333465,
+      "draw_sum mod 334 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n77_ΕΘΝΟΣ",
+      -3.823529411764706,
+      "draw_sum mod 334 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n79_ΕΘΝΟΣ",
+      -4.1882891626277665,
+      "draw_sum mod 334 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod334_n80_ΕΘΝΟΣ",
+      -4.861437592326362,
+      "draw_sum mod 334 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod386_n79_ΕΠΤΑ",
+      3.641565048362313,
+      "draw_sum mod 386 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod386_n80_ΕΠΤΑ",
+      4.423650970275279,
+      "draw_sum mod 386 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n72_ΕΙΚΟΣΙ",
+      -3.53852260548724,
+      "draw_sum mod 315 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n74_ΕΙΚΟΣΙ",
+      -3.918111557053472,
+      "draw_sum mod 315 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n77_ΕΙΚΟΣΙ",
+      -3.994062696663292,
+      "draw_sum mod 315 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod315_n79_ΕΙΚΟΣΙ",
+      -4.397365248197925,
+      "draw_sum mod 315 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n1_ΕΚΑΤΟΝ",
+      -6.127633533453719,
+      "draw_sum mod 446 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n3_ΕΚΑΤΟΝ",
+      -4.86973858013111,
+      "draw_sum mod 446 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n7_ΕΚΑΤΟΝ",
+      -3.6154679743743663,
+      "draw_sum mod 446 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n9_ΕΚΑΤΟΝ",
+      -4.414961954911688,
+      "draw_sum mod 446 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n10_ΕΚΑΤΟΝ",
+      -4.373275788872814,
+      "draw_sum mod 446 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n11_ΕΚΑΤΟΝ",
+      -4.308757872291691,
+      "draw_sum mod 446 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n13_ΕΚΑΤΟΝ",
+      -4.604441660202408,
+      "draw_sum mod 446 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n15_ΕΚΑΤΟΝ",
+      -4.300366343107469,
+      "draw_sum mod 446 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n16_ΕΚΑΤΟΝ",
+      -3.588330739606809,
+      "draw_sum mod 446 = 16 → #16"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod446_n25_ΕΚΑΤΟΝ",
+      -4.79908064736904,
+      "draw_sum mod 446 = 25 → #25"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n1_ΧΙΛΙΟΙ",
+      3.873983987832745,
+      "draw_sum mod 730 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n2_ΧΙΛΙΟΙ",
+      3.8471697290396887,
+      "draw_sum mod 730 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n3_ΧΙΛΙΟΙ",
+      4.463000857381362,
+      "draw_sum mod 730 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n4_ΧΙΛΙΟΙ",
+      4.04330231310224,
+      "draw_sum mod 730 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n5_ΧΙΛΙΟΙ",
+      3.9793280269904554,
+      "draw_sum mod 730 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n6_ΧΙΛΙΟΙ",
+      3.997950294510558,
+      "draw_sum mod 730 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n8_ΧΙΛΙΟΙ",
+      3.997425803313981,
+      "draw_sum mod 730 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n10_ΧΙΛΙΟΙ",
+      3.688566140094464,
+      "draw_sum mod 730 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n14_ΧΙΛΙΟΙ",
+      4.151511543646548,
+      "draw_sum mod 730 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n15_ΧΙΛΙΟΙ",
+      4.274669323694002,
+      "draw_sum mod 730 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n17_ΧΙΛΙΟΙ",
+      4.632059050730805,
+      "draw_sum mod 730 = 17 → #17"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n18_ΧΙΛΙΟΙ",
+      3.9517414088730076,
+      "draw_sum mod 730 = 18 → #18"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod730_n20_ΧΙΛΙΟΙ",
+      3.723685067605235,
+      "draw_sum mod 730 = 20 → #20"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod771_n13_ΣΥΜΠΑΝ",
+      3.900076357028771,
+      "draw_sum mod 771 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod259_n69_ΕΙΜΑΡΜΕΝΗ",
+      3.9201516466593915,
+      "draw_sum mod 259 = 69 → #69"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n58_ΕΥΑ",
+      3.737244533030982,
+      "draw_sum mod 406 = 58 → #58"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n70_ΕΥΑ",
+      4.097180157852672,
+      "draw_sum mod 406 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n73_ΕΥΑ",
+      5.0351147903876985,
+      "draw_sum mod 406 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n75_ΕΥΑ",
+      4.2374510363428435,
+      "draw_sum mod 406 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n76_ΕΥΑ",
+      4.257366349854981,
+      "draw_sum mod 406 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n77_ΕΥΑ",
+      4.108420728104764,
+      "draw_sum mod 406 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n78_ΕΥΑ",
+      3.8324618345236234,
+      "draw_sum mod 406 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n79_ΕΥΑ",
+      4.685393660399708,
+      "draw_sum mod 406 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod406_n80_ΕΥΑ",
+      3.773269659560046,
+      "draw_sum mod 406 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n67_ΝΟΗΣ",
+      -3.7832852456720145,
+      "draw_sum mod 328 = 67 → #67"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n71_ΝΟΗΣ",
+      -4.354648431614539,
+      "draw_sum mod 328 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n72_ΝΟΗΣ",
+      -3.705468452692684,
+      "draw_sum mod 328 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n74_ΝΟΗΣ",
+      -3.9470035858314456,
+      "draw_sum mod 328 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n75_ΝΟΗΣ",
+      -3.529329260041529,
+      "draw_sum mod 328 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n77_ΝΟΗΣ",
+      -4.233337566673017,
+      "draw_sum mod 328 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n79_ΝΟΗΣ",
+      -3.8110273511263,
+      "draw_sum mod 328 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod328_n80_ΝΟΗΣ",
+      -4.123105625617661,
+      "draw_sum mod 328 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n68_ΠΑΥΛΟΣ",
+      4.026607034907205,
+      "draw_sum mod 781 = 68 → #68"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n75_ΠΑΥΛΟΣ",
+      4.228428635837098,
+      "draw_sum mod 781 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n76_ΠΑΥΛΟΣ",
+      4.601392476844163,
+      "draw_sum mod 781 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod781_n77_ΠΑΥΛΟΣ",
+      3.779023422469301,
+      "draw_sum mod 781 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod755_n6_ΠΕΤΡΟΣ",
+      3.685811851304326,
+      "draw_sum mod 755 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod755_n7_ΠΕΤΡΟΣ",
+      4.3065200269118895,
+      "draw_sum mod 755 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod755_n12_ΠΕΤΡΟΣ",
+      3.7533810205912506,
+      "draw_sum mod 755 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n1_ΝΙΚΟΛΑΟΣ",
+      -4.85017247404562,
+      "draw_sum mod 451 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n3_ΝΙΚΟΛΑΟΣ",
+      -5.262219040231323,
+      "draw_sum mod 451 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n4_ΝΙΚΟΛΑΟΣ",
+      -5.658032638058333,
+      "draw_sum mod 451 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n5_ΝΙΚΟΛΑΟΣ",
+      -4.225077756832655,
+      "draw_sum mod 451 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n9_ΝΙΚΟΛΑΟΣ",
+      -4.758676918729319,
+      "draw_sum mod 451 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n10_ΝΙΚΟΛΑΟΣ",
+      -3.5129449359340983,
+      "draw_sum mod 451 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n11_ΝΙΚΟΛΑΟΣ",
+      -4.464325769117196,
+      "draw_sum mod 451 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod451_n18_ΝΙΚΟΛΑΟΣ",
+      -4.088085564758155,
+      "draw_sum mod 451 = 18 → #18"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n1_ΔΗΜΗΤΡΙΟΣ",
+      4.083267922029722,
+      "draw_sum mod 740 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n2_ΔΗΜΗΤΡΙΟΣ",
+      3.771236166328255,
+      "draw_sum mod 740 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n3_ΔΗΜΗΤΡΙΟΣ",
+      5.480672861098147,
+      "draw_sum mod 740 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n5_ΔΗΜΗΤΡΙΟΣ",
+      4.274669323694002,
+      "draw_sum mod 740 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n8_ΔΗΜΗΤΡΙΟΣ",
+      4.354980328145763,
+      "draw_sum mod 740 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n9_ΔΗΜΗΤΡΙΟΣ",
+      3.8729833462074184,
+      "draw_sum mod 740 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod740_n10_ΔΗΜΗΤΡΙΟΣ",
+      4.1915826677231705,
+      "draw_sum mod 740 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n12_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      3.6451611048322583,
+      "draw_sum mod 687 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n13_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      4.184544977254596,
+      "draw_sum mod 687 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n14_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      3.9624019143466005,
+      "draw_sum mod 687 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n15_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      4.0323966878677915,
+      "draw_sum mod 687 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n32_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      3.824155847602003,
+      "draw_sum mod 687 = 32 → #32"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n48_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      -3.7306200253035513,
+      "draw_sum mod 687 = 48 → #48"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n74_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      -4.404072622327734,
+      "draw_sum mod 687 = 74 → #74"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n76_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      -4.091771842482659,
+      "draw_sum mod 687 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod687_n78_ΝΟΥ ΚΑΙ ΚΑΡΔΙΑ",
+      -3.7023656288334523,
+      "draw_sum mod 687 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n1_ΝΟΥΣ",
+      4.339512939146468,
+      "draw_sum mod 720 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n2_ΝΟΥΣ",
+      5.619559468637544,
+      "draw_sum mod 720 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n3_ΝΟΥΣ",
+      4.848036913936627,
+      "draw_sum mod 720 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n4_ΝΟΥΣ",
+      5.051934343809846,
+      "draw_sum mod 720 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n5_ΝΟΥΣ",
+      3.5241879202892186,
+      "draw_sum mod 720 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n6_ΝΟΥΣ",
+      4.389230532197882,
+      "draw_sum mod 720 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n8_ΝΟΥΣ",
+      3.6604030822626195,
+      "draw_sum mod 720 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n9_ΝΟΥΣ",
+      4.023634963396975,
+      "draw_sum mod 720 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n10_ΝΟΥΣ",
+      4.85733002097222,
+      "draw_sum mod 720 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n16_ΝΟΥΣ",
+      4.982061136236232,
+      "draw_sum mod 720 = 16 → #16"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n24_ΝΟΥΣ",
+      3.660692444890306,
+      "draw_sum mod 720 = 24 → #24"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod720_n29_ΝΟΥΣ",
+      4.190766595126998,
+      "draw_sum mod 720 = 29 → #29"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod318_n71_ΗΛΙΟΣ",
+      -4.291317036899751,
+      "draw_sum mod 318 = 71 → #71"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod318_n76_ΗΛΙΟΣ",
+      -4.042780018524935,
+      "draw_sum mod 318 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod318_n77_ΗΛΙΟΣ",
+      -4.731131984440731,
+      "draw_sum mod 318 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod301_n3_ΣΕΛΗΝΗ",
+      -4.295825086250549,
+      "draw_sum mod 301 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod301_n4_ΣΕΛΗΝΗ",
+      -3.908668916697515,
+      "draw_sum mod 301 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod301_n6_ΣΕΛΗΝΗ",
+      -3.524415607777278,
+      "draw_sum mod 301 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod301_n12_ΣΕΛΗΝΗ",
+      -4.6275039820024215,
+      "draw_sum mod 301 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod301_n13_ΣΕΛΗΝΗ",
+      -3.589055718351613,
+      "draw_sum mod 301 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n2_ΓΑΛΑΞΙΑΣ",
+      -3.53852260548724,
+      "draw_sum mod 306 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n3_ΓΑΛΑΞΙΑΣ",
+      -3.9699370537373984,
+      "draw_sum mod 306 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n4_ΓΑΛΑΞΙΑΣ",
+      -3.852696083026505,
+      "draw_sum mod 306 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n10_ΓΑΛΑΞΙΑΣ",
+      -3.530057235070884,
+      "draw_sum mod 306 = 10 → #10"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n77_ΓΑΛΑΞΙΑΣ",
+      -4.315081250597953,
+      "draw_sum mod 306 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod306_n80_ΓΑΛΑΞΙΑΣ",
+      -4.05098608315695,
+      "draw_sum mod 306 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n3_ΠΑΝΣΕΛΗΝΟΣ",
+      6.3595775807730215,
+      "draw_sum mod 694 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n4_ΠΑΝΣΕΛΗΝΟΣ",
+      5.800595126434604,
+      "draw_sum mod 694 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n5_ΠΑΝΣΕΛΗΝΟΣ",
+      5.072636782249087,
+      "draw_sum mod 694 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n6_ΠΑΝΣΕΛΗΝΟΣ",
+      4.08248290463863,
+      "draw_sum mod 694 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n7_ΠΑΝΣΕΛΗΝΟΣ",
+      5.467111502073158,
+      "draw_sum mod 694 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n8_ΠΑΝΣΕΛΗΝΟΣ",
+      5.326746241998195,
+      "draw_sum mod 694 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n9_ΠΑΝΣΕΛΗΝΟΣ",
+      4.340719888269514,
+      "draw_sum mod 694 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n11_ΠΑΝΣΕΛΗΝΟΣ",
+      5.243014422401341,
+      "draw_sum mod 694 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n12_ΠΑΝΣΕΛΗΝΟΣ",
+      4.039348941262817,
+      "draw_sum mod 694 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n13_ΠΑΝΣΕΛΗΝΟΣ",
+      3.8762115054227535,
+      "draw_sum mod 694 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n15_ΠΑΝΣΕΛΗΝΟΣ",
+      3.6407282184728254,
+      "draw_sum mod 694 = 15 → #15"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n18_ΠΑΝΣΕΛΗΝΟΣ",
+      3.922844808949391,
+      "draw_sum mod 694 = 18 → #18"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n68_ΠΑΝΣΕΛΗΝΟΣ",
+      -4.154076840118547,
+      "draw_sum mod 694 = 68 → #68"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n70_ΠΑΝΣΕΛΗΝΟΣ",
+      -3.5756009837058844,
+      "draw_sum mod 694 = 70 → #70"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod694_n79_ΠΑΝΣΕΛΗΝΟΣ",
+      -3.8030949259357505,
+      "draw_sum mod 694 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n17_ΕΚΛΕΙΨΗ",
+      4.137582975037247,
+      "draw_sum mod 778 = 17 → #17"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n75_ΕΚΛΕΙΨΗ",
+      4.088521730363201,
+      "draw_sum mod 778 = 75 → #75"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod778_n79_ΕΚΛΕΙΨΗ",
+      3.536607440880224,
+      "draw_sum mod 778 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n1_ΝΕΑ ΣΕΛΗΝΗ",
+      4.015832279792166,
+      "draw_sum mod 357 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n2_ΝΕΑ ΣΕΛΗΝΗ",
+      4.667536762550066,
+      "draw_sum mod 357 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n3_ΝΕΑ ΣΕΛΗΝΗ",
+      6.30904272457419,
+      "draw_sum mod 357 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n4_ΝΕΑ ΣΕΛΗΝΗ",
+      6.565254306008573,
+      "draw_sum mod 357 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n5_ΝΕΑ ΣΕΛΗΝΗ",
+      3.9180195498468926,
+      "draw_sum mod 357 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n6_ΝΕΑ ΣΕΛΗΝΗ",
+      4.23894379257427,
+      "draw_sum mod 357 = 6 → #6"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n7_ΝΕΑ ΣΕΛΗΝΗ",
+      4.828464094367618,
+      "draw_sum mod 357 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n8_ΝΕΑ ΣΕΛΗΝΗ",
+      4.16172564886538,
+      "draw_sum mod 357 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n9_ΝΕΑ ΣΕΛΗΝΗ",
+      5.8016274250066076,
+      "draw_sum mod 357 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n11_ΝΕΑ ΣΕΛΗΝΗ",
+      5.062917745201333,
+      "draw_sum mod 357 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n12_ΝΕΑ ΣΕΛΗΝΗ",
+      5.346499999126898,
+      "draw_sum mod 357 = 12 → #12"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n13_ΝΕΑ ΣΕΛΗΝΗ",
+      4.685015164181178,
+      "draw_sum mod 357 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n14_ΝΕΑ ΣΕΛΗΝΗ",
+      3.593510186465643,
+      "draw_sum mod 357 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n16_ΝΕΑ ΣΕΛΗΝΗ",
+      3.693931984430494,
+      "draw_sum mod 357 = 16 → #16"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n19_ΝΕΑ ΣΕΛΗΝΗ",
+      3.952975620992696,
+      "draw_sum mod 357 = 19 → #19"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod357_n23_ΝΕΑ ΣΕΛΗΝΗ",
+      4.217248532536964,
+      "draw_sum mod 357 = 23 → #23"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod262_n55_ΚΑΛΟΚΑΙΡΙ",
+      3.7559932913420564,
+      "draw_sum mod 262 = 55 → #55"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n1_ΜΑΡΤΙΟΣ",
+      5.619559468637544,
+      "draw_sum mod 721 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n2_ΜΑΡΤΙΟΣ",
+      5.648630165779375,
+      "draw_sum mod 721 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n3_ΜΑΡΤΙΟΣ",
+      3.9836839098764867,
+      "draw_sum mod 721 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n5_ΜΑΡΤΙΟΣ",
+      4.389230532197882,
+      "draw_sum mod 721 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n8_ΜΑΡΤΙΟΣ",
+      4.112066501054051,
+      "draw_sum mod 721 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n9_ΜΑΡΤΙΟΣ",
+      3.9400659826770354,
+      "draw_sum mod 721 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n13_ΜΑΡΤΙΟΣ",
+      4.12979006311512,
+      "draw_sum mod 721 = 13 → #13"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n14_ΜΑΡΤΙΟΣ",
+      4.228036028677359,
+      "draw_sum mod 721 = 14 → #14"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod721_n29_ΜΑΡΤΙΟΣ",
+      4.347548534429147,
+      "draw_sum mod 721 = 29 → #29"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n59_ΜΑΙΟΣ",
+      -4.5892704767503005,
+      "draw_sum mod 321 = 59 → #59"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n61_ΜΑΙΟΣ",
+      -4.15465486229523,
+      "draw_sum mod 321 = 61 → #61"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n72_ΜΑΙΟΣ",
+      -4.5864306489035425,
+      "draw_sum mod 321 = 72 → #72"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n73_ΜΑΙΟΣ",
+      -3.850152605634817,
+      "draw_sum mod 321 = 73 → #73"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n76_ΜΑΙΟΣ",
+      -3.7918477623364986,
+      "draw_sum mod 321 = 76 → #76"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n77_ΜΑΙΟΣ",
+      -4.126142044277783,
+      "draw_sum mod 321 = 77 → #77"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n78_ΜΑΙΟΣ",
+      -5.192664837628366,
+      "draw_sum mod 321 = 78 → #78"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod321_n80_ΜΑΙΟΣ",
+      -4.705177254347427,
+      "draw_sum mod 321 = 80 → #80"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod790_n66_ΙΟΥΛΙΟΣ",
+      3.6853277101332504,
+      "draw_sum mod 790 = 66 → #66"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod790_n79_ΙΟΥΛΙΟΣ",
+      3.538489311011444,
+      "draw_sum mod 790 = 79 → #79"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n1_ΔΕΚΕΜΒΡΙΟΣ",
+      -5.249262168082858,
+      "draw_sum mod 456 = 1 → #1"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n2_ΔΕΚΕΜΒΡΙΟΣ",
+      -3.9453562955622123,
+      "draw_sum mod 456 = 2 → #2"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n3_ΔΕΚΕΜΒΡΙΟΣ",
+      -5.023399894982527,
+      "draw_sum mod 456 = 3 → #3"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n4_ΔΕΚΕΜΒΡΙΟΣ",
+      -4.9892675943009515,
+      "draw_sum mod 456 = 4 → #4"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n5_ΔΕΚΕΜΒΡΙΟΣ",
+      -4.015557276370013,
+      "draw_sum mod 456 = 5 → #5"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n7_ΔΕΚΕΜΒΡΙΟΣ",
+      -4.882150983950464,
+      "draw_sum mod 456 = 7 → #7"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n8_ΔΕΚΕΜΒΡΙΟΣ",
+      -4.7782885370882795,
+      "draw_sum mod 456 = 8 → #8"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n9_ΔΕΚΕΜΒΡΙΟΣ",
+      -5.427204202399745,
+      "draw_sum mod 456 = 9 → #9"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n11_ΔΕΚΕΜΒΡΙΟΣ",
+      -3.8767448747406146,
+      "draw_sum mod 456 = 11 → #11"
+    ],
+    [
+      "sum_mod_self",
+      "sum_mod456_n13_ΔΕΚΕΜΒΡΙΟΣ",
+      -5.408461026667622,
+      "draw_sum mod 456 = 13 → #13"
+    ]
+  ]
+}

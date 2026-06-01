@@ -1,0 +1,161 @@
+{
+  "batch": "twelfth",
+  "signals": [
+    {
+      "cat": "word_phrase_subset",
+      "name": "ΤΖΑΚΠΟΤ",
+      "z": 3.4577675048712653,
+      "det": "phrase_subset k=6"
+    },
+    {
+      "cat": "word_phrase_subset",
+      "name": "ΤΟ ΤΖΑΚΠΟΤ",
+      "z": 3.4577675048712653,
+      "det": "phrase_subset k=6"
+    },
+    {
+      "cat": "word_phrase_subset",
+      "name": "ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ",
+      "z": 5.944487921829525,
+      "det": "phrase_subset k=10"
+    },
+    {
+      "cat": "word_phrase_subset",
+      "name": "ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ",
+      "z": 5.944487921829525,
+      "det": "phrase_subset k=10"
+    },
+    {
+      "cat": "word_phrase_subset",
+      "name": "ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ",
+      "z": 5.944487921829525,
+      "det": "phrase_subset k=10"
+    },
+    {
+      "cat": "mil_phrase_subset",
+      "name": "ΣΟΛΟΜΩΝ",
+      "z": 3.046933122902,
+      "det": "milesian_subset k=4 nums=[30, 40, 50, 70]"
+    },
+    {
+      "cat": "mil_phrase_subset",
+      "name": "ΘΕΟΣ ΑΓΑΠΗ ΕΣΤΙΝ",
+      "z": 4.392582612102331,
+      "det": "milesian_subset k=9 nums=[1, 3, 5, 8, 9, 10, 50, 70, 80]"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΤΖΑΚΠΟΤ≥6/6",
+      "z": 3.4577675048712653,
+      "det": "partial_match 6/6"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΤΟ ΤΖΑΚΠΟΤ≥6/6",
+      "z": 3.4577675048712653,
+      "det": "partial_match 6/6"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΕΝ ΑΡΧΗ ΗΝ Ο ΛΟΓΟΣ≥10/10",
+      "z": 5.944487921829525,
+      "det": "partial_match 10/10"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΑΓΑΠΑΤΕ ΑΛΛΗΛΟΥΣ≥10/10",
+      "z": 5.944487921829525,
+      "det": "partial_match 10/10"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΙΑΝΟΥΑΡΙΟΣ≥6/7",
+      "z": 3.0000180053868637,
+      "det": "partial_match 6/7"
+    },
+    {
+      "cat": "partial_phrase",
+      "name": "ΕΝ ΑΡΧ ΗΝ Ο ΛΟΓΟΣ≥10/10",
+      "z": 5.944487921829525,
+      "det": "partial_match 10/10"
+    },
+    {
+      "cat": "fulfillment_fixed",
+      "name": "ΑΓΓΕΛΟΣ_k2+4",
+      "z": 3.3268900696382606,
+      "det": "fulfillment_fixed 2+4 of 'ΑΓΓΕΛΟΣ'"
+    },
+    {
+      "cat": "fulfillment_fixed",
+      "name": "ΤΕΤΡΑΓΩΝΟ_k3+5",
+      "z": 3.099307365171539,
+      "det": "fulfillment_fixed 3+5 of 'ΤΕΤΡΑΓΩΝΟ'"
+    },
+    {
+      "cat": "fulfillment_fixed",
+      "name": "ΠΑΥΛΟΣ_k2+4",
+      "z": 3.0430955397271386,
+      "det": "fulfillment_fixed 2+4 of 'ΠΑΥΛΟΣ'"
+    },
+    {
+      "cat": "union2_cover",
+      "name": "ΘΕΟΤΟΚΟΣ",
+      "z": 3.1617719856148203,
+      "det": "union2_cover k=6"
+    },
+    {
+      "cat": "phrase_weekday",
+      "name": "ΠΑΡΑΣΚΕΥΗ@wd1",
+      "z": 4.796507238394224,
+      "det": "phrase 'ΠΑΡΑΣΚΕΥΗ' bias on Τρι"
+    },
+    {
+      "cat": "phrase_weekday",
+      "name": "ΙΟΥΝΙΟΣ@wd3",
+      "z": 3.8080225909758525,
+      "det": "phrase 'ΙΟΥΝΙΟΣ' bias on Πεμ"
+    },
+    {
+      "cat": "phrase_weekday",
+      "name": "ΑΓΙΟΣ ΤΟΠΟΣ@wd3",
+      "z": 4.5529701216613585,
+      "det": "phrase 'ΑΓΙΟΣ ΤΟΠΟΣ' bias on Πεμ"
+    },
+    {
+      "cat": "dr_bias",
+      "name": "dr4_n17",
+      "z": -3.779951315570663,
+      "det": "digital_root_sum=4 → #17"
+    },
+    {
+      "cat": "cross_draw",
+      "name": "ΤΖΑΚΠΟΤ@lag5",
+      "z": 15.80043891657101,
+      "det": "cross_draw_resonance lag=5"
+    },
+    {
+      "cat": "cross_draw",
+      "name": "ΤΟ ΤΖΑΚΠΟΤ@lag5",
+      "z": 15.80043891657101,
+      "det": "cross_draw_resonance lag=5"
+    },
+    {
+      "cat": "cross_draw",
+      "name": "ΣΑΒΒΑΤΟ@lag3",
+      "z": 6.030174616452738,
+      "det": "cross_draw_resonance lag=3"
+    },
+    {
+      "cat": "cross_draw",
+      "name": "ΣΑΒΒΑΤΟ@lag10",
+      "z": 6.030272218495156,
+      "det": "cross_draw_resonance lag=10"
+    },
+    {
+      "cat": "back_proj",
+      "name": "ΚΙΝΟ_prev_n28",
+      "z": -3.519443164263374,
+      "det": "phrase@draw_i → #28@draw_{i-1}"
+    }
+  ]
+}
