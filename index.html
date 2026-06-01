@@ -746,6 +746,8 @@
       <button id="dtSubtract2Btn" onclick="dtToggleSubtract2()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Αφαιρετική 2: αφαιρεί ΟΛΑ όσα δοκιμάσαμε + τυχαία από remainder">🎲 Αφαιρετική 2</button>
       <input id="dtSubtract2Count" type="number" min="1" max="12" value="8" onchange="if(window._subtract2ModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #c084fc;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#6b21a8" title="Πόσους αριθμούς (1-12)">
       <button id="dtRerollBtn" onclick="dtReroll()" style="margin-left:3px;font-size:0.72rem;padding:3px 6px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Νέα τυχαία πρόβλεψη (μόνο σε Αφαιρετική 2)">↻</button>
+      <button id="dtAlchemyBtn" onclick="dtOpenAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου + στιγμή">🔮 Αλχημία</button>
+      <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -3858,6 +3860,395 @@
       _subtract2Seed=Date.now()+Math.floor(Math.random()*1000000);
       _predHistory=[];
       _render();
+    };
+
+    // ════════════════ Αλχημία: στιγμιαία νούμερα από live πηγές ════════════════
+    async function _fetchAlchemySources(){
+      const sources=[];
+      const t0=performance.now();
+
+      // Helper: fetch with timeout
+      const fx=async(url, timeout=4000)=>{
+        const ctrl=new AbortController();
+        const tid=setTimeout(()=>ctrl.abort(), timeout);
+        try{
+          const r=await fetch(url, {signal:ctrl.signal});
+          clearTimeout(tid);
+          return await r.json();
+        }catch(e){clearTimeout(tid); throw e;}
+      };
+
+      // Helper: extract number 1-80 from arbitrary value
+      const to80=(v)=>{
+        const n=Math.abs(Math.floor(v));
+        if(n===0) return 1;
+        return ((n-1)%80)+1;
+      };
+
+      const ALL=[
+        // 1. Καιρός Αθήνας — ΑΥΤΗ ΤΗ ΣΤΙΓΜΗ
+        async()=>{
+          const d=await fx('https://api.open-meteo.com/v1/forecast?latitude=37.97&longitude=23.73&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure');
+          const c=d.current;
+          return {icon:'🌡️', label:'Καιρός Αθήνας', detail:`${c.temperature_2m}°C · ${c.relative_humidity_2m}% υγρ. · ${Math.round(c.wind_speed_10m)}km/h · ${Math.round(c.surface_pressure)}mb`, nums:[to80(Math.round(c.temperature_2m)), to80(c.relative_humidity_2m), to80(Math.round(c.surface_pressure)-1000)]};
+        },
+        // 2. Bitcoin
+        async()=>{
+          const d=await fx('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,dogecoin&vs_currencies=usd&precision=2');
+          const btc=d.bitcoin.usd, eth=d.ethereum.usd, doge=d.dogecoin?.usd||0.1;
+          return {icon:'₿', label:'Crypto', detail:`BTC $${btc.toLocaleString()} · ETH $${eth.toLocaleString()} · DOGE $${doge}`, nums:[to80(Math.round(btc*100)%100), to80(Math.round(eth)%80), to80(Math.round(doge*1000)%80)]};
+        },
+        // 3. Συνάλλαγμα
+        async()=>{
+          const d=await fx('https://api.frankfurter.dev/v1/latest?from=EUR&to=USD,GBP,JPY,CHF,CNY');
+          const r=d.rates;
+          return {icon:'💱', label:'Συνάλλαγμα', detail:`USD ${r.USD.toFixed(4)} · GBP ${r.GBP.toFixed(4)} · JPY ${r.JPY.toFixed(2)} · CHF ${r.CHF.toFixed(4)}`, nums:[to80(Math.floor(r.USD*10000)%100), to80(Math.floor(r.GBP*10000)%100), to80(Math.floor(r.JPY*10)%80)]};
+        },
+        // 4. ISS θέση
+        async()=>{
+          const d=await fx('https://api.wheretheiss.at/v1/satellites/25544');
+          return {icon:'🛰️', label:'ISS Διαστημικός Σταθμός', detail:`${d.latitude.toFixed(2)}°, ${d.longitude.toFixed(2)}° · ${Math.round(d.altitude)}km · ${Math.round(d.velocity)}km/h`, nums:[to80(Math.abs(d.latitude*10)), to80(Math.abs(d.longitude*10)), to80(Math.round(d.altitude))]};
+        },
+        // 5. Σεισμοί ΗΠΑ
+        async()=>{
+          const d=await fx('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson');
+          const cnt=d.features.length;
+          if(cnt===0) throw new Error('no quakes');
+          const f=d.features[0];
+          return {icon:'🌍', label:'Σεισμός που μόλις έγινε', detail:`M${(f.properties.mag||0).toFixed(1)} · ${(f.properties.place||'?').substring(0,40)} · ${cnt} σεισμοί τελ. ώρα`, nums:[to80(Math.round((f.properties.mag||0)*10)), to80(cnt), to80(Math.floor(Math.abs(f.geometry.coordinates[0]||0)))]};
+        },
+        // 6. Wikipedia τυχαίο άρθρο
+        async()=>{
+          const d=await fx('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+          const t=d.title||'?';
+          let cs=0; for(const ch of t) cs+=ch.charCodeAt(0);
+          const wc=(d.extract||'').split(/\s+/).length;
+          return {icon:'📖', label:'Wikipedia τυχαίο άρθρο', detail:`"${t.substring(0,40)}" · ${wc} λέξεις`, nums:[to80(t.length), to80(cs), to80(wc)]};
+        },
+        // 7. Στιγμή χρήστη
+        async()=>{
+          const now=new Date(), ms=Date.now();
+          const buf=new Uint32Array(3); crypto.getRandomValues(buf);
+          return {icon:'⏱️', label:'Η στιγμή σου', detail:`${now.toLocaleTimeString('el-GR')} · μs ${ms%1000} · crypto ${buf[0]%10000}`, nums:[to80(now.getSeconds()+1), to80(ms%1000), to80(buf[0]%10000)]};
+        },
+        // 8. Σελήνη
+        async()=>{
+          const jd=Date.now()/86400000+2440587.5;
+          const ip=(jd-2451550.1)/29.530588853;
+          const phase=ip-Math.floor(ip);
+          const deg=Math.round(phase*360), day=Math.round(phase*29.53);
+          const name=phase<0.03?'🌑 Νέα':phase<0.22?'🌒':phase<0.28?'🌓 1ο τέταρτο':phase<0.47?'🌔':phase<0.53?'🌕 Πανσέληνος':phase<0.72?'🌖':phase<0.78?'🌗 3ο τέταρτο':phase<0.97?'🌘':'🌑 Νέα';
+          return {icon:'🌙', label:`Σελήνη ${name}`, detail:`${day}η μέρα του κύκλου · ${deg}° φάση`, nums:[to80(day+1), to80(deg)]};
+        },
+        // 9. Ήλιος Αθήνα
+        async()=>{
+          const d=await fx('https://api.sunrise-sunset.org/json?lat=37.97&lng=23.73&formatted=0');
+          const ss=new Date(d.results.sunset).getTime(), sr=new Date(d.results.sunrise).getTime();
+          const secsSS=Math.abs(Math.round((ss-Date.now())/1000));
+          const dayMin=Math.round((ss-sr)/60000);
+          return {icon:'☀️', label:'Ήλιος Αθήνας', detail:`${dayMin} λεπτά μέρα · ${Math.floor(secsSS/60)} λεπτά μέχρι ηλιοβασίλεμα`, nums:[to80(dayMin), to80(secsSS%1000)]};
+        },
+        // 10. Bitcoin blockchain
+        async()=>{
+          const t=await fetch('https://blockchain.info/q/getblockcount').then(r=>r.text());
+          const h=parseInt(t);
+          return {icon:'⛓️', label:'Bitcoin blockchain', detail:`block #${h.toLocaleString()}`, nums:[to80(h%10000), to80(h%80)]};
+        },
+        // 11. Τυχαίος Pokémon
+        async()=>{
+          const id=Math.floor(Math.random()*898)+1;
+          const d=await fx(`https://pokeapi.co/api/v2/pokemon/${id}`);
+          return {icon:'🐉', label:`Pokémon #${id}`, detail:`${d.name} · ${d.height}dm · ${d.weight}hg · ${d.base_experience}xp`, nums:[to80(d.height), to80(d.weight%80), to80(d.base_experience||50)]};
+        },
+        // 12. Τυχαίος χρήστης (γενέθλια άγνωστου)
+        async()=>{
+          const d=await fx('https://randomuser.me/api/');
+          const u=d.results[0];
+          const age=u.dob.age;
+          const zip=parseInt(String(u.location.postcode).replace(/\D/g,''))||0;
+          return {icon:'👤', label:'Τυχαίος άνθρωπος στον κόσμο', detail:`${u.name.first} ${u.name.last} · ${age} ετών · ${u.location.country}`, nums:[to80(age), to80(zip%100), to80(u.dob.age%80)]};
+        },
+        // 13. Cat fact (το μήκος του πραγματικού fact)
+        async()=>{
+          const d=await fx('https://catfact.ninja/fact');
+          const len=d.fact.length;
+          let cs=0; for(const ch of d.fact) cs+=ch.charCodeAt(0);
+          return {icon:'🐈', label:'Γεγονός για γάτες', detail:`"${d.fact.substring(0,80)}..."`, nums:[to80(len), to80(cs%1000)]};
+        },
+        // 14. Random advice
+        async()=>{
+          const d=await fx('https://api.adviceslip.com/advice');
+          const id=d.slip.id, advice=d.slip.advice;
+          return {icon:'💭', label:'Συμβουλή απ\' το σύμπαν', detail:`"${advice}"`, nums:[to80(id), to80(advice.length)]};
+        },
+        // 15. Πιο πρόσφατο GitHub Octocat status
+        async()=>{
+          const t=await fetch('https://api.github.com/zen').then(r=>r.text());
+          let cs=0; for(const ch of t) cs+=ch.charCodeAt(0);
+          return {icon:'🐙', label:'GitHub Zen', detail:`"${t}"`, nums:[to80(t.length), to80(cs)]};
+        },
+        // 16. Τιμή πετρελαίου / άλλα νομίσματα
+        async()=>{
+          const d=await fx('https://api.frankfurter.dev/v1/latest?from=USD&to=CAD,AUD,SEK,NOK,RUB');
+          const r=d.rates;
+          return {icon:'🌐', label:'Άλλα νομίσματα έναντι USD', detail:`CAD ${r.CAD?.toFixed(3)||'?'} · AUD ${r.AUD?.toFixed(3)||'?'} · SEK ${r.SEK?.toFixed(2)||'?'}`, nums:[to80(Math.floor((r.CAD||1)*1000)%80), to80(Math.floor((r.SEK||1)*100)%80)]};
+        },
+        // 17. Στατιστικά τυχαίας χώρας
+        async()=>{
+          const d=await fx('https://restcountries.com/v3.1/all?fields=name,population,area,cca2');
+          const c=d[Math.floor(Math.random()*d.length)];
+          const pop=c.population||0, area=c.area||0;
+          return {icon:'🗺️', label:`Τυχαία χώρα: ${c.name.common}`, detail:`Πληθυσμός ${pop.toLocaleString()} · Έκταση ${area.toLocaleString()}km²`, nums:[to80(pop%100), to80(Math.floor(area)%80)]};
+        },
+        // 18. Numbers API trivia για τυχαίο αριθμό
+        async()=>{
+          const r=Math.floor(Math.random()*100);
+          const t=await fetch(`http://numbersapi.com/${r}`).then(r=>r.text());
+          return {icon:'🔢', label:`Γεγονός για το ${r}`, detail:`"${t.substring(0,100)}"`, nums:[to80(r+1), to80(t.length)]};
+        },
+        // 19. Στιγμή με mouse/screen
+        async()=>{
+          const sx=window.innerWidth, sy=window.innerHeight;
+          const mx=window._lastMouseX||0, my=window._lastMouseY||0;
+          const perf=Math.floor(performance.now()*1000)%10000;
+          return {icon:'🖱️', label:'Συσκευή & κίνηση', detail:`Οθόνη ${sx}×${sy} · ποντίκι (${mx},${my}) · perf ${perf}μs`, nums:[to80(sx%80), to80(sy%80), to80((mx+my)%80)]};
+        },
+        // 20. NASA APOD - astronomy picture of the day
+        async()=>{
+          const d=await fx('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY');
+          const title=d.title||'?', expl=d.explanation||'';
+          let cs=0; for(const ch of title) cs+=ch.charCodeAt(0);
+          return {icon:'🌌', label:'NASA APOD της ημέρας', detail:`"${title.substring(0,50)}" · ${expl.split(' ').length} λέξεις`, nums:[to80(title.length), to80(cs), to80(expl.split('.').length)]};
+        },
+        // 21. Hacker News top story
+        async()=>{
+          const ids=await fx('https://hacker-news.firebaseio.com/v0/topstories.json');
+          const id=ids[Math.floor(Math.random()*Math.min(30,ids.length))];
+          const s=await fx(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+          return {icon:'📰', label:'Hacker News τυχαίο top', detail:`"${(s.title||'?').substring(0,50)}" · ${s.score||0} ψήφοι · ${s.descendants||0} σχόλια`, nums:[to80(s.score||10), to80(s.descendants||5), to80(id%1000)]};
+        },
+        // 22. UUID v4 — pure entropy της στιγμής
+        async()=>{
+          const u=crypto.randomUUID();
+          // Sum hex digits
+          let sum=0; for(const ch of u) if('0123456789abcdef'.includes(ch)) sum+=parseInt(ch,16);
+          const last8=parseInt(u.replace(/-/g,'').substring(24,32),16);
+          return {icon:'🎲', label:'UUID της στιγμής', detail:`${u}`, nums:[to80(sum), to80(last8%1000), to80(last8%80)]};
+        },
+        // 23. Καιρός σε τυχαία ευρωπαϊκή πόλη
+        async()=>{
+          const cities=[['Παρίσι',48.85,2.35],['Λονδίνο',51.51,-0.13],['Βερολίνο',52.52,13.40],['Ρώμη',41.90,12.49],['Μαδρίτη',40.42,-3.70],['Άμστερνταμ',52.37,4.90],['Πράγα',50.08,14.44],['Στοκχόλμη',59.33,18.06]];
+          const [name,lat,lon]=cities[Math.floor(Math.random()*cities.length)];
+          const d=await fx(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`);
+          const c=d.current;
+          return {icon:'🌍', label:`Καιρός στο ${name}`, detail:`${c.temperature_2m}°C · ${c.relative_humidity_2m}% υγρασία · ${Math.round(c.wind_speed_10m)}km/h`, nums:[to80(Math.round(c.temperature_2m+30)), to80(c.relative_humidity_2m), to80(Math.round(c.wind_speed_10m)+1)]};
+        },
+        // 24. Πιο πρόσφατο SpaceX launch
+        async()=>{
+          const d=await fx('https://api.spacexdata.com/v5/launches/latest');
+          const fn=d.flight_number||0;
+          const name=(d.name||'?').substring(0,40);
+          return {icon:'🚀', label:'SpaceX τελευταία εκτόξευση', detail:`Πτήση #${fn}: ${name}`, nums:[to80(fn), to80(name.length)]};
+        },
+        // 25. Live αριθμητικά - δευτερόλεπτα από αρχή έτους
+        async()=>{
+          const now=new Date();
+          const start=new Date(now.getFullYear(),0,1);
+          const secsThisYear=Math.floor((now-start)/1000);
+          const dayOfYear=Math.floor(secsThisYear/86400)+1;
+          const weekNum=Math.ceil(dayOfYear/7);
+          return {icon:'📅', label:'Χρονομέτρηση έτους', detail:`Μέρα ${dayOfYear}η · Βδομάδα ${weekNum}η · ${secsThisYear.toLocaleString()} δευτ. από 1 Ιαν`, nums:[to80(dayOfYear), to80(weekNum*3), to80(secsThisYear%80)]};
+        }
+      ];
+
+      // ΤΥΧΑΙΑ ΕΠΙΛΟΓΗ 7-8 πηγών κάθε φορά (όχι ίδιες πάντα)
+      const N_PICK=8;
+      const idx=[...ALL.keys()];
+      // Fisher-Yates shuffle
+      for(let i=idx.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [idx[i],idx[j]]=[idx[j],idx[i]];
+      }
+      const picked=idx.slice(0, N_PICK);
+
+      // Run picked in parallel
+      const results=await Promise.allSettled(picked.map(i=>ALL[i]()));
+      for(const r of results){
+        if(r.status==='fulfilled') sources.push(r.value);
+        // skip failed (don't show error rows — try again with reroll)
+      }
+      // If we have too few successful sources, run a couple more
+      if(sources.length<5){
+        const extra=idx.slice(N_PICK, N_PICK+5);
+        const extraResults=await Promise.allSettled(extra.map(i=>ALL[i]()));
+        for(const r of extraResults) if(r.status==='fulfilled') sources.push(r.value);
+      }
+
+      // Pool all numbers and pick uniquely
+      const pool=[];
+      for(const s of sources) for(const n of (s.nums||[])) if(n>=1&&n<=80&&!pool.includes(n)) pool.push(n);
+
+      // If too few, fill with crypto random
+      const buf=new Uint8Array(80);
+      crypto.getRandomValues(buf);
+      let i=0;
+      while(pool.length<12){
+        const n=(buf[i++%80]%80)+1;
+        if(!pool.includes(n)) pool.push(n);
+      }
+
+      const elapsed=Math.round(performance.now()-t0);
+      return {sources, pool, elapsed};
+    }
+
+    // Track mouse position for "συσκευή & κίνηση" source
+    document.addEventListener('mousemove',(e)=>{window._lastMouseX=e.clientX;window._lastMouseY=e.clientY;}, {passive:true});
+
+    // Επόμενη κλήρωση: κάθε 5 λεπτά (στρογγυλοποίηση πάνω)
+    function _nextDrawEpoch(){
+      const now=Date.now();
+      const FIVE_MIN=5*60*1000;
+      return Math.ceil(now/FIVE_MIN)*FIVE_MIN;
+    }
+
+    function _alchemyCacheKey(epoch){return 'alchemy_v1_'+epoch;}
+
+    function _getAlchemyCache(){
+      const ep=_nextDrawEpoch();
+      try{
+        const raw=localStorage.getItem(_alchemyCacheKey(ep));
+        if(!raw) return null;
+        const obj=JSON.parse(raw);
+        if(obj.lockedFor===ep) return obj;
+      }catch(e){}
+      return null;
+    }
+
+    function _setAlchemyCache(data){
+      const ep=_nextDrawEpoch();
+      data.lockedFor=ep;
+      try{
+        localStorage.setItem(_alchemyCacheKey(ep), JSON.stringify(data));
+        // Cleanup: διέγραψε παλιά cache entries (>3 ώρες)
+        const cutoff=Date.now()-3*60*60*1000;
+        for(let i=localStorage.length-1;i>=0;i--){
+          const k=localStorage.key(i);
+          if(k&&k.startsWith('alchemy_v1_')){
+            const ep2=parseInt(k.substring('alchemy_v1_'.length));
+            if(ep2<cutoff) localStorage.removeItem(k);
+          }
+        }
+      }catch(e){}
+    }
+
+    function _clearAlchemyCache(){
+      const ep=_nextDrawEpoch();
+      try{localStorage.removeItem(_alchemyCacheKey(ep));}catch(e){}
+    }
+
+    function _renderAlchemyModal(data, fromCache, forced){
+      const count=Math.max(1,Math.min(12,parseInt(document.getElementById('dtAlchemyCount')?.value)||8));
+      // Χρησιμοποίησε deterministic shuffle με seed = lockedFor για το ίδιο pool order
+      const pool=[...data.pool];
+      const seed=data.lockedFor||Date.now();
+      let s=seed;
+      const rng=()=>{s=(s*1664525+1013904223)|0;return ((s>>>0)/4294967296);};
+      for(let i=pool.length-1;i>0;i--){
+        const j=Math.floor(rng()*(i+1));
+        [pool[i],pool[j]]=[pool[j],pool[i]];
+      }
+      const picks=pool.slice(0, count).sort((a,b)=>a-b);
+
+      const sourceHtml=data.sources.map(s=>`
+        <div style="background:white;border:1px solid #f9a8d4;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.82rem;font-weight:600;color:#9d174b">${s.icon} ${s.label}</div>
+              <div style="font-size:0.7rem;color:#6b21a8;margin-top:2px;word-break:break-word">${s.detail}</div>
+            </div>
+            <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">
+              ${s.nums.map(n=>`<span style="background:#fce7f3;color:#9d174b;border-radius:4px;padding:2px 6px;font-size:0.72rem;font-weight:600;min-width:24px;text-align:center">${n}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const picksHtml=picks.map(n=>`<span style="background:linear-gradient(135deg,#ec4899,#a855f7);color:white;border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;margin:2px;box-shadow:0 2px 4px rgba(0,0,0,0.15)">${n}</span>`).join('');
+
+      const lockedTime=new Date(data.lockedFor||Date.now()).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+      const capturedAt=data.capturedAt?new Date(data.capturedAt).toLocaleTimeString('el-GR'):'';
+      const lockBadge=fromCache
+        ?`<div style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:5px 10px;font-size:0.7rem;display:inline-block;margin-bottom:8px;font-weight:600">🔒 Κλειδωμένα για κλήρωση ${lockedTime} · συλλήφθηκαν στις ${capturedAt}</div>`
+        :`<div style="background:#dcfce7;color:#166534;border-radius:6px;padding:5px 10px;font-size:0.7rem;display:inline-block;margin-bottom:8px;font-weight:600">✨ Φρέσκα · κλειδωμένα μέχρι ${lockedTime}</div>`;
+
+      document.getElementById('dtAlchemyContent').innerHTML=`
+        <div style="text-align:left">
+          <div style="background:linear-gradient(135deg,#fce7f3,#f3e8ff);border-radius:10px;padding:14px;margin-bottom:14px;text-align:center;border:2px solid #f472b6">
+            ${lockBadge}
+            <div style="font-size:0.75rem;color:#9d174b;font-weight:600;margin-bottom:6px">✨ Η αλχημική ${count}-άδα της στιγμής ✨</div>
+            <div>${picksHtml}</div>
+            <div style="font-size:0.65rem;color:#a16207;margin-top:6px">${data.sources.length} πηγές · ${data.pool.length} candidates</div>
+          </div>
+          <div style="font-size:0.75rem;color:#6b21a8;font-weight:600;margin-bottom:6px">📡 Πηγές της στιγμής:</div>
+          ${sourceHtml}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="dtOpenAlchemy(true)" style="flex:1;padding:8px;border:1px solid #f472b6;border-radius:8px;background:#fce7f3;color:#9d174b;cursor:pointer;font-weight:600" title="Σπάει το κλείδωμα και τραβάει νέα">🔮 Νέες πηγές (σπάει το κλείδωμα)</button>
+            <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer">Κλείσιμο</button>
+          </div>
+        </div>
+      `;
+    }
+
+    window.dtOpenAlchemy=async function(forceReroll){
+      // Modal overlay
+      let m=document.getElementById('dtAlchemyModal');
+      if(!m){
+        m=document.createElement('div');
+        m.id='dtAlchemyModal';
+        m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        m.onclick=(e)=>{if(e.target===m) m.style.display='none';};
+        document.body.appendChild(m);
+      }
+      m.style.display='flex';
+
+      // 1. Αν δεν είναι forced και υπάρχει cache → εμφάνισε αμέσως (χωρίς spinner)
+      if(!forceReroll){
+        const cached=_getAlchemyCache();
+        if(cached){
+          m.innerHTML=`<div style="background:linear-gradient(135deg,#fdf2f8,#faf5ff);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #f472b6;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <h3 style="margin:0;color:#9d174b;font-size:1.1rem">🔮 Αλχημία</h3>
+              <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9d174b">✕</button>
+            </div>
+            <div id="dtAlchemyContent"></div>
+          </div>`;
+          _renderAlchemyModal(cached, true, false);
+          return;
+        }
+      }else{
+        _clearAlchemyCache();
+      }
+
+      // 2. Spinner κατά τη φόρτωση
+      m.innerHTML=`<div style="background:linear-gradient(135deg,#fdf2f8,#faf5ff);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #f472b6;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;color:#9d174b;font-size:1.1rem">🔮 Αλχημία — η στιγμή</h3>
+          <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9d174b">✕</button>
+        </div>
+        <div id="dtAlchemyContent" style="text-align:center;padding:30px;color:#6b21a8">
+          <div style="font-size:1.5rem">⏳ Συγκεντρώνω σήματα από τον κόσμο...</div>
+          <div style="font-size:0.85rem;margin-top:10px;color:#9d174b">Καιρός · Crypto · ISS · Σεισμοί · Wikipedia · NASA · Pokémon · Σελήνη · Bitcoin blocks · SpaceX · κ.ά.</div>
+        </div>
+      </div>`;
+
+      try{
+        const result=await _fetchAlchemySources();
+        const data={sources:result.sources, pool:result.pool, capturedAt:Date.now(), elapsed:result.elapsed};
+        _setAlchemyCache(data);
+        _renderAlchemyModal(data, false, true);
+      }catch(e){
+        document.getElementById('dtAlchemyContent').innerHTML=`<div style="color:#b91c1c">Αποτυχία σύλληψης: ${e.message}</div>`;
+      }
     };
     window.dtDistChange=function(){
       _distCfg=[0,1,2,3,4,5,6,7,8,9].map(i=>{
