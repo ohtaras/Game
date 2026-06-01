@@ -749,7 +749,7 @@
       <button id="dtAlchemyBtn" onclick="dtToggleAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου (auto-evaluation στην επόμενη)">🔮 Αλχημία</button>
       <button id="dtAlchemyInfoBtn" onclick="dtShowAlchemyInfo()" style="margin-left:1px;font-size:0.72rem;padding:3px 5px;border:1px solid #f472b6;border-radius:6px;background:#fff;color:#9d174b;cursor:pointer" title="Δες πηγές & λεπτομέρειες">ℹ️</button>
       <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(window._alchemyMode)dtRender();if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
-      <button id="dtEnsembleBtn" onclick="dtToggleEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 197 στατιστικά σήματα · auto-evaluation στην επόμενη">🎯 Ensemble</button>
+      <button id="dtEnsembleBtn" onclick="dtToggleEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 213 στατιστικά σήματα · auto-evaluation στην επόμενη">🎯 Ensemble</button>
       <button id="dtEnsembleInfoBtn" onclick="dtShowEnsembleInfo()" style="margin-left:1px;font-size:0.72rem;padding:3px 5px;border:1px solid #6366f1;border-radius:6px;background:#fff;color:#3730a3;cursor:pointer" title="Δες ενεργά σήματα & breakdown">ℹ️</button>
       <input id="dtEnsembleCount" type="number" min="1" max="12" value="8" onchange="if(window._ensembleMode)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #6366f1;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#3730a3" title="Πόσους αριθμούς (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
@@ -4492,6 +4492,25 @@
             }
             break;
           }
+          case 'word_freq': {
+            // "ΧΘΕΣ" — Greek letters Α=1…Ω=24 map to KINO numbers 1-24
+            // Boost/penalize all letter-numbers of the word unconditionally
+            const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+            const nums = [...name].map(c => GR.indexOf(c)+1).filter(n => n > 0);
+            if (nums.length > 0) { nums.forEach(n => addN(n)); triggered = true; }
+            break;
+          }
+          case 'word_hour': {
+            // "ΣΕ@h13" — if hour matches, boost/penalize letter-numbers of the word
+            const mw = name.match(/^([Α-Ω]+)@h(\d+)$/u);
+            if (mw && hour === +mw[2]) {
+              const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+              const nums = [...mw[1]].map(c => GR.indexOf(c)+1).filter(n => n > 0);
+              if (nums.length > 0) { nums.forEach(n => addN(n)); triggered = true; }
+            }
+            break;
+          }
+          // 'special' and 'lex_match' are sum-based — not actionable for individual numbers
         }
 
         if (triggered) fired.push({name, cat, z: w, abs_z: sig.abs_z});
@@ -4673,7 +4692,7 @@
         </div>
         <div id="dtEnsembleContent" style="text-align:center;padding:24px;color:#3730a3">
           <div style="font-size:1.3rem">⚙️ Υπολογισμός σημάτων...</div>
-          <div style="font-size:0.8rem;margin-top:8px;color:#6366f1">Φόρτωση 197 σημάτων · 10 batches · 238K κληρώσεις</div>
+          <div style="font-size:0.8rem;margin-top:8px;color:#6366f1">Φόρτωση 213 σημάτων · 10+2 batches · 238K κληρώσεις</div>
         </div>
       </div>`;
 
