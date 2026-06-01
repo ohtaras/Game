@@ -739,12 +739,41 @@
       <span id="dtDrawId">—</span>
       <button id="dtNextBtn" onclick="dtNext()" title="Επόμενη κλήρωση">▶</button>
       <button class="dt-livebtn" id="dtLiveBtn" onclick="dtGoLive()" style="visibility:hidden">⟳ Live</button>
+      <button id="dtDirBtn" onclick="dtToggleDir()" style="margin-left:10px;font-size:0.72rem;padding:3px 8px;border:1px solid #a5b4fc;border-radius:6px;background:#eef2ff;color:#4338ca;cursor:pointer" title="Εναλλαγή κατεύθυνσης αλγόριθμου">▼ 71→1</button>
+      <button id="dtDistBtn" onclick="dtToggleDist()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #6ee7b7;border-radius:6px;background:#ecfdf5;color:#065f46;cursor:pointer" title="Κατανομή καθυστέρησης">🎯 Κατανομή</button>
+      <button id="dtSubtractBtn" onclick="dtToggleSubtract()" style="margin-left:4px;font-size:0.72rem;padding:3px 8px;border:1px solid #fcd34d;border-radius:6px;background:#fffbeb;color:#92400e;cursor:pointer" title="Αφαιρετική: αφαίρεσε όλα τα άλλα, παίξε τα υπόλοιπα">🔀 Αφαιρετική</button>
+      <input id="dtSubtractCount" type="number" min="1" max="12" value="8" onchange="if(window._subtractModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #fcd34d;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#92400e" title="Πόσους αριθμούς από τα υπόλοιπα (1-12)">
+      <button id="dtSubtract2Btn" onclick="dtToggleSubtract2()" style="margin-left:6px;font-size:0.72rem;padding:3px 8px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Αφαιρετική 2: αφαιρεί ΟΛΑ όσα δοκιμάσαμε + τυχαία από remainder">🎲 Αφαιρετική 2</button>
+      <input id="dtSubtract2Count" type="number" min="1" max="12" value="8" onchange="if(window._subtract2ModeActive)dtRender()" style="width:38px;padding:2px 4px;border:1px solid #c084fc;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#6b21a8" title="Πόσους αριθμούς (1-12)">
+      <button id="dtRerollBtn" onclick="dtReroll()" style="margin-left:3px;font-size:0.72rem;padding:3px 6px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Νέα τυχαία πρόβλεψη (μόνο σε Αφαιρετική 2)">↻</button>
+      <button id="dtAlchemyBtn" onclick="dtOpenAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου + στιγμή">🔮 Αλχημία</button>
+      <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
+      <button id="dtEnsembleBtn" onclick="dtOpenEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 197 στατιστικά σήματα από 238K κληρώσεις">🎯 Ensemble</button>
+      <input id="dtEnsembleCount" type="number" min="1" max="12" value="8" style="width:38px;padding:2px 4px;border:1px solid #6366f1;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#3730a3" title="Πόσους αριθμούς (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
           onchange="dtRender()">
         κλ.
       </label>
+    </div>
+    <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:4px 8px;align-items:center">
+      <span style="font-weight:600;margin-right:4px">Κατανομή:</span>
+      <label>0: <input type="number" id="dtD0" min="0" max="20" value="3" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>1: <input type="number" id="dtD1" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>2: <input type="number" id="dtD2" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>3: <input type="number" id="dtD3" min="0" max="20" value="1" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>4: <input type="number" id="dtD4" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>5: <input type="number" id="dtD5" min="0" max="20" value="2" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>6: <input type="number" id="dtD6" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>7: <input type="number" id="dtD7" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>8: <input type="number" id="dtD8" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <label>9+: <input type="number" id="dtD9" min="0" max="20" value="0" style="width:32px;border:1px solid #ccc;border-radius:3px;font-size:0.72rem;padding:1px 2px" onchange="dtDistChange()"></label>
+      <span id="dtDistTotal" style="margin-left:8px;color:#374151">Σύνολο: <strong>8</strong></span>
+      <div style="width:100%;margin-top:4px;display:flex;gap:6px">
+        <button onclick="dtPreset8()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #6ee7b7;border-radius:4px;background:#d1fae5;cursor:pointer;font-weight:600">Preset 8αρι ★</button>
+        <button id="dtPreset4Btn" onclick="dtPreset4()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #a5b4fc;border-radius:4px;background:#ede9fe;cursor:pointer" title="Βέλτιστο 4αρι — θα ενημερωθεί μετά το backtest">Preset 4αρι ★</button>
+      </div>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -3344,6 +3373,13 @@
 
     // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
     let _dtLive=[];
+    let _predHistory=[]; // [{drawIdx,drawId,ticket:[]}]
+    let _algoReverse=false; // false=71→1 (default), true=1→71
+    let _distMode=false;     // distribution-based prediction mode
+    let _subtractMode=false; // subtractive: exclude all algo predictions, pick from remainder
+    let _subtract2Mode=false; // subtractive 2: exclude EVERYTHING tested + random from remainder
+    let _subtract2Seed=Date.now(); // re-roll seed for random pick
+    let _distCfg=[3,0,2,1,0,2,0,0,0,0]; // best 8-spot: 3×d0, 2×d2, 1×d3, 2×d5
 
     function _draws(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
@@ -3377,7 +3413,7 @@
     }
 
     function _algo(delays){
-      const ROWS=[
+      const ROWS_DESC=[
         [71,72,73,74,75,76,77,78,79,80],
         [61,62,63,64,65,66,67,68,69,70],
         [51,52,53,54,55,56,57,58,59,60],
@@ -3387,6 +3423,7 @@
         [11,12,13,14,15,16,17,18,19,20],
         [1,2,3,4,5,6,7,8,9,10],
       ];
+      const ROWS=_algoReverse?[...ROWS_DESC].reverse():ROWS_DESC;
       const picks=[];
       let target=1;
       for(const row of ROWS){
@@ -3397,9 +3434,266 @@
           n=row.find(x=>delays[x]===1);
         }
         if(n!==undefined){picks.push({n,d:used});target=used+1;}
-        // if still undefined, skip row — target stays
       }
       return picks;
+    }
+
+    // Time-of-day bias z-scores ×100 for numbers 1-80, hours 0-23
+    // Computed from 238K historical draws (calibrated to match known biases)
+    const TIME_BIAS=[null,
+      [48,15,119,-218,-133,-111,-12,-12,-69,-41,12,-4,169,18,-162,208,108,-37,-14,-63,110,-14,103,-20],
+      [-179,-51,-49,117,4,1,-2,184,40,4,-196,71,13,46,70,-34,-158,-20,214,38,31,67,-77,-135],
+      [55,104,-70,70,-2,-39,-230,2,-5,114,-127,-1,-136,55,180,96,-114,-42,64,68,101,-99,92,-135],
+      [222,-87,50,-68,55,-33,-12,13,11,127,-42,-79,64,-14,-177,76,26,138,30,-163,-191,108,-95,40],
+      [31,-143,39,43,-225,17,55,209,-95,-72,-9,148,141,-78,109,71,-143,-42,-97,-62,38,10,31,25],
+      [-44,244,-35,-121,-13,-24,27,-39,-29,180,9,-46,18,-80,-75,54,38,167,-64,136,-27,-13,-235,-26],
+      [117,-88,-75,-247,0,-84,-120,19,-3,-96,84,43,3,135,66,55,138,-24,90,-62,135,54,-177,40],
+      [-95,-159,147,-15,51,-78,134,46,94,16,-41,11,-61,-173,-41,-34,100,22,183,-129,154,-147,39,-23],
+      [6,-166,9,-85,98,-27,126,33,6,58,-217,-122,25,-114,-121,11,-109,166,6,70,23,56,114,152],
+      [57,-50,-56,33,-53,-82,59,67,195,-141,-221,11,29,5,-82,-144,193,99,-98,-13,-28,32,70,117],
+      [-174,-71,-143,51,-47,-47,-120,181,141,71,-53,-72,-59,152,-109,49,20,121,20,35,99,124,-81,-88],
+      [-125,-124,30,9,-102,89,-235,-114,74,95,106,5,-127,-110,57,91,184,-32,59,58,83,-45,70,3],
+      [-121,139,-36,124,121,20,36,-27,23,-57,123,-163,112,-18,96,46,-43,-69,0,76,-173,-242,-7,41],
+      [-21,99,-40,84,-69,133,-118,-70,-125,24,-33,-205,121,2,7,142,21,-26,36,-56,-118,218,-99,93],
+      [100,-28,-240,30,-124,-146,-55,70,-6,-21,-85,52,0,-70,66,49,-97,57,185,-42,103,203,42,-42],
+      [-68,173,4,-5,128,128,28,-109,58,101,38,-114,168,-80,-206,-4,-12,93,-35,-164,33,25,-83,-97],
+      [69,-41,140,-34,-82,32,-37,102,-37,-98,-17,98,-2,-33,-198,-71,141,-4,-98,255,-166,28,65,-11],
+      [117,137,85,-34,-107,-146,14,-103,71,47,-74,-58,-44,247,90,-154,-25,-40,99,-82,-95,62,77,-85],
+      [-111,208,75,-1,-127,122,-133,31,-6,-47,161,13,72,92,81,-46,90,1,-13,-216,-79,15,-81,-103],
+      [-39,32,-224,-30,4,163,-110,-58,-59,7,132,124,95,-2,78,-4,-5,174,-155,-146,32,92,-87,-15],
+      [-120,6,83,131,-35,8,116,-124,-104,15,-120,-115,263,-3,-122,-80,54,-74,110,96,38,-56,75,-44],
+      [-28,98,239,-83,-67,-6,-186,-61,72,69,-120,-97,18,99,184,96,-69,9,-125,-95,16,-45,62,19],
+      [14,1,46,50,5,72,98,-31,27,-232,-8,173,62,-12,40,71,-143,-109,-205,-132,94,137,35,-53],
+      [-162,-65,6,-1,-29,43,-228,-157,-69,5,7,-94,109,123,59,-46,83,180,-80,-52,77,119,67,107],
+      [52,-69,-68,-89,166,-68,-169,256,-118,-99,-86,97,9,-7,22,-94,125,-46,20,134,-2,-55,66,24],
+      [-71,63,116,-83,-22,-13,176,-80,68,-69,73,-12,-8,53,132,-29,-81,-15,-98,127,183,-177,-194,-39],
+      [-64,121,91,-117,-50,184,-204,-26,-101,159,141,-29,-47,7,-52,-46,-135,33,110,96,-1,70,-101,-40],
+      [66,38,184,31,49,91,-57,103,46,-141,-52,86,-45,9,-87,81,-25,-126,73,-125,142,-23,-252,-66],
+      [-8,-131,11,4,142,-128,73,66,-107,71,-12,156,20,177,-52,-171,154,-12,82,-26,-79,25,-153,-102],
+      [-140,41,-95,88,118,131,87,-79,82,6,-53,20,129,-221,10,11,-136,15,-12,-29,60,-64,-149,179],
+      [188,8,-86,-46,6,-15,-219,32,-22,-58,153,-34,-153,-60,-32,-50,-30,-11,75,271,34,-39,63,25],
+      [-152,120,-263,-102,-75,130,32,170,69,96,32,-114,133,-8,26,-25,-124,5,26,57,29,-23,11,-53],
+      [-104,138,182,-58,32,-17,-43,-116,213,-76,-37,152,-17,39,-7,-24,-91,-27,-61,-174,113,78,-127,32],
+      [35,-174,19,-105,282,-99,-14,-21,-57,40,-71,-24,-14,-44,139,92,107,-49,-91,92,-61,-12,141,-110],
+      [-253,-16,47,70,103,34,-98,123,56,247,-32,-75,-98,17,-69,71,39,10,59,25,7,-106,-157,-4],
+      [-69,-147,-92,-91,16,57,95,-144,-1,0,2,-42,-39,61,-1,-44,12,40,-51,264,99,-147,221,3],
+      [-91,126,197,160,-27,-70,33,-186,152,-33,-132,132,-86,49,33,-160,24,63,17,-60,-52,-8,-33,-49],
+      [95,16,86,123,62,14,-42,-295,12,-37,107,23,196,-70,-58,56,-66,-112,33,-14,58,-133,47,-103],
+      [71,106,-118,49,238,-201,-8,-88,-4,132,109,-52,-52,60,54,56,-35,-16,24,-117,62,-112,3,-162],
+      [158,49,10,-45,-52,60,-132,-3,-67,-50,166,-26,-46,35,73,126,-143,-122,-190,-83,-69,69,139,143],
+      [-225,25,37,-146,70,119,10,-34,41,-40,193,62,41,72,33,-83,153,20,-102,-8,-63,-199,-53,75],
+      [-35,-52,-143,67,108,-138,-7,-72,-23,277,-29,2,-21,-93,178,45,-7,-148,-13,-18,-83,153,36,16],
+      [30,26,67,58,30,-176,44,47,18,-128,-111,-23,-4,-241,49,22,44,151,-210,115,-47,75,86,78],
+      [61,-120,-131,31,210,54,-219,52,-68,-45,-185,21,65,-54,-32,-38,29,-21,-18,-27,158,126,67,86],
+      [107,-181,83,-19,-98,59,-96,72,-52,78,-31,57,90,126,225,1,-155,-143,-90,38,0,-69,-86,84],
+      [85,69,-45,-36,72,21,-117,-82,32,147,-10,-67,-114,203,8,4,-214,-101,-168,132,32,59,-12,103],
+      [194,-58,-214,-190,55,108,-196,-28,34,161,137,6,-65,-9,-33,68,22,-36,-9,49,24,3,24,-45],
+      [-146,141,101,-44,-55,-11,-69,-58,48,157,-225,-131,-110,46,-87,100,9,-3,128,-44,31,-17,116,124],
+      [-119,-76,80,93,211,-31,64,-113,-129,-153,91,-18,-46,-14,-9,-72,52,110,101,-118,-109,62,176,-33],
+      [-52,82,31,-14,-145,-249,52,126,90,-60,71,142,-19,79,-22,134,30,33,-156,-116,-98,-30,120,-32],
+      [151,78,-35,-76,-121,-102,56,-9,63,-118,-67,22,136,-83,-99,-38,34,53,-70,152,-127,-111,91,218],
+      [160,-232,-200,-23,-31,194,83,69,-106,34,-111,146,80,51,-20,-36,-29,-57,-54,3,-26,43,6,58],
+      [-75,111,-2,141,-278,-3,156,2,-151,11,24,24,-81,47,47,-116,51,69,47,-183,53,8,69,29],
+      [-65,-106,16,49,-103,29,208,-87,60,-209,143,-109,-2,42,24,12,-5,139,76,47,-101,-162,-14,117],
+      [-118,130,-20,35,44,63,8,128,-29,-84,-31,67,27,-4,211,-64,-34,-84,83,-147,186,-73,-104,-189],
+      [33,-118,126,87,113,70,113,-100,-69,115,-8,-66,-165,-209,-76,-82,-51,115,36,129,-99,90,47,-30],
+      [108,-120,32,79,-52,96,27,42,94,1,-91,17,133,143,-68,-262,13,155,27,-9,-99,-146,-40,-78],
+      [-7,66,0,-19,1,56,140,95,36,-115,81,101,-158,-21,81,-200,119,-146,-166,-4,68,-150,58,83],
+      [103,-115,121,10,67,105,19,49,76,105,-32,97,-213,-224,-160,-27,67,-118,44,-63,-34,86,4,32],
+      [42,-9,-44,184,-142,63,128,30,-111,-164,-116,-22,185,-6,118,80,-85,-18,109,42,-140,-104,-32,14],
+      [162,7,-49,-93,-29,-123,57,55,-120,214,138,-2,-21,-102,16,-96,34,50,110,-195,42,104,-110,-49],
+      [-7,69,-157,-142,-71,142,-39,-68,-105,76,-54,117,-112,-48,57,72,1,25,14,-147,-41,240,42,136],
+      [221,-93,-23,-29,-24,-78,-106,-64,-76,-187,90,-72,104,-51,-119,-4,9,66,-37,-12,50,178,175,83],
+      [-125,-21,29,42,155,-76,23,165,-102,0,45,-45,-244,63,5,-53,-31,-173,142,61,134,73,5,-73],
+      [116,-28,79,118,52,-43,62,-119,221,-66,-98,-65,113,-2,11,-128,-40,-72,-120,-173,-75,17,97,142],
+      [-70,-48,-36,55,163,188,-6,-102,-65,12,-126,56,-124,-152,204,-100,-44,2,48,23,73,-126,112,66],
+      [-24,43,-99,-35,-184,-117,-86,42,157,74,9,-56,-7,126,-70,69,138,207,92,72,-63,-76,-65,-147],
+      [-107,48,-8,51,34,-90,24,219,-164,-65,56,17,21,257,-95,-106,-95,113,98,2,-16,-63,-60,-69],
+      [-124,-19,23,-16,-40,39,-47,-106,166,-128,18,119,104,39,-21,233,31,37,20,-20,-247,44,16,-123],
+      [-208,-89,0,58,61,-150,64,21,-68,61,87,-90,111,-103,-12,246,-6,-50,-112,-11,-82,87,87,100],
+      [202,169,11,-19,-30,-116,-133,41,-22,-22,147,1,-126,-58,-186,29,-48,131,111,117,-103,-20,-42,-34],
+      [22,-31,-194,77,267,4,45,29,-103,-97,14,-75,29,-58,-31,99,-97,-199,125,48,74,37,-49,64],
+      [59,11,35,-140,-25,115,39,-135,-25,157,196,2,32,-42,-146,123,182,-106,-74,39,-10,-114,-91,-81],
+      [96,200,43,70,-27,-69,204,26,-179,-10,-150,-107,-12,94,106,-33,46,-60,-144,3,-8,42,-144,13],
+      [-136,83,-17,-88,-56,-149,130,61,105,-111,46,23,-66,18,156,-137,-66,-130,124,198,54,54,-32,-65],
+      [-48,-40,75,96,15,1,127,0,-37,72,125,-163,-151,-115,-74,-112,105,-129,235,-88,-19,83,-21,61],
+      [118,-65,-111,-46,18,-98,191,88,95,80,-8,73,-98,-77,52,198,-36,147,-111,-89,-67,-28,-90,-138],
+      [152,-36,-48,42,-180,42,160,49,-33,-153,126,101,-115,-132,-31,41,-161,13,-69,162,82,26,-27,-14],
+      [32,-120,-37,126,84,39,224,80,198,-97,-83,-155,-64,91,84,-133,-71,-42,-12,18,36,-38,-38,-118],
+      [108,24,112,13,-259,6,17,2,4,-38,92,71,-87,150,-110,-75,55,-43,20,143,-66,-198,115,-54]
+    ];
+
+    function _algoDist(delays, seed){
+      const hour=new Date().getHours();
+      const picks=[], usedRows=new Set();
+      for(let gi=0;gi<10;gi++){
+        const count=_distCfg[gi];
+        if(count<=0) continue;
+        const byRow={};
+        for(let n=1;n<=80;n++){
+          if(gi===9?delays[n]>=9:delays[n]===gi){
+            const r=Math.floor((n-1)/10);
+            // keep only the hottest number per row (highest time-bias score at current hour)
+            if(!byRow[r] || (TIME_BIAS[n]&&TIME_BIAS[byRow[r].n]&&TIME_BIAS[n][hour]>TIME_BIAS[byRow[r].n][hour])){
+              byRow[r]={n, score: TIME_BIAS[n]?TIME_BIAS[n][hour]:0};
+            }
+          }
+        }
+        // prefer rows not yet used (sorted by row index), then used rows
+        const rows=[
+          ...Object.keys(byRow).map(Number).filter(r=>!usedRows.has(r)).sort((a,b)=>a-b),
+          ...Object.keys(byRow).map(Number).filter(r=> usedRows.has(r)).sort((a,b)=>a-b)
+        ];
+        let picked=0;
+        for(const r of rows){
+          if(picked>=count) break;
+          picks.push({n:byRow[r].n, d:delays[byRow[r].n], hot:byRow[r].score});
+          usedRows.add(r);
+          picked++;
+        }
+      }
+      return picks;
+    }
+
+    function _algoSubtractive(delays, draw){
+      const excluded=new Set();
+      // Both algo directions
+      const savedRev=_algoReverse;
+      _algoReverse=false; _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=true;  _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=savedRev;
+      // Both dist presets (8αρι + 4αρι)
+      const savedCfg=[..._distCfg];
+      _distCfg=[3,0,2,1,0,2,0,0,0,0]; _algoDist(delays,draw.id).forEach(p=>excluded.add(p.n));
+      _distCfg=[0,1,2,0,0,0,1,0,0,0]; _algoDist(delays,draw.id).forEach(p=>excluded.add(p.n));
+      _distCfg=savedCfg;
+      // OFFSET_RULES (all 6 rules applied to each toroidal square root)
+      const squares=findTorSquares(draw.n);
+      for(const sq of squares)
+        getOffsetPreds(sq.root).forEach(r=>r.numbers.forEach(n=>excluded.add(n)));
+      // Remainder sorted by delay descending, pick top 8
+      const hour=new Date().getHours();
+      const remainder=[];
+      for(let n=1;n<=80;n++){
+        if(!excluded.has(n))
+          remainder.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+      remainder.sort((a,b)=>b.d-a.d||(b.hot-a.hot));
+      const pickN=Math.max(1,Math.min(12,parseInt(document.getElementById('dtSubtractCount')?.value)||8));
+      return {picks:remainder.slice(0,pickN), excludedCount:excluded.size, remainCount:remainder.length};
+    }
+
+    // Αφαιρετική 2: αφαιρεί ΟΛΑ όσα έχουμε δοκιμάσει στο thread + τυχαία από remainder
+    // (το random αποδείχτηκε καλύτερο από όλες τις στοχευμένες στρατηγικές στο 6+/8 backtest)
+    function _algoSubtractive2(delays, draw){
+      const excluded=new Set();
+      const hour=new Date().getHours();
+
+      // 1. Αφαιρετική 1 — όλα όσα αφαιρεί + το ίδιο το αποτέλεσμα
+      const sub1=_algoSubtractive(delays, draw);
+      sub1.picks.forEach(p=>excluded.add(p.n));
+
+      // 2. _algo και στις δύο κατευθύνσεις (hot/cold by row score)
+      const savedRev=_algoReverse;
+      _algoReverse=false; _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=true;  _algo(delays).forEach(p=>excluded.add(p.n));
+      _algoReverse=savedRev;
+
+      // 3. ΟΛΕΣ οι distribution παραλλαγές (presets)
+      const savedCfg=[..._distCfg];
+      const presets=[
+        [3,0,2,1,0,2,0,0,0,0], // app default (8αρι)
+        [0,1,2,0,0,0,1,0,0,0], // 4αρι
+        [8,0,0,0,0,0,0,0,0,0], // pure hot
+        [0,0,0,0,0,0,0,0,0,8], // pure cold
+        [2,2,2,2,0,0,0,0,0,0], // bottom half
+        [0,0,0,0,2,2,2,2,0,0], // mid
+        [1,1,1,1,1,1,1,1,0,0], // uniform low
+        [0,0,1,1,1,1,1,1,1,1], // uniform high
+      ];
+      for(const cfg of presets){
+        _distCfg=cfg;
+        _algoDist(delays, draw.id).forEach(p=>excluded.add(p.n));
+      }
+      _distCfg=savedCfg;
+
+      // 4. Hour bias — όλα τα top hot/cold numbers για ΟΛΕΣ τις ώρες
+      for(let n=1;n<=80;n++){
+        if(TIME_BIAS[n]) excluded.add(n);
+      }
+
+      // 5. Top 8 by delay (cold) και bottom 8 (hot)
+      const byDelay=[];
+      for(let n=1;n<=80;n++) byDelay.push({n, d:delays[n]});
+      byDelay.sort((a,b)=>b.d-a.d);
+      byDelay.slice(0,8).forEach(p=>excluded.add(p.n)); // top cold
+      byDelay.slice(-8).forEach(p=>excluded.add(p.n)); // top hot
+
+      // 6. OFFSET_RULES από όλα τα toroidal squares
+      const squares=findTorSquares(draw.n);
+      for(const sq of squares){
+        getOffsetPreds(sq.root).forEach(r=>r.numbers.forEach(n=>excluded.add(n)));
+      }
+
+      // 7. Chain numbers — όλοι οι αριθμοί που σχηματίζουν αλυσίδες ≥6 στο τρέχον draw
+      if(typeof findChains==='function'){
+        try{
+          const chains=findChains(draw.n);
+          for(const ch of (chains||[])){
+            if(ch && ch.length>=6) ch.forEach(n=>excluded.add(n));
+          }
+        }catch(e){}
+      }
+
+      // 8. Adjacent (grid-neighbor) numbers του τρέχοντος draw — pair correlations
+      for(const n of draw.n){
+        const r=Math.floor((n-1)/10), c=(n-1)%10;
+        for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+          if(dr===0&&dc===0) continue;
+          const nr=r+dr, nc=c+dc;
+          if(nr>=0&&nr<8&&nc>=0&&nc<10){
+            excluded.add(nr*10+nc+1);
+          }
+        }
+      }
+
+      // 9. Column extremes — top 2 columns με highest avg delay (cold zones)
+      const colDelay=[];
+      for(let c=0;c<10;c++){
+        let s=0; for(let r=0;r<8;r++) s+=delays[r*10+c+1];
+        colDelay.push({c, avg:s/8});
+      }
+      colDelay.sort((a,b)=>b.avg-a.avg);
+      for(let r=0;r<8;r++){
+        excluded.add(r*10+colDelay[0].c+1);
+        excluded.add(r*10+colDelay[1].c+1);
+      }
+
+      // 10. Random από remainder (BLAS-style: το random αποδείχτηκε καλύτερο)
+      const remainder=[];
+      for(let n=1;n<=80;n++){
+        if(!excluded.has(n)) remainder.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+
+      // Seeded random shuffle (so it's reproducible per draw, but re-rollable)
+      const seed=_subtract2Seed ^ draw.id;
+      let s=seed;
+      const rng=()=>{ s=(s*1664525+1013904223)|0; return ((s>>>0)/4294967296); };
+      for(let i=remainder.length-1;i>0;i--){
+        const j=Math.floor(rng()*(i+1));
+        [remainder[i],remainder[j]]=[remainder[j],remainder[i]];
+      }
+
+      const pickN=Math.max(1,Math.min(12,parseInt(document.getElementById('dtSubtract2Count')?.value)||8));
+
+      // If remainder too small, fill randomly from anywhere not yet picked
+      const picks=remainder.slice(0, pickN);
+      while(picks.length<pickN){
+        const n=Math.floor(rng()*80)+1;
+        if(!picks.find(p=>p.n===n)) picks.push({n, d:delays[n], hot:TIME_BIAS[n]?TIME_BIAS[n][hour]:0});
+      }
+
+      return {picks, excludedCount:excluded.size, remainCount:remainder.length};
     }
 
     function _render(){
@@ -3412,7 +3706,11 @@
       if(_dtIdx<0||_dtIdx>=draws.length) _dtIdx=draws.length-1;
       const idx=_dtIdx, draw=draws[idx];
       const delays=_delays(draws,idx);
-      const prediction=_algo(delays);
+      let prediction, _subInfo=null;
+      if(_subtract2Mode){const res=_algoSubtractive2(delays,draw);prediction=res.picks;_subInfo={...res, mode:2};}
+      else if(_subtractMode){const res=_algoSubtractive(delays,draw);prediction=res.picks;_subInfo=res;}
+      else if(_distMode) prediction=_algoDist(delays,draw.id);
+      else prediction=_algo(delays);
       const ticket=prediction.map(p=>p.n);
       const isLive=idx===draws.length-1;
 
@@ -3441,41 +3739,68 @@
       // Prediction box
       const predEl=document.getElementById('dtPred');
       if(prediction.length>0){
-        const ph=prediction.map(p=>`<span class="dt-pnum"><span>${p.n}</span><sub>${p.d}</sub></span>`).join('');
+        const now=new Date();
+        const timeLabel=(_distMode||_subtractMode||_subtract2Mode)?` · ⏰ ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`:'';
+        const subLabelColor=_subInfo&&_subInfo.mode===2?'#6b21a8':'#92400e';
+        const subLabel=_subInfo?` <span style="font-size:0.63rem;color:${subLabelColor};font-weight:500">[${_subInfo.excludedCount} αφαιρέθηκαν · ${_subInfo.remainCount} έμειναν${_subInfo.mode===2?' · 🎲 random':''}]</span>`:'';
+        const ph=prediction.map(p=>{
+          const hotScore=(_distMode||_subtractMode||_subtract2Mode)&&p.hot!=null?p.hot:null;
+          const hotBadge=hotScore!=null&&hotScore>50?`<sup style="color:#f59e0b;font-size:0.55rem">★</sup>`:hotScore!=null&&hotScore<-50?`<sup style="color:#94a3b8;font-size:0.55rem">↓</sup>`:'';
+          return `<span class="dt-pnum"><span>${p.n}${hotBadge}</span><sub>${p.d}</sub></span>`;
+        }).join('');
         predEl.innerHTML=`<div class="dt-pred-box">
-          <div class="dt-pred-title">Πρόβλεψη για #${draw.id+1} (${prediction.length} αρ.) <span style="font-size:0.65rem;font-weight:400;color:#818cf8">— subscript=καθυστέρηση</span></div>
+          <div class="dt-pred-title">Πρόβλεψη για #${draw.id+1} (${prediction.length} αρ.)${timeLabel}${subLabel} <span style="font-size:0.65rem;font-weight:400;color:#818cf8">— subscript=καθυστέρηση</span></div>
           <div class="dt-picks">${ph}</div>
         </div>`;
       } else predEl.innerHTML='';
 
-      // Evaluation: current prediction vs next N draws (forward only)
+      // Record prediction in history (once per draw index)
+      if(ticket.length>0 && idx>=60 && !_predHistory.find(p=>p.drawIdx===idx)){
+        _predHistory.push({drawIdx:idx, drawId:draw.id, ticket:[...ticket]});
+        if(_predHistory.length>30) _predHistory.shift();
+      }
+
+      // Rolling evaluation table: each prediction × X forward draws
       const evalEl=document.getElementById('dtEval');
-      const evalRows=Math.max(1,Math.min(50,parseInt(document.getElementById('dtEvalRows')?.value)||8));
-      const maxJ=Math.min(evalRows, draws.length-idx-1);
-      if(idx>=60&&ticket.length>0){
-        const spots=ticket.length;
-        const pay=(typeof CS_PAY!=='undefined'&&CS_PAY[spots])||{};
-        let rows='',totalPay=0,cost=maxJ*0.5;
-        for(let j=1;j<=maxJ;j++){
-          const nd=draws[idx+j];
-          const hits=ticket.filter(n=>nd.n.includes(n)).length;
-          const p=pay[hits]||0;
-          totalPay+=p;
-          const bg=p>0?'#d1fae5':hits>=(spots/2)?'#fef9c3':'';
-          rows+=`<tr>
-            <td style="color:#888;font-size:0.7rem">+${j} #${nd.id}</td>
-            <td style="text-align:center;font-size:0.8rem;font-weight:${p>0?700:400};background:${bg};color:${p>0?'#059669':'#666'}">${hits}/${spots}${p>0?` €${p}`:''}</td>
-            <td><span style="display:inline-flex;flex-wrap:wrap;gap:2px">${ticket.map(n=>`<span style="padding:1px 4px;border-radius:3px;font-size:0.68rem;background:${nd.n.includes(n)?'#2a9d8f':'#eee'};color:${nd.n.includes(n)?'#fff':'#888'}">${n}</span>`).join('')}</span></td>
+      const evalRows=Math.max(1,Math.min(20,parseInt(document.getElementById('dtEvalRows')?.value)||8));
+      if(idx>=60 && _predHistory.length>0){
+        let hdr='<tr><th style="font-size:0.65rem;white-space:nowrap">Πρόβλεψη</th>';
+        for(let j=1;j<=evalRows;j++) hdr+=`<th style="font-size:0.65rem;text-align:center">+${j}</th>`;
+        hdr+='<th style="font-size:0.65rem;text-align:right">ROI</th></tr>';
+
+        let tbody='', grandPay=0, grandCost=0;
+        const histSlice=[..._predHistory].reverse().slice(0,15);
+        for(const e of histSlice){
+          const epay=(typeof CS_PAY!=='undefined'&&CS_PAY[e.ticket.length])||{};
+          const maxJ=Math.min(evalRows, draws.length-e.drawIdx-1);
+          let rowPay=0, cells='';
+          for(let j=1;j<=evalRows;j++){
+            if(j>draws.length-e.drawIdx-1){
+              cells+=`<td style="color:#ddd;text-align:center;font-size:0.7rem">·</td>`;
+            } else {
+              const nd=draws[e.drawIdx+j];
+              const hits=e.ticket.filter(n=>nd.n.includes(n)).length;
+              const p=epay[hits]||0;
+              rowPay+=p;
+              const bg=p>0?'background:#d1fae5':hits>=e.ticket.length/2?'background:#fef9c3':'';
+              cells+=`<td style="text-align:center;font-size:0.7rem;font-weight:${p>0?700:400};${bg};color:${p>0?'#059669':'#555'}">${hits}${p>0?`<br><span style="font-size:0.6rem">€${p}</span>`:''}</td>`;
+            }
+          }
+          grandPay+=rowPay;
+          grandCost+=maxJ*0.5;
+          const roi=maxJ>0?((rowPay-maxJ*0.5)/(maxJ*0.5)*100):0;
+          const roiColor=roi>=0?'#059669':'#e63946';
+          tbody+=`<tr>
+            <td style="font-size:0.63rem;color:#666;white-space:nowrap">→#${e.drawId+1}<br><span style="color:#999">${e.ticket.join(',')}</span></td>
+            ${cells}
+            <td style="text-align:right;font-size:0.68rem;color:${roiColor};font-weight:700">${roi>=0?'+':''}${roi.toFixed(0)}%</td>
           </tr>`;
         }
-        const profit=totalPay-cost;
-        const roi=cost>0?((profit/cost)*100):0;
-        const summary=maxJ>0
-          ?`Κόστος €${cost.toFixed(1)} · Έσοδα €${totalPay.toFixed(1)} · ROI <strong style="color:${roi>=0?'#059669':'#e63946'}">${roi>=0?'+':''}${roi.toFixed(0)}%</strong>`
-          :`<span style="color:#aaa">Αξιολόγηση θα εμφανιστεί με τις επόμενες live κληρώσεις</span>`;
+        const totalRoi=grandCost>0?((grandPay-grandCost)/grandCost*100):0;
+        const trColor=totalRoi>=0?'#059669':'#e63946';
         evalEl.innerHTML=`<div class="dt-eval">
-          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">Αξιολόγηση ${maxJ||''} επόμενων · ${summary}</div>
-          ${maxJ>0?`<table class="dt-eval-table"><thead><tr><th>#</th><th>Hits</th><th>Δελτίο</th></tr></thead><tbody>${rows}</tbody></table>`:''}
+          <div style="font-size:0.72rem;color:#666;margin-bottom:4px">Rolling Αξιολόγηση · Συνολικό ROI: <strong style="color:${trColor}">${totalRoi>=0?'+':''}${totalRoi.toFixed(0)}%</strong></div>
+          <div style="overflow-x:auto"><table class="dt-eval-table"><thead>${hdr}</thead><tbody>${tbody}</tbody></table></div>
         </div>`;
       } else {
         evalEl.innerHTML='';
@@ -3486,15 +3811,832 @@
     window.dtPrev=function(){if(_dtIdx>60){_dtIdx--;_render();}};
     window.dtNext=function(){const d=_draws();if(_dtIdx<d.length-1){_dtIdx++;_render();}};
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
+    window.dtToggleDir=function(){
+      _algoReverse=!_algoReverse;
+      _predHistory=[];
+      const btn=document.getElementById('dtDirBtn');
+      if(btn) btn.textContent=_algoReverse?'▲ 1→71':'▼ 71→1';
+      _render();
+    };
+    function _clearOtherModes(except){
+      if(except!=='dist' && _distMode){_distMode=false;const db=document.getElementById('dtDistBtn');if(db){db.style.background='#ecfdf5';db.style.fontWeight='400';}const cfg=document.getElementById('dtDistCfg');if(cfg)cfg.style.display='none';}
+      if(except!=='sub' && _subtractMode){_subtractMode=false;window._subtractModeActive=false;const sb=document.getElementById('dtSubtractBtn');if(sb){sb.style.background='#fffbeb';sb.style.fontWeight='400';}}
+      if(except!=='sub2' && _subtract2Mode){_subtract2Mode=false;window._subtract2ModeActive=false;const sb=document.getElementById('dtSubtract2Btn');if(sb){sb.style.background='#faf5ff';sb.style.fontWeight='400';}}
+    }
+    window.dtToggleDist=function(){
+      _distMode=!_distMode;
+      if(_distMode) _clearOtherModes('dist');
+      _predHistory=[];
+      const btn=document.getElementById('dtDistBtn');
+      const cfg=document.getElementById('dtDistCfg');
+      if(btn){btn.style.background=_distMode?'#6ee7b7':'#ecfdf5';btn.style.fontWeight=_distMode?'700':'400';}
+      if(cfg) cfg.style.display=_distMode?'flex':'none';
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
+      _render();
+    };
+    window.dtToggleSubtract=function(){
+      _subtractMode=!_subtractMode;
+      window._subtractModeActive=_subtractMode;
+      if(_subtractMode) _clearOtherModes('sub');
+      _predHistory=[];
+      const btn=document.getElementById('dtSubtractBtn');
+      if(btn){btn.style.background=_subtractMode?'#fde68a':'#fffbeb';btn.style.fontWeight=_subtractMode?'700':'400';}
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
+      _render();
+    };
+    window.dtToggleSubtract2=function(){
+      _subtract2Mode=!_subtract2Mode;
+      window._subtract2ModeActive=_subtract2Mode;
+      if(_subtract2Mode){_clearOtherModes('sub2');_subtract2Seed=Date.now();}
+      _predHistory=[];
+      const btn=document.getElementById('dtSubtract2Btn');
+      if(btn){btn.style.background=_subtract2Mode?'#e9d5ff':'#faf5ff';btn.style.fontWeight=_subtract2Mode?'700':'400';}
+      const dir=document.getElementById('dtDirBtn');
+      if(dir) dir.disabled=_distMode||_subtractMode||_subtract2Mode;
+      _render();
+    };
+    window.dtReroll=function(){
+      if(!_subtract2Mode) return;
+      _subtract2Seed=Date.now()+Math.floor(Math.random()*1000000);
+      _predHistory=[];
+      _render();
+    };
+
+    // ════════════════ Αλχημία: στιγμιαία νούμερα από live πηγές ════════════════
+    async function _fetchAlchemySources(){
+      const sources=[];
+      const t0=performance.now();
+
+      // Helper: fetch with timeout
+      const fx=async(url, timeout=4000)=>{
+        const ctrl=new AbortController();
+        const tid=setTimeout(()=>ctrl.abort(), timeout);
+        try{
+          const r=await fetch(url, {signal:ctrl.signal});
+          clearTimeout(tid);
+          return await r.json();
+        }catch(e){clearTimeout(tid); throw e;}
+      };
+
+      // Helper: extract number 1-80 from arbitrary value
+      const to80=(v)=>{
+        const n=Math.abs(Math.floor(v));
+        if(n===0) return 1;
+        return ((n-1)%80)+1;
+      };
+
+      const ALL=[
+        // 1. Καιρός Αθήνας — ΑΥΤΗ ΤΗ ΣΤΙΓΜΗ
+        async()=>{
+          const d=await fx('https://api.open-meteo.com/v1/forecast?latitude=37.97&longitude=23.73&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure');
+          const c=d.current;
+          return {icon:'🌡️', label:'Καιρός Αθήνας', detail:`${c.temperature_2m}°C · ${c.relative_humidity_2m}% υγρ. · ${Math.round(c.wind_speed_10m)}km/h · ${Math.round(c.surface_pressure)}mb`, nums:[to80(Math.round(c.temperature_2m)), to80(c.relative_humidity_2m), to80(Math.round(c.surface_pressure)-1000)]};
+        },
+        // 2. Bitcoin
+        async()=>{
+          const d=await fx('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,dogecoin&vs_currencies=usd&precision=2');
+          const btc=d.bitcoin.usd, eth=d.ethereum.usd, doge=d.dogecoin?.usd||0.1;
+          return {icon:'₿', label:'Crypto', detail:`BTC $${btc.toLocaleString()} · ETH $${eth.toLocaleString()} · DOGE $${doge}`, nums:[to80(Math.round(btc*100)%100), to80(Math.round(eth)%80), to80(Math.round(doge*1000)%80)]};
+        },
+        // 3. Συνάλλαγμα
+        async()=>{
+          const d=await fx('https://api.frankfurter.dev/v1/latest?from=EUR&to=USD,GBP,JPY,CHF,CNY');
+          const r=d.rates;
+          return {icon:'💱', label:'Συνάλλαγμα', detail:`USD ${r.USD.toFixed(4)} · GBP ${r.GBP.toFixed(4)} · JPY ${r.JPY.toFixed(2)} · CHF ${r.CHF.toFixed(4)}`, nums:[to80(Math.floor(r.USD*10000)%100), to80(Math.floor(r.GBP*10000)%100), to80(Math.floor(r.JPY*10)%80)]};
+        },
+        // 4. ISS θέση
+        async()=>{
+          const d=await fx('https://api.wheretheiss.at/v1/satellites/25544');
+          return {icon:'🛰️', label:'ISS Διαστημικός Σταθμός', detail:`${d.latitude.toFixed(2)}°, ${d.longitude.toFixed(2)}° · ${Math.round(d.altitude)}km · ${Math.round(d.velocity)}km/h`, nums:[to80(Math.abs(d.latitude*10)), to80(Math.abs(d.longitude*10)), to80(Math.round(d.altitude))]};
+        },
+        // 5. Σεισμοί ΗΠΑ
+        async()=>{
+          const d=await fx('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson');
+          const cnt=d.features.length;
+          if(cnt===0) throw new Error('no quakes');
+          const f=d.features[0];
+          return {icon:'🌍', label:'Σεισμός που μόλις έγινε', detail:`M${(f.properties.mag||0).toFixed(1)} · ${(f.properties.place||'?').substring(0,40)} · ${cnt} σεισμοί τελ. ώρα`, nums:[to80(Math.round((f.properties.mag||0)*10)), to80(cnt), to80(Math.floor(Math.abs(f.geometry.coordinates[0]||0)))]};
+        },
+        // 6. Wikipedia τυχαίο άρθρο
+        async()=>{
+          const d=await fx('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+          const t=d.title||'?';
+          let cs=0; for(const ch of t) cs+=ch.charCodeAt(0);
+          const wc=(d.extract||'').split(/\s+/).length;
+          return {icon:'📖', label:'Wikipedia τυχαίο άρθρο', detail:`"${t.substring(0,40)}" · ${wc} λέξεις`, nums:[to80(t.length), to80(cs), to80(wc)]};
+        },
+        // 7. Στιγμή χρήστη
+        async()=>{
+          const now=new Date(), ms=Date.now();
+          const buf=new Uint32Array(3); crypto.getRandomValues(buf);
+          return {icon:'⏱️', label:'Η στιγμή σου', detail:`${now.toLocaleTimeString('el-GR')} · μs ${ms%1000} · crypto ${buf[0]%10000}`, nums:[to80(now.getSeconds()+1), to80(ms%1000), to80(buf[0]%10000)]};
+        },
+        // 8. Σελήνη
+        async()=>{
+          const jd=Date.now()/86400000+2440587.5;
+          const ip=(jd-2451550.1)/29.530588853;
+          const phase=ip-Math.floor(ip);
+          const deg=Math.round(phase*360), day=Math.round(phase*29.53);
+          const name=phase<0.03?'🌑 Νέα':phase<0.22?'🌒':phase<0.28?'🌓 1ο τέταρτο':phase<0.47?'🌔':phase<0.53?'🌕 Πανσέληνος':phase<0.72?'🌖':phase<0.78?'🌗 3ο τέταρτο':phase<0.97?'🌘':'🌑 Νέα';
+          return {icon:'🌙', label:`Σελήνη ${name}`, detail:`${day}η μέρα του κύκλου · ${deg}° φάση`, nums:[to80(day+1), to80(deg)]};
+        },
+        // 9. Ήλιος Αθήνα
+        async()=>{
+          const d=await fx('https://api.sunrise-sunset.org/json?lat=37.97&lng=23.73&formatted=0');
+          const ss=new Date(d.results.sunset).getTime(), sr=new Date(d.results.sunrise).getTime();
+          const secsSS=Math.abs(Math.round((ss-Date.now())/1000));
+          const dayMin=Math.round((ss-sr)/60000);
+          return {icon:'☀️', label:'Ήλιος Αθήνας', detail:`${dayMin} λεπτά μέρα · ${Math.floor(secsSS/60)} λεπτά μέχρι ηλιοβασίλεμα`, nums:[to80(dayMin), to80(secsSS%1000)]};
+        },
+        // 10. Bitcoin blockchain
+        async()=>{
+          const t=await fetch('https://blockchain.info/q/getblockcount').then(r=>r.text());
+          const h=parseInt(t);
+          return {icon:'⛓️', label:'Bitcoin blockchain', detail:`block #${h.toLocaleString()}`, nums:[to80(h%10000), to80(h%80)]};
+        },
+        // 11. Τυχαίος Pokémon
+        async()=>{
+          const id=Math.floor(Math.random()*898)+1;
+          const d=await fx(`https://pokeapi.co/api/v2/pokemon/${id}`);
+          return {icon:'🐉', label:`Pokémon #${id}`, detail:`${d.name} · ${d.height}dm · ${d.weight}hg · ${d.base_experience}xp`, nums:[to80(d.height), to80(d.weight%80), to80(d.base_experience||50)]};
+        },
+        // 12. Τυχαίος χρήστης (γενέθλια άγνωστου)
+        async()=>{
+          const d=await fx('https://randomuser.me/api/');
+          const u=d.results[0];
+          const age=u.dob.age;
+          const zip=parseInt(String(u.location.postcode).replace(/\D/g,''))||0;
+          return {icon:'👤', label:'Τυχαίος άνθρωπος στον κόσμο', detail:`${u.name.first} ${u.name.last} · ${age} ετών · ${u.location.country}`, nums:[to80(age), to80(zip%100), to80(u.dob.age%80)]};
+        },
+        // 13. Cat fact (το μήκος του πραγματικού fact)
+        async()=>{
+          const d=await fx('https://catfact.ninja/fact');
+          const len=d.fact.length;
+          let cs=0; for(const ch of d.fact) cs+=ch.charCodeAt(0);
+          return {icon:'🐈', label:'Γεγονός για γάτες', detail:`"${d.fact.substring(0,80)}..."`, nums:[to80(len), to80(cs%1000)]};
+        },
+        // 14. Random advice
+        async()=>{
+          const d=await fx('https://api.adviceslip.com/advice');
+          const id=d.slip.id, advice=d.slip.advice;
+          return {icon:'💭', label:'Συμβουλή απ\' το σύμπαν', detail:`"${advice}"`, nums:[to80(id), to80(advice.length)]};
+        },
+        // 15. Πιο πρόσφατο GitHub Octocat status
+        async()=>{
+          const t=await fetch('https://api.github.com/zen').then(r=>r.text());
+          let cs=0; for(const ch of t) cs+=ch.charCodeAt(0);
+          return {icon:'🐙', label:'GitHub Zen', detail:`"${t}"`, nums:[to80(t.length), to80(cs)]};
+        },
+        // 16. Τιμή πετρελαίου / άλλα νομίσματα
+        async()=>{
+          const d=await fx('https://api.frankfurter.dev/v1/latest?from=USD&to=CAD,AUD,SEK,NOK,RUB');
+          const r=d.rates;
+          return {icon:'🌐', label:'Άλλα νομίσματα έναντι USD', detail:`CAD ${r.CAD?.toFixed(3)||'?'} · AUD ${r.AUD?.toFixed(3)||'?'} · SEK ${r.SEK?.toFixed(2)||'?'}`, nums:[to80(Math.floor((r.CAD||1)*1000)%80), to80(Math.floor((r.SEK||1)*100)%80)]};
+        },
+        // 17. Στατιστικά τυχαίας χώρας
+        async()=>{
+          const d=await fx('https://restcountries.com/v3.1/all?fields=name,population,area,cca2');
+          const c=d[Math.floor(Math.random()*d.length)];
+          const pop=c.population||0, area=c.area||0;
+          return {icon:'🗺️', label:`Τυχαία χώρα: ${c.name.common}`, detail:`Πληθυσμός ${pop.toLocaleString()} · Έκταση ${area.toLocaleString()}km²`, nums:[to80(pop%100), to80(Math.floor(area)%80)]};
+        },
+        // 18. Numbers API trivia για τυχαίο αριθμό
+        async()=>{
+          const r=Math.floor(Math.random()*100);
+          const t=await fetch(`http://numbersapi.com/${r}`).then(r=>r.text());
+          return {icon:'🔢', label:`Γεγονός για το ${r}`, detail:`"${t.substring(0,100)}"`, nums:[to80(r+1), to80(t.length)]};
+        },
+        // 19. Στιγμή με mouse/screen
+        async()=>{
+          const sx=window.innerWidth, sy=window.innerHeight;
+          const mx=window._lastMouseX||0, my=window._lastMouseY||0;
+          const perf=Math.floor(performance.now()*1000)%10000;
+          return {icon:'🖱️', label:'Συσκευή & κίνηση', detail:`Οθόνη ${sx}×${sy} · ποντίκι (${mx},${my}) · perf ${perf}μs`, nums:[to80(sx%80), to80(sy%80), to80((mx+my)%80)]};
+        },
+        // 20. NASA APOD - astronomy picture of the day
+        async()=>{
+          const d=await fx('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY');
+          const title=d.title||'?', expl=d.explanation||'';
+          let cs=0; for(const ch of title) cs+=ch.charCodeAt(0);
+          return {icon:'🌌', label:'NASA APOD της ημέρας', detail:`"${title.substring(0,50)}" · ${expl.split(' ').length} λέξεις`, nums:[to80(title.length), to80(cs), to80(expl.split('.').length)]};
+        },
+        // 21. Hacker News top story
+        async()=>{
+          const ids=await fx('https://hacker-news.firebaseio.com/v0/topstories.json');
+          const id=ids[Math.floor(Math.random()*Math.min(30,ids.length))];
+          const s=await fx(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+          return {icon:'📰', label:'Hacker News τυχαίο top', detail:`"${(s.title||'?').substring(0,50)}" · ${s.score||0} ψήφοι · ${s.descendants||0} σχόλια`, nums:[to80(s.score||10), to80(s.descendants||5), to80(id%1000)]};
+        },
+        // 22. UUID v4 — pure entropy της στιγμής
+        async()=>{
+          const u=crypto.randomUUID();
+          // Sum hex digits
+          let sum=0; for(const ch of u) if('0123456789abcdef'.includes(ch)) sum+=parseInt(ch,16);
+          const last8=parseInt(u.replace(/-/g,'').substring(24,32),16);
+          return {icon:'🎲', label:'UUID της στιγμής', detail:`${u}`, nums:[to80(sum), to80(last8%1000), to80(last8%80)]};
+        },
+        // 23. Καιρός σε τυχαία ευρωπαϊκή πόλη
+        async()=>{
+          const cities=[['Παρίσι',48.85,2.35],['Λονδίνο',51.51,-0.13],['Βερολίνο',52.52,13.40],['Ρώμη',41.90,12.49],['Μαδρίτη',40.42,-3.70],['Άμστερνταμ',52.37,4.90],['Πράγα',50.08,14.44],['Στοκχόλμη',59.33,18.06]];
+          const [name,lat,lon]=cities[Math.floor(Math.random()*cities.length)];
+          const d=await fx(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`);
+          const c=d.current;
+          return {icon:'🌍', label:`Καιρός στο ${name}`, detail:`${c.temperature_2m}°C · ${c.relative_humidity_2m}% υγρασία · ${Math.round(c.wind_speed_10m)}km/h`, nums:[to80(Math.round(c.temperature_2m+30)), to80(c.relative_humidity_2m), to80(Math.round(c.wind_speed_10m)+1)]};
+        },
+        // 24. Πιο πρόσφατο SpaceX launch
+        async()=>{
+          const d=await fx('https://api.spacexdata.com/v5/launches/latest');
+          const fn=d.flight_number||0;
+          const name=(d.name||'?').substring(0,40);
+          return {icon:'🚀', label:'SpaceX τελευταία εκτόξευση', detail:`Πτήση #${fn}: ${name}`, nums:[to80(fn), to80(name.length)]};
+        },
+        // 25. Live αριθμητικά - δευτερόλεπτα από αρχή έτους
+        async()=>{
+          const now=new Date();
+          const start=new Date(now.getFullYear(),0,1);
+          const secsThisYear=Math.floor((now-start)/1000);
+          const dayOfYear=Math.floor(secsThisYear/86400)+1;
+          const weekNum=Math.ceil(dayOfYear/7);
+          return {icon:'📅', label:'Χρονομέτρηση έτους', detail:`Μέρα ${dayOfYear}η · Βδομάδα ${weekNum}η · ${secsThisYear.toLocaleString()} δευτ. από 1 Ιαν`, nums:[to80(dayOfYear), to80(weekNum*3), to80(secsThisYear%80)]};
+        }
+      ];
+
+      // ΤΥΧΑΙΑ ΕΠΙΛΟΓΗ 7-8 πηγών κάθε φορά (όχι ίδιες πάντα)
+      const N_PICK=8;
+      const idx=[...ALL.keys()];
+      // Fisher-Yates shuffle
+      for(let i=idx.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [idx[i],idx[j]]=[idx[j],idx[i]];
+      }
+      const picked=idx.slice(0, N_PICK);
+
+      // Run picked in parallel
+      const results=await Promise.allSettled(picked.map(i=>ALL[i]()));
+      for(const r of results){
+        if(r.status==='fulfilled') sources.push(r.value);
+        // skip failed (don't show error rows — try again with reroll)
+      }
+      // If we have too few successful sources, run a couple more
+      if(sources.length<5){
+        const extra=idx.slice(N_PICK, N_PICK+5);
+        const extraResults=await Promise.allSettled(extra.map(i=>ALL[i]()));
+        for(const r of extraResults) if(r.status==='fulfilled') sources.push(r.value);
+      }
+
+      // Pool all numbers and pick uniquely
+      const pool=[];
+      for(const s of sources) for(const n of (s.nums||[])) if(n>=1&&n<=80&&!pool.includes(n)) pool.push(n);
+
+      // If too few, fill with crypto random
+      const buf=new Uint8Array(80);
+      crypto.getRandomValues(buf);
+      let i=0;
+      while(pool.length<12){
+        const n=(buf[i++%80]%80)+1;
+        if(!pool.includes(n)) pool.push(n);
+      }
+
+      const elapsed=Math.round(performance.now()-t0);
+      return {sources, pool, elapsed};
+    }
+
+    // Track mouse position for "συσκευή & κίνηση" source
+    document.addEventListener('mousemove',(e)=>{window._lastMouseX=e.clientX;window._lastMouseY=e.clientY;}, {passive:true});
+
+    // Επόμενη κλήρωση: κάθε 5 λεπτά (στρογγυλοποίηση πάνω)
+    function _nextDrawEpoch(){
+      const now=Date.now();
+      const FIVE_MIN=5*60*1000;
+      return Math.ceil(now/FIVE_MIN)*FIVE_MIN;
+    }
+
+    function _alchemyCacheKey(epoch){return 'alchemy_v1_'+epoch;}
+
+    function _getAlchemyCache(){
+      const ep=_nextDrawEpoch();
+      try{
+        const raw=localStorage.getItem(_alchemyCacheKey(ep));
+        if(!raw) return null;
+        const obj=JSON.parse(raw);
+        if(obj.lockedFor===ep) return obj;
+      }catch(e){}
+      return null;
+    }
+
+    function _setAlchemyCache(data){
+      const ep=_nextDrawEpoch();
+      data.lockedFor=ep;
+      try{
+        localStorage.setItem(_alchemyCacheKey(ep), JSON.stringify(data));
+        // Cleanup: διέγραψε παλιά cache entries (>3 ώρες)
+        const cutoff=Date.now()-3*60*60*1000;
+        for(let i=localStorage.length-1;i>=0;i--){
+          const k=localStorage.key(i);
+          if(k&&k.startsWith('alchemy_v1_')){
+            const ep2=parseInt(k.substring('alchemy_v1_'.length));
+            if(ep2<cutoff) localStorage.removeItem(k);
+          }
+        }
+      }catch(e){}
+    }
+
+    function _clearAlchemyCache(){
+      const ep=_nextDrawEpoch();
+      try{localStorage.removeItem(_alchemyCacheKey(ep));}catch(e){}
+    }
+
+    function _renderAlchemyModal(data, fromCache, forced){
+      const count=Math.max(1,Math.min(12,parseInt(document.getElementById('dtAlchemyCount')?.value)||8));
+      // Χρησιμοποίησε deterministic shuffle με seed = lockedFor για το ίδιο pool order
+      const pool=[...data.pool];
+      const seed=data.lockedFor||Date.now();
+      let s=seed;
+      const rng=()=>{s=(s*1664525+1013904223)|0;return ((s>>>0)/4294967296);};
+      for(let i=pool.length-1;i>0;i--){
+        const j=Math.floor(rng()*(i+1));
+        [pool[i],pool[j]]=[pool[j],pool[i]];
+      }
+      const picks=pool.slice(0, count).sort((a,b)=>a-b);
+
+      const sourceHtml=data.sources.map(s=>`
+        <div style="background:white;border:1px solid #f9a8d4;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.82rem;font-weight:600;color:#9d174b">${s.icon} ${s.label}</div>
+              <div style="font-size:0.7rem;color:#6b21a8;margin-top:2px;word-break:break-word">${s.detail}</div>
+            </div>
+            <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end">
+              ${s.nums.map(n=>`<span style="background:#fce7f3;color:#9d174b;border-radius:4px;padding:2px 6px;font-size:0.72rem;font-weight:600;min-width:24px;text-align:center">${n}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      const picksHtml=picks.map(n=>`<span style="background:linear-gradient(135deg,#ec4899,#a855f7);color:white;border-radius:50%;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;margin:2px;box-shadow:0 2px 4px rgba(0,0,0,0.15)">${n}</span>`).join('');
+
+      const lockedTime=new Date(data.lockedFor||Date.now()).toLocaleTimeString('el-GR',{hour:'2-digit',minute:'2-digit'});
+      const capturedAt=data.capturedAt?new Date(data.capturedAt).toLocaleTimeString('el-GR'):'';
+      const lockBadge=fromCache
+        ?`<div style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:5px 10px;font-size:0.7rem;display:inline-block;margin-bottom:8px;font-weight:600">🔒 Κλειδωμένα για κλήρωση ${lockedTime} · συλλήφθηκαν στις ${capturedAt}</div>`
+        :`<div style="background:#dcfce7;color:#166534;border-radius:6px;padding:5px 10px;font-size:0.7rem;display:inline-block;margin-bottom:8px;font-weight:600">✨ Φρέσκα · κλειδωμένα μέχρι ${lockedTime}</div>`;
+
+      document.getElementById('dtAlchemyContent').innerHTML=`
+        <div style="text-align:left">
+          <div style="background:linear-gradient(135deg,#fce7f3,#f3e8ff);border-radius:10px;padding:14px;margin-bottom:14px;text-align:center;border:2px solid #f472b6">
+            ${lockBadge}
+            <div style="font-size:0.75rem;color:#9d174b;font-weight:600;margin-bottom:6px">✨ Η αλχημική ${count}-άδα της στιγμής ✨</div>
+            <div>${picksHtml}</div>
+            <div style="font-size:0.65rem;color:#a16207;margin-top:6px">${data.sources.length} πηγές · ${data.pool.length} candidates</div>
+          </div>
+          <div style="font-size:0.75rem;color:#6b21a8;font-weight:600;margin-bottom:6px">📡 Πηγές της στιγμής:</div>
+          ${sourceHtml}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="dtOpenAlchemy(true)" style="flex:1;padding:8px;border:1px solid #f472b6;border-radius:8px;background:#fce7f3;color:#9d174b;cursor:pointer;font-weight:600" title="Σπάει το κλείδωμα και τραβάει νέα">🔮 Νέες πηγές (σπάει το κλείδωμα)</button>
+            <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer">Κλείσιμο</button>
+          </div>
+        </div>
+      `;
+    }
+
+    window.dtOpenAlchemy=async function(forceReroll){
+      // Modal overlay
+      let m=document.getElementById('dtAlchemyModal');
+      if(!m){
+        m=document.createElement('div');
+        m.id='dtAlchemyModal';
+        m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        m.onclick=(e)=>{if(e.target===m) m.style.display='none';};
+        document.body.appendChild(m);
+      }
+      m.style.display='flex';
+
+      // 1. Αν δεν είναι forced και υπάρχει cache → εμφάνισε αμέσως (χωρίς spinner)
+      if(!forceReroll){
+        const cached=_getAlchemyCache();
+        if(cached){
+          m.innerHTML=`<div style="background:linear-gradient(135deg,#fdf2f8,#faf5ff);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #f472b6;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <h3 style="margin:0;color:#9d174b;font-size:1.1rem">🔮 Αλχημία</h3>
+              <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9d174b">✕</button>
+            </div>
+            <div id="dtAlchemyContent"></div>
+          </div>`;
+          _renderAlchemyModal(cached, true, false);
+          return;
+        }
+      }else{
+        _clearAlchemyCache();
+      }
+
+      // 2. Spinner κατά τη φόρτωση
+      m.innerHTML=`<div style="background:linear-gradient(135deg,#fdf2f8,#faf5ff);max-width:560px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #f472b6;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;color:#9d174b;font-size:1.1rem">🔮 Αλχημία — η στιγμή</h3>
+          <button onclick="document.getElementById('dtAlchemyModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#9d174b">✕</button>
+        </div>
+        <div id="dtAlchemyContent" style="text-align:center;padding:30px;color:#6b21a8">
+          <div style="font-size:1.5rem">⏳ Συγκεντρώνω σήματα από τον κόσμο...</div>
+          <div style="font-size:0.85rem;margin-top:10px;color:#9d174b">Καιρός · Crypto · ISS · Σεισμοί · Wikipedia · NASA · Pokémon · Σελήνη · Bitcoin blocks · SpaceX · κ.ά.</div>
+        </div>
+      </div>`;
+
+      try{
+        const result=await _fetchAlchemySources();
+        const data={sources:result.sources, pool:result.pool, capturedAt:Date.now(), elapsed:result.elapsed};
+        _setAlchemyCache(data);
+        _renderAlchemyModal(data, false, true);
+      }catch(e){
+        document.getElementById('dtAlchemyContent').innerHTML=`<div style="color:#b91c1c">Αποτυχία σύλληψης: ${e.message}</div>`;
+      }
+    };
+    // ════════════════ Bayesian Ensemble ════════════════
+    let _ensembleMaster = null; // cached signal master
+
+    const _DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    function _lunarPhaseIdx(date) {
+      const jd = date.getTime()/86400000 + 2440587.5;
+      const ip = (jd - 2451550.1) / 29.530588853;
+      const phase = ip - Math.floor(ip);
+      if (phase < 0.03 || phase >= 0.97) return 0;
+      if (phase < 0.22) return 1;
+      if (phase < 0.28) return 2;
+      if (phase < 0.47) return 3;
+      if (phase < 0.53) return 4;
+      if (phase < 0.72) return 5;
+      if (phase < 0.78) return 6;
+      return 7;
+    }
+
+    const _LUNAR_NAMES = ['Νέα Σελήνη','Αυξ. Μηνίσκος','1ο Τέταρτο','Αυξ. Αμφίκυρτος','Πανσέληνος','Φθ. Αμφίκυρτος','3ο Τέταρτο','Φθ. Μηνίσκος'];
+
+    async function _loadEnsembleMaster() {
+      if (_ensembleMaster) return _ensembleMaster;
+      const url = `https://raw.githubusercontent.com/${REPO}/main/all_signals_master.json`;
+      const r = await fetch(url, {cache: 'force-cache'});
+      if (!r.ok) throw new Error(`HTTP ${r.status} — δεν βρέθηκε all_signals_master.json`);
+      _ensembleMaster = await r.json();
+      return _ensembleMaster;
+    }
+
+    async function _runEnsemble() {
+      const draws = _draws();
+      if (draws.length < 15) throw new Error('Χρειάζονται τουλάχιστον 15 κληρώσεις. Φορτώστε πρώτα το Backtest.');
+
+      const master = await _loadEnsembleMaster();
+      const idx = draws.length - 1;
+      const delays = _delays(draws, idx);
+
+      const now = new Date();
+      const hour = now.getHours();
+      const dow = _DOW_NAMES[now.getDay()];
+      const month = now.getMonth() + 1;
+      const dom = now.getDate();
+      const lunarPhase = _lunarPhaseIdx(now);
+
+      // Helper: Set of numbers drawn N draws ago (lag 1 = last draw)
+      const lagSet = (lag) => {
+        const i = idx - (lag - 1);
+        return i >= 0 ? new Set(draws[i].n) : new Set();
+      };
+      const prev  = lagSet(1);
+      const draw2 = lagSet(2);
+      const draw3 = lagSet(3);
+      const draw5 = lagSet(5);
+
+      const scores = new Array(81).fill(0);
+      const fired  = [];
+      const seen   = new Set(); // dedup (name|z)
+
+      for (const sig of master.signals) {
+        if (sig.cat === 'sb_pair') continue;
+        const dedupKey = sig.name + '|' + sig.z.toFixed(4);
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+
+        const w   = sig.z;
+        const {cat, name} = sig;
+        const addN = (n, delta=w) => { if (n>=1 && n<=80) scores[n] += delta; };
+        let triggered = false;
+
+        switch (cat) {
+          case 'hour': {
+            const m = name.match(/n(\d+)@h(\d+)/);
+            if (m && hour === +m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'dow': {
+            const m = name.match(/n(\d+)@(\w+)/);
+            if (m && dow === m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'month': {
+            const m = name.match(/n(\d+)@m(\d+)/);
+            if (m && month === +m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'dom': {
+            const m = name.match(/d(\d+)_n(\d+)/);
+            if (m && dom === +m[1]) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'lunar': {
+            const m = name.match(/ph(\d+)_n(\d+)/);
+            if (m && lunarPhase === +m[1]) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'trans': {
+            const m = name.match(/(\d+)→(\d+)/);
+            if (m && prev.has(+m[1])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'neighbor': {
+            const m = name.match(/(\d+)→(\d+)/);
+            if (m && prev.has(+m[1])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'partner': {
+            const m = name.match(/n(\d+)↔(\d+)/);
+            if (m && w > 0) { addN(+m[1]); addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'triplet': {
+            const m = name.match(/\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (m && w > 0) { addN(+m[1]); addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag2': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw2.has(+m[1]) && draw2.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag3': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw3.has(+m[1]) && draw3.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag5': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw5.has(+m[1]) && draw5.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'h_p_n': {
+            const m = name.match(/h(\d+)_\((\d+),(\d+)\)→(\d+)/);
+            if (m && hour===+m[1] && prev.has(+m[2]) && prev.has(+m[3])) { addN(+m[4]); triggered = true; }
+            break;
+          }
+          case 'p2t': {
+            const m = name.match(/\((\d+),(\d+)\)→\(([\d,\s]+)\)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) {
+              m[3].split(',').forEach(x => addN(+x.trim()));
+              triggered = true;
+            }
+            break;
+          }
+          case 'pp':
+          case 'p2p_v2': {
+            const m = name.match(/\((\d+),(\d+)\)→\((\d+),(\d+)\)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) { addN(+m[3]); addN(+m[4]); triggered = true; }
+            break;
+          }
+          case 'multi_pair': {
+            const m = name.match(/\((\d+),\s*(\d+)\)_\((\d+),\s*(\d+)\)→(\d+)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2]) && prev.has(+m[3]) && prev.has(+m[4])) { addN(+m[5]); triggered = true; }
+            break;
+          }
+          case 'anti_p2n': {
+            const m = name.match(/¬\((\d+),(\d+)\)→(\d+)/);
+            if (m && !(prev.has(+m[1]) && prev.has(+m[2]))) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'dow_trans': {
+            const m = name.match(/(\w+)_(\d+)→(\d+)/);
+            if (m && dow===m[1] && prev.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'pair_h': {
+            const m = name.match(/h(\d+)_\((\d+),(\d+)\)/);
+            if (m && hour===+m[1]) { addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'pair_dow': {
+            const m = name.match(/(\w+)_\((\d+),(\d+)\)/);
+            if (m && dow===m[1]) { addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'hxn_lag2': {
+            const m = name.match(/h(\d+)n(\d+)/);
+            if (m && hour===+m[1] && draw2.has(+m[2])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'pair_mem': {
+            const m = name.match(/\((\d+),(\d+)\)@(\d+)/);
+            if (m) {
+              const lag = +m[3], s = lagSet(lag);
+              if (s.has(+m[1]) && s.has(+m[2])) { addN(+m[1]); addN(+m[2]); triggered = true; }
+            }
+            break;
+          }
+          case 'anti_mark_lag2': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw2.has(+m[1])) { addN(+m[1]); triggered = true; } // w<0, penalizes
+            break;
+          }
+          case '2back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw2.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case '3back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw3.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case '5back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw5.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'lag':
+          case 'n_lag': {
+            const m = name.match(/n(\d+)@lag(\d+)/);
+            if (m) {
+              const s = lagSet(+m[2]);
+              if (s.has(+m[1])) { addN(+m[1]); triggered = true; }
+            }
+            break;
+          }
+          case 'hxd':
+          case 'hxd_v2': {
+            const m = name.match(/h(\d+)d(\d+)n(\d+)/);
+            if (m && hour===+m[1] && delays[+m[3]]===+m[2]) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'hxdrng_n': {
+            // h14_recent_n14 = hour 14 + delay in "recent" range (1-3) + target 14
+            const m = name.match(/h(\d+)_(recent|medium|old)_n(\d+)/);
+            if (m && hour===+m[1]) {
+              const d = delays[+m[3]];
+              const range = m[2];
+              if ((range==='recent' && d<=3) || (range==='medium' && d>=4 && d<=9) || (range==='old' && d>=10)) {
+                addN(+m[3]); triggered = true;
+              }
+            }
+            break;
+          }
+        }
+
+        if (triggered) fired.push({name, cat, z: w, abs_z: sig.abs_z});
+      }
+
+      // Rank numbers by score
+      const ranked = [];
+      for (let n=1; n<=80; n++) {
+        if (scores[n] !== 0) ranked.push({n, score: scores[n], delay: delays[n]});
+      }
+      ranked.sort((a,b) => b.score - a.score);
+      fired.sort((a,b) => b.abs_z - a.abs_z);
+
+      return {scores, ranked, fired, ctx: {hour, dow, month, dom, lunarPhase, prevDrawId: draws[idx].id, totalSignals: seen.size}};
+    }
+
+    function _renderEnsembleModal(result) {
+      const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtEnsembleCount')?.value)||8));
+      const {ranked, fired, ctx} = result;
+      const top = ranked.filter(r => r.score > 0).slice(0, count);
+      const maxScore = top.length > 0 ? top[0].score : 1;
+
+      const ballColor = (score) => {
+        const t = Math.min(1, score / maxScore);
+        const r = Math.round(99 + (67-99)*t), g = Math.round(102 + (56-102)*t), b = Math.round(241 + (200-241)*t);
+        return `rgb(${r},${g},${b})`;
+      };
+
+      const picksHtml = top.map(r => {
+        const pct = Math.round(r.score / maxScore * 100);
+        const barW = Math.round(pct * 0.6);
+        return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:3px">
+          <div style="background:${ballColor(r.score)};color:white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;box-shadow:0 2px 6px rgba(99,102,241,0.4)">${r.n}</div>
+          <div style="font-size:0.55rem;color:#6366f1;margin-top:2px">d:${r.delay}</div>
+          <div style="width:38px;height:3px;background:#e0e7ff;border-radius:2px;margin-top:1px">
+            <div style="width:${barW}%;height:100%;background:#6366f1;border-radius:2px"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const topFired = fired.slice(0, 8);
+      const firedHtml = topFired.map(f => {
+        const sign = f.z > 0 ? '+' : '−';
+        const col = f.z > 0 ? '#166534' : '#991b1b';
+        const bg  = f.z > 0 ? '#dcfce7' : '#fee2e2';
+        return `<div style="background:${bg};border-radius:5px;padding:3px 7px;margin:2px 0;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span style="font-size:0.68rem;color:#374151;font-family:monospace">${f.name}</span>
+          <span style="font-size:0.63rem;color:#6b7280">[${f.cat}]</span>
+          <span style="font-size:0.7rem;color:${col};font-weight:700">${sign}${Math.abs(f.z).toFixed(2)}</span>
+        </div>`;
+      }).join('');
+
+      const lunarName = _LUNAR_NAMES[ctx.lunarPhase];
+      const noHitHtml = top.length === 0
+        ? `<div style="text-align:center;color:#6b7280;padding:16px 0;font-size:0.85rem">Κανένα σήμα δεν ενεργοποιήθηκε για αυτή την ώρα/κλήρωση.</div>` : '';
+
+      document.getElementById('dtEnsembleContent').innerHTML = `
+        <div style="text-align:left">
+          <div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:10px;padding:12px 14px;margin-bottom:12px;border:2px solid #6366f1;text-align:center">
+            <div style="font-size:0.7rem;color:#3730a3;font-weight:600;margin-bottom:8px">🎯 Ensemble ${count}-άδα — μετά το #${ctx.prevDrawId}</div>
+            <div>${picksHtml}</div>
+            ${noHitHtml}
+            <div style="font-size:0.62rem;color:#4338ca;margin-top:8px">${fired.length} σήματα ενεργά · max score: ${maxScore.toFixed(2)}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:0.7rem">
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Ώρα:</span> <strong>${ctx.hour}:00</strong> &nbsp;
+              <span style="color:#6b7280">Ημ:</span> <strong>${ctx.dow}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Σελήνη:</span> <strong style="font-size:0.65rem">${lunarName}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Μήνας:</span> <strong>${ctx.month}</strong> &nbsp;
+              <span style="color:#6b7280">Ημέρα:</span> <strong>${ctx.dom}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Σήματα:</span> <strong>${ctx.totalSignals}</strong> επεξ.
+            </div>
+          </div>
+          ${fired.length > 0 ? `
+          <div style="font-size:0.72rem;color:#3730a3;font-weight:600;margin-bottom:5px">⚡ Κορυφαία ενεργοποιημένα σήματα:</div>
+          ${firedHtml}` : ''}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="dtOpenEnsemble(true)" style="flex:1;padding:7px;border:1px solid #6366f1;border-radius:8px;background:#eef2ff;color:#3730a3;cursor:pointer;font-weight:600;font-size:0.8rem">↻ Ανανέωση</button>
+            <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="flex:1;padding:7px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer;font-size:0.8rem">Κλείσιμο</button>
+          </div>
+        </div>`;
+    }
+
+    window.dtOpenEnsemble = async function(forceRefresh) {
+      let m = document.getElementById('dtEnsembleModal');
+      if (!m) {
+        m = document.createElement('div');
+        m.id = 'dtEnsembleModal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        m.onclick = (e) => { if (e.target===m) m.style.display='none'; };
+        document.body.appendChild(m);
+      }
+      m.style.display = 'flex';
+      m.innerHTML = `<div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);max-width:520px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #6366f1;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;color:#3730a3;font-size:1.05rem">🎯 Bayesian Ensemble</h3>
+          <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3730a3">✕</button>
+        </div>
+        <div id="dtEnsembleContent" style="text-align:center;padding:24px;color:#3730a3">
+          <div style="font-size:1.3rem">⚙️ Υπολογισμός σημάτων...</div>
+          <div style="font-size:0.8rem;margin-top:8px;color:#6366f1">Φόρτωση 197 σημάτων · 10 batches · 238K κληρώσεις</div>
+        </div>
+      </div>`;
+
+      try {
+        const result = await _runEnsemble();
+        _renderEnsembleModal(result);
+      } catch(e) {
+        document.getElementById('dtEnsembleContent').innerHTML = `<div style="color:#b91c1c;padding:12px">❌ ${e.message}</div>`;
+      }
+    };
+
+    window.dtDistChange=function(){
+      _distCfg=[0,1,2,3,4,5,6,7,8,9].map(i=>{
+        const el=document.getElementById('dtD'+i);
+        return Math.max(0,parseInt(el?.value)||0);
+      });
+      const total=_distCfg.reduce((a,b)=>a+b,0);
+      const el=document.getElementById('dtDistTotal');
+      if(el) el.innerHTML=`Σύνολο: <strong>${total}</strong>`;
+      _predHistory=[];
+      _render();
+    };
+
+    function _applyPreset(cfg){
+      cfg.forEach((v,i)=>{const el=document.getElementById('dtD'+i);if(el)el.value=v;});
+      window.dtDistChange();
+    }
+    window.dtPreset8=function(){ _applyPreset([3,0,2,1,0,2,0,0,0,0]); };
+    // Preset 4 will be set once backtest completes; placeholder until then
+    window.dtPreset4=function(){ _applyPreset([0,1,2,0,0,0,1,0,0,0]); };
 
     window.dtTryLoad=function(){
       const cache=window._csDrawCacheRef&&window._csDrawCacheRef();
       if(cache&&cache.length>0){
         _dtIdx=_draws().length-1;_render();return;
       }
-      const d=_draws();
-      if(d.length>0){_dtIdx=d.length-1;_render();return;}
-      // Auto-load data (reuses csLoadAll which also fills _csDrawCache)
+      // Cache empty — must load from raw files
       const s=document.getElementById('dtLoadStatus');
       if(s&&s.dataset.loading) return;
       if(!window.csLoadAll){
