@@ -1,6 +1,6 @@
 {
-  "total_count": 220,
-  "real_count": 210,
+  "total_count": 222,
+  "real_count": 212,
   "signals": [
     {
       "batch": "seventh",
@@ -425,6 +425,14 @@
       "z": -4.214057796844267,
       "det": "pair (30,61) → #65",
       "abs_z": 4.214057796844267
+    },
+    {
+      "batch": "thirteenth",
+      "cat": "word_phrase_subset",
+      "name": "ΧΡΥΣΙΠΠΟΣ",
+      "z": 4.21,
+      "det": "phrase_subset k=7 positional {9,15,16,17,18,20,22} — 16 hits vs 5.83 expected",
+      "abs_z": 4.21
     },
     {
       "batch": "sixth",
@@ -977,6 +985,14 @@
       "z": -3.5017650498730726,
       "det": "h=15 d=1 #52",
       "abs_z": 3.5017650498730726
+    },
+    {
+      "batch": "thirteenth",
+      "cat": "fulfillment_fixed",
+      "name": "ΠΙΝΔΑΡΟΣ_k3+5",
+      "z": 3.49,
+      "det": "EXACTLY 3 of positional {15,16,17,18,20} in draw_i → remaining → draw_i+1",
+      "abs_z": 3.49
     },
     {
       "batch": "conditional",
