@@ -748,6 +748,8 @@
       <button id="dtRerollBtn" onclick="dtReroll()" style="margin-left:3px;font-size:0.72rem;padding:3px 6px;border:1px solid #c084fc;border-radius:6px;background:#faf5ff;color:#6b21a8;cursor:pointer" title="Νέα τυχαία πρόβλεψη (μόνο σε Αφαιρετική 2)">↻</button>
       <button id="dtAlchemyBtn" onclick="dtOpenAlchemy()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #f472b6;border-radius:6px;background:#fdf2f8;color:#9d174b;cursor:pointer" title="Αλχημία: αριθμοί από live πηγές διαδικτύου + στιγμή">🔮 Αλχημία</button>
       <input id="dtAlchemyCount" type="number" min="1" max="12" value="8" onchange="if(document.getElementById('dtAlchemyModal')&&document.getElementById('dtAlchemyModal').style.display!=='none'){const c=_getAlchemyCache();if(c)_renderAlchemyModal(c,true,false);}" style="width:38px;padding:2px 4px;border:1px solid #f472b6;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#9d174b" title="Πόσους αριθμούς (1-12)">
+      <button id="dtEnsembleBtn" onclick="dtOpenEnsemble()" style="margin-left:8px;font-size:0.72rem;padding:3px 8px;border:1px solid #6366f1;border-radius:6px;background:#eef2ff;color:#3730a3;cursor:pointer" title="Bayesian Ensemble: 197 στατιστικά σήματα από 238K κληρώσεις">🎯 Ensemble</button>
+      <input id="dtEnsembleCount" type="number" min="1" max="12" value="8" style="width:38px;padding:2px 4px;border:1px solid #6366f1;border-radius:4px;font-size:0.72rem;margin-left:3px;color:#3730a3" title="Πόσους αριθμούς (1-12)">
       <label style="margin-left:12px;font-size:0.75rem;color:#666">Επόμενες:
         <input id="dtEvalRows" type="number" min="1" max="50" value="8"
           style="width:44px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.75rem;margin-left:3px"
@@ -4250,6 +4252,365 @@
         document.getElementById('dtAlchemyContent').innerHTML=`<div style="color:#b91c1c">Αποτυχία σύλληψης: ${e.message}</div>`;
       }
     };
+    // ════════════════ Bayesian Ensemble ════════════════
+    let _ensembleMaster = null; // cached signal master
+
+    const _DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    function _lunarPhaseIdx(date) {
+      const jd = date.getTime()/86400000 + 2440587.5;
+      const ip = (jd - 2451550.1) / 29.530588853;
+      const phase = ip - Math.floor(ip);
+      if (phase < 0.03 || phase >= 0.97) return 0;
+      if (phase < 0.22) return 1;
+      if (phase < 0.28) return 2;
+      if (phase < 0.47) return 3;
+      if (phase < 0.53) return 4;
+      if (phase < 0.72) return 5;
+      if (phase < 0.78) return 6;
+      return 7;
+    }
+
+    const _LUNAR_NAMES = ['Νέα Σελήνη','Αυξ. Μηνίσκος','1ο Τέταρτο','Αυξ. Αμφίκυρτος','Πανσέληνος','Φθ. Αμφίκυρτος','3ο Τέταρτο','Φθ. Μηνίσκος'];
+
+    async function _loadEnsembleMaster() {
+      if (_ensembleMaster) return _ensembleMaster;
+      const url = `https://raw.githubusercontent.com/${REPO}/main/all_signals_master.json`;
+      const r = await fetch(url, {cache: 'force-cache'});
+      if (!r.ok) throw new Error(`HTTP ${r.status} — δεν βρέθηκε all_signals_master.json`);
+      _ensembleMaster = await r.json();
+      return _ensembleMaster;
+    }
+
+    async function _runEnsemble() {
+      const draws = _draws();
+      if (draws.length < 15) throw new Error('Χρειάζονται τουλάχιστον 15 κληρώσεις. Φορτώστε πρώτα το Backtest.');
+
+      const master = await _loadEnsembleMaster();
+      const idx = draws.length - 1;
+      const delays = _delays(draws, idx);
+
+      const now = new Date();
+      const hour = now.getHours();
+      const dow = _DOW_NAMES[now.getDay()];
+      const month = now.getMonth() + 1;
+      const dom = now.getDate();
+      const lunarPhase = _lunarPhaseIdx(now);
+
+      // Helper: Set of numbers drawn N draws ago (lag 1 = last draw)
+      const lagSet = (lag) => {
+        const i = idx - (lag - 1);
+        return i >= 0 ? new Set(draws[i].n) : new Set();
+      };
+      const prev  = lagSet(1);
+      const draw2 = lagSet(2);
+      const draw3 = lagSet(3);
+      const draw5 = lagSet(5);
+
+      const scores = new Array(81).fill(0);
+      const fired  = [];
+      const seen   = new Set(); // dedup (name|z)
+
+      for (const sig of master.signals) {
+        if (sig.cat === 'sb_pair') continue;
+        const dedupKey = sig.name + '|' + sig.z.toFixed(4);
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
+
+        const w   = sig.z;
+        const {cat, name} = sig;
+        const addN = (n, delta=w) => { if (n>=1 && n<=80) scores[n] += delta; };
+        let triggered = false;
+
+        switch (cat) {
+          case 'hour': {
+            const m = name.match(/n(\d+)@h(\d+)/);
+            if (m && hour === +m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'dow': {
+            const m = name.match(/n(\d+)@(\w+)/);
+            if (m && dow === m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'month': {
+            const m = name.match(/n(\d+)@m(\d+)/);
+            if (m && month === +m[2]) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'dom': {
+            const m = name.match(/d(\d+)_n(\d+)/);
+            if (m && dom === +m[1]) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'lunar': {
+            const m = name.match(/ph(\d+)_n(\d+)/);
+            if (m && lunarPhase === +m[1]) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'trans': {
+            const m = name.match(/(\d+)→(\d+)/);
+            if (m && prev.has(+m[1])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'neighbor': {
+            const m = name.match(/(\d+)→(\d+)/);
+            if (m && prev.has(+m[1])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'partner': {
+            const m = name.match(/n(\d+)↔(\d+)/);
+            if (m && w > 0) { addN(+m[1]); addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'triplet': {
+            const m = name.match(/\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (m && w > 0) { addN(+m[1]); addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag2': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw2.has(+m[1]) && draw2.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag3': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw3.has(+m[1]) && draw3.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'p2n_lag5': {
+            const m = name.match(/\((\d+),(\d+)\)→(\d+)/);
+            if (m && draw5.has(+m[1]) && draw5.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'h_p_n': {
+            const m = name.match(/h(\d+)_\((\d+),(\d+)\)→(\d+)/);
+            if (m && hour===+m[1] && prev.has(+m[2]) && prev.has(+m[3])) { addN(+m[4]); triggered = true; }
+            break;
+          }
+          case 'p2t': {
+            const m = name.match(/\((\d+),(\d+)\)→\(([\d,\s]+)\)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) {
+              m[3].split(',').forEach(x => addN(+x.trim()));
+              triggered = true;
+            }
+            break;
+          }
+          case 'pp':
+          case 'p2p_v2': {
+            const m = name.match(/\((\d+),(\d+)\)→\((\d+),(\d+)\)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2])) { addN(+m[3]); addN(+m[4]); triggered = true; }
+            break;
+          }
+          case 'multi_pair': {
+            const m = name.match(/\((\d+),\s*(\d+)\)_\((\d+),\s*(\d+)\)→(\d+)/);
+            if (m && prev.has(+m[1]) && prev.has(+m[2]) && prev.has(+m[3]) && prev.has(+m[4])) { addN(+m[5]); triggered = true; }
+            break;
+          }
+          case 'anti_p2n': {
+            const m = name.match(/¬\((\d+),(\d+)\)→(\d+)/);
+            if (m && !(prev.has(+m[1]) && prev.has(+m[2]))) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'dow_trans': {
+            const m = name.match(/(\w+)_(\d+)→(\d+)/);
+            if (m && dow===m[1] && prev.has(+m[2])) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'pair_h': {
+            const m = name.match(/h(\d+)_\((\d+),(\d+)\)/);
+            if (m && hour===+m[1]) { addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'pair_dow': {
+            const m = name.match(/(\w+)_\((\d+),(\d+)\)/);
+            if (m && dow===m[1]) { addN(+m[2]); addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'hxn_lag2': {
+            const m = name.match(/h(\d+)n(\d+)/);
+            if (m && hour===+m[1] && draw2.has(+m[2])) { addN(+m[2]); triggered = true; }
+            break;
+          }
+          case 'pair_mem': {
+            const m = name.match(/\((\d+),(\d+)\)@(\d+)/);
+            if (m) {
+              const lag = +m[3], s = lagSet(lag);
+              if (s.has(+m[1]) && s.has(+m[2])) { addN(+m[1]); addN(+m[2]); triggered = true; }
+            }
+            break;
+          }
+          case 'anti_mark_lag2': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw2.has(+m[1])) { addN(+m[1]); triggered = true; } // w<0, penalizes
+            break;
+          }
+          case '2back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw2.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case '3back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw3.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case '5back': {
+            const m = name.match(/n(\d+)/);
+            if (m && draw5.has(+m[1])) { addN(+m[1]); triggered = true; }
+            break;
+          }
+          case 'lag':
+          case 'n_lag': {
+            const m = name.match(/n(\d+)@lag(\d+)/);
+            if (m) {
+              const s = lagSet(+m[2]);
+              if (s.has(+m[1])) { addN(+m[1]); triggered = true; }
+            }
+            break;
+          }
+          case 'hxd':
+          case 'hxd_v2': {
+            const m = name.match(/h(\d+)d(\d+)n(\d+)/);
+            if (m && hour===+m[1] && delays[+m[3]]===+m[2]) { addN(+m[3]); triggered = true; }
+            break;
+          }
+          case 'hxdrng_n': {
+            // h14_recent_n14 = hour 14 + delay in "recent" range (1-3) + target 14
+            const m = name.match(/h(\d+)_(recent|medium|old)_n(\d+)/);
+            if (m && hour===+m[1]) {
+              const d = delays[+m[3]];
+              const range = m[2];
+              if ((range==='recent' && d<=3) || (range==='medium' && d>=4 && d<=9) || (range==='old' && d>=10)) {
+                addN(+m[3]); triggered = true;
+              }
+            }
+            break;
+          }
+        }
+
+        if (triggered) fired.push({name, cat, z: w, abs_z: sig.abs_z});
+      }
+
+      // Rank numbers by score
+      const ranked = [];
+      for (let n=1; n<=80; n++) {
+        if (scores[n] !== 0) ranked.push({n, score: scores[n], delay: delays[n]});
+      }
+      ranked.sort((a,b) => b.score - a.score);
+      fired.sort((a,b) => b.abs_z - a.abs_z);
+
+      return {scores, ranked, fired, ctx: {hour, dow, month, dom, lunarPhase, prevDrawId: draws[idx].id, totalSignals: seen.size}};
+    }
+
+    function _renderEnsembleModal(result) {
+      const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtEnsembleCount')?.value)||8));
+      const {ranked, fired, ctx} = result;
+      const top = ranked.filter(r => r.score > 0).slice(0, count);
+      const maxScore = top.length > 0 ? top[0].score : 1;
+
+      const ballColor = (score) => {
+        const t = Math.min(1, score / maxScore);
+        const r = Math.round(99 + (67-99)*t), g = Math.round(102 + (56-102)*t), b = Math.round(241 + (200-241)*t);
+        return `rgb(${r},${g},${b})`;
+      };
+
+      const picksHtml = top.map(r => {
+        const pct = Math.round(r.score / maxScore * 100);
+        const barW = Math.round(pct * 0.6);
+        return `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:3px">
+          <div style="background:${ballColor(r.score)};color:white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;box-shadow:0 2px 6px rgba(99,102,241,0.4)">${r.n}</div>
+          <div style="font-size:0.55rem;color:#6366f1;margin-top:2px">d:${r.delay}</div>
+          <div style="width:38px;height:3px;background:#e0e7ff;border-radius:2px;margin-top:1px">
+            <div style="width:${barW}%;height:100%;background:#6366f1;border-radius:2px"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const topFired = fired.slice(0, 8);
+      const firedHtml = topFired.map(f => {
+        const sign = f.z > 0 ? '+' : '−';
+        const col = f.z > 0 ? '#166534' : '#991b1b';
+        const bg  = f.z > 0 ? '#dcfce7' : '#fee2e2';
+        return `<div style="background:${bg};border-radius:5px;padding:3px 7px;margin:2px 0;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <span style="font-size:0.68rem;color:#374151;font-family:monospace">${f.name}</span>
+          <span style="font-size:0.63rem;color:#6b7280">[${f.cat}]</span>
+          <span style="font-size:0.7rem;color:${col};font-weight:700">${sign}${Math.abs(f.z).toFixed(2)}</span>
+        </div>`;
+      }).join('');
+
+      const lunarName = _LUNAR_NAMES[ctx.lunarPhase];
+      const noHitHtml = top.length === 0
+        ? `<div style="text-align:center;color:#6b7280;padding:16px 0;font-size:0.85rem">Κανένα σήμα δεν ενεργοποιήθηκε για αυτή την ώρα/κλήρωση.</div>` : '';
+
+      document.getElementById('dtEnsembleContent').innerHTML = `
+        <div style="text-align:left">
+          <div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-radius:10px;padding:12px 14px;margin-bottom:12px;border:2px solid #6366f1;text-align:center">
+            <div style="font-size:0.7rem;color:#3730a3;font-weight:600;margin-bottom:8px">🎯 Ensemble ${count}-άδα — μετά το #${ctx.prevDrawId}</div>
+            <div>${picksHtml}</div>
+            ${noHitHtml}
+            <div style="font-size:0.62rem;color:#4338ca;margin-top:8px">${fired.length} σήματα ενεργά · max score: ${maxScore.toFixed(2)}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:0.7rem">
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Ώρα:</span> <strong>${ctx.hour}:00</strong> &nbsp;
+              <span style="color:#6b7280">Ημ:</span> <strong>${ctx.dow}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Σελήνη:</span> <strong style="font-size:0.65rem">${lunarName}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Μήνας:</span> <strong>${ctx.month}</strong> &nbsp;
+              <span style="color:#6b7280">Ημέρα:</span> <strong>${ctx.dom}</strong>
+            </div>
+            <div style="background:#f8fafc;border-radius:6px;padding:6px 8px">
+              <span style="color:#6b7280">Σήματα:</span> <strong>${ctx.totalSignals}</strong> επεξ.
+            </div>
+          </div>
+          ${fired.length > 0 ? `
+          <div style="font-size:0.72rem;color:#3730a3;font-weight:600;margin-bottom:5px">⚡ Κορυφαία ενεργοποιημένα σήματα:</div>
+          ${firedHtml}` : ''}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="dtOpenEnsemble(true)" style="flex:1;padding:7px;border:1px solid #6366f1;border-radius:8px;background:#eef2ff;color:#3730a3;cursor:pointer;font-weight:600;font-size:0.8rem">↻ Ανανέωση</button>
+            <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="flex:1;padding:7px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer;font-size:0.8rem">Κλείσιμο</button>
+          </div>
+        </div>`;
+    }
+
+    window.dtOpenEnsemble = async function(forceRefresh) {
+      let m = document.getElementById('dtEnsembleModal');
+      if (!m) {
+        m = document.createElement('div');
+        m.id = 'dtEnsembleModal';
+        m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        m.onclick = (e) => { if (e.target===m) m.style.display='none'; };
+        document.body.appendChild(m);
+      }
+      m.style.display = 'flex';
+      m.innerHTML = `<div style="background:linear-gradient(135deg,#eef2ff,#e0e7ff);max-width:520px;width:100%;max-height:90vh;overflow-y:auto;border-radius:12px;padding:20px;border:2px solid #6366f1;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;color:#3730a3;font-size:1.05rem">🎯 Bayesian Ensemble</h3>
+          <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3730a3">✕</button>
+        </div>
+        <div id="dtEnsembleContent" style="text-align:center;padding:24px;color:#3730a3">
+          <div style="font-size:1.3rem">⚙️ Υπολογισμός σημάτων...</div>
+          <div style="font-size:0.8rem;margin-top:8px;color:#6366f1">Φόρτωση 197 σημάτων · 10 batches · 238K κληρώσεις</div>
+        </div>
+      </div>`;
+
+      try {
+        const result = await _runEnsemble();
+        _renderEnsembleModal(result);
+      } catch(e) {
+        document.getElementById('dtEnsembleContent').innerHTML = `<div style="color:#b91c1c;padding:12px">❌ ${e.message}</div>`;
+      }
+    };
+
     window.dtDistChange=function(){
       _distCfg=[0,1,2,3,4,5,6,7,8,9].map(i=>{
         const el=document.getElementById('dtD'+i);
