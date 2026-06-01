@@ -1,6 +1,6 @@
 {
-  "total_count": 213,
-  "real_count": 203,
+  "total_count": 220,
+  "real_count": 210,
   "signals": [
     {
       "batch": "seventh",
@@ -715,6 +715,14 @@
       "abs_z": 3.800404622056613
     },
     {
+      "batch": "eleventh",
+      "cat": "dr_bias",
+      "name": "dr4_n17",
+      "z": -3.78,
+      "det": "digital_root(draw_sum)=4 → #17 less likely (obs=0.2400 vs 0.25, n=26710)",
+      "abs_z": 3.78
+    },
+    {
       "batch": "even_more",
       "cat": "anti_p2n",
       "name": "¬(6,34)→43",
@@ -995,6 +1003,14 @@
       "abs_z": 3.4660785861667316
     },
     {
+      "batch": "twelfth",
+      "cat": "word_phrase_subset",
+      "name": "ΤΖΑΚΠΟΤ",
+      "z": 3.46,
+      "det": "phrase_subset k=6 positional {1,6,10,15,16,19} — 50 hits vs 30.8 expected",
+      "abs_z": 3.46
+    },
+    {
       "batch": "conditional",
       "cat": "trans",
       "name": "5→43",
@@ -1065,6 +1081,14 @@
       "z": -3.3318754581452357,
       "det": "#5 at lag 14",
       "abs_z": 3.3318754581452357
+    },
+    {
+      "batch": "twelfth",
+      "cat": "fulfillment_fixed",
+      "name": "ΑΓΓΕΛΟΣ_k2+4",
+      "z": 3.33,
+      "det": "EXACTLY 2 of {1,3,5,11,15,18} in draw_i → remaining 4 in draw_i+1 (274 hits/73205 triggers vs p_exp=0.00307)",
+      "abs_z": 3.33
     },
     {
       "batch": "marginal",
@@ -1187,6 +1211,14 @@
       "abs_z": 3.16
     },
     {
+      "batch": "twelfth",
+      "cat": "union2_cover",
+      "name": "ΘΕΟΤΟΚΟΣ",
+      "z": 3.16,
+      "det": "union draw_i ∪ draw_i+1 ⊇ {5,8,10,15,18,19} — 1458 hits vs 1342.5 expected",
+      "abs_z": 3.16
+    },
+    {
       "batch": "conditional",
       "cat": "trans",
       "name": "54→34",
@@ -1243,6 +1275,14 @@
       "abs_z": 3.1040159131192357
     },
     {
+      "batch": "twelfth",
+      "cat": "fulfillment_fixed",
+      "name": "ΤΕΤΡΑΓΩΝΟ_k3+5",
+      "z": 3.1,
+      "det": "EXACTLY 3 of {1,3,5,13,15,17,19,24} in draw_i → remaining 5 in draw_i+1 (51 hits/51415 triggers vs p_exp=0.00064)",
+      "abs_z": 3.1
+    },
+    {
       "batch": "more",
       "cat": "lag",
       "name": "n11@lag9",
@@ -1283,6 +1323,14 @@
       "abs_z": 3.0610781156102074
     },
     {
+      "batch": "twelfth",
+      "cat": "mil_phrase_subset",
+      "name": "ΣΟΛΟΜΩΝ_mil",
+      "z": 3.05,
+      "det": "Milesian subset {30,40,50,70} (Λ,Μ,Ν,Ο) in draw — 814 hits vs 731.7 expected",
+      "abs_z": 3.05
+    },
+    {
       "batch": "conditional",
       "cat": "neighbor",
       "name": "37→36",
@@ -1305,6 +1353,14 @@
       "z": -3.0444168705284422,
       "det": "37→36 P=0.2446",
       "abs_z": 3.0444168705284422
+    },
+    {
+      "batch": "twelfth",
+      "cat": "fulfillment_fixed",
+      "name": "ΠΑΥΛΟΣ_k2+4",
+      "z": 3.04,
+      "det": "EXACTLY 2 of {1,11,15,16,18,20} in draw_i → remaining 4 in draw_i+1 (272 hits/73870 triggers vs p_exp=0.00307)",
+      "abs_z": 3.04
     },
     {
       "batch": "conditional",

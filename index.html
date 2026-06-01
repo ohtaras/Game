@@ -4511,6 +4511,55 @@
             break;
           }
           // 'special' and 'lex_match' are sum-based — not actionable for individual numbers
+          case 'word_phrase_subset': {
+            // Numbers cluster together in single draws more than expected
+            // Name is the phrase (e.g. "ΤΖΑΚΠΟΤ") — unconditionally boost phrase nums
+            const _WPS = {'ΤΖΑΚΠΟΤ':[1,6,10,15,16,19]};
+            const _wn = _WPS[name];
+            if (_wn) { _wn.forEach(n => addN(n)); triggered = true; }
+            break;
+          }
+          case 'mil_phrase_subset': {
+            // Milesian-mapped numbers cluster together more than expected
+            const _MPS = {'ΣΟΛΟΜΩΝ_mil':[30,40,50,70]};
+            const _mn = _MPS[name];
+            if (_mn) { _mn.forEach(n => addN(n)); triggered = true; }
+            break;
+          }
+          case 'fulfillment_fixed': {
+            // "WORD_kK+R": if EXACTLY K of phrase numbers in prev draw → boost remaining R
+            const _mff = name.match(/^(.+)_k(\d+)\+(\d+)$/);
+            if (!_mff) break;
+            const _ffPhrase = _mff[1], _ffK = +_mff[2];
+            const _FF = {
+              'ΑΓΓΕΛΟΣ':  [1,3,5,11,15,18],
+              'ΠΑΥΛΟΣ':   [1,11,15,16,18,20],
+              'ΤΕΤΡΑΓΩΝΟ':[1,3,5,13,15,17,19,24],
+            };
+            const _ffNums = _FF[_ffPhrase];
+            if (!_ffNums) break;
+            const _ffIn = _ffNums.filter(n => prev.has(n));
+            if (_ffIn.length === _ffK) {
+              _ffNums.filter(n => !prev.has(n)).forEach(n => addN(n));
+              triggered = true;
+            }
+            break;
+          }
+          case 'union2_cover': {
+            // Numbers tend to be covered across 2 consecutive draws
+            // If some appeared in prev, boost the missing ones
+            const _U2 = {'ΘΕΟΤΟΚΟΣ':[5,8,10,15,18,19]};
+            const _u2n = _U2[name];
+            if (!_u2n) break;
+            const _u2miss = _u2n.filter(n => !prev.has(n));
+            if (_u2miss.length >= 1 && _u2miss.length < _u2n.length) {
+              _u2miss.forEach(n => addN(n)); triggered = true;
+            }
+            break;
+          }
+          case 'dr_bias':
+            // "dr4_n17": draw_sum digital_root bias — not predictive for next draw
+            break;
         }
 
         if (triggered) fired.push({name, cat, z: w, abs_z: sig.abs_z});
