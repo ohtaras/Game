@@ -4514,7 +4514,7 @@
           case 'word_phrase_subset': {
             // Numbers cluster together in single draws more than expected
             // Name is the phrase (e.g. "ΤΖΑΚΠΟΤ") — unconditionally boost phrase nums
-            const _WPS = {'ΤΖΑΚΠΟΤ':[1,6,10,15,16,19]};
+            const _WPS = {'ΤΖΑΚΠΟΤ':[1,6,10,15,16,19],'ΧΡΥΣΙΠΠΟΣ':[9,15,16,17,18,20,22]};
             const _wn = _WPS[name];
             if (_wn) { _wn.forEach(n => addN(n)); triggered = true; }
             break;
@@ -4535,6 +4535,7 @@
               'ΑΓΓΕΛΟΣ':  [1,3,5,11,15,18],
               'ΠΑΥΛΟΣ':   [1,11,15,16,18,20],
               'ΤΕΤΡΑΓΩΝΟ':[1,3,5,13,15,17,19,24],
+              'ΠΙΝΔΑΡΟΣ': [1,4,9,13,15,16,17,18],
             };
             const _ffNums = _FF[_ffPhrase];
             if (!_ffNums) break;
