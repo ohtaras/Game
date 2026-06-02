@@ -3922,20 +3922,27 @@
         }).join(' ');
         const nextColor = _STORY_PART_COLORS[currentSentence.length % 6];
 
-        // Αριθμοί από την τελευταία λέξη/φράση (για επόμενη κλήρωση)
-        const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+        // Αριθμοί από την τελευταία λέξη/φράση — πλήρης αντιστοίχηση 1-80
+        const _GR_UP='ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ', _GR_LO='αβγδεζηθικλμνξοπρστυφχψω';
+        const _GR_AC_LO=['ά','έ','ή','ί','ό','ύ','ώ'], _GR_AC_UP=['Ά','Έ','Ή','Ί','Ό','Ύ','Ώ'];
+        const _GR_DI=['αι','ει','οι','αυ','ευ','ου','μπ','ντ','γκ','τσ','στ','σκ','πρ','τρ','θρ','χρ','σπ','λλ'];
+        const _cv = c => {let i;if((i=_GR_UP.indexOf(c))>=0)return i+1;if((i=_GR_LO.indexOf(c))>=0)return i+25;if((i=_GR_AC_LO.indexOf(c))>=0)return i+49;if((i=_GR_AC_UP.indexOf(c))>=0)return i+56;return null;};
         const _wordNums = (w) => {
-          const wNorm = w.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
-          const lts = [...wNorm].filter(c => GR.includes(c));
-          const lns = lts.map(c => GR.indexOf(c)+1);
-          const s = lns.reduce((a,b) => a+b, 0);
-          const ik = s > 0 ? ((s-1)%80)+1 : null;
-          const un = [...new Set(lns)].sort((a,b)=>a-b);
-          return { nums: ik ? [...new Set([...un, ik])].sort((a,b)=>a-b) : un, isoKino: ik };
+          const vals=[]; let i=0;
+          while(i<w.length){
+            if(i+1<w.length){const di=_GR_DI.indexOf(w.slice(i,i+2));if(di>=0){vals.push(di+63);i+=2;continue;}}
+            const v=_cv(w[i]);if(v!==null)vals.push(v);i++;
+          }
+          const un=[...new Set(vals)].sort((a,b)=>a-b);
+          const s=vals.reduce((a,b)=>a+b,0);
+          const ik=s>0?((s-1)%80)+1:null;
+          return{nums:ik?[...new Set([...un,ik])].sort((a,b)=>a-b):un,isoKino:ik};
         };
         const { nums: allNums, isoKino } = _wordNums(currentWord);
+        // χρώματα: μπλε=κεφ(1-24) · πράσινο=μικρά(25-48) · πορτ=τόνοι(49-62) · κόκκινο=δίψηφα(63-80) · μωβ=ισοψηφία
+        const _bc = n => n<=24?'#6366f1':n<=48?'#059669':n<=62?'#d97706':'#dc2626';
         const numBalls = allNums.map(n =>
-          `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
+          `<span style="background:${n===isoKino?'#7c3aed':_bc(n)};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
         ).join('');
 
         // Τσεκάρισμα: λέξη προηγούμενης κλήρωσης → αριθμοί → ποιοι βγήκαν τώρα
@@ -3968,7 +3975,7 @@
           <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
             <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
             <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
-            <div style="font-size:0.58rem;color:#9ca3af">από: "<strong>${currentWord}</strong>" · μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
+            <div style="font-size:0.58rem;color:#9ca3af">από: "<strong>${currentWord}</strong>" · <span style="color:#6366f1">■</span>κεφ. <span style="color:#059669">■</span>μικρά <span style="color:#d97706">■</span>τόνοι <span style="color:#dc2626">■</span>δίψηφα <span style="color:#7c3aed">■</span>ισοψ.(${isoKino})</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
             <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
