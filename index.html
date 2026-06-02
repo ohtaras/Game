@@ -3875,9 +3875,11 @@
       const storyEl = document.getElementById('dtStory');
       if (storyEl) {
         const draws = _draws();
-        // Τελευταίες 32 κληρώσεις (≈2.5 ώρες)
-        const storyCount = 32;
-        const storyStart = Math.max(0, idx - storyCount + 1);
+        // Κληρώσεις από μεσάνυχτα μέχρι τώρα
+        const _now = new Date();
+        const minSinceMidnight = _now.getHours() * 60 + _now.getMinutes();
+        const drawsToday = Math.max(1, Math.floor(minSinceMidnight * 272 / 1440));
+        const storyStart = Math.max(0, idx - drawsToday + 1);
         const storyDraws = draws.slice(storyStart, idx + 1);
         const storyWords = storyDraws.map(d => ({id: d.id, word: _drawStoryWord(d)}));
         const currentWord = storyWords[storyWords.length - 1]?.word || '';
@@ -3904,8 +3906,8 @@
         ).join('');
 
         storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
-          <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία — τελευταίες ${storyWords.length} κληρώσεις</div>
-          <div style="line-height:2;margin-bottom:10px">${wordChips}</div>
+          <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία της ημέρας — ${storyWords.length} κληρώσεις (από 00:00)</div>
+          <div style="line-height:2;margin-bottom:10px;max-height:120px;overflow-y:auto;padding-right:4px">${wordChips}</div>
           <div style="background:white;border:1px solid #ddd6fe;border-radius:7px;padding:7px 10px">
             <div style="font-size:0.65rem;color:#7c3aed;font-weight:700;margin-bottom:4px">Τρέχουσα λέξη: <strong>${currentWord}</strong> → αριθμοί για επόμενη κλήρωση:</div>
             <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
