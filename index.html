@@ -3815,52 +3815,19 @@
     }
 
     // Reverse CTK: given drawn KINO numbers, return available Greek chars/digraphs
-    // Find candidate words from vocab+Homer that match this draw (score >= 0.75)
-    function _getCandidates(drawNums) {
-      const drawSet = new Set(drawNums);
-      const seen = new Set();
-      const results = [];
-      const check = (word) => {
-        const w = word.toLowerCase();
-        if (seen.has(w)) return;
-        seen.add(w);
-        const {nums} = _wordNums(w);
-        if (nums.length < 2) return;
-        const hits = nums.filter(n => drawSet.has(n)).length;
-        const score = hits / nums.length;
-        if (score >= 0.75) results.push({word: w, score});
-      };
-      for (const w of _HOMER_TEXT) check(w);
-      for (const w of _HOMER_VOCAB) check(w);
-      results.sort((a, b) => b.score - a.score || b.word.length - a.word.length);
-      return results.slice(0, 30);
-    }
+    // Call Claude API: given available chars + narrative context, generate next word
+    async function _callClaudeWord(drawNums, context, apiKey) {
+      const chars = _drawToChars(drawNums);
+      const contextStr = context.length > 0
+        ? `Αφήγηση έως τώρα: «${context.slice(-8).join(' ')}»\n\n`
+        : '';
+      const prompt = `${contextStr}Γράφεις μια ποιητική αφήγηση στο πνεύμα της Ιλιάδας/Οδύσσειας, μία λέξη τη φορά.
 
-    // Call Claude API: given candidate words + context, pick best narrative continuation
-    async function _callClaudeWord(candidates, context, apiKey) {
-      let prompt, wordList;
-      if (candidates.length > 0) {
-        // Primary: pick best word from pre-matched candidates
-        const perfect = candidates.filter(c => c.score === 1).map(c => c.word);
-        const partial = candidates.filter(c => c.score < 1).map(c => c.word);
-        wordList = [...perfect, ...partial].slice(0, 25).join(', ');
-        const contextStr = context.length > 0
-          ? `Αφήγηση: «${context.slice(-8).join(' ')}»`
-          : 'Αρχή αφήγησης.';
-        prompt = `Είσαι ποιητής στην αρχαιοελληνική παράδοση. ${contextStr}
+Διαθέσιμα γράμματα και δίγραμμα για αυτή τη λέξη: ${chars.join(' ')}
 
-Διάλεξε ΜΙΑ λέξη από τη λίστα που συνεχίζει την αφήγηση με φυσική ροή και ποιητικό τόνο. Προτίμησε ουσιαστικά/ρήματα/επίθετα αντί λειτουργικών λέξεων.
+Σύνθεσε ΜΙΑ ελληνική λέξη χρησιμοποιώντας μόνο αυτά τα στοιχεία (κάθε στοιχείο μπορεί να επαναληφθεί). Να είναι ουσιαστικό, ρήμα ή επίθετο — όχι άρθρο ή σύνδεσμος. Να συνεχίζει φυσικά την αφήγηση.
 
-Λίστα: ${wordList}
-
-Απάντησε με ΜΙΑ ΜΟΝΟ λέξη από τη λίστα, πεζά, χωρίς τελεία.`;
-      } else {
-        // Fallback: no candidates — ask Claude to generate freely in narrative context
-        const contextStr = context.length > 0
-          ? `Αφήγηση: «${context.slice(-8).join(' ')}»`
-          : 'Αρχή αφήγησης.';
-        prompt = `Είσαι ποιητής. ${contextStr} Πρόσθεσε ΜΙΑ ελληνική λέξη (ουσιαστικό ή ρήμα) που συνεχίζει φυσικά. Απάντησε με ΜΙΑ ΜΟΝΟ λέξη, πεζά.`;
-      }
+Απάντησε με ΜΙΑ ΜΟΝΟ ελληνική λέξη, πεζά, χωρίς τελεία.`;
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -3872,18 +3839,13 @@
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 20,
+          max_tokens: 30,
           messages: [{role: 'user', content: prompt}]
         })
       });
       if (!resp.ok) throw new Error(`API ${resp.status}`);
       const data = await resp.json();
       const word = (data.content?.[0]?.text || '').trim().toLowerCase().replace(/[.,;:!?«»"'\s]/g, '');
-      // Validate: if candidates given, word must be in list
-      if (candidates.length > 0) {
-        const cset = new Set(candidates.map(c => c.word));
-        return cset.has(word) ? word : (candidates[0]?.word || null);
-      }
       return word || null;
     }
 
@@ -3901,11 +3863,9 @@
       for (const d of storyDraws) {
         if (processedIds.has(d.id)) continue;
         try {
-          const candidates = _getCandidates(d.n);
           const context = state.words.filter(w => w.word).map(w => w.word);
-          const word = await _callClaudeWord(candidates, context, apiKey);
-          const isPerfect = candidates.some(c => c.word === word && c.score === 1);
-          state.words.push({drawId: d.id, word: word || null, pos: -1, perfect: isPerfect, score: word ? 1 : 0, claude: true});
+          const word = await _callClaudeWord(d.n, context, apiKey);
+          state.words.push({drawId: d.id, word: word || null, pos: -1, perfect: true, score: word ? 1 : 0, claude: true});
         } catch(e) {
           state.words.push({drawId: d.id, word: null, pos: -1, perfect: false, score: 0, claude: true, err: e.message});
         }
