@@ -3715,23 +3715,46 @@
     }
 
     // ════════════════ Ιστορία Κληρώσεων ════════════════
-    // Κάθε 6 κληρώσεις = 1 πρόταση. Κάθε κλήρωση δίνει ένα γραμματικό μέρος.
-    const _STORY_PARTS = [
-      ['Ο ΗΡΩΑΣ','Η ΜΑΧΗ','ΤΟ ΤΑΞΙΔΙ','Ο ΒΑΣΙΛΙΑΣ','Η ΝΕΡΑΙΔΑ','Ο ΔΡΑΚΟΣ','ΤΟ ΜΥΣΤΗΡΙΟ','Ο ΛΥΚΟΣ','Η ΜΟΙΡΑ','Ο ΠΟΛΕΜΙΣΤΗΣ','Η ΑΛΗΘΕΙΑ','Ο ΜΑΓΟΣ','Η ΕΛΠΙΔΑ','ΤΟ ΦΑΝΤΑΣΜΑ','ΤΟ ΘΑΥΜΑ'],
-      ['ΞΕΚΙΝΗΣΕ','ΑΡΧΙΣΕ','ΕΠΕΣΤΡΕΨΕ','ΑΓΩΝΙΣΤΗΚΕ','ΕΦΤΑΣΕ','ΑΝΑΚΑΛΥΨΕ','ΑΝΤΙΜΕΤΩΠΙΣΕ','ΝΙΚΗΣΕ','ΧΑΘΗΚΕ','ΒΡΗΚΕ','ΕΦΥΓΕ','ΠΟΛΕΜΗΣΕ','ΣΩΘΗΚΕ','ΤΕΛΕΙΩΣΕ','ΣΥΝΕΧΙΣΤΗΚΕ'],
-      ['ΞΑΦΝΙΚΑ','ΑΜΕΣΑ','ΑΡΓΑ','ΓΡΗΓΟΡΑ','ΣΙΓΑ','ΤΟΛΜΗΡΑ','ΜΟΝΟΣ','ΜΑΖΙ','ΠΑΝΤΑ','ΘΑΡΡΑΛΕΑ','ΑΠΕΛΠΙΣΜΕΝΑ','ΑΝΔΡΕΙΑ','ΑΤΡΟΜΗΤΑ','ΑΝΥΠΟΜΟΝΑ','ΕΛΠΙΔΟΦΟΡΑ'],
-      ['ΣΤΗ ΘΑΛΑΣΣΑ','ΣΤΟ ΠΑΛΑΤΙ','ΣΤΟ ΒΟΥΝΟ','ΣΤΗΝ ΑΓΟΡΑ','ΣΤΟ ΔΑΣΟΣ','ΣΤΗ ΓΕΦΥΡΑ','ΣΤΟ ΛΙΜΑΝΙ','ΣΤΗΝ ΕΡΗΜΟ','ΣΤΟ ΣΠΗΛΑΙΟ','ΣΤΟΝ ΝΑΟ','ΣΤΗ ΠΟΛΗ','ΣΤΟ ΧΩΡΙΟ','ΣΤΟ ΠΥΡΓΟ','ΣΤΟΝ ΠΟΤΑΜΟ','ΣΤΟ ΛΑΒΥΡΙΝΘΟ'],
-      ['ΜΕ ΧΑΡΑ','ΜΕ ΦΟΒΟ','ΜΕ ΑΓΑΠΗ','ΜΕ ΘΑΡΡΟΣ','ΜΕ ΛΥΠΗ','ΜΕ ΕΛΠΙΔΑ','ΜΕ ΑΓΩΝΙΑ','ΜΕ ΘΥΜΟ','ΜΕ ΠΕΡΗΦΑΝΙΑ','ΜΕ ΠΟΝΟ','ΜΕ ΓΑΛΗΝΗ','ΜΕ ΟΡΜΗ','ΜΕ ΑΠΟΓΝΩΣΗ','ΜΕ ΠΙΣΤΗ','ΜΕ ΟΡΓΗ'],
-      ['ΚΑΙ ΝΙΚΗΣΕ.','ΑΛΛ΄ ΕΧΑΣΕ.','ΚΑΙ ΣΩΘΗΚΕ.','ΚΑΙ ΧΑΘΗΚΕ.','ΚΑΙ ΕΠΕΣΤΡΕΨΕ.','ΚΑΙ ΑΛΛΑΞΕ.','ΑΝ ΚΑΙ ΦΟΒΑΤΑΝ.','ΚΑΙ ΒΡΗΚΕ ΤΟ ΘΗΣΑΥΡΟ.','ΚΑΙ ΣΥΝΕΧΙΣΕ.','ΚΑΙ ΗΡΘΕ Η ΜΟΙΡΑ.','ΚΑΙ ΕΓΙΝΕ ΘΑΥΜΑ.','ΚΑΙ Η ΕΙΡΗΝΗ ΗΡΘΕ.','ΑΛΛ΄ Η ΜΑΧΗ ΣΥΝΕΧΙΖΕΤΑΙ.','ΚΑΙ ΟΛΑ ΑΛΛΑΞΑΝ.','ΚΑΙ Η ΑΛΗΘΕΙΑ ΦΑΝΗΚΕ.'],
-    ];
-    const _STORY_PART_LABELS = ['Υποκείμενο','Ρήμα','Επίρρημα','Τόπος','Συναίσθημα','Έκβαση'];
+    // Αντιστοίχιση 1-80 → βασικό γράμμα (1-24):
+    //   1-24: κεφαλαίο γράμμα (Α-Ω)
+    //  25-48: μικρό γράμμα = ίδιο βασικό (n-24)
+    //  49-55: μικρό τονισμένο φωνήεν (ά,έ,ή,ί,ό,ύ,ώ) → βασικό φωνήεν
+    //  56-62: κεφ. τονισμένο φωνήεν (Ά,Έ,Ή,Ί,Ό,Ύ,Ώ) → βασικό φωνήεν
+    //  63-80: διγράμματα → προσθέτουν ΔΥΟ βασικά γράμματα στο pool
     const _STORY_PART_COLORS = ['#dc2626','#d97706','#059669','#2563eb','#7c3aed','#db2777'];
+    const _VOWEL_POS = [1,5,7,9,15,20,24]; // α,ε,η,ι,ο,υ,ω
+    const _DIGRAPH = {
+      63:[1,9],64:[5,9],65:[15,9],66:[1,20],67:[5,20],68:[15,20],
+      69:[12,16],70:[13,19],71:[3,10],72:[19,18],73:[18,19],74:[18,10],
+      75:[16,17],76:[19,17],77:[8,17],78:[22,17],79:[18,16],80:[11,11]
+    };
+
+    // Χτίζει το σύνολο διαθέσιμων βασικών γραμμάτων από ΟΛΟΥΣ τους 20 βγαλμένους
+    function _drawBaseLetters(draw) {
+      const avail = new Set();
+      for (const n of draw.n) {
+        if (n >= 1 && n <= 24) avail.add(n);
+        else if (n >= 25 && n <= 48) avail.add(n - 24);
+        else if (n >= 49 && n <= 55) avail.add(_VOWEL_POS[n - 49]);
+        else if (n >= 56 && n <= 62) avail.add(_VOWEL_POS[n - 56]);
+        else if (_DIGRAPH[n]) _DIGRAPH[n].forEach(x => avail.add(x));
+      }
+      return avail;
+    }
 
     function _drawStoryWord(draw, dayIdx) {
-      const partIdx = dayIdx % _STORY_PARTS.length;
-      const part = _STORY_PARTS[partIdx];
-      const iso = draw.n.filter(n => n <= 24).reduce((s,n) => s+n, 0);
-      return part[iso % part.length];
+      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+      const avail = _drawBaseLetters(draw);
+      const valid = _GREEK_WORDS.filter(w => {
+        const need = new Set([...w].map(c => GR.indexOf(c)+1).filter(n => n > 0));
+        if (!need.size) return false;
+        for (const n of need) if (!avail.has(n)) return false;
+        return true;
+      });
+      // Ισοψηφία από ΟΛΟΥΣ τους 20 βγαλμένους για επιλογή
+      const iso = draw.n.reduce((s,n) => s+n, 0);
+      if (!valid.length) return _GREEK_WORDS[(iso + dayIdx) % _GREEK_WORDS.length];
+      return valid[(iso + dayIdx) % valid.length];
     }
 
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
@@ -3900,11 +3923,9 @@
 
         // Τρέχουσα ημιτελής ομάδα ως chips
         const currentChips = currentSentence.map(sw =>
-          `<span style="background:${_STORY_PART_COLORS[sw.partIdx]};color:white;font-weight:700;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block" title="${_STORY_PART_LABELS[sw.partIdx]}">${sw.word}</span>`
+          `<span style="background:${_STORY_PART_COLORS[sw.partIdx]};color:white;font-weight:700;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block">${sw.word}</span>`
         ).join(' ');
-        const nextPartIdx = currentSentence.length % 6;
-        const nextLabel = _STORY_PART_LABELS[nextPartIdx];
-        const nextColor = _STORY_PART_COLORS[nextPartIdx];
+        const nextColor = _STORY_PART_COLORS[currentSentence.length % 6];
 
         // Αριθμοί από την τελευταία λέξη/φράση (για επόμενη κλήρωση)
         const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
@@ -3945,7 +3966,7 @@
           <div style="margin-bottom:8px">
             <div style="font-size:0.6rem;color:#7c3aed;font-weight:600;margin-bottom:3px">Τρέχουσα πρόταση (${currentSentence.length}/6):</div>
             <div style="line-height:2">${currentChips || '<span style="color:#9ca3af;font-size:0.7rem">—</span>'}</div>
-            <div style="font-size:0.6rem;margin-top:2px">Επόμενο: <span style="color:${nextColor};font-weight:700">${nextLabel}</span></div>
+            <div style="font-size:0.6rem;margin-top:2px;color:#9ca3af">Λέξη <span style="color:${nextColor};font-weight:700">${currentSentence.length+1}/6</span></div>
           </div>
           ${backtestHtml}
           <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
@@ -3954,7 +3975,7 @@
             <div style="font-size:0.58rem;color:#9ca3af">από: "<strong>${currentWord}</strong>" · μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω <span style="color:${nextColor};font-weight:700">${nextLabel}</span>:</span>
+            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
             <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
               style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
               oninput="dtStoryPredict(this.value)">
