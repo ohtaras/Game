@@ -3900,17 +3900,38 @@
         const nextLabel = _STORY_PART_LABELS[nextPartIdx];
         const nextColor = _STORY_PART_COLORS[nextPartIdx];
 
-        // Αριθμοί από την τελευταία λέξη/φράση
+        // Αριθμοί από την τελευταία λέξη/φράση (για επόμενη κλήρωση)
         const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
-        const letters = [...currentWord].filter(c => GR.includes(c));
-        const letterNums = letters.map(c => GR.indexOf(c)+1);
-        const iso = letterNums.reduce((a,b) => a+b, 0);
-        const isoKino = iso > 0 ? ((iso-1)%80)+1 : null;
-        const uniqueNums = [...new Set(letterNums)].sort((a,b)=>a-b);
-        const allNums = isoKino ? [...new Set([...uniqueNums, isoKino])].sort((a,b)=>a-b) : uniqueNums;
+        const _wordNums = (w) => {
+          const lts = [...w].filter(c => GR.includes(c));
+          const lns = lts.map(c => GR.indexOf(c)+1);
+          const s = lns.reduce((a,b) => a+b, 0);
+          const ik = s > 0 ? ((s-1)%80)+1 : null;
+          const un = [...new Set(lns)].sort((a,b)=>a-b);
+          return { nums: ik ? [...new Set([...un, ik])].sort((a,b)=>a-b) : un, isoKino: ik };
+        };
+        const { nums: allNums, isoKino } = _wordNums(currentWord);
         const numBalls = allNums.map(n =>
-          `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;margin:2px">${n}</span>`
+          `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
         ).join('');
+
+        // Τσεκάρισμα: λέξη προηγούμενης κλήρωσης → αριθμοί → ποιοι βγήκαν τώρα
+        let backtestHtml = '';
+        if (storyWords.length >= 2) {
+          const prevWord = storyWords[storyWords.length - 2].word;
+          const { nums: prevNums } = _wordNums(prevWord);
+          const drawnSet = new Set(draw.n);
+          const hits = prevNums.filter(n => drawnSet.has(n));
+          const prevBalls = prevNums.map(n => {
+            const hit = drawnSet.has(n);
+            return `<span style="background:${hit?'#16a34a':'#9ca3af'};color:white;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.72rem;margin:2px">${n}</span>`;
+          }).join('');
+          backtestHtml = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:7px 10px;margin-bottom:8px">
+            <div style="font-size:0.65rem;color:#15803d;font-weight:700;margin-bottom:4px">✅ Τσεκάρισμα — "<strong>${prevWord}</strong>" → ${hits.length}/${prevNums.length} αριθμοί βγήκαν</div>
+            <div style="display:flex;flex-wrap:wrap">${prevBalls}</div>
+            <div style="font-size:0.58rem;color:#9ca3af;margin-top:2px">πράσινο=βγήκε · γκρι=δεν βγήκε</div>
+          </div>`;
+        }
 
         storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
           <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία της ημέρας — ${storyWords.length} κληρώσεις · ${completedSentences.length} προτάσεις</div>
@@ -3920,12 +3941,13 @@
             <div style="line-height:2">${currentChips || '<span style="color:#9ca3af;font-size:0.7rem">—</span>'}</div>
             <div style="font-size:0.6rem;margin-top:2px">Επόμενο μέρος: <span style="color:${nextColor};font-weight:700">${nextLabel}</span></div>
           </div>
-          <div style="background:white;border:1px solid #ddd6fe;border-radius:7px;padding:7px 10px">
-            <div style="font-size:0.65rem;color:#7c3aed;font-weight:700;margin-bottom:4px">Τελευταία φράση: <strong>${currentWord}</strong> → αριθμοί:</div>
+          ${backtestHtml}
+          <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
+            <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
             <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
-            <div style="font-size:0.6rem;color:#9ca3af">μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
+            <div style="font-size:0.58rem;color:#9ca3af">από: "<strong>${currentWord}</strong>" · μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
           </div>
-          <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:6px;align-items:center">
             <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω <span style="color:${nextColor};font-weight:700">${nextLabel}</span>:</span>
             <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
               style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
