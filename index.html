@@ -777,6 +777,18 @@
         <button id="dtPreset4Btn" onclick="dtPreset4()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #a5b4fc;border-radius:4px;background:#ede9fe;cursor:pointer" title="Βέλτιστο 4αρι — θα ενημερωθεί μετά το backtest">Preset 4αρι ★</button>
       </div>
     </div>
+    <!-- Λεξαριθμός: λέξη/φράση → αριθμοί -->
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:6px 0">
+      <div style="font-size:0.72rem;font-weight:700;color:#92400e;margin-bottom:6px">🔤 Λεξαριθμός — γράψε λέξη ή φράση:</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="lexInput" type="text" placeholder="π.χ. ΑΓΓΕΛΟΣ ΘΕΟ ΤΥΧΗ..." autocomplete="off" spellcheck="false"
+          style="flex:1;padding:6px 10px;border:1px solid #fcd34d;border-radius:6px;font-size:0.82rem;font-family:inherit;background:white"
+          oninput="dtLexCalc(this.value)">
+        <button onclick="document.getElementById('lexInput').value='';document.getElementById('lexResult').innerHTML=''"
+          style="padding:5px 10px;border:1px solid #fcd34d;border-radius:6px;background:white;color:#92400e;cursor:pointer;font-size:0.75rem">✕</button>
+      </div>
+      <div id="lexResult" style="margin-top:8px"></div>
+    </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
     <div id="dtWords"></div>
@@ -5035,6 +5047,60 @@
       if(d.length===0) return;
       if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
       _render();
+    };
+
+    window.dtLexCalc = function(text) {
+      const el = document.getElementById('lexResult');
+      if (!el) return;
+      if (!text.trim()) { el.innerHTML = ''; return; }
+
+      // Normalize: strip accents, keep only Greek letters
+      const normalized = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+      const MIL = {Α:1,Β:2,Γ:3,Δ:4,Ε:5,Ζ:7,Η:8,Θ:9,Ι:10,Κ:20,Λ:30,Μ:40,Ν:50,Ξ:60,Ο:70,Π:80};
+
+      // Process each word separately
+      const words = normalized.split(/\s+/).filter(w => w.length > 0);
+      let html = '';
+
+      for (const word of words) {
+        const letters = [...word].filter(c => GR.includes(c));
+        if (letters.length === 0) continue;
+
+        // Letter breakdown
+        const breakdown = letters.map(c => {
+          const pos = GR.indexOf(c) + 1;
+          return `<span style="display:inline-flex;flex-direction:column;align-items:center;margin:2px 3px">
+            <span style="background:#6366f1;color:white;border-radius:4px;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;padding:0 3px">${c}</span>
+            <span style="font-size:0.6rem;color:#4338ca;font-weight:600">${pos}</span>
+          </span>`;
+        }).join('<span style="color:#d1d5db;align-self:center;font-size:0.7rem;margin:0 1px">+</span>');
+
+        // Unique numbers sorted
+        const uniqueNums = [...new Set(letters.map(c => GR.indexOf(c)+1))].sort((a,b)=>a-b);
+        const posSum = letters.map(c => GR.indexOf(c)+1).reduce((a,b)=>a+b,0);
+
+        // Milesian sum (only Α-Π = 1-80)
+        const milLetters = letters.filter(c => MIL[c] !== undefined);
+        const milSum = milLetters.reduce((s,c) => s + MIL[c], 0);
+
+        const balls = uniqueNums.map(n =>
+          `<span style="background:#f59e0b;color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px">${n}</span>`
+        ).join('');
+
+        html += `<div style="background:white;border:1px solid #fde68a;border-radius:7px;padding:7px 10px;margin:4px 0">
+          <div style="font-size:0.7rem;font-weight:700;color:#92400e;margin-bottom:5px">${word}</div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;margin-bottom:6px">${breakdown}</div>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-bottom:4px">${balls}</div>
+          <div style="font-size:0.65rem;color:#6b7280">
+            Άθροισμα (θεσιακό): <strong style="color:#374151">${posSum}</strong>
+            ${milSum > 0 ? ` &nbsp;·&nbsp; Μιλησιακό: <strong style="color:#374151">${milSum}</strong>` : ''}
+            &nbsp;·&nbsp; ${uniqueNums.length} μοναδικοί αριθμοί
+          </div>
+        </div>`;
+      }
+
+      el.innerHTML = html || '<div style="font-size:0.72rem;color:#9ca3af">Δεν βρέθηκαν ελληνικά γράμματα.</div>';
     };
   })();
 
