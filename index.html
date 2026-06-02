@@ -3846,10 +3846,26 @@
               `<span style="background:${col}18;color:${col};border:1px solid ${col}40;border-radius:4px;padding:1px 5px;margin:2px;font-size:0.72rem;font-weight:600;display:inline-block">${w}</span>`
             ).join('')}</div>`;
           }).join('');
+
+          // Union of all letter-numbers from all found words
+          const allWordNums = new Set();
+          for (const w of words) for (const c of new Set([...w])) allWordNums.add(GR.indexOf(c)+1);
+          const sortedWordNums = [...allWordNums].sort((a,b)=>a-b);
+          const numBalls = sortedWordNums.map(n =>
+            `<span style="display:inline-flex;flex-direction:column;align-items:center;margin:2px 3px">
+              <span style="background:#d97706;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem">${n}</span>
+              <span style="font-size:0.55rem;color:#92400e">${GR[n-1]}</span>
+            </span>`
+          ).join('');
+
           wordsEl.innerHTML = `<div style="background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin:6px 0;font-size:0.75rem">
             <div style="font-weight:700;color:#374151;margin-bottom:6px">🔤 Λέξεις από κλήρωση #${draw.id} <span style="font-weight:400;color:#9ca3af">(${words.length} λέξεις)</span></div>
             <div style="margin-bottom:8px">${letHtml}</div>
             ${wHtml}
+            <div style="border-top:1px solid #e5e7eb;margin-top:8px;padding-top:8px">
+              <div style="font-size:0.65rem;color:#92400e;font-weight:700;margin-bottom:4px">🔢 Αριθμοί όλων των λέξεων (${sortedWordNums.length} μοναδικοί):</div>
+              <div style="display:flex;flex-wrap:wrap">${numBalls}</div>
+            </div>
           </div>`;
         } else {
           wordsEl.innerHTML = '';
