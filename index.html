@@ -3873,7 +3873,11 @@ ${contextStr}
     async function _buildHomerStoryAsync(storyDraws, storyEl, draw) {
       const apiKey = localStorage.getItem('claude_api_key') || '';
       if (!apiKey) return;
-      const state = _homerLoad();
+      // If existing state has only Homer (non-Claude) words, reset to start fresh with Claude
+      let state = _homerLoad();
+      if (state.words.length > 0 && !state.words.some(w => w.claude)) {
+        state = {date: state.date, ptr: 0, words: []};
+      }
       const processedIds = new Set(state.words.map(w => w.drawId));
       let changed = false;
       for (const d of storyDraws) {
@@ -4137,25 +4141,24 @@ ${contextStr}
       const storyEl = document.getElementById('dtStory');
       if (storyEl) {
         const draws = _draws();
-        // Κληρώσεις από μεσάνυχτα μέχρι τώρα
+        // Κληρώσεις από μεσάνυχτα μέχρι τώρα (max 12 για Claude, max 24 για Homer)
         const _now = new Date();
         const minSinceMidnight = _now.getHours() * 60 + _now.getMinutes();
         const drawsToday = Math.max(1, Math.floor(minSinceMidnight / 5));
         const storyStart = Math.max(0, idx - drawsToday + 1);
-        const storyDraws = draws.slice(storyStart, idx + 1);
-        // Build Homer story (sync, cached), then async Claude if key present
         const apiKey = localStorage.getItem('claude_api_key') || '';
+        const maxStory = apiKey ? 12 : 24;
+        const storyDraws = draws.slice(Math.max(storyStart, idx - maxStory + 1), idx + 1);
+        // Build story: Claude async if key present, Homer sync otherwise
         let homerState;
         if (apiKey) {
-          // Load cached state; process only already-Claude-processed draws synchronously
           homerState = _homerLoad();
           const processedIds = new Set(homerState.words.map(w => w.drawId));
           const newDraws = storyDraws.filter(d => !processedIds.has(d.id));
           if (newDraws.length > 0) {
-            // Show loading indicator while Claude processes
             storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:16px 12px;text-align:center">
-              <div style="font-size:0.8rem;color:#5b21b6;font-weight:700;margin-bottom:6px">✦ Claude επεξεργάζεται ${newDraws.length} κλήρωση${newDraws.length>1?'εις':'η'}…</div>
-              <div style="font-size:0.65rem;color:#9ca3af">Η αφήγηση ενημερώνεται</div>
+              <div style="font-size:0.8rem;color:#5b21b6;font-weight:700;margin-bottom:6px">✦ Claude επεξεργάζεται ${newDraws.length} λέξη${newDraws.length>1?'εις':'η'}…</div>
+              <div style="font-size:0.65rem;color:#9ca3af">~${newDraws.length * 2} δευτερόλεπτα</div>
             </div>`;
             _buildHomerStoryAsync(storyDraws, storyEl, draw);
           } else {
