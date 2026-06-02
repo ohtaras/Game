@@ -3878,7 +3878,7 @@
         // Κληρώσεις από μεσάνυχτα μέχρι τώρα
         const _now = new Date();
         const minSinceMidnight = _now.getHours() * 60 + _now.getMinutes();
-        const drawsToday = Math.max(1, Math.floor(minSinceMidnight * 272 / 1440));
+        const drawsToday = Math.max(1, Math.floor(minSinceMidnight / 5));
         const storyStart = Math.max(0, idx - drawsToday + 1);
         const storyDraws = draws.slice(storyStart, idx + 1);
         const storyWords = storyDraws.map(d => ({id: d.id, word: _drawStoryWord(d)}));
