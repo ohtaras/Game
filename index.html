@@ -3754,7 +3754,10 @@
       // Ισοψηφία από ΟΛΟΥΣ τους 20 βγαλμένους για επιλογή
       const iso = draw.n.reduce((s,n) => s+n, 0);
       if (!valid.length) return _GREEK_WORDS[(iso + dayIdx) % _GREEK_WORDS.length];
-      return valid[(iso + dayIdx) % valid.length];
+      // Προτίμηση σε λέξεις 4+ γραμμάτων (πιο ουσιαστικές)
+      const preferred = valid.filter(w => w.replace(/ /g,'').length >= 4);
+      const pool = preferred.length > 0 ? preferred : valid;
+      return pool[(iso + dayIdx) % pool.length];
     }
 
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
