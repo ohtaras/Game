@@ -3715,25 +3715,23 @@
     }
 
     // ════════════════ Ιστορία Κληρώσεων ════════════════
-    // Κάθε κλήρωση δίνει λέξη φτιαγμένη ΜΟΝΟ από γράμματα που βγήκαν στην κλήρωση.
-    const _STORY_COLORS = ['#dc2626','#d97706','#059669','#2563eb','#7c3aed','#db2777'];
+    // Κάθε 6 κληρώσεις = 1 πρόταση. Κάθε κλήρωση δίνει ένα γραμματικό μέρος.
+    const _STORY_PARTS = [
+      ['Ο ΗΡΩΑΣ','Η ΜΑΧΗ','ΤΟ ΤΑΞΙΔΙ','Ο ΒΑΣΙΛΙΑΣ','Η ΝΕΡΑΙΔΑ','Ο ΔΡΑΚΟΣ','ΤΟ ΜΥΣΤΗΡΙΟ','Ο ΛΥΚΟΣ','Η ΜΟΙΡΑ','Ο ΠΟΛΕΜΙΣΤΗΣ','Η ΑΛΗΘΕΙΑ','Ο ΜΑΓΟΣ','Η ΕΛΠΙΔΑ','ΤΟ ΦΑΝΤΑΣΜΑ','ΤΟ ΘΑΥΜΑ'],
+      ['ΞΕΚΙΝΗΣΕ','ΑΡΧΙΣΕ','ΕΠΕΣΤΡΕΨΕ','ΑΓΩΝΙΣΤΗΚΕ','ΕΦΤΑΣΕ','ΑΝΑΚΑΛΥΨΕ','ΑΝΤΙΜΕΤΩΠΙΣΕ','ΝΙΚΗΣΕ','ΧΑΘΗΚΕ','ΒΡΗΚΕ','ΕΦΥΓΕ','ΠΟΛΕΜΗΣΕ','ΣΩΘΗΚΕ','ΤΕΛΕΙΩΣΕ','ΣΥΝΕΧΙΣΤΗΚΕ'],
+      ['ΞΑΦΝΙΚΑ','ΑΜΕΣΑ','ΑΡΓΑ','ΓΡΗΓΟΡΑ','ΣΙΓΑ','ΤΟΛΜΗΡΑ','ΜΟΝΟΣ','ΜΑΖΙ','ΠΑΝΤΑ','ΘΑΡΡΑΛΕΑ','ΑΠΕΛΠΙΣΜΕΝΑ','ΑΝΔΡΕΙΑ','ΑΤΡΟΜΗΤΑ','ΑΝΥΠΟΜΟΝΑ','ΕΛΠΙΔΟΦΟΡΑ'],
+      ['ΣΤΗ ΘΑΛΑΣΣΑ','ΣΤΟ ΠΑΛΑΤΙ','ΣΤΟ ΒΟΥΝΟ','ΣΤΗΝ ΑΓΟΡΑ','ΣΤΟ ΔΑΣΟΣ','ΣΤΗ ΓΕΦΥΡΑ','ΣΤΟ ΛΙΜΑΝΙ','ΣΤΗΝ ΕΡΗΜΟ','ΣΤΟ ΣΠΗΛΑΙΟ','ΣΤΟΝ ΝΑΟ','ΣΤΗ ΠΟΛΗ','ΣΤΟ ΧΩΡΙΟ','ΣΤΟ ΠΥΡΓΟ','ΣΤΟΝ ΠΟΤΑΜΟ','ΣΤΟ ΛΑΒΥΡΙΝΘΟ'],
+      ['ΜΕ ΧΑΡΑ','ΜΕ ΦΟΒΟ','ΜΕ ΑΓΑΠΗ','ΜΕ ΘΑΡΡΟΣ','ΜΕ ΛΥΠΗ','ΜΕ ΕΛΠΙΔΑ','ΜΕ ΑΓΩΝΙΑ','ΜΕ ΘΥΜΟ','ΜΕ ΠΕΡΗΦΑΝΙΑ','ΜΕ ΠΟΝΟ','ΜΕ ΓΑΛΗΝΗ','ΜΕ ΟΡΜΗ','ΜΕ ΑΠΟΓΝΩΣΗ','ΜΕ ΠΙΣΤΗ','ΜΕ ΟΡΓΗ'],
+      ['ΚΑΙ ΝΙΚΗΣΕ.','ΑΛΛ΄ ΕΧΑΣΕ.','ΚΑΙ ΣΩΘΗΚΕ.','ΚΑΙ ΧΑΘΗΚΕ.','ΚΑΙ ΕΠΕΣΤΡΕΨΕ.','ΚΑΙ ΑΛΛΑΞΕ.','ΑΝ ΚΑΙ ΦΟΒΑΤΑΝ.','ΚΑΙ ΒΡΗΚΕ ΤΟ ΘΗΣΑΥΡΟ.','ΚΑΙ ΣΥΝΕΧΙΣΕ.','ΚΑΙ ΗΡΘΕ Η ΜΟΙΡΑ.','ΚΑΙ ΕΓΙΝΕ ΘΑΥΜΑ.','ΚΑΙ Η ΕΙΡΗΝΗ ΗΡΘΕ.','ΑΛΛ΄ Η ΜΑΧΗ ΣΥΝΕΧΙΖΕΤΑΙ.','ΚΑΙ ΟΛΑ ΑΛΛΑΞΑΝ.','ΚΑΙ Η ΑΛΗΘΕΙΑ ΦΑΝΗΚΕ.'],
+    ];
+    const _STORY_PART_LABELS = ['Υποκείμενο','Ρήμα','Επίρρημα','Τόπος','Συναίσθημα','Έκβαση'];
+    const _STORY_PART_COLORS = ['#dc2626','#d97706','#059669','#2563eb','#7c3aed','#db2777'];
 
-    // Επιστρέφει λέξη από _GREEK_WORDS της οποίας τα γράμματα ανήκουν ΟΛΕΣ στους βγαλμένους αριθμούς 1-24
     function _drawStoryWord(draw, dayIdx) {
-      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
-      const drawn = new Set(draw.n.filter(n => n <= 24));
-      const valid = _GREEK_WORDS.filter(w => {
-        const needed = new Set([...w].map(c => GR.indexOf(c)+1).filter(n => n > 0));
-        if (!needed.size) return false;
-        for (const n of needed) if (!drawn.has(n)) return false;
-        return true;
-      });
-      const iso = [...drawn].reduce((s,n)=>s+n,0);
-      if (!valid.length) {
-        // Fallback: ισοψηφία από τη γενική λίστα (δεν είναι «αυθεντική» αλλά πάντα δίνει λέξη)
-        return _GREEK_WORDS.length ? _GREEK_WORDS[(iso + dayIdx) % _GREEK_WORDS.length] : '—';
-      }
-      return valid[(iso + dayIdx) % valid.length];
+      const partIdx = dayIdx % _STORY_PARTS.length;
+      const part = _STORY_PARTS[partIdx];
+      const iso = draw.n.filter(n => n <= 24).reduce((s,n) => s+n, 0);
+      return part[iso % part.length];
     }
 
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
@@ -3896,15 +3894,17 @@
         // Ολοκληρωμένες ομάδες ως κείμενο (6 λέξεις = μία ομάδα, τελεία στο τέλος)
         const proseHtml = completedSentences.map(g =>
           `<div style="margin-bottom:6px;font-size:0.8rem;line-height:1.5;color:#1e1b4b">${
-            g.map((sw,i) => `<span style="color:${_STORY_COLORS[i]};font-weight:600">${sw.word}</span>`).join(' ')
+            g.map((sw,i) => `<span style="color:${_STORY_PART_COLORS[i]};font-weight:600">${sw.word}</span>`).join(' ')
           }.</div>`
         ).join('');
 
         // Τρέχουσα ημιτελής ομάδα ως chips
         const currentChips = currentSentence.map(sw =>
-          `<span style="background:${_STORY_COLORS[sw.partIdx]};color:white;font-weight:700;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block">${sw.word}</span>`
+          `<span style="background:${_STORY_PART_COLORS[sw.partIdx]};color:white;font-weight:700;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block" title="${_STORY_PART_LABELS[sw.partIdx]}">${sw.word}</span>`
         ).join(' ');
-        const nextColor = _STORY_COLORS[currentSentence.length % 6];
+        const nextPartIdx = currentSentence.length % 6;
+        const nextLabel = _STORY_PART_LABELS[nextPartIdx];
+        const nextColor = _STORY_PART_COLORS[nextPartIdx];
 
         // Αριθμοί από την τελευταία λέξη/φράση (για επόμενη κλήρωση)
         const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
@@ -3945,7 +3945,7 @@
           <div style="margin-bottom:8px">
             <div style="font-size:0.6rem;color:#7c3aed;font-weight:600;margin-bottom:3px">Τρέχουσα πρόταση (${currentSentence.length}/6):</div>
             <div style="line-height:2">${currentChips || '<span style="color:#9ca3af;font-size:0.7rem">—</span>'}</div>
-            <div style="font-size:0.6rem;margin-top:2px">Λέξη <span style="color:${nextColor};font-weight:700">${currentSentence.length+1}/6</span> στην επόμενη κλήρωση</div>
+            <div style="font-size:0.6rem;margin-top:2px">Επόμενο: <span style="color:${nextColor};font-weight:700">${nextLabel}</span></div>
           </div>
           ${backtestHtml}
           <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
@@ -3954,7 +3954,7 @@
             <div style="font-size:0.58rem;color:#9ca3af">από: "<strong>${currentWord}</strong>" · μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
+            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω <span style="color:${nextColor};font-weight:700">${nextLabel}</span>:</span>
             <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
               style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
               oninput="dtStoryPredict(this.value)">
