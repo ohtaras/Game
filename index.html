@@ -3715,28 +3715,31 @@
     }
 
     // ════════════════ Ιστορία Κληρώσεων ════════════════
-    // 6 θεματικές κατηγορίες που εναλλάσσονται — φτιάχνουν αφήγηση
-    const _STORY_THEMES = [
-      // 0: Σκηνικό — πού/πότε
-      ['ΗΛΙΟΣ','ΝΥΧΤΑ','ΑΥΓΗ','ΘΑΛΑΣΣΑ','ΒΟΥΝΟ','ΔΑΣΟΣ','ΠΟΤΑΜΙ','ΦΩΤΙΑ','ΦΕΓΓΑΡΙ','ΑΣΤΕΡΙ','ΑΕΡΑΣ','ΧΙΟΝΙ','ΒΡΟΧΗ','ΑΝΕΜΟΣ','ΟΜΙΧΛΗ'],
-      // 1: Χαρακτήρας — ποιος
-      ['ΗΡΩΑΣ','ΒΑΣΙΛΙΑΣ','ΜΑΓΟΣ','ΝΕΡΑΙΔΑ','ΦΑΝΤΑΣΜΑ','ΔΡΑΚΟΣ','ΛΥΚΟΣ','ΑΕΤΟΣ','ΠΑΙΔΙ','ΠΟΛΕΜΙΣΤΗΣ','ΣΟΦΟΣ','ΑΓΓΕΛΟΣ','ΔΑΙΜΟΝΑΣ','ΑΝΘΡΩΠΟΣ'],
-      // 2: Τόπος — πού
-      ['ΠΑΛΑΤΙ','ΔΡΟΜΟΣ','ΓΕΦΥΡΑ','ΣΠΗΛΑΙΑ','ΝΑΟΣ','ΠΟΛΗ','ΠΥΡΓΟΣ','ΛΙΜΑΝΙ','ΑΓΟΡΑ','ΕΡΗΜΟΣ','ΧΩΡΙΟ','ΘΗΣΑΥΡΟΣ','ΛΑΒΥΡΙΝΘΟΣ','ΟΡΙΟ'],
-      // 3: Δράση — τι γίνεται
-      ['ΤΑΞΙΔΙ','ΜΑΧΗ','ΦΥΓΗ','ΕΠΙΣΤΡΟΦΗ','ΚΙΝΔΥΝΟΣ','ΑΝΑΖΗΤΗΣΗ','ΝΙΚΗ','ΗΤΤΑ','ΠΑΓΙΔΑ','ΣΩΤΗΡΙΑ','ΑΠΟΣΤΟΛΗ','ΚΥΝΗΓΙ','ΜΥΣΤΗΡΙΟ','ΔΟΚΙΜΑΣΙΑ'],
-      // 4: Συναίσθημα — πώς νιώθει
-      ['ΑΓΑΠΗ','ΦΟΒΟΣ','ΧΑΡΑ','ΛΥΠΗ','ΘΑΡΡΟΣ','ΕΛΠΙΔΑ','ΑΓΩΝΙΑ','ΘΥΜΟΣ','ΜΟΝΑΞΙΑ','ΕΡΩΤΑΣ','ΠΕΡΗΦΑΝΙΑ','ΝΤΡΟΠΗ','ΠΟΝΟΣ','ΓΑΛΗΝΗ'],
-      // 5: Μοίρα — αποτέλεσμα/τέλος
-      ['ΤΥΧΗ','ΜΟΙΡΑ','ΘΑΝΑΤΟΣ','ΖΩΗ','ΑΛΗΘΕΙΑ','ΣΟΦΙΑ','ΜΝΗΜΗ','ΧΑΟΣ','ΑΝΑΣΤΑΣΗ','ΑΙΩΝΙΟΤΗΤΑ','ΘΑΥΜΑ','ΜΥΘΟΣ','ΚΡΙΣΙΜΟ','ΕΙΡΗΝΗ'],
+    // Κάθε κλήρωση δίνει ένα γραμματικό μέρος πρότασης.
+    // Κάθε 6 κληρώσεις = 1 ολοκληρωμένη πρόταση.
+    const _STORY_PARTS = [
+      // 0: Υποκείμενο (ποιος/τι)
+      ['Ο ΗΡΩΑΣ','Η ΜΑΧΗ','ΤΟ ΤΑΞΙΔΙ','Ο ΒΑΣΙΛΙΑΣ','Η ΝΕΡΑΙΔΑ','Ο ΔΡΑΚΟΣ','ΤΟ ΜΥΣΤΗΡΙΟ','Ο ΛΥΚΟΣ','Η ΜΟΙΡΑ','Ο ΠΟΛΕΜΙΣΤΗΣ','Η ΑΛΗΘΕΙΑ','Ο ΜΑΓΟΣ','Η ΕΛΠΙΔΑ','ΤΟ ΦΑΝΤΑΣΜΑ','ΤΟ ΘΑΥΜΑ'],
+      // 1: Ρήμα (τι έκανε)
+      ['ΞΕΚΙΝΗΣΕ','ΑΡΧΙΣΕ','ΕΠΕΣΤΡΕΨΕ','ΑΓΩΝΙΣΤΗΚΕ','ΕΦΤΑΣΕ','ΑΝΑΚΑΛΥΨΕ','ΑΝΤΙΜΕΤΩΠΙΣΕ','ΝΙΚΗΣΕ','ΧΑΘΗΚΕ','ΒΡΗΚΕ','ΕΦΥΓΕ','ΠΟΛΕΜΗΣΕ','ΣΩΘΗΚΕ','ΤΕΛΕΙΩΣΕ','ΣΥΝΕΧΙΣΤΗΚΕ'],
+      // 2: Επίρρημα (πώς)
+      ['ΞΑΦΝΙΚΑ','ΑΜΕΣΑ','ΑΡΓΑ','ΓΡΗΓΟΡΑ','ΣΙΓΑ','ΤΟΛΜΗΡΑ','ΜΟΝΟΣ','ΜΑΖΙ','ΠΑΝΤΑ','ΘΑΡΡΑΛΕΑ','ΑΠΕΛΠΙΣΜΕΝΑ','ΑΝΔΡΕΙΑ','ΑΤΡΟΜΗΤΑ','ΑΝΥΠΟΜΟΝΑ','ΕΛΠΙΔΟΦΟΡΑ'],
+      // 3: Τόπος (πού)
+      ['ΣΤΗ ΘΑΛΑΣΣΑ','ΣΤΟ ΠΑΛΑΤΙ','ΣΤΟ ΒΟΥΝΟ','ΣΤΗΝ ΑΓΟΡΑ','ΣΤΟ ΔΑΣΟΣ','ΣΤΗ ΓΕΦΥΡΑ','ΣΤΟ ΛΙΜΑΝΙ','ΣΤΗΝ ΕΡΗΜΟ','ΣΤΟ ΣΠΗΛΑΙΟ','ΣΤΟΝ ΝΑΟ','ΣΤΗ ΠΟΛΗ','ΣΤΟ ΧΩΡΙΟ','ΣΤΟ ΠΥΡΓΟ','ΣΤΟΝ ΠΟΤΑΜΟ','ΣΤΟ ΛΑΒΥΡΙΝΘΟ'],
+      // 4: Συναίσθημα (με τι)
+      ['ΜΕ ΧΑΡΑ','ΜΕ ΦΟΒΟ','ΜΕ ΑΓΑΠΗ','ΜΕ ΘΑΡΡΟΣ','ΜΕ ΛΥΠΗ','ΜΕ ΕΛΠΙΔΑ','ΜΕ ΑΓΩΝΙΑ','ΜΕ ΘΥΜΟ','ΜΕ ΠΕΡΗΦΑΝΙΑ','ΜΕ ΠΟΝΟ','ΜΕ ΓΑΛΗΝΗ','ΜΕ ΟΡΜΗ','ΜΕ ΑΠΟΓΝΩΣΗ','ΜΕ ΠΙΣΤΗ','ΜΕ ΟΡΓΗ'],
+      // 5: Έκβαση (τέλος πρότασης, τελεία)
+      ['ΚΑΙ ΝΙΚΗΣΕ.','ΑΛΛ΄ ΕΧΑΣΕ.','ΚΑΙ ΣΩΘΗΚΕ.','ΚΑΙ ΧΑΘΗΚΕ.','ΚΑΙ ΕΠΕΣΤΡΕΨΕ.','ΚΑΙ ΑΛΛΑΞΕ.','ΑΝ ΚΑΙ ΦΟΒΑΤΑΝ.','ΚΑΙ ΒΡΗΚΕ ΤΟ ΘΗΣΑΥΡΟ.','ΚΑΙ ΣΥΝΕΧΙΣΕ.','ΚΑΙ ΗΡΘΕ Η ΜΟΙΡΑ.','ΚΑΙ ΕΓΙΝΕ ΘΑΥΜΑ.','ΚΑΙ Η ΕΙΡΗΝΗ ΗΡΘΕ.','ΑΛΛ΄ Η ΜΑΧΗ ΣΥΝΕΧΙΖΕΤΑΙ.','ΚΑΙ ΟΛΑ ΑΛΛΑΞΑΝ.','ΚΑΙ Η ΑΛΗΘΕΙΑ ΦΑΝΗΚΕ.'],
     ];
+    const _STORY_PART_LABELS = ['Υποκείμενο','Ρήμα','Επίρρημα','Τόπος','Συναίσθημα','Έκβαση'];
+    const _STORY_PART_COLORS = ['#dc2626','#d97706','#059669','#2563eb','#7c3aed','#db2777'];
 
-    // dayIdx: η θέση της κλήρωσης μέσα στη μέρα (0,1,2,...)
+    // dayIdx: θέση κλήρωσης μέσα στη μέρα (0,1,2,...)
     function _drawStoryWord(draw, dayIdx) {
-      const themeIdx = dayIdx % _STORY_THEMES.length;
-      const theme = _STORY_THEMES[themeIdx];
+      const partIdx = dayIdx % _STORY_PARTS.length;
+      const part = _STORY_PARTS[partIdx];
       const iso = draw.n.filter(n => n <= 24).reduce((s,n) => s+n, 0);
-      return theme[iso % theme.length];
+      return part[iso % part.length];
     }
 
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
@@ -3873,18 +3876,31 @@
         const drawsToday = Math.max(1, Math.floor(minSinceMidnight / 5));
         const storyStart = Math.max(0, idx - drawsToday + 1);
         const storyDraws = draws.slice(storyStart, idx + 1);
-        const storyWords = storyDraws.map((d, i) => ({id: d.id, word: _drawStoryWord(d, i)}));
+        const storyWords = storyDraws.map((d, i) => ({id: d.id, word: _drawStoryWord(d, i), partIdx: i % 6}));
         const currentWord = storyWords[storyWords.length - 1]?.word || '';
 
-        const wordChips = storyWords.map((sw, i) => {
-          const isLast = i === storyWords.length - 1;
-          const bg = isLast ? '#7c3aed' : '#e0e7ff';
-          const col = isLast ? 'white' : '#3730a3';
-          const fw = isLast ? '700' : '500';
-          return `<span style="background:${bg};color:${col};font-weight:${fw};border-radius:5px;padding:2px 7px;font-size:0.72rem;margin:2px;display:inline-block">${sw.word}</span>`;
-        }).join('<span style="color:#d1d5db;font-size:0.65rem;margin:0 1px">·</span>');
+        // Ομαδοποίηση σε προτάσεις των 6
+        const sentenceGroups = [];
+        for (let i = 0; i < storyWords.length; i += 6) sentenceGroups.push(storyWords.slice(i, i + 6));
+        const completedSentences = sentenceGroups.filter(g => g.length === 6);
+        const currentSentence = sentenceGroups[sentenceGroups.length - 1] || [];
 
-        // Ανάλυση τελευταίας λέξης
+        // Ολοκληρωμένες προτάσεις ως κείμενο
+        const proseHtml = completedSentences.map(g =>
+          `<div style="margin-bottom:6px;font-size:0.8rem;line-height:1.5;color:#1e1b4b">${
+            g.map((sw,i) => `<span style="color:${_STORY_PART_COLORS[i]};font-weight:600">${sw.word}</span>`).join(' ')
+          }</div>`
+        ).join('');
+
+        // Τρέχουσα ημιτελής πρόταση ως chips
+        const currentChips = currentSentence.map(sw =>
+          `<span style="background:${_STORY_PART_COLORS[sw.partIdx]};color:white;font-weight:700;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block" title="${_STORY_PART_LABELS[sw.partIdx]}">${sw.word}</span>`
+        ).join(' ');
+        const nextPartIdx = currentSentence.length % 6;
+        const nextLabel = _STORY_PART_LABELS[nextPartIdx];
+        const nextColor = _STORY_PART_COLORS[nextPartIdx];
+
+        // Αριθμοί από την τελευταία λέξη/φράση
         const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
         const letters = [...currentWord].filter(c => GR.includes(c));
         const letterNums = letters.map(c => GR.indexOf(c)+1);
@@ -3892,21 +3908,25 @@
         const isoKino = iso > 0 ? ((iso-1)%80)+1 : null;
         const uniqueNums = [...new Set(letterNums)].sort((a,b)=>a-b);
         const allNums = isoKino ? [...new Set([...uniqueNums, isoKino])].sort((a,b)=>a-b) : uniqueNums;
-
         const numBalls = allNums.map(n =>
           `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;margin:2px">${n}</span>`
         ).join('');
 
         storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
-          <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία της ημέρας — ${storyWords.length} κληρώσεις (από 00:00)</div>
-          <div style="line-height:2;margin-bottom:10px;max-height:120px;overflow-y:auto;padding-right:4px">${wordChips}</div>
+          <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία της ημέρας — ${storyWords.length} κληρώσεις · ${completedSentences.length} προτάσεις</div>
+          ${completedSentences.length > 0 ? `<div style="max-height:130px;overflow-y:auto;margin-bottom:8px;padding-right:4px;border-bottom:1px solid #ddd6fe;padding-bottom:6px">${proseHtml}</div>` : ''}
+          <div style="margin-bottom:8px">
+            <div style="font-size:0.6rem;color:#7c3aed;font-weight:600;margin-bottom:3px">Τρέχουσα πρόταση (${currentSentence.length}/6):</div>
+            <div style="line-height:2">${currentChips || '<span style="color:#9ca3af;font-size:0.7rem">—</span>'}</div>
+            <div style="font-size:0.6rem;margin-top:2px">Επόμενο μέρος: <span style="color:${nextColor};font-weight:700">${nextLabel}</span></div>
+          </div>
           <div style="background:white;border:1px solid #ddd6fe;border-radius:7px;padding:7px 10px">
-            <div style="font-size:0.65rem;color:#7c3aed;font-weight:700;margin-bottom:4px">Τρέχουσα λέξη: <strong>${currentWord}</strong> → αριθμοί για επόμενη κλήρωση:</div>
+            <div style="font-size:0.65rem;color:#7c3aed;font-weight:700;margin-bottom:4px">Τελευταία φράση: <strong>${currentWord}</strong> → αριθμοί:</div>
             <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
             <div style="font-size:0.6rem;color:#9ca3af">μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
-            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
+            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω <span style="color:${nextColor};font-weight:700">${nextLabel}</span>:</span>
             <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
               style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
               oninput="dtStoryPredict(this.value)">
