@@ -789,6 +789,7 @@
       </div>
       <div id="lexResult" style="margin-top:10px"></div>
     </div>
+    <div id="dtStory" style="margin:6px 0"></div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
     <div id="dtWords"></div>
@@ -3713,6 +3714,39 @@
       return {picks, excludedCount:excluded.size, remainCount:remainder.length};
     }
 
+    // ════════════════ Ιστορία Κληρώσεων ════════════════
+    // Fallback: 80 αφηγηματικές λέξεις (μία ανά αριθμό 1-80)
+    const _STORY80 = [
+      'ΦΩΣ','ΣΚΟΤΟΣ','ΑΥΓΗ','ΝΥΧΤΑ','ΗΛΙΟΣ','ΦΕΓΓΑΡΙ','ΑΣΤΕΡΙ','ΘΑΛΑΣΣΑ',
+      'ΒΟΥΝΟ','ΔΑΣΟΣ','ΠΟΤΑΜΙ','ΝΕΡΟ','ΦΩΤΙΑ','ΑΕΡΑΣ','ΓΑΙΑ','ΟΥΡΑΝΟΣ',
+      'ΛΥΚΟΣ','ΑΕΤΟΣ','ΨΑΡΙ','ΑΛΟΓΟ','ΔΡΑΚΟΣ','ΝΕΡΑΙΔΑ','ΗΡΩΑΣ','ΒΑΣΙΛΙΑΣ',
+      'ΘΗΣΑΥΡΟΣ','ΜΑΓΟΣ','ΠΟΛΕΜΟΣ','ΕΙΡΗΝΗ','ΑΓΑΠΗ','ΝΙΚΗ','ΘΑΝΑΤΟΣ','ΖΩΗ',
+      'ΜΥΣΤΗΡΙΟ','ΤΑΞΙΔΙ','ΔΡΟΜΟΣ','ΓΕΦΥΡΑ','ΠΑΛΑΤΙ','ΣΠΗΛΑΙΑ','ΚΡΥΦΟ','ΦΑΝΤΑΣΜΑ',
+      'ΚΙΝΔΥΝΟΣ','ΣΩΤΗΡΙΑ','ΜΑΧΗ','ΤΥΧΗ','ΜΟΙΡΑ','ΟΝΕΙΡΟ','ΑΛΗΘΕΙΑ','ΨΕΜΑ',
+      'ΕΛΠΙΔΑ','ΦΟΒΟΣ','ΘΑΡΡΟΣ','ΣΟΦΙΑ','ΓΝΩΣΗ','ΔΥΝΑΜΗ','ΝΟΜΟΣ','ΑΡΧΗ',
+      'ΤΕΛΟΣ','ΜΝΗΜΗ','ΛΗΣΜΟΝΙΑ','ΑΓΩΝΙΑ','ΧΑΡΑ','ΛΥΠΗ','ΕΡΩΤΑΣ','ΜΙΣΟΣ',
+      'ΦΙΛΙΑ','ΜΟΝΑΞΙΑ','ΕΛΕΥΘΕΡΙΑ','ΣΚΛΑΒΙΑ','ΔΙΚΑΙΟΣΥΝΗ','ΑΔΙΚΙΑ','ΚΟΣΜΟΣ','ΧΑΟΣ',
+      'ΕΠΙΣΤΡΟΦΗ','ΧΩΡΙΣΜΟΣ','ΣΥΝΑΝΤΗΣΗ','ΑΓΚΑΛΙΑ','ΑΝΑΣΤΑΣΗ','ΑΙΩΝΙΟΤΗΤΑ',
+      'ΘΑΥΜΑ','ΜΥΘΟΣ'
+    ];
+
+    function _drawStoryWord(draw) {
+      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+      const available = new Set(draw.n.filter(n => n <= 24).map(n => GR[n-1]));
+      // Βρες τη μεγαλύτερη λέξη που σχηματίζεται
+      let best = null;
+      for (const w of _GREEK_WORDS) {
+        if (w.length < 3) continue;
+        if ([...new Set([...w])].every(c => available.has(c))) {
+          if (!best || w.length > best.length || (w.length === best.length && w < best)) best = w;
+        }
+      }
+      if (best) return best;
+      // Fallback: isopsephy → index στη λίστα 80
+      const iso = draw.n.filter(n => n <= 24).reduce((s,n) => s+n, 0);
+      return _STORY80[iso > 0 ? (iso-1) % 80 : 0];
+    }
+
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
     const _GREEK_WORDS = [
       'ΑΝ','ΓΗ','ΔΕ','ΖΩ','ΜΕ','ΝΑ','ΣΕ','ΩΣ','ΑΗΡ','ΑΠΟ',
@@ -3835,6 +3869,56 @@
       if(ticket.length>0 && idx>=60 && !_predHistory.find(p=>p.drawIdx===idx)){
         _predHistory.push({drawIdx:idx, drawId:draw.id, ticket:[...ticket]});
         if(_predHistory.length>30) _predHistory.shift();
+      }
+
+      // Ιστορία κληρώσεων
+      const storyEl = document.getElementById('dtStory');
+      if (storyEl) {
+        const draws = _draws();
+        // Τελευταίες 32 κληρώσεις (≈2.5 ώρες)
+        const storyCount = 32;
+        const storyStart = Math.max(0, idx - storyCount + 1);
+        const storyDraws = draws.slice(storyStart, idx + 1);
+        const storyWords = storyDraws.map(d => ({id: d.id, word: _drawStoryWord(d)}));
+        const currentWord = storyWords[storyWords.length - 1]?.word || '';
+
+        const wordChips = storyWords.map((sw, i) => {
+          const isLast = i === storyWords.length - 1;
+          const bg = isLast ? '#7c3aed' : '#e0e7ff';
+          const col = isLast ? 'white' : '#3730a3';
+          const fw = isLast ? '700' : '500';
+          return `<span style="background:${bg};color:${col};font-weight:${fw};border-radius:5px;padding:2px 7px;font-size:0.72rem;margin:2px;display:inline-block">${sw.word}</span>`;
+        }).join('<span style="color:#d1d5db;font-size:0.65rem;margin:0 1px">·</span>');
+
+        // Ανάλυση τελευταίας λέξης
+        const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+        const letters = [...currentWord].filter(c => GR.includes(c));
+        const letterNums = letters.map(c => GR.indexOf(c)+1);
+        const iso = letterNums.reduce((a,b) => a+b, 0);
+        const isoKino = iso > 0 ? ((iso-1)%80)+1 : null;
+        const uniqueNums = [...new Set(letterNums)].sort((a,b)=>a-b);
+        const allNums = isoKino ? [...new Set([...uniqueNums, isoKino])].sort((a,b)=>a-b) : uniqueNums;
+
+        const numBalls = allNums.map(n =>
+          `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;margin:2px">${n}</span>`
+        ).join('');
+
+        storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#5b21b6;margin-bottom:8px">📖 Ιστορία — τελευταίες ${storyWords.length} κληρώσεις</div>
+          <div style="line-height:2;margin-bottom:10px">${wordChips}</div>
+          <div style="background:white;border:1px solid #ddd6fe;border-radius:7px;padding:7px 10px">
+            <div style="font-size:0.65rem;color:#7c3aed;font-weight:700;margin-bottom:4px">Τρέχουσα λέξη: <strong>${currentWord}</strong> → αριθμοί για επόμενη κλήρωση:</div>
+            <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
+            <div style="font-size:0.6rem;color:#9ca3af">μπλε=γράμματα · μωβ=ισοψηφία(${isoKino})</div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center">
+            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
+            <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
+              style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
+              oninput="dtStoryPredict(this.value)">
+          </div>
+          <div id="storyPredResult" style="margin-top:6px"></div>
+        </div>`;
       }
 
       // Λέξεις κλήρωσης
@@ -5047,6 +5131,27 @@
       if(d.length===0) return;
       if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
       _render();
+    };
+
+    window.dtStoryPredict = function(text) {
+      const el = document.getElementById('storyPredResult');
+      if (!el || !text.trim()) { if(el) el.innerHTML=''; return; }
+      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+      const norm = text.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+      const letters = [...norm].filter(c => GR.includes(c));
+      if (!letters.length) { el.innerHTML=''; return; }
+      const nums = letters.map(c => GR.indexOf(c)+1);
+      const unique = [...new Set(nums)].sort((a,b)=>a-b);
+      const iso = nums.reduce((a,b)=>a+b,0);
+      const isoK = ((iso-1)%80)+1;
+      const all = [...new Set([...unique, isoK])].sort((a,b)=>a-b);
+      const balls = all.map(n =>
+        `<span style="background:${n<=24?'#059669':'#7c3aed'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;margin:2px">${n}</span>`
+      ).join('');
+      el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:6px 10px">
+        <div style="font-size:0.65rem;color:#166534;font-weight:700;margin-bottom:4px">«${norm}» → παίξε:</div>
+        <div style="display:flex;flex-wrap:wrap">${balls}</div>
+      </div>`;
     };
 
     window.dtLexCalc = function(text) {
