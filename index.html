@@ -3813,6 +3813,189 @@
       if (changed) _homerSave(state);
       return state;
     }
+
+    // Reverse CTK: given drawn KINO numbers, return available Greek chars/digraphs
+    function _drawToChars(drawNums) {
+      const drawSet = new Set(drawNums);
+      const chars = [];
+      for (let pos = 1; pos <= 80; pos++) {
+        if (!drawSet.has(_CTK[pos])) continue;
+        let ch;
+        if (pos <= 24) ch = _GR_UP[pos - 1];
+        else if (pos <= 48) ch = _GR_LO[pos - 25];
+        else if (pos <= 55) ch = _GR_AC[pos - 49];
+        else if (pos <= 62) ch = _GR_DI2[pos - 56];
+        else ch = _GR_DI[pos - 63];
+        if (ch) chars.push(ch);
+      }
+      return chars;
+    }
+
+    // Call Claude API to pick best narrative word from available chars
+    async function _callClaudeWord(chars, context, apiKey) {
+      const charList = chars.join(', ');
+      const contextStr = context.length > 0
+        ? `Ιστορία έως τώρα: «${context.slice(-6).join(' ')}»`
+        : 'Αρχή αφήγησης.';
+      const prompt = `Είσαι λογοτεχνικός αφηγητής στην αρχαιοελληνική παράδοση.
+${contextStr}
+
+Διαθέσιμα στοιχεία (γράμματα/δίγραμμα): ${charList}
+
+Επίλεξε ΜΙΑ ελληνική λέξη που:
+1. Σχηματίζεται ΜΟΝΟ από τα διαθέσιμα στοιχεία (κάθε γράμμα μπορεί να χρησιμοποιηθεί)
+2. Συνεχίζει φυσικά την αφήγηση με ποιητικό τόνο
+3. Είναι ουσιαστικό, ρήμα ή επίθετο (όχι άρθρο/σύνδεσμος)
+
+Απάντησε με ΜΙΑ ΜΟΝΟ λέξη, πεζά, χωρίς τελεία.`;
+
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 20,
+          messages: [{role: 'user', content: prompt}]
+        })
+      });
+      if (!resp.ok) throw new Error(`API ${resp.status}`);
+      const data = await resp.json();
+      const word = (data.content?.[0]?.text || '').trim().toLowerCase().replace(/[.,;:!?«»"']/g, '');
+      return word || null;
+    }
+
+    // Async: process new draws with Claude, save, then re-render story panel
+    async function _buildHomerStoryAsync(storyDraws, storyEl, draw) {
+      const apiKey = localStorage.getItem('claude_api_key') || '';
+      if (!apiKey) return;
+      const state = _homerLoad();
+      const processedIds = new Set(state.words.map(w => w.drawId));
+      let changed = false;
+      for (const d of storyDraws) {
+        if (processedIds.has(d.id)) continue;
+        try {
+          const chars = _drawToChars(d.n);
+          const context = state.words.filter(w => w.word).map(w => w.word);
+          const word = await _callClaudeWord(chars, context, apiKey);
+          state.words.push({drawId: d.id, word: word || null, pos: -1, perfect: !!word, score: word ? 1 : 0, claude: true});
+        } catch(e) {
+          state.words.push({drawId: d.id, word: null, pos: -1, perfect: false, score: 0, claude: true, err: e.message});
+        }
+        state.ptr = state.words.length;
+        processedIds.add(d.id);
+        changed = true;
+      }
+      if (changed) {
+        _homerSave(state);
+        _renderHomerPanel(state, draw, storyEl);
+      }
+    }
+
+    // Render the Homer story panel from state
+    function _renderHomerPanel(homerState, draw, storyEl) {
+      const homerWords = homerState.words;
+      const matchedWords = homerWords.filter(w => w.word);
+      const lastEntry = matchedWords[matchedWords.length - 1];
+      const currentWord = lastEntry?.word || '';
+      const homerPtr = homerState.ptr;
+      const progressPct = Math.round(homerPtr / _HOMER_TEXT.length * 100);
+      const usingClaude = homerWords.some(w => w.claude);
+
+      const proseTokens = matchedWords.map((entry, i) => {
+        const isLast = i === matchedWords.length - 1;
+        const punct = !isLast && (i + 1) % 6 === 0 ? ',' : '';
+        if (isLast) {
+          return `<span style="background:#ddd6fe;color:#4c1d95;font-weight:800;border-radius:4px;padding:1px 6px">${entry.word}${entry.claude ? '<sup style="font-size:0.5em;color:#7c3aed;margin-left:2px">✦</sup>' : (entry.perfect ? '' : `<sup style="font-size:0.55em;color:#7c3aed;margin-left:2px">${Math.round(entry.score*100)}%</sup>`)}</span>`;
+        }
+        const tag = entry.claude
+          ? `<span style="color:#1e1b4b;font-weight:600">${entry.word}<sup style="font-size:0.45em;color:#7c3aed;margin-left:1px">✦</sup>${punct}</span>`
+          : (entry.perfect
+              ? `<span style="color:#1e1b4b;font-weight:600">${entry.word}${punct}</span>`
+              : `<span style="color:#6b7280;font-style:italic">${entry.word}<sup style="font-size:0.5em;color:#d97706;margin-left:1px">${Math.round(entry.score*100)}%</sup>${punct}</span>`);
+        return tag;
+      });
+      const proseHtml = proseTokens.join(' ');
+
+      const { nums: allNums, isoKino } = currentWord ? _wordNums(currentWord) : {nums:[], isoKino:null};
+      const numBalls = allNums.map(n =>
+        `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
+      ).join('');
+
+      const {perfect: candPerf, partial: candPart} = _findBestWord(draw.n, homerPtr);
+      let candidatesHtml = '';
+      {
+        const allCands = [...candPerf.slice(0,4), ...candPart.slice(0, Math.max(0, 5 - candPerf.length))];
+        const chips = allCands.length
+          ? allCands.map(c => {
+              const bg = c.score === 1 ? '#16a34a' : '#d97706';
+              const label = c.score === 1 ? '✓' : `${Math.round(c.score*100)}%`;
+              return `<span style="background:${bg};color:white;border-radius:5px;padding:2px 7px;font-size:0.72rem;margin:2px;display:inline-block;font-weight:600">${c.w}<sup style="font-size:0.55em;margin-left:2px">${label}</sup></span>`;
+            }).join('')
+          : '<span style="color:#9ca3af;font-size:0.7rem">καμία επερχόμενη λέξη δεν ταιριάζει</span>';
+        const summary = candPerf.length ? `${candPerf.length} τέλειες` : candPart.length ? `${candPart.length} μερικές` : 'καμία';
+        if (!usingClaude) candidatesHtml = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:7px;padding:7px 10px;margin-bottom:8px">
+          <div style="font-size:0.62rem;color:#713f12;font-weight:700;margin-bottom:4px">📜 Επερχόμενες Homer λέξεις — ${summary}:</div>
+          <div style="line-height:1.8">${chips}</div>
+          <div style="font-size:0.55rem;color:#9ca3af;margin-top:2px">από τη θέση ${homerPtr}/${_HOMER_TEXT.length} του κειμένου</div>
+        </div>`;
+      }
+
+      let backtestHtml = '';
+      if (matchedWords.length >= 2) {
+        const _prevEntry = matchedWords[matchedWords.length - 2];
+        const { nums: prevNums } = _wordNums(_prevEntry.word);
+        const drawnSet = new Set(draw.n);
+        const hits = prevNums.filter(n => drawnSet.has(n));
+        const prevBalls = prevNums.map(n => {
+          const hit = drawnSet.has(n);
+          return `<span style="background:${hit?'#16a34a':'#9ca3af'};color:white;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.72rem;margin:2px">${n}</span>`;
+        }).join('');
+        backtestHtml = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:7px 10px;margin-bottom:8px">
+          <div style="font-size:0.65rem;color:#15803d;font-weight:700;margin-bottom:4px">✅ «<strong>${_prevEntry.word}</strong>» → ${hits.length}/${prevNums.length} αριθμοί στην επόμενη κλήρωση</div>
+          <div style="display:flex;flex-wrap:wrap">${prevBalls}</div>
+          <div style="font-size:0.58rem;color:#9ca3af;margin-top:2px">πράσινο=βγήκε · γκρι=δεν βγήκε</div>
+        </div>`;
+      }
+
+      const apiKey = localStorage.getItem('claude_api_key') || '';
+      const apiKeyHtml = `<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <span style="font-size:0.6rem;color:#6b7280;flex-shrink:0">🔑 Claude API:</span>
+        <input id="claudeApiKeyInput" type="password" placeholder="sk-ant-…" autocomplete="off" value="${apiKey}"
+          style="flex:1;padding:4px 8px;border:1px solid ${apiKey?'#16a34a':'#c4b5fd'};border-radius:6px;font-size:0.7rem;background:white;outline:none"
+          onchange="(function(v){try{if(v)localStorage.setItem('claude_api_key',v);else localStorage.removeItem('claude_api_key');}catch(e){}window._storyNeedsRefresh=true;})(this.value)">
+        ${apiKey ? '<span style="font-size:0.6rem;color:#16a34a;flex-shrink:0">✓ ενεργό</span>' : '<span style="font-size:0.6rem;color:#9ca3af;flex-shrink:0">χωρίς κλειδί→Homer</span>'}
+      </div>`;
+
+      storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:0.75rem;font-weight:700;color:#5b21b6">📖 Αφήγηση ${usingClaude?'Claude ✦':'Ομήρου'} — ${matchedWords.length} λέξεις</span>
+          <span style="font-size:0.6rem;color:#9ca3af">θέση ${homerPtr}/${_HOMER_TEXT.length} (${progressPct}%)</span>
+        </div>
+        ${apiKeyHtml}
+        <div style="max-height:160px;overflow-y:auto;margin-bottom:8px;padding:10px 12px;background:white;border-radius:7px;border:1px solid #ddd6fe;font-size:0.85rem;line-height:2.1;font-family:Georgia,serif;word-spacing:5px">
+          ${proseHtml || '<span style="color:#9ca3af;font-size:0.72rem;font-family:sans-serif">Η αφήγηση ξεκινά από την πρώτη κλήρωση…</span>'}
+        </div>
+        ${candidatesHtml}
+        ${backtestHtml}
+        ${currentWord ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
+          <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
+          <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
+          <div style="font-size:0.58rem;color:#9ca3af">από: «<strong>${currentWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
+        </div>` : `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:0.7rem;color:#991b1b">⚠️ Καμία λέξη ξεκλειδώθηκε ακόμα</div>`}
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
+          <input id="storyPredInput" type="text" placeholder="π.χ. ήρωας, θάλασσα…" autocomplete="off"
+            style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
+            oninput="dtStoryPredict(this.value)">
+        </div>
+        <div id="storyPredResult" style="margin-top:6px"></div>
+      </div>`;
+    }
     const _GREEK_WORDS = [
       // 2-γράμματα (μέγιστη κάλυψη — 2 μοναδικά γράμματα)
       'ΑΝ','ΑΕ','ΑΗ','ΑΙ','ΑΡ','ΑΣ','ΑΥ','ΑΧ','ΑΩ',
@@ -3960,94 +4143,28 @@
         const drawsToday = Math.max(1, Math.floor(minSinceMidnight / 5));
         const storyStart = Math.max(0, idx - drawsToday + 1);
         const storyDraws = draws.slice(storyStart, idx + 1);
-        // Build Homer story: each draw finds next word in Homer's text
-        const homerState = _buildHomerStory(storyDraws);
-        const homerWords = homerState.words;
-        const matchedWords = homerWords.filter(w => w.word);
-        const lastEntry = matchedWords[matchedWords.length - 1];
-        const currentWord = lastEntry?.word || '';
-        const homerPtr = homerState.ptr;
-        const progressPct = Math.round(homerPtr / _HOMER_TEXT.length * 100);
-
-        // Flowing narrative — matched Homer words in text order
-        const proseTokens = matchedWords.map((entry, i) => {
-          const isLast = i === matchedWords.length - 1;
-          const punct = !isLast && (i + 1) % 6 === 0 ? ',' : '';
-          if (isLast) {
-            return `<span style="background:#ddd6fe;color:#4c1d95;font-weight:800;border-radius:4px;padding:1px 6px">${entry.word}${entry.perfect ? '' : `<sup style="font-size:0.55em;color:#7c3aed;margin-left:2px">${Math.round(entry.score*100)}%</sup>`}</span>`;
+        // Build Homer story (sync, cached), then async Claude if key present
+        const apiKey = localStorage.getItem('claude_api_key') || '';
+        let homerState;
+        if (apiKey) {
+          // Load cached state; process only already-Claude-processed draws synchronously
+          homerState = _homerLoad();
+          const processedIds = new Set(homerState.words.map(w => w.drawId));
+          const newDraws = storyDraws.filter(d => !processedIds.has(d.id));
+          if (newDraws.length > 0) {
+            // Show loading indicator while Claude processes
+            storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:16px 12px;text-align:center">
+              <div style="font-size:0.8rem;color:#5b21b6;font-weight:700;margin-bottom:6px">✦ Claude επεξεργάζεται ${newDraws.length} κλήρωση${newDraws.length>1?'εις':'η'}…</div>
+              <div style="font-size:0.65rem;color:#9ca3af">Η αφήγηση ενημερώνεται</div>
+            </div>`;
+            _buildHomerStoryAsync(storyDraws, storyEl, draw);
+          } else {
+            _renderHomerPanel(homerState, draw, storyEl);
           }
-          return entry.perfect
-            ? `<span style="color:#1e1b4b;font-weight:600">${entry.word}${punct}</span>`
-            : `<span style="color:#6b7280;font-style:italic">${entry.word}<sup style="font-size:0.5em;color:#d97706;margin-left:1px">${Math.round(entry.score*100)}%</sup>${punct}</span>`;
-        });
-        const proseHtml = proseTokens.join(' ');
-
-        const { nums: allNums, isoKino } = currentWord ? _wordNums(currentWord) : {nums:[], isoKino:null};
-        const numBalls = allNums.map(n =>
-          `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
-        ).join('');
-
-        // Candidates: upcoming Homer words that match this draw
-        const {perfect: candPerf, partial: candPart} = _findBestWord(draw.n, homerPtr);
-        let candidatesHtml = '';
-        {
-          const allCands = [...candPerf.slice(0,4), ...candPart.slice(0, Math.max(0, 5 - candPerf.length))];
-          const chips = allCands.length
-            ? allCands.map(c => {
-                const bg = c.score === 1 ? '#16a34a' : '#d97706';
-                const label = c.score === 1 ? '✓' : `${Math.round(c.score*100)}%`;
-                return `<span style="background:${bg};color:white;border-radius:5px;padding:2px 7px;font-size:0.72rem;margin:2px;display:inline-block;font-weight:600">${c.w}<sup style="font-size:0.55em;margin-left:2px">${label}</sup></span>`;
-              }).join('')
-            : '<span style="color:#9ca3af;font-size:0.7rem">καμία επερχόμενη λέξη δεν ταιριάζει</span>';
-          const summary = candPerf.length ? `${candPerf.length} τέλειες` : candPart.length ? `${candPart.length} μερικές` : 'καμία';
-          candidatesHtml = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:7px;padding:7px 10px;margin-bottom:8px">
-            <div style="font-size:0.62rem;color:#713f12;font-weight:700;margin-bottom:4px">📜 Επερχόμενες Homer λέξεις — ${summary}:</div>
-            <div style="line-height:1.8">${chips}</div>
-            <div style="font-size:0.55rem;color:#9ca3af;margin-top:2px">από τη θέση ${homerPtr}/${_HOMER_TEXT.length} του κειμένου</div>
-          </div>`;
+        } else {
+          homerState = _buildHomerStory(storyDraws);
+          _renderHomerPanel(homerState, draw, storyEl);
         }
-
-        // Backtest: previous word's numbers vs this draw
-        let backtestHtml = '';
-        if (matchedWords.length >= 2) {
-          const _prevEntry = matchedWords[matchedWords.length - 2];
-          const { nums: prevNums } = _wordNums(_prevEntry.word);
-          const drawnSet = new Set(draw.n);
-          const hits = prevNums.filter(n => drawnSet.has(n));
-          const prevBalls = prevNums.map(n => {
-            const hit = drawnSet.has(n);
-            return `<span style="background:${hit?'#16a34a':'#9ca3af'};color:white;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.72rem;margin:2px">${n}</span>`;
-          }).join('');
-          backtestHtml = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:7px 10px;margin-bottom:8px">
-            <div style="font-size:0.65rem;color:#15803d;font-weight:700;margin-bottom:4px">✅ «<strong>${_prevEntry.word}</strong>» → ${hits.length}/${prevNums.length} αριθμοί στην επόμενη κλήρωση</div>
-            <div style="display:flex;flex-wrap:wrap">${prevBalls}</div>
-            <div style="font-size:0.58rem;color:#9ca3af;margin-top:2px">πράσινο=βγήκε · γκρι=δεν βγήκε</div>
-          </div>`;
-        }
-
-        storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <span style="font-size:0.75rem;font-weight:700;color:#5b21b6">📖 Αφήγηση Ομήρου — ${matchedWords.length} λέξεις</span>
-            <span style="font-size:0.6rem;color:#9ca3af">θέση ${homerPtr}/${_HOMER_TEXT.length} (${progressPct}%)</span>
-          </div>
-          <div style="max-height:160px;overflow-y:auto;margin-bottom:8px;padding:10px 12px;background:white;border-radius:7px;border:1px solid #ddd6fe;font-size:0.85rem;line-height:2.1;font-family:Georgia,serif;word-spacing:5px">
-            ${proseHtml || '<span style="color:#9ca3af;font-size:0.72rem;font-family:sans-serif">Η αφήγηση ξεκινά από την πρώτη κλήρωση…</span>'}
-          </div>
-          ${candidatesHtml}
-          ${backtestHtml}
-          ${currentWord ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
-            <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
-            <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
-            <div style="font-size:0.58rem;color:#9ca3af">από: «<strong>${currentWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
-          </div>` : `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:0.7rem;color:#991b1b">⚠️ Καμία λέξη ξεκλειδώθηκε ακόμα</div>`}
-          <div style="display:flex;gap:6px;align-items:center">
-            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
-            <input id="storyPredInput" type="text" placeholder="π.χ. ήρωας, θάλασσα…" autocomplete="off"
-              style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
-              oninput="dtStoryPredict(this.value)">
-          </div>
-          <div id="storyPredResult" style="margin-top:6px"></div>
-        </div>`;
       }
 
       // Λέξεις κλήρωσης
