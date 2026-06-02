@@ -3896,7 +3896,12 @@
           const {word, keyNum} = _drawStoryWord(d, i);
           return {id: d.id, word, keyNum, partIdx: i % 6};
         });
-        const currentWord = storyWords[storyWords.length - 1]?.word || '';
+        const _lastSW = storyWords[storyWords.length - 1];
+        const currentWord = _lastSW
+          ? (_lastSW.partIdx === 0
+              ? _lastSW.word.charAt(0).toUpperCase() + _lastSW.word.slice(1)
+              : _lastSW.word)
+          : '';
 
         // Ομαδοποίηση σε προτάσεις των 6
         const sentenceGroups = [];
@@ -3953,7 +3958,10 @@
         // Τσεκάρισμα: λέξη προηγούμενης κλήρωσης → αριθμοί → ποιοι βγήκαν τώρα
         let backtestHtml = '';
         if (storyWords.length >= 2) {
-          const prevWord = storyWords[storyWords.length - 2].word;
+          const _prevSW = storyWords[storyWords.length - 2];
+          const prevWord = _prevSW.partIdx === 0
+            ? _prevSW.word.charAt(0).toUpperCase() + _prevSW.word.slice(1)
+            : _prevSW.word;
           const { nums: prevNums } = _wordNums(prevWord);
           const drawnSet = new Set(draw.n);
           const hits = prevNums.filter(n => drawnSet.has(n));
