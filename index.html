@@ -4309,6 +4309,7 @@
 
       const scores = new Array(81).fill(0);
       const fired  = [];
+      const numContribs = {};
       const seen   = new Set(); // dedup (name|z)
 
       for (const sig of master.signals) {
@@ -4319,7 +4320,8 @@
 
         const w   = sig.z;
         const {cat, name} = sig;
-        const addN = (n, delta=w) => { if (n>=1 && n<=80) scores[n] += delta; };
+        const _boosted = [];
+        const addN = (n, delta=w) => { if (n>=1 && n<=80) { scores[n] += delta; _boosted.push(n); } };
         let triggered = false;
 
         switch (cat) {
@@ -4582,7 +4584,11 @@
             break;
         }
 
-        if (triggered) fired.push({name, cat, z: w, abs_z: sig.abs_z});
+        if (triggered) {
+          const fSig = {name, cat, z: w, abs_z: sig.abs_z, boosted: [..._boosted]};
+          fired.push(fSig);
+          _boosted.forEach(n => { if (!numContribs[n]) numContribs[n] = []; numContribs[n].push(fSig); });
+        }
       }
 
       // Rank numbers by score
@@ -4593,7 +4599,7 @@
       ranked.sort((a,b) => b.score - a.score);
       fired.sort((a,b) => b.abs_z - a.abs_z);
 
-      return {scores, ranked, fired, ctx: {hour, dow, month, dom, lunarPhase, prevDrawId: draws[idx].id, totalSignals: seen.size}};
+      return {scores, ranked, fired, numContribs, ctx: {hour, dow, month, dom, lunarPhase, prevNums: [...prev], prevDrawId: draws[idx].id, totalSignals: seen.size}};
     }
 
     async function _runEnsemble() {
@@ -4714,6 +4720,100 @@
           ${firedHtml}` : ''}
           <div style="display:flex;gap:6px;margin-top:12px">
             <button onclick="dtOpenEnsemble(true)" style="flex:1;padding:7px;border:1px solid #6366f1;border-radius:8px;background:#eef2ff;color:#3730a3;cursor:pointer;font-weight:600;font-size:0.8rem">↻ Ανανέωση</button>
+            <button onclick="_renderEnsembleAnalysis(window._lastEnsembleResult)" style="flex:1;padding:7px;border:1px solid #7c3aed;border-radius:8px;background:#f5f3ff;color:#5b21b6;cursor:pointer;font-weight:600;font-size:0.8rem">📊 Γιατί;</button>
+            <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="flex:1;padding:7px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer;font-size:0.8rem">Κλείσιμο</button>
+          </div>
+        </div>`;
+    }
+
+    function _renderEnsembleAnalysis(result) {
+      if (!result) return;
+      const count = Math.max(1, Math.min(12, parseInt(document.getElementById('dtEnsembleCount')?.value)||8));
+      const {ranked, numContribs, ctx} = result;
+      const prevSet = new Set(ctx.prevNums || []);
+      const top = ranked.filter(r => r.score > 0).slice(0, count);
+      const maxScore = top.length > 0 ? top[0].score : 1;
+
+      function sigReason(f) {
+        const {cat, name, z} = f;
+        const pos = z > 0;
+        switch(cat) {
+          case 'hour': { const m = name.match(/n(\d+)@h(\d+)/); return m ? `Ωριαία τάση: #${m[1]} ${pos?'ευνοείται':'αποφεύγεται'} στις ${m[2]}:00` : name; }
+          case 'dow': { const m = name.match(/n(\d+)@(\w+)/); const gr={Mon:'Δευτ.',Tue:'Τρίτ.',Wed:'Τετ.',Thu:'Πέμπτ.',Fri:'Παρ.',Sat:'Σαβ.',Sun:'Κυρ.'}; return m ? `Ημερήσιο: #${m[1]} ${pos?'ευνοείται':'αποφεύγεται'} ${gr[m[2]]||m[2]}` : name; }
+          case 'month': { const m = name.match(/n(\d+)@m(\d+)/); return m ? `Μηνιαίο: #${m[1]} ${pos?'ευνοείται':'αποφεύγεται'} αυτόν τον μήνα` : name; }
+          case 'dom': { const m = name.match(/d(\d+)_n(\d+)/); return m ? `Ημέρα μήνα ${m[1]}: #${m[2]} ευνοείται` : name; }
+          case 'lunar': { const m = name.match(/ph(\d+)_n(\d+)/); return m ? `Σελήνη φάση ${m[1]}: #${m[2]} ${pos?'ευνοείται':'αποφεύγεται'}` : name; }
+          case 'trans': { const m = name.match(/(\d+)→(\d+)/); return m ? `Μετάβαση: #${m[1]} βγήκε → συχνά ακολουθεί #${m[2]}` : name; }
+          case 'neighbor': { const m = name.match(/(\d+)→(\d+)/); return m ? `Γειτνίαση: #${m[1]} βγήκε → τείνει κοντά #${m[2]}` : name; }
+          case 'partner': { const m = name.match(/n(\d+)↔(\d+)/); return m ? `Εταιρεία: #${m[1]}↔#${m[2]} ${pos?'συνεμφανίζονται':'αποφεύγουν'} συχνά` : name; }
+          case 'triplet': { const m = name.match(/\((\d+),\s*(\d+),\s*(\d+)\)/); return m ? `Τριπλέτα (${m[1]},${m[2]},${m[3]}): ${pos?'συγκεντρώνονται':'αποφεύγουν'} μαζί` : name; }
+          case 'p2n': { const m = name.match(/\((\d+),(\d+)\)→(\d+)/); return m ? `Ζεύγος: #${m[1]}&${m[2]} βγήκαν → ακολουθεί #${m[3]}` : name; }
+          case 'p2n_lag2': { const m = name.match(/\((\d+),(\d+)\)→(\d+)/); return m ? `Ζεύγος 2 πριν: #${m[1]}&${m[2]} → ακολουθεί #${m[3]}` : name; }
+          case 'p2n_lag3': { const m = name.match(/\((\d+),(\d+)\)→(\d+)/); return m ? `Ζεύγος 3 πριν: #${m[1]}&${m[2]} → ακολουθεί #${m[3]}` : name; }
+          case 'p2t': { const m = name.match(/\((\d+),(\d+)\)→\(([\d,\s]+)\)/); return m ? `Ζεύγος→ομάδα: #${m[1]}&${m[2]} βγήκαν → [${m[3].trim()}]` : name; }
+          case 'pp': case 'p2p_v2': { const m = name.match(/\((\d+),(\d+)\)→\((\d+),(\d+)\)/); return m ? `Ζεύγος→ζεύγος: (${m[1]},${m[2]}) → (${m[3]},${m[4]})` : name; }
+          case 'pair_h': { const m = name.match(/h(\d+)_\((\d+),(\d+)\)/); return m ? `Ωριαίο ζεύγος: ώρα ${m[1]} → #${m[2]}&${m[3]}` : name; }
+          case 'pair_dow': { const m = name.match(/(\w+)_\((\d+),(\d+)\)/); const gr={Mon:'Δευτ.',Tue:'Τρίτ.',Wed:'Τετ.',Thu:'Πέμπτ.',Fri:'Παρ.',Sat:'Σαβ.',Sun:'Κυρ.'}; return m ? `Ημερήσιο ζεύγος: ${gr[m[1]]||m[1]} → #${m[2]}&${m[3]}` : name; }
+          case 'hxn_lag2': { const m = name.match(/h(\d+)n(\d+)/); return m ? `Ωριαίο lag2: ώρα ${m[1]}, #${m[2]} βγήκε 2 κλ. πριν → ξαναβγαίνει` : name; }
+          case '2back': { const m = name.match(/n(\d+)/); return m ? `2-πίσω: #${m[1]} βγήκε 2 κλ. πριν → ${pos?'ευνοείται':'αποφεύγεται'}` : name; }
+          case '3back': { const m = name.match(/n(\d+)/); return m ? `3-πίσω: #${m[1]} βγήκε 3 κλ. πριν → ${pos?'ευνοείται':'αποφεύγεται'}` : name; }
+          case '5back': { const m = name.match(/n(\d+)/); return m ? `5-πίσω: #${m[1]} βγήκε 5 κλ. πριν → ${pos?'ευνοείται':'αποφεύγεται'}` : name; }
+          case 'hxd': case 'hxd_v2': { const m = name.match(/h(\d+)d(\d+)n(\d+)/); return m ? `Ώρα ${m[1]} + καθυστέρηση ${m[2]}: #${m[3]} τείνει να βγει` : name; }
+          case 'multi_pair': { const m = name.match(/\((\d+),\s*(\d+)\)_\((\d+),\s*(\d+)\)→(\d+)/); return m ? `4 αριθμοί: (${m[1]},${m[2]}) & (${m[3]},${m[4]}) → #${m[5]}` : name; }
+          case 'word_phrase_subset': {
+            const pmap = {'ΤΖΑΚΠΟΤ':[1,6,10,15,16,19],'ΧΡΥΣΙΠΠΟΣ':[9,15,16,17,18,20,22]};
+            const nums = pmap[name]||[]; const inP = nums.filter(n=>prevSet.has(n));
+            return `Λέξη ${name}: [${inP.join(',')}] βγήκαν → λείπουν τα υπόλοιπα`;
+          }
+          case 'fulfillment_fixed': {
+            const mf = name.match(/^(.+)_k(\d+)\+(\d+)$/); if (!mf) return name;
+            const ff={'ΑΓΓΕΛΟΣ':[1,3,5,11,15,18],'ΠΑΥΛΟΣ':[1,11,15,16,18,20],'ΤΕΤΡΑΓΩΝΟ':[1,3,5,13,15,17,19,24],'ΠΙΝΔΑΡΟΣ':[1,4,9,13,15,16,17,18]};
+            const nums=ff[mf[1]]||[]; const inP=nums.filter(n=>prevSet.has(n));
+            return `${mf[1]}: ακριβώς ${mf[2]} βγήκαν [${inP.join(',')}] → αναμένονται τα υπόλοιπα`;
+          }
+          case 'union2_cover': {
+            const u2={'ΘΕΟΤΟΚΟΣ':[5,8,10,15,18,19]};
+            const nums=u2[name]||[]; const inP=nums.filter(n=>prevSet.has(n));
+            return `Κάλυψη-2 (${name}): [${inP.join(',')}] βγήκαν → ακολουθούν τα υπόλοιπα`;
+          }
+          case 'mil_phrase_subset': return `Μιλησιακό ${name}: μερικοί βγήκαν → αναμένονται τα υπόλοιπα`;
+          default: return `[${cat}] ${name}`;
+        }
+      }
+
+      const numHtml = top.map(r => {
+        const contribs = (numContribs[r.n] || []).sort((a,b) => Math.abs(b.z)-Math.abs(a.z));
+        const pct = Math.round(r.score / maxScore * 100);
+        const inPrev = prevSet.has(r.n) ? ' <span style="font-size:0.58rem;background:#fef9c3;color:#92400e;border-radius:3px;padding:1px 4px">ήδη βγήκε</span>' : '';
+        const contribsHtml = contribs.map(f => {
+          const pos = f.z > 0;
+          const col = pos ? '#166534' : '#991b1b';
+          const bg  = pos ? '#f0fdf4' : '#fef2f2';
+          const sign = pos ? '+' : '−';
+          return `<div style="background:${bg};border-radius:4px;padding:3px 8px;margin:2px 0;font-size:0.67rem;display:flex;justify-content:space-between;gap:6px;align-items:flex-start">
+            <span style="flex:1;color:#374151">${sigReason(f)}</span>
+            <span style="font-weight:700;color:${col};white-space:nowrap">${sign}${Math.abs(f.z).toFixed(2)}</span>
+          </div>`;
+        }).join('');
+        return `<div style="background:white;border:1px solid #e0e7ff;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <div style="background:#6366f1;color:white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;flex-shrink:0">${r.n}</div>
+            <div style="flex:1">
+              <div style="font-size:0.75rem;font-weight:700;color:#3730a3">Score ${r.score.toFixed(2)} (${pct}% του max)${inPrev}</div>
+              <div style="font-size:0.62rem;color:#6b7280">${contribs.length} σήματα · τελ. εμφάνιση ${r.delay} κλ. πριν</div>
+            </div>
+          </div>
+          ${contribsHtml || '<div style="font-size:0.67rem;color:#9ca3af;padding:2px 4px">Χωρίς λεπτομέρειες</div>'}
+        </div>`;
+      }).join('');
+
+      document.getElementById('dtEnsembleContent').innerHTML = `
+        <div style="text-align:left">
+          <div style="font-size:0.82rem;color:#5b21b6;font-weight:700;margin-bottom:10px">📊 Γιατί αυτοί οι αριθμοί;</div>
+          <div style="font-size:0.68rem;color:#6b7280;margin-bottom:10px">Κλήρωση #${ctx.prevDrawId} → αριθμοί: [${(ctx.prevNums||[]).sort((a,b)=>a-b).join(', ')}]</div>
+          ${numHtml || '<div style="text-align:center;color:#6b7280;padding:16px">Κανένας αριθμός με θετικό score.</div>'}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="dtOpenEnsemble()" style="flex:1;padding:7px;border:1px solid #6366f1;border-radius:8px;background:#eef2ff;color:#3730a3;cursor:pointer;font-weight:600;font-size:0.8rem">← Πίσω</button>
             <button onclick="document.getElementById('dtEnsembleModal').style.display='none'" style="flex:1;padding:7px;border:1px solid #ccc;border-radius:8px;background:white;color:#666;cursor:pointer;font-size:0.8rem">Κλείσιμο</button>
           </div>
         </div>`;
@@ -4767,6 +4867,7 @@
 
       try {
         const result = await _runEnsemble();
+        window._lastEnsembleResult = result;
         _renderEnsembleModal(result);
       } catch(e) {
         document.getElementById('dtEnsembleContent').innerHTML = `<div style="color:#b91c1c;padding:12px">❌ ${e.message}</div>`;
