@@ -5067,54 +5067,57 @@
         if (!letters.length) continue;
 
         const letterNums = letters.map(c => GR.indexOf(c) + 1);
-        const unique = [...new Set(letterNums)].sort((a,b) => a-b);
+        const uniqueLetterNums = [...new Set(letterNums)].sort((a,b) => a-b);
         const iso = letterNums.reduce((a,b) => a+b, 0);
         const isoKino = ((iso - 1) % 80) + 1;
 
-        // All numbers for this word
-        const wordNums = [...new Set([...unique, isoKino])].sort((a,b) => a-b);
-        wordNums.forEach(n => allNums.add(n));
+        uniqueLetterNums.forEach(n => allNums.add(n));
+        allNums.add(isoKino);
 
-        // Letter breakdown row
+        // Letter breakdown
         const breakdown = letters.map((c,i) =>
           `<span style="font-size:0.72rem;color:#92400e"><strong>${c}</strong><sub style="color:#6b7280">${letterNums[i]}</sub></span>`
         ).join('<span style="color:#d1d5db;margin:0 2px">·</span>');
 
-        // Number balls
-        const balls = wordNums.map(n => {
-          const isIso = (n === isoKino && !unique.includes(n)) || (n === isoKino && iso !== letterNums.find(x=>x===n));
-          const bg = unique.includes(n) && n === isoKino ? '#7c3aed'
-                   : unique.includes(n) ? '#6366f1'
-                   : '#7c3aed';
-          return `<span style="background:${bg};color:white;border-radius:50%;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px;flex-shrink:0">${n}</span>`;
-        }).join('');
+        // Balls: letters (blue) + isopsephy (purple)
+        const letterBalls = uniqueLetterNums.map(n =>
+          `<span style="background:#6366f1;color:white;border-radius:50%;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px">${n}</span>`
+        ).join('');
 
-        const isoLabel = iso <= 80
-          ? `Ισοψηφία: ${iso}`
-          : `Ισοψηφία: ${iso} → ${isoKino}`;
+        const isoLabel = iso > 80 ? `${iso} → ${isoKino}` : `${isoKino}`;
+        const isoBall = `<span style="background:#7c3aed;color:white;border-radius:50%;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px">${isoKino}</span>`;
 
         html += `<div style="background:white;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:6px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
-            <span style="font-size:0.8rem;font-weight:700;color:#78350f">${word}</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <span style="font-size:0.85rem;font-weight:700;color:#78350f">${word}</span>
             <span style="font-size:0.62rem;color:#9ca3af">${breakdown}</span>
           </div>
-          <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balls}</div>
-          <div style="font-size:0.62rem;color:#6b7280">${isoLabel} &nbsp;·&nbsp; ${wordNums.length} αριθμοί</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+            <div>
+              <div style="font-size:0.6rem;color:#6366f1;font-weight:600;margin-bottom:3px">ΓΡΑΜΜΑΤΑ (1-24)</div>
+              <div style="display:flex;flex-wrap:wrap">${letterBalls}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center">
+              <div style="font-size:0.6rem;color:#7c3aed;font-weight:600;margin-bottom:3px">ΙΣΟΨΗΦΙΑ (25-80)</div>
+              <div style="display:flex;align-items:center;gap:4px">
+                ${isoBall}
+                <span style="font-size:0.65rem;color:#6b7280">${isoLabel}</span>
+              </div>
+            </div>
+          </div>
         </div>`;
       }
 
-      // Summary: all numbers combined
+      // Combined summary
       const sorted = [...allNums].sort((a,b) => a-b);
       const summaryBalls = sorted.map(n =>
-        `<span style="background:#f59e0b;color:white;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;margin:2px">${n}</span>`
+        `<span style="background:${n<=24?'#6366f1':'#7c3aed'};color:white;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;margin:2px">${n}</span>`
       ).join('');
 
-      if (words.length > 1) {
-        html += `<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-top:4px">
-          <div style="font-size:0.7rem;font-weight:700;color:#92400e;margin-bottom:5px">Όλοι μαζί (${sorted.length} αριθμοί):</div>
-          <div style="display:flex;flex-wrap:wrap">${summaryBalls}</div>
-        </div>`;
-      }
+      html += `<div style="background:#f5f3ff;border:2px solid #7c3aed;border-radius:8px;padding:8px 12px;margin-top:2px">
+        <div style="font-size:0.7rem;font-weight:700;color:#5b21b6;margin-bottom:5px">Παίξε (${sorted.length} αριθμοί) — μπλε=γράμματα · μωβ=ισοψηφία</div>
+        <div style="display:flex;flex-wrap:wrap">${summaryBalls}</div>
+      </div>`;
 
       el.innerHTML = html;
     };
