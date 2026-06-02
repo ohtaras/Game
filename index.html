@@ -3744,6 +3744,29 @@
       return { word: list[(keyNum - 1) % list.length], keyNum };
     }
 
+    // ════════════════ Frequency-aligned char→KINO (240K draws) ════════════════
+    const _GR_UP='ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ', _GR_LO='αβγδεζηθικλμνξοπρστυφχψω';
+    const _GR_AC=['ά','έ','ή','ί','ό','ύ','ώ'];
+    const _GR_DI2=['γγ','σσ','ρχ','φτ','χτ','κτ','νδ'];
+    const _GR_DI=['αι','ει','οι','αυ','ευ','ου','μπ','ντ','γκ','τσ','στ','σκ','πρ','τρ','θρ','χρ','σπ','λλ'];
+    const _CTK=[0,24,68,30,25,65,54,21,78,69,60,46,48,71,3,18,75,26,36,37,12,42,4,19,17,53,59,13,34,73,51,5,32,79,16,44,40,31,39,22,38,63,33,10,41,14,27,8,64,74,80,47,67,45,62,77,72,66,28,70,7,57,58,23,55,15,6,1,52,11,29,61,43,50,20,76,2,49,35,56,9];
+    const _cv = c => {let i;if((i=_GR_UP.indexOf(c))>=0)return _CTK[i+1];if((i=_GR_LO.indexOf(c))>=0)return _CTK[i+25];if((i=_GR_AC.indexOf(c))>=0)return _CTK[i+49];return null;};
+    function _wordNums(w) {
+      const vals=[]; let i=0;
+      while(i<w.length){
+        if(i+1<w.length){
+          const pair=w.slice(i,i+2);
+          let di=_GR_DI2.indexOf(pair); if(di>=0){vals.push(_CTK[di+56]);i+=2;continue;}
+          di=_GR_DI.indexOf(pair);      if(di>=0){vals.push(_CTK[di+63]);i+=2;continue;}
+        }
+        const v=_cv(w[i]);if(v!==null)vals.push(v);i++;
+      }
+      const un=[...new Set(vals)].sort((a,b)=>a-b);
+      const s=vals.reduce((a,b)=>a+b,0);
+      const ik=s>0?((s-1)%80)+1:null;
+      return{nums:ik?[...new Set([...un,ik])].sort((a,b)=>a-b):un,isoKino:ik,vals};
+    }
+
     // ════════════════ Λέξεις κλήρωσης (Λεξαριθμός) ════════════════
     const _GREEK_WORDS = [
       // 2-γράμματα (μέγιστη κάλυψη — 2 μοναδικά γράμματα)
@@ -3927,29 +3950,6 @@
         }).join(' ');
         const nextColor = _STORY_PART_COLORS[currentSentence.length % 6];
 
-        // Αριθμοί από λέξη — frequency-aligned mapping (rank γλώσσας = rank KINO)
-        const _GR_UP='ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ', _GR_LO='αβγδεζηθικλμνξοπρστυφχψω';
-        const _GR_AC=['ά','έ','ή','ί','ό','ύ','ώ'];
-        const _GR_DI2=['γγ','σσ','ρχ','φτ','χτ','κτ','νδ'];
-        const _GR_DI=['αι','ει','οι','αυ','ευ','ου','μπ','ντ','γκ','τσ','στ','σκ','πρ','τρ','θρ','χρ','σπ','λλ'];
-        // _CTK[pos] = KINO number — αντιστοίχηση rank-συχνότητας γλώσσας ↔ rank-συχνότητας KINO (240K κληρώσεις)
-        const _CTK=[0,24,68,30,25,65,54,21,78,69,60,46,48,71,3,18,75,26,36,37,12,42,4,19,17,53,59,13,34,73,51,5,32,79,16,44,40,31,39,22,38,63,33,10,41,14,27,8,64,74,80,47,67,45,62,77,72,66,28,70,7,57,58,23,55,15,6,1,52,11,29,61,43,50,20,76,2,49,35,56,9];
-        const _cv = c => {let i;if((i=_GR_UP.indexOf(c))>=0)return _CTK[i+1];if((i=_GR_LO.indexOf(c))>=0)return _CTK[i+25];if((i=_GR_AC.indexOf(c))>=0)return _CTK[i+49];return null;};
-        const _wordNums = (w) => {
-          const vals=[]; let i=0;
-          while(i<w.length){
-            if(i+1<w.length){
-              const pair=w.slice(i,i+2);
-              let di=_GR_DI2.indexOf(pair); if(di>=0){vals.push(_CTK[di+56]);i+=2;continue;}
-              di=_GR_DI.indexOf(pair);      if(di>=0){vals.push(_CTK[di+63]);i+=2;continue;}
-            }
-            const v=_cv(w[i]);if(v!==null)vals.push(v);i++;
-          }
-          const un=[...new Set(vals)].sort((a,b)=>a-b);
-          const s=vals.reduce((a,b)=>a+b,0);
-          const ik=s>0?((s-1)%80)+1:null;
-          return{nums:ik?[...new Set([...un,ik])].sort((a,b)=>a-b):un,isoKino:ik};
-        };
         const { nums: allNums, isoKino } = _wordNums(currentWord);
         const numBalls = allNums.map(n =>
           `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
@@ -3992,7 +3992,7 @@
           </div>
           <div style="display:flex;gap:6px;align-items:center">
             <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
-            <input id="storyPredInput" type="text" placeholder="π.χ. ΗΡΩΑΣ..." autocomplete="off"
+            <input id="storyPredInput" type="text" placeholder="π.χ. ο ήρωας..." autocomplete="off"
               style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
               oninput="dtStoryPredict(this.value)">
           </div>
@@ -5215,21 +5215,15 @@
     window.dtStoryPredict = function(text) {
       const el = document.getElementById('storyPredResult');
       if (!el || !text.trim()) { if(el) el.innerHTML=''; return; }
-      const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
-      const norm = text.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
-      const letters = [...norm].filter(c => GR.includes(c));
-      if (!letters.length) { el.innerHTML=''; return; }
-      const nums = letters.map(c => GR.indexOf(c)+1);
-      const unique = [...new Set(nums)].sort((a,b)=>a-b);
-      const iso = nums.reduce((a,b)=>a+b,0);
-      const isoK = ((iso-1)%80)+1;
-      const all = [...new Set([...unique, isoK])].sort((a,b)=>a-b);
-      const balls = all.map(n =>
-        `<span style="background:${n<=24?'#059669':'#7c3aed'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;margin:2px">${n}</span>`
+      const { nums, isoKino } = _wordNums(text.trim());
+      if (!nums.length) { el.innerHTML=''; return; }
+      const balls = nums.map(n =>
+        `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;margin:2px">${n}</span>`
       ).join('');
       el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:6px 10px">
-        <div style="font-size:0.65rem;color:#166534;font-weight:700;margin-bottom:4px">«${norm}» → παίξε:</div>
+        <div style="font-size:0.65rem;color:#166534;font-weight:700;margin-bottom:4px">«${text.trim()}» → παίξε:</div>
         <div style="display:flex;flex-wrap:wrap">${balls}</div>
+        <div style="font-size:0.55rem;color:#9ca3af;margin-top:2px"><span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
       </div>`;
     };
 
