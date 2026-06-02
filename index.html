@@ -777,17 +777,17 @@
         <button id="dtPreset4Btn" onclick="dtPreset4()" style="font-size:0.68rem;padding:2px 8px;border:1px solid #a5b4fc;border-radius:4px;background:#ede9fe;cursor:pointer" title="Βέλτιστο 4αρι — θα ενημερωθεί μετά το backtest">Preset 4αρι ★</button>
       </div>
     </div>
-    <!-- Λεξαριθμός: λέξη/φράση → αριθμοί -->
-    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:6px 0">
-      <div style="font-size:0.72rem;font-weight:700;color:#92400e;margin-bottom:6px">🔤 Λεξαριθμός — γράψε λέξη ή φράση:</div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input id="lexInput" type="text" placeholder="π.χ. ΑΓΓΕΛΟΣ ΘΕΟ ΤΥΧΗ..." autocomplete="off" spellcheck="false"
-          style="flex:1;padding:6px 10px;border:1px solid #fcd34d;border-radius:6px;font-size:0.82rem;font-family:inherit;background:white"
+    <!-- Λεξαριθμός calculator -->
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 14px;margin:6px 0">
+      <div style="font-size:0.78rem;font-weight:700;color:#92400e;margin-bottom:8px">🔤 Λέξη → Αριθμοί</div>
+      <div style="display:flex;gap:6px">
+        <input id="lexInput" type="text" placeholder="π.χ. αυγό ζωή τύχη..." autocomplete="off" spellcheck="false"
+          style="flex:1;padding:7px 11px;border:2px solid #fcd34d;border-radius:7px;font-size:0.9rem;font-family:inherit;background:white;outline:none"
           oninput="dtLexCalc(this.value)">
         <button onclick="document.getElementById('lexInput').value='';document.getElementById('lexResult').innerHTML=''"
-          style="padding:5px 10px;border:1px solid #fcd34d;border-radius:6px;background:white;color:#92400e;cursor:pointer;font-size:0.75rem">✕</button>
+          style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:7px;background:white;color:#6b7280;cursor:pointer;font-size:0.8rem">✕</button>
       </div>
-      <div id="lexResult" style="margin-top:8px"></div>
+      <div id="lexResult" style="margin-top:10px"></div>
     </div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
@@ -5054,72 +5054,69 @@
       if (!el) return;
       if (!text.trim()) { el.innerHTML = ''; return; }
 
-      // Normalize: strip accents, keep only Greek letters
-      const normalized = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
       const GR = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
-      const MIL = {Α:1,Β:2,Γ:3,Δ:4,Ε:5,Ζ:7,Η:8,Θ:9,Ι:10,Κ:20,Λ:30,Μ:40,Ν:50,Ξ:60,Ο:70,Π:80};
+      const normalized = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+      const words = normalized.split(/\s+/).filter(w => [...w].some(c => GR.includes(c)));
+      if (!words.length) { el.innerHTML = ''; return; }
 
-      // Process each word separately
-      const words = normalized.split(/\s+/).filter(w => w.length > 0);
+      const allNums = new Set();
       let html = '';
 
       for (const word of words) {
         const letters = [...word].filter(c => GR.includes(c));
-        if (letters.length === 0) continue;
+        if (!letters.length) continue;
 
-        // Letter breakdown
-        const breakdown = letters.map(c => {
-          const pos = GR.indexOf(c) + 1;
-          return `<span style="display:inline-flex;flex-direction:column;align-items:center;margin:2px 3px">
-            <span style="background:#6366f1;color:white;border-radius:4px;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.75rem;padding:0 3px">${c}</span>
-            <span style="font-size:0.6rem;color:#4338ca;font-weight:600">${pos}</span>
-          </span>`;
-        }).join('<span style="color:#d1d5db;align-self:center;font-size:0.7rem;margin:0 1px">+</span>');
+        const letterNums = letters.map(c => GR.indexOf(c) + 1);
+        const unique = [...new Set(letterNums)].sort((a,b) => a-b);
+        const iso = letterNums.reduce((a,b) => a+b, 0);
+        const isoKino = ((iso - 1) % 80) + 1;
 
-        // Unique numbers sorted
-        const uniqueNums = [...new Set(letters.map(c => GR.indexOf(c)+1))].sort((a,b)=>a-b);
-        const posSum = letters.map(c => GR.indexOf(c)+1).reduce((a,b)=>a+b,0);
+        // All numbers for this word
+        const wordNums = [...new Set([...unique, isoKino])].sort((a,b) => a-b);
+        wordNums.forEach(n => allNums.add(n));
 
-        // Milesian sum (only Α-Π = 1-80)
-        const milLetters = letters.filter(c => MIL[c] !== undefined);
-        const milSum = milLetters.reduce((s,c) => s + MIL[c], 0);
+        // Letter breakdown row
+        const breakdown = letters.map((c,i) =>
+          `<span style="font-size:0.72rem;color:#92400e"><strong>${c}</strong><sub style="color:#6b7280">${letterNums[i]}</sub></span>`
+        ).join('<span style="color:#d1d5db;margin:0 2px">·</span>');
 
-        const balls = uniqueNums.map(n =>
-          `<span style="background:#f59e0b;color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px">${n}</span>`
-        ).join('');
+        // Number balls
+        const balls = wordNums.map(n => {
+          const isIso = (n === isoKino && !unique.includes(n)) || (n === isoKino && iso !== letterNums.find(x=>x===n));
+          const bg = unique.includes(n) && n === isoKino ? '#7c3aed'
+                   : unique.includes(n) ? '#6366f1'
+                   : '#7c3aed';
+          return `<span style="background:${bg};color:white;border-radius:50%;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82rem;margin:2px;flex-shrink:0">${n}</span>`;
+        }).join('');
 
-        // Ισοψηφία: άθροισμα όλων γραμμάτων (με επαναλήψεις) → KINO αριθμός
-        const iso = posSum;
-        // Αν > 80, αφαιρούμε 80 μέχρι να μπει στο 1-80
-        const isoKino = iso > 0 ? (((iso - 1) % 80) + 1) : null;
-        const isoBall = isoKino
-          ? `<span style="background:#7c3aed;color:white;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;margin:2px;box-shadow:0 2px 6px #7c3aed44">${isoKino}</span>`
-          : '';
-        const isoNote = iso <= 80
-          ? `= <strong style="color:#7c3aed">${iso}</strong> (απευθείας)`
-          : `= ${iso} → mod 80 = <strong style="color:#7c3aed">${isoKino}</strong>`;
+        const isoLabel = iso <= 80
+          ? `Ισοψηφία: ${iso}`
+          : `Ισοψηφία: ${iso} → ${isoKino}`;
 
-        html += `<div style="background:white;border:1px solid #fde68a;border-radius:7px;padding:7px 10px;margin:4px 0">
-          <div style="font-size:0.7rem;font-weight:700;color:#92400e;margin-bottom:5px">${word}</div>
-          <div style="display:flex;flex-wrap:wrap;align-items:center;margin-bottom:6px">${breakdown}</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
-            <div>
-              <div style="font-size:0.6rem;color:#6b7280;margin-bottom:3px">Μεμονωμένα γράμματα (1-24):</div>
-              <div style="display:flex;flex-wrap:wrap;gap:2px">${balls}</div>
-            </div>
-            <div>
-              <div style="font-size:0.6rem;color:#6b7280;margin-bottom:3px">Ισοψηφία (άθροισμα) → KINO:</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                ${isoBall}
-                <span style="font-size:0.68rem;color:#5b21b6">${isoNote}</span>
-              </div>
-            </div>
+        html += `<div style="background:white;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+            <span style="font-size:0.8rem;font-weight:700;color:#78350f">${word}</span>
+            <span style="font-size:0.62rem;color:#9ca3af">${breakdown}</span>
           </div>
-          ${milSum > 0 ? `<div style="font-size:0.63rem;color:#6b7280;margin-top:4px">Μιλησιακό άθροισμα (Α-Π): <strong>${milSum}</strong></div>` : ''}
+          <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balls}</div>
+          <div style="font-size:0.62rem;color:#6b7280">${isoLabel} &nbsp;·&nbsp; ${wordNums.length} αριθμοί</div>
         </div>`;
       }
 
-      el.innerHTML = html || '<div style="font-size:0.72rem;color:#9ca3af">Δεν βρέθηκαν ελληνικά γράμματα.</div>';
+      // Summary: all numbers combined
+      const sorted = [...allNums].sort((a,b) => a-b);
+      const summaryBalls = sorted.map(n =>
+        `<span style="background:#f59e0b;color:white;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:0.85rem;margin:2px">${n}</span>`
+      ).join('');
+
+      if (words.length > 1) {
+        html += `<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-top:4px">
+          <div style="font-size:0.7rem;font-weight:700;color:#92400e;margin-bottom:5px">Όλοι μαζί (${sorted.length} αριθμοί):</div>
+          <div style="display:flex;flex-wrap:wrap">${summaryBalls}</div>
+        </div>`;
+      }
+
+      el.innerHTML = html;
     };
   })();
 
