@@ -4023,7 +4023,12 @@
         const storyDraws = draws.slice(Math.max(storyStart, idx - 11), idx + 1);
         const apiKey = localStorage.getItem('claude_api_key') || '';
         if (apiKey) {
-          const homerState = _homerLoad();
+          let homerState = _homerLoad();
+          // Reset if state has only old Homer (non-Claude) words
+          if (homerState.words.length > 0 && !homerState.words.some(w => w.claude)) {
+            homerState = {date: homerState.date, ptr: 0, words: []};
+            _homerSave(homerState);
+          }
           const processedIds = new Set(homerState.words.map(w => w.drawId));
           const newDraws = storyDraws.filter(d => !processedIds.has(d.id));
           if (newDraws.length > 0) {
