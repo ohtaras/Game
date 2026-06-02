@@ -4359,13 +4359,30 @@
             break;
           }
           case 'partner': {
+            // Co-occur in same draw: A in prev → boost ONLY B for next draw (cluster completion)
             const m = name.match(/n(\d+)↔(\d+)/);
-            if (m && w > 0) { addN(+m[1]); addN(+m[2]); triggered = true; }
+            if (m) {
+              const a = +m[1], b = +m[2];
+              const aIn = prev.has(a), bIn = prev.has(b);
+              if (w > 0 && aIn && !bIn) { addN(b); triggered = true; }      // a seen → expect b
+              else if (w > 0 && bIn && !aIn) { addN(a); triggered = true; } // b seen → expect a
+              else if (w < 0 && aIn && bIn) { addN(a); addN(b); triggered = true; } // anti: both seen → penalize both
+            }
             break;
           }
           case 'triplet': {
+            // At least 1 in prev → boost ONLY the missing ones for next draw
             const m = name.match(/\((\d+),\s*(\d+),\s*(\d+)\)/);
-            if (m && w > 0) { addN(+m[1]); addN(+m[2]); addN(+m[3]); triggered = true; }
+            if (m) {
+              const ns = [+m[1], +m[2], +m[3]];
+              const miss = ns.filter(n => !prev.has(n));
+              const inP  = ns.length - miss.length;
+              if (w > 0 && inP >= 1 && miss.length >= 1) {
+                miss.forEach(n => addN(n)); triggered = true;     // boost only missing
+              } else if (w < 0 && inP === 3) {
+                ns.forEach(n => addN(n)); triggered = true;       // all 3 present → penalize
+              }
+            }
             break;
           }
           case 'p2n': {
@@ -4512,18 +4529,27 @@
           }
           // 'special' and 'lex_match' are sum-based — not actionable for individual numbers
           case 'word_phrase_subset': {
-            // Numbers cluster together in single draws more than expected
-            // Name is the phrase (e.g. "ΤΖΑΚΠΟΤ") — unconditionally boost phrase nums
+            // Co-occur in same draw → only predict if SOME (not zero, not all) in prev
             const _WPS = {'ΤΖΑΚΠΟΤ':[1,6,10,15,16,19],'ΧΡΥΣΙΠΠΟΣ':[9,15,16,17,18,20,22]};
             const _wn = _WPS[name];
-            if (_wn) { _wn.forEach(n => addN(n)); triggered = true; }
+            if (_wn) {
+              const _miss = _wn.filter(n => !prev.has(n));
+              if (_miss.length >= 1 && _miss.length < _wn.length) {
+                _miss.forEach(n => addN(n)); triggered = true;
+              }
+            }
             break;
           }
           case 'mil_phrase_subset': {
-            // Milesian-mapped numbers cluster together more than expected
+            // Same union-2 logic for Milesian-mapped clusters
             const _MPS = {'ΣΟΛΟΜΩΝ_mil':[30,40,50,70]};
             const _mn = _MPS[name];
-            if (_mn) { _mn.forEach(n => addN(n)); triggered = true; }
+            if (_mn) {
+              const _mmiss = _mn.filter(n => !prev.has(n));
+              if (_mmiss.length >= 1 && _mmiss.length < _mn.length) {
+                _mmiss.forEach(n => addN(n)); triggered = true;
+              }
+            }
             break;
           }
           case 'fulfillment_fixed': {
