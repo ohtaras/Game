@@ -3758,20 +3758,26 @@
     }
 
 
-    // Reverse CTK: given drawn KINO numbers, return available Greek chars/digraphs
-    // Call Claude API: given available chars + narrative context, generate next word
+    // Call Claude API: chars from draw inspire the narrative word choice
     async function _callClaudeWord(drawNums, context, apiKey) {
       const chars = _drawToChars(drawNums);
-      const contextStr = context.length > 0
-        ? `Αφήγηση έως τώρα: «${context.slice(-8).join(' ')}»\n\n`
-        : '';
-      const prompt = `${contextStr}Γράφεις μια ποιητική αφήγηση στο πνεύμα της Ιλιάδας/Οδύσσειας, μία λέξη τη φορά.
+      const recentContext = context.slice(-8);
+      const contextStr = recentContext.length > 0
+        ? `Αφήγηση: «${recentContext.join(' ')}»`
+        : 'Αρχή επικής αφήγησης.';
+      const prompt = `Είσαι επικός ποιητής. Γράφεις μια συνεχή αφήγηση στο ύφος Ομήρου, μία λέξη κάθε φορά.
 
-Διαθέσιμα γράμματα και δίγραμμα για αυτή τη λέξη: ${chars.join(' ')}
+${contextStr}
 
-Σύνθεσε ΜΙΑ ελληνική λέξη χρησιμοποιώντας μόνο αυτά τα στοιχεία (κάθε στοιχείο μπορεί να επαναληφθεί). Να είναι ουσιαστικό, ρήμα ή επίθετο — όχι άρθρο ή σύνδεσμος. Να συνεχίζει φυσικά την αφήγηση.
+Οι αριθμοί της κλήρωσης ενεργοποίησαν αυτά τα γράμματα/δίγραμμα: ${chars.join(' ')}
 
-Απάντησε με ΜΙΑ ΜΟΝΟ ελληνική λέξη, πεζά, χωρίς τελεία.`;
+Επίλεξε ΜΙΑ ελληνική λέξη που:
+• Είναι ΑΠΟΚΛΕΙΣΤΙΚΑ ουσιαστικό, ρήμα ή επίθετο (απαγορεύεται: μου, σου, του, την, στη, στα, στον, και, αλλά, για, που, από, με)
+• Έχει τουλάχιστον 4 γράμματα
+• Συνεχίζει φυσικά και δραματικά την αφήγηση
+• Μοιάζει ηχητικά ή νοηματικά με κάποιο από τα ενεργοποιημένα γράμματα
+
+Απάντησε με ΜΙΑ ΜΟΝΟ λέξη, με τόνο, χωρίς τελεία.`;
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
