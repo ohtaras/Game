@@ -3790,29 +3790,53 @@
       return chars;
     }
 
-    // Each draw → Claude writes the next natural phrase (4-6 words) in the narrative
+    // Expand CTK char tokens to individual base Greek letters (strip case/accent)
+    function _greekBaseLetters(chars) {
+      const allowed = new Set();
+      for (const ch of chars) {
+        for (const c of ch) {
+          let base = c.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+          if (base === 'ς') base = 'σ'; // final sigma ≡ sigma
+          if (base && /[α-ω]/.test(base)) allowed.add(base);
+        }
+      }
+      return allowed;
+    }
+
+    // Validate that every Greek letter in phrase is in allowedBase set
+    function _validatePhrase(phrase, allowedBase) {
+      const norm = phrase.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
+      for (const ch of norm) {
+        if (' \t\n·,!?;-–—'.includes(ch)) continue;
+        if (/[α-ω]/.test(ch) && !allowedBase.has(ch)) return false;
+      }
+      return true;
+    }
+
+    // Each draw → Claude writes the next phrase using ONLY letters from that draw
     async function _callClaudeWord(drawNums, context, apiKey) {
       const chars = _drawToChars(drawNums);
-      // Pick a few evocative chars as thematic hint
-      const hint = chars.filter(c => c.length >= 2 || 'θλψξφχ'.includes(c)).slice(0, 5).join(' ') || chars.slice(0, 6).join(' ');
+      const allowedBase = _greekBaseLetters(chars);
+      const letterList = [...allowedBase].sort().join(' ');
+
       const fullText = context.join(' ');
-      const contextStr = fullText
-        ? `Αφήγηση έως τώρα:\n«${fullText}»\n\n`
-        : '';
-      const prompt = `${contextStr}Είσαι επικός αφηγητής στο ύφος του Ομήρου. Γράφεις μια ελληνική αφήγηση που ξετυλίγεται σιγά-σιγά.
+      const contextStr = fullText ? `Αφήγηση έως τώρα: «${fullText}»\n\n` : '';
 
-Η κλήρωση εμπνέει αυτό το θεματικό χρώμα: ${hint}
+      const prompt = `${contextStr}Διαθέσιμα γράμματα από την κλήρωση: ${letterList}
 
-Γράψε τις ΕΠΟΜΕΝΕΣ 4-6 λέξεις που συνεχίζουν φυσικά και αβίαστα το κείμενο. Γράψε ακριβώς όπως θα έγραφε ένας συγγραφέας — με άρθρα, ρήματα, ουσιαστικά, επίθετα, ό,τι χρειάζεται για φυσική ροή. Χωρίς τελεία στο τέλος.
+Γράψε 4-6 ελληνικές λέξεις ομηρικής αφήγησης χρησιμοποιώντας ΑΠΟΚΛΕΙΣΤΙΚΑ αυτά τα γράμματα.
+Τόνοι και κεφαλαία επιτρέπονται εφόσον το βασικό γράμμα υπάρχει στη λίστα.
+Χωρίς τελεία στο τέλος. Απάντησε ΜΟΝΟ με τις λέξεις.`;
 
-Απάντησε με 4-6 ΜΟΝΟ λέξεις.`;
+      const sys = `Είσαι επικός αφηγητής. Χρησιμοποιείς ΜΟΝΟ τα γράμματα: ${letterList}. Απαγορεύεται κάθε άλλο γράμμα.`;
 
       const cleanKey = (apiKey || '').trim();
+      // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
       // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
       const MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
       let lastErr;
       for (const model of MODELS) {
-        console.log('[Claude] trying model:', model, 'key prefix:', cleanKey.slice(0,10));
+        console.log('[Claude] model:', model, 'letters:', letterList);
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -3821,12 +3845,17 @@
             'anthropic-version': '2023-06-01',
             'anthropic-dangerous-direct-browser-access': 'true'
           },
-          body: JSON.stringify({model, max_tokens: 60, messages: [{role: 'user', content: prompt}]})
+          body: JSON.stringify({model, max_tokens: 60, system: sys, messages: [{role: 'user', content: prompt}]})
         });
         if (resp.ok) {
           const data = await resp.json();
           const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
-          return phrase || null;
+          if (phrase) {
+            const valid = _validatePhrase(phrase, allowedBase);
+            console.log('[Claude] valid:', valid, 'phrase:', phrase);
+            return phrase;
+          }
+          continue;
         }
         let errMsg = `API ${resp.status}`;
         try {
