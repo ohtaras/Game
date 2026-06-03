@@ -3814,60 +3814,97 @@
       return true;
     }
 
-    // Each draw → Claude writes the next phrase using ONLY letters from that draw
+    // Shared fetch helper for Anthropic API
+    async function _anthropicFetch(cleanKey, model, sys, userPrompt, maxTokens) {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': cleanKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({model, max_tokens: maxTokens, system: sys, messages: [{role: 'user', content: userPrompt}]})
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return {ok: true, text: (data.content?.[0]?.text || '').trim()};
+      }
+      let errMsg = `API ${resp.status}`;
+      try {
+        const txt = await resp.text();
+        try { const e = JSON.parse(txt); errMsg = `${resp.status}: ${e.error?.message || txt.slice(0,300)}`; }
+        catch(_) { errMsg = `${resp.status}: ${txt.slice(0,300)}`; }
+      } catch(_) {}
+      return {ok: false, err: errMsg};
+    }
+
+    // Each draw → Claude writes next phrase using ONLY letters from that draw (100% correspondence)
+    // Retries once with feedback if validation fails
     async function _callClaudeWord(drawNums, context, apiKey) {
       const chars = _drawToChars(drawNums);
       const allowedBase = _greekBaseLetters(chars);
       const letterList = [...allowedBase].sort().join(' ');
 
       const fullText = context.join(' ');
-      const contextStr = fullText ? `Αφήγηση έως τώρα: «${fullText}»\n\n` : '';
+      const contextStr = fullText ? `Αφήγηση: «${fullText}»\n\n` : '';
+      const sys = `Γράφεις αφήγηση σε απλά νέα ελληνικά. Αυστηρός κανόνας: χρησιμοποιείς ΜΟΝΟ τα γράμματα: ${letterList}. Κάθε γράμμα που γράφεις πρέπει να ανήκει σε αυτή τη λίστα.`;
 
-      const prompt = `${contextStr}ΔΙΑΘΕΣΙΜΑ ΓΡΑΜΜΑΤΑ (από αριθμούς κλήρωσης): ${letterList}
+      const makePrompt = (badPhrase) => {
+        if (badPhrase) {
+          const norm = badPhrase.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
+          const invalid = [...new Set([...norm].filter(c => /[α-ω]/.test(c) && !allowedBase.has(c)))];
+          return `${contextStr}ΔΙΑΘΕΣΙΜΑ ΓΡΑΜΜΑΤΑ: ${letterList}
 
-Βήμα 1 — σκέψου μόνο στο μυαλό σου: ποιες ελληνικές λέξεις μπορούν να γραφούν αποκλειστικά με αυτά τα γράμματα; (τόνοι + κεφαλαία OK αν το βασικό γράμμα υπάρχει)
-Βήμα 2 — από αυτές τις λέξεις διάλεξε 4-6 που φτιάχνουν ομηρική φράση που συνεχίζει φυσικά την αφήγηση.
-Βήμα 3 — γράψε ΜΟΝΟ τις 4-6 λέξεις. Τίποτε άλλο.`;
-
-      const sys = `Είσαι επικός αφηγητής με αυστηρό κανόνα: χρησιμοποιείς ΜΟΝΟ τα γράμματα ${letterList}. Κάθε γράμμα της απάντησής σου πρέπει να ανήκει σε αυτή τη λίστα. Απαγορεύεται κάθε άλλο γράμμα.`;
-
-      const cleanKey = (apiKey || '').trim();
-      // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
-      // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
-      const MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
-      let lastErr;
-      for (const model of MODELS) {
-        console.log('[Claude] model:', model, 'letters:', letterList);
-        const resp = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': cleanKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
-          body: JSON.stringify({model, max_tokens: 60, system: sys, messages: [{role: 'user', content: prompt}]})
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
-          if (phrase) {
-            const valid = _validatePhrase(phrase, allowedBase);
-            console.log('[Claude] valid:', valid, 'phrase:', phrase);
-            return phrase;
-          }
-          continue;
+Έγραψες «${badPhrase}» αλλά τα γράμματα [${invalid.join(' ')}] δεν υπάρχουν στη λίστα!
+Γράψε ξανά 4-6 λέξεις χρησιμοποιώντας ΜΟΝΟ τα διαθέσιμα γράμματα. Μόνο οι λέξεις.`;
         }
-        let errMsg = `API ${resp.status}`;
-        try {
-          const txt = await resp.text();
-          try { const e = JSON.parse(txt); errMsg = `${resp.status}: ${e.error?.message || txt.slice(0,300)}`; }
-          catch(_) { errMsg = `${resp.status}: ${txt.slice(0,300)}`; }
-        } catch(_) {}
-        console.warn('[Claude] model', model, 'failed:', errMsg);
-        lastErr = new Error(errMsg);
+        return `${contextStr}ΔΙΑΘΕΣΙΜΑ ΓΡΑΜΜΑΤΑ: ${letterList}
+
+Βήμα 1: σκέψου ποιες ελληνικές λέξεις γράφονται μόνο με αυτά τα γράμματα (τόνοι/κεφαλαία OK).
+Βήμα 2: διάλεξε 4-6 που συνεχίζουν φυσικά την αφήγηση σε απλά νέα ελληνικά.
+Βήμα 3: γράψε ΜΟΝΟ αυτές τις 4-6 λέξεις.`;
+      };
+
+      const clean = s => s.replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ').trim();
+      const cleanKey = (apiKey || '').trim();
+      const MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
+      let lastErr, bestPhrase = null;
+
+      for (const model of MODELS) {
+        let prevPhrase = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const r = await _anthropicFetch(cleanKey, model, sys, makePrompt(attempt > 0 ? prevPhrase : null), 60);
+          if (!r.ok) { lastErr = new Error(r.err); break; }
+          const phrase = clean(r.text);
+          if (!phrase) continue;
+          prevPhrase = phrase;
+          const valid = _validatePhrase(phrase, allowedBase);
+          console.log(`[Claude] ${model} #${attempt} valid:${valid}`, phrase);
+          if (valid) return phrase;
+          bestPhrase = bestPhrase || phrase;
+        }
+        if (bestPhrase) return bestPhrase;
       }
-      throw lastErr;
+      if (lastErr) throw lastErr;
+      return null;
+    }
+
+    // After story is complete, predict what phrase naturally follows (no letter constraint)
+    async function _callClaudePrediction(context, apiKey) {
+      if (!context.length) return null;
+      const cleanKey = (apiKey || '').trim();
+      const sys = `Γράφεις αφήγηση σε απλά νέα ελληνικά.`;
+      const prompt = `Αφήγηση: «${context.join(' ')}»
+
+Ποια φράση 4-6 λέξεων συνεχίζει φυσικά αυτή την αφήγηση; Γράψε ΜΟΝΟ τις λέξεις, χωρίς τελεία.`;
+      const MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
+      for (const model of MODELS) {
+        const r = await _anthropicFetch(cleanKey, model, sys, prompt, 60);
+        if (r.ok) return r.text.replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ').trim();
+        console.warn('[Claude prediction]', r.err);
+      }
+      return null;
     }
 
     // Async: process new draws with Claude, save, then re-render story panel
@@ -3905,6 +3942,14 @@
           </div>`;
           return;
         }
+        // Generate prediction for next phrase after all draws processed
+        const ctx = state.words.filter(w => w.word).map(w => w.word);
+        if (ctx.length && !state.prediction) {
+          try {
+            state.prediction = await _callClaudePrediction(ctx, apiKey);
+          } catch(_) {}
+          _homerSave(state);
+        }
         _renderHomerPanel(state, draw, storyEl);
       }
     }
@@ -3924,12 +3969,18 @@
         return parts.join(' ');
       })();
 
-      // "Παίξε αυτούς": use the last actual word of the last phrase
-      const lastPhrase = matchedPhrases[matchedPhrases.length - 1]?.word || '';
-      const lastWord = lastPhrase.trim().split(/\s+/).pop() || '';
-      const { nums: allNums, isoKino } = lastWord ? _wordNums(lastWord) : {nums:[], isoKino:null};
-      const numBalls = allNums.map(n =>
-        `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
+      // Current draw's contribution — find word entry matching draw.id
+      const currentEntry = draw ? homerState.words.find(w => w.drawId === draw.id && w.word) : null;
+      const currentChars = currentEntry ? _drawToChars(draw.n) : [];
+      const currentBase = currentEntry ? _greekBaseLetters(currentChars) : new Set();
+      const currentLetters = [...currentBase].sort().join(' ');
+
+      // "Παίξε αυτούς" from prediction phrase (last word)
+      const pred = homerState.prediction || '';
+      const predLastWord = pred.trim().split(/\s+/).pop() || '';
+      const { nums: predNums, isoKino: predIso } = predLastWord ? _wordNums(predLastWord) : {nums:[], isoKino:null};
+      const predBalls = predNums.map(n =>
+        `<span style="background:${n===predIso?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
       ).join('');
 
       const apiKey = localStorage.getItem('claude_api_key') || '';
@@ -3947,21 +3998,22 @@
           <span style="font-size:0.75rem;font-weight:700;color:#5b21b6">✦ Αφήγηση Claude — ${matchedPhrases.length} κληρώσεις · ${totalWords} λέξεις</span>
         </div>
         ${apiKeyHtml}
-        <div style="max-height:160px;overflow-y:auto;margin-bottom:8px;padding:10px 12px;background:white;border-radius:7px;border:1px solid #ddd6fe;font-size:0.9rem;line-height:2.2;font-family:Georgia,serif;word-spacing:6px">
+        <div style="max-height:150px;overflow-y:auto;margin-bottom:8px;padding:10px 12px;background:white;border-radius:7px;border:1px solid #ddd6fe;font-size:0.9rem;line-height:2.2;font-family:Georgia,serif;word-spacing:6px">
           ${proseHtml || '<span style="color:#9ca3af;font-size:0.72rem;font-family:sans-serif">Βάλε Claude API key για να ξεκινήσει η αφήγηση…</span>'}
         </div>
-        ${lastWord && allNums.length ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
-          <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
-          <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
-          <div style="font-size:0.58rem;color:#9ca3af">από: «<strong>${lastWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
+        ${currentEntry ? `<div style="background:#ede9fe;border:1px solid #c4b5fd;border-radius:7px;padding:7px 10px;margin-bottom:8px;font-size:0.68rem;color:#4c1d95">
+          <span style="font-weight:700">📍 Κλήρωση #${draw.id}:</span> «${currentEntry.word}»<br>
+          <span style="color:#7c3aed;font-size:0.6rem">Γράμματα κλήρωσης: ${currentLetters}</span>
         </div>` : ''}
-        <div style="display:flex;gap:6px;align-items:center">
-          <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
-          <input id="storyPredInput" type="text" placeholder="π.χ. ήρωας, θάλασσα…" autocomplete="off"
-            style="flex:1;padding:5px 9px;border:1px solid #c4b5fd;border-radius:6px;font-size:0.8rem;background:white;outline:none"
-            oninput="dtStoryPredict(this.value)">
-        </div>
-        <div id="storyPredResult" style="margin-top:6px"></div>
+        ${pred ? `<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:7px;padding:7px 10px;margin-bottom:8px">
+          <div style="font-size:0.68rem;color:#065f46;font-weight:700;margin-bottom:3px">🔮 Πρόβλεψη επόμενης φράσης:</div>
+          <div style="font-size:0.85rem;color:#047857;font-style:italic;font-family:Georgia,serif">«${pred}»</div>
+        </div>` : ''}
+        ${predLastWord && predNums.length ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
+          <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
+          <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${predBalls}</div>
+          <div style="font-size:0.58rem;color:#9ca3af">από πρόβλεψη: «<strong>${predLastWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${predIso})</div>
+        </div>` : ''}
       </div>`;
     }
     const _GREEK_WORDS = [
