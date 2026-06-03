@@ -758,6 +758,20 @@
           onchange="dtRender()">
         κλ.
       </label>
+      <button id="claudeKeyBtn" onclick="window._showClaudeKeyModal()" style="margin-left:12px;font-size:0.72rem;padding:3px 9px;border:1px solid #c4b5fd;border-radius:6px;background:#f5f3ff;color:#5b21b6;cursor:pointer" title="Claude API Key για αφήγηση">✦ Claude Key</button>
+    </div>
+    <!-- Claude API Key modal -->
+    <div id="claudeKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+      <div style="background:white;border-radius:12px;padding:20px 24px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+        <div style="font-size:1rem;font-weight:700;color:#5b21b6;margin-bottom:12px">✦ Claude API Key</div>
+        <div style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">Απαιτείται για την αφήγηση Claude. Βρες το κλειδί στο <strong>console.anthropic.com</strong>.</div>
+        <input id="claudeKeyInput" type="password" placeholder="sk-ant-api03-…" autocomplete="off"
+          style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #c4b5fd;border-radius:8px;font-size:0.85rem;outline:none;margin-bottom:12px">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button onclick="document.getElementById('claudeKeyModal').style.display='none'" style="padding:6px 14px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:0.8rem;color:#374151">Άκυρο</button>
+          <button onclick="window._saveClaudeKey()" style="padding:6px 14px;border:none;border-radius:6px;background:#5b21b6;color:white;cursor:pointer;font-size:0.8rem;font-weight:600">Αποθήκευση</button>
+        </div>
+      </div>
     </div>
     <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:4px 8px;align-items:center">
       <span style="font-weight:600;margin-right:4px">Κατανομή:</span>
@@ -5288,6 +5302,33 @@
       if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
       _render();
     };
+
+    window._showClaudeKeyModal = function() {
+      const modal = document.getElementById('claudeKeyModal');
+      const input = document.getElementById('claudeKeyInput');
+      input.value = localStorage.getItem('claude_api_key') || '';
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 50);
+    };
+    window._saveClaudeKey = function() {
+      const v = document.getElementById('claudeKeyInput').value.trim();
+      if (v) { localStorage.setItem('claude_api_key', v); localStorage.removeItem('homer_state'); }
+      else localStorage.removeItem('claude_api_key');
+      document.getElementById('claudeKeyModal').style.display = 'none';
+      const btn = document.getElementById('claudeKeyBtn');
+      btn.style.background = v ? '#ede9fe' : '#f5f3ff';
+      btn.style.borderColor = v ? '#7c3aed' : '#c4b5fd';
+      btn.textContent = v ? '✦ Claude ✓' : '✦ Claude Key';
+      if (v) dtRender();
+    };
+    // Init button state on load
+    (function() {
+      const k = localStorage.getItem('claude_api_key');
+      if (k) {
+        const btn = document.getElementById('claudeKeyBtn');
+        if (btn) { btn.style.background='#ede9fe'; btn.style.borderColor='#7c3aed'; btn.textContent='✦ Claude ✓'; }
+      }
+    })();
 
     window.dtStoryPredict = function(text) {
       const el = document.getElementById('storyPredResult');
