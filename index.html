@@ -4421,6 +4421,13 @@
               oninput="dtStoryPredict(this.value)">
           </div>
           <div id="storyPredResult" style="margin-top:6px"></div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+            <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Αριθμοί → λέξη:</span>
+            <input id="storyNumInput" type="text" placeholder="π.χ. 3 5 31 47..." autocomplete="off"
+              style="flex:1;padding:5px 9px;border:1px solid #fcd34d;border-radius:6px;font-size:0.8rem;background:white;outline:none"
+              oninput="dtStoryNumLookup(this.value)">
+          </div>
+          <div id="storyNumResult" style="margin-top:6px"></div>
         </div>`;
       }
 
@@ -5923,6 +5930,30 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
         <div style="display:flex;flex-wrap:wrap">${balls}</div>
         <div style="font-size:0.55rem;color:#9ca3af;margin-top:2px"><span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
       </div>`;
+    };
+
+    window.dtStoryNumLookup = function(text) {
+      const el = document.getElementById('storyNumResult');
+      if (!el || !text.trim()) { if(el) el.innerHTML=''; return; }
+      const nums = new Set(text.trim().split(/[\s,]+/).map(Number).filter(n => n>=1 && n<=80));
+      if (!nums.size) { el.innerHTML=''; return; }
+      const partNames = ['Υποκείμενο','Ρήμα','Επίρρημα','Τόπος','Συναίσθημα','Έκβαση'];
+      const partColors = _STORY_PART_COLORS;
+      let anyFound = false;
+      let html = '';
+      for (let p = 0; p < 6; p++) {
+        const { perfect, partial } = _findBestWord([...nums], p);
+        if (!perfect.length && !partial.length) continue;
+        anyFound = true;
+        const chips = [
+          ...perfect.map(c => `<span style="background:${partColors[p]};color:white;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block;font-weight:700">${c.w}<sup style="font-size:0.5em;margin-left:2px">✓</sup></span>`),
+          ...partial.slice(0,4).map(c => `<span style="background:${partColors[p]}99;color:white;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block">${c.w}<sup style="font-size:0.5em;margin-left:2px">${c.hits}/${c.total}</sup></span>`)
+        ].join('');
+        html += `<div style="margin-bottom:4px"><span style="font-size:0.58rem;color:${partColors[p]};font-weight:700;margin-right:4px">${partNames[p]}:</span>${chips}</div>`;
+      }
+      el.innerHTML = anyFound
+        ? `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:7px;padding:7px 10px">${html}</div>`
+        : `<div style="font-size:0.65rem;color:#9ca3af">Καμία λέξη δεν ταιριάζει με αυτούς τους αριθμούς</div>`;
     };
 
     window.dtLexCalc = function(text) {
