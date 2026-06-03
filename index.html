@@ -4364,21 +4364,16 @@
       }
       let draws = _draws();
       if (!draws.length) {
-        el.innerHTML = `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#0369a1">⏳ Φόρτωση κληρώσεων από OPAP…</div>`;
-        try {
-          const fetched = [];
-          const now = new Date(Date.now() + 3*3600000);
-          for (let i = 0; i < 2 && fetched.length < 60; i++) {
-            const d = new Date(now); d.setDate(d.getDate() - i);
-            const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const r = await apiFetch(`https://api.opap.gr/draws/v3.0/1100/draw-date/${ds}/${ds}?page=0&size=300`);
-            if (r?.content) r.content.forEach(x => { if (x?.winningNumbers?.list?.length) fetched.push({id:x.drawId, n:x.winningNumbers.list, b:x.winningNumbers.bonus||0}); });
-          }
-          fetched.sort((a,b)=>a.id-b.id);
-          if (fetched.length) { window._claudeDrawsCache = fetched; draws = fetched; }
-        } catch(_) {}
+        el.innerHTML = `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#0369a1">⏳ Αναμονή δεδομένων…</div>`;
+        for (let i = 0; i < 15; i++) {
+          await new Promise(r => setTimeout(r, 300));
+          draws = _draws();
+          if (draws.length) break;
+        }
         if (!draws.length) {
-          el.innerHTML = `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#92400e">⚠️ Δεν βρέθηκαν κληρώσεις. Έλεγξε σύνδεση.</div>`;
+          el.innerHTML = `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;font-size:0.75rem;color:#92400e">⚠️ Δεν υπάρχουν δεδομένα ακόμα.<br><br>▶ Ξεκίνα το <b>Live Monitor</b> και ξαναπάτα "Ανάλυση τώρα".</div>`;
+          if (btn) { btn.disabled = false; btn.textContent = '🔄 Ανάλυση τώρα'; }
+          if (runBtn) { runBtn.disabled = false; runBtn.textContent = '🔄 Ανάλυση τώρα'; }
           return;
         }
       }
