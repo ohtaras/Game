@@ -3760,13 +3760,14 @@
     // τους CTK αριθμούς τους μέσα στους 20 βγαλμένους.
     // Επιστρέφει ΟΛΕΣ τις τέλειες αντιστοιχίσεις + κορυφαίες μερικές.
     // Homer state: stored in localStorage per day
+    const _HOMER_VER = 'strict-v2'; // bump when prompt changes to force regeneration
     function _homerLoad() {
       const today = new Date().toISOString().slice(0, 10);
       try {
         const s = JSON.parse(localStorage.getItem('homer_state') || 'null');
-        if (s && s.date === today) return s;
+        if (s && s.date === today && s.ver === _HOMER_VER) return s;
       } catch(e) {}
-      return {date: today, ptr: 0, words: []};
+      return {date: today, ver: _HOMER_VER, ptr: 0, words: []};
     }
     function _homerSave(state) {
       try { localStorage.setItem('homer_state', JSON.stringify(state)); } catch(e) {}
@@ -3822,13 +3823,13 @@
       const fullText = context.join(' ');
       const contextStr = fullText ? `Αφήγηση έως τώρα: «${fullText}»\n\n` : '';
 
-      const prompt = `${contextStr}Διαθέσιμα γράμματα από την κλήρωση: ${letterList}
+      const prompt = `${contextStr}ΔΙΑΘΕΣΙΜΑ ΓΡΑΜΜΑΤΑ (από αριθμούς κλήρωσης): ${letterList}
 
-Γράψε 4-6 ελληνικές λέξεις ομηρικής αφήγησης χρησιμοποιώντας ΑΠΟΚΛΕΙΣΤΙΚΑ αυτά τα γράμματα.
-Τόνοι και κεφαλαία επιτρέπονται εφόσον το βασικό γράμμα υπάρχει στη λίστα.
-Χωρίς τελεία στο τέλος. Απάντησε ΜΟΝΟ με τις λέξεις.`;
+Βήμα 1 — σκέψου μόνο στο μυαλό σου: ποιες ελληνικές λέξεις μπορούν να γραφούν αποκλειστικά με αυτά τα γράμματα; (τόνοι + κεφαλαία OK αν το βασικό γράμμα υπάρχει)
+Βήμα 2 — από αυτές τις λέξεις διάλεξε 4-6 που φτιάχνουν ομηρική φράση που συνεχίζει φυσικά την αφήγηση.
+Βήμα 3 — γράψε ΜΟΝΟ τις 4-6 λέξεις. Τίποτε άλλο.`;
 
-      const sys = `Είσαι επικός αφηγητής. Χρησιμοποιείς ΜΟΝΟ τα γράμματα: ${letterList}. Απαγορεύεται κάθε άλλο γράμμα.`;
+      const sys = `Είσαι επικός αφηγητής με αυστηρό κανόνα: χρησιμοποιείς ΜΟΝΟ τα γράμματα ${letterList}. Κάθε γράμμα της απάντησής σου πρέπει να ανήκει σε αυτή τη λίστα. Απαγορεύεται κάθε άλλο γράμμα.`;
 
       const cleanKey = (apiKey || '').trim();
       // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
