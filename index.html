@@ -4363,7 +4363,21 @@
         return;
       }
       const draws = _draws();
-      if (!draws.length) return;
+      if (!draws.length) {
+        // Try to load draws via csLivePreload, then retry
+        el.innerHTML = `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#0369a1">⏳ Φόρτωση κληρώσεων από OPAP…</div>`;
+        if (window.csLivePreload) {
+          try { await window.csLivePreload(); } catch(_) {}
+        }
+        const draws2 = _draws();
+        if (!draws2.length) {
+          el.innerHTML = `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#92400e">⚠️ Δεν βρέθηκαν κληρώσεις. Άνοιξε πρώτα το Live Monitor ή τις Αλυσίδες.</div>`;
+          return;
+        }
+        // Re-enter with loaded draws
+        window.dtRunClaudeAnalysis(autoTriggered);
+        return;
+      }
       const idx = _dtIdx >= 0 && _dtIdx < draws.length ? _dtIdx : draws.length - 1;
       const currentDraw = draws[idx];
 
