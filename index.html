@@ -763,15 +763,31 @@
       <button id="dtClaudeAnalysisBtn" onclick="window.dtRunClaudeAnalysis()" style="margin-left:8px;font-size:0.72rem;padding:3px 10px;border:1px solid #0ea5e9;border-radius:6px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:600" title="Claude αναλύει τις κληρώσεις και αποφασίζει τι να παίξει">🧠 Claude</button>
     </div>
     <!-- Claude API Key modal -->
-    <div id="claudeKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
-      <div style="background:white;border-radius:12px;padding:20px 24px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
-        <div style="font-size:1rem;font-weight:700;color:#5b21b6;margin-bottom:12px">✦ Claude API Key</div>
-        <div style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">Απαιτείται για την αφήγηση Claude. Βρες το κλειδί στο <strong>console.anthropic.com</strong>.</div>
-        <input id="claudeKeyInput" type="password" placeholder="sk-ant-api03-…" autocomplete="off"
-          style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #c4b5fd;border-radius:8px;font-size:0.85rem;outline:none;margin-bottom:12px">
+    <div id="claudeKeyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;padding:16px">
+      <div style="background:white;border-radius:14px;padding:22px 24px;max-width:480px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.25)">
+        <div style="font-size:1.05rem;font-weight:700;color:#5b21b6;margin-bottom:4px">✦ Claude API Key</div>
+        <div style="font-size:0.72rem;color:#6b7280;margin-bottom:14px">Βρες το κλειδί στο <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:#7c3aed">console.anthropic.com</a></div>
+
+        <div style="position:relative;margin-bottom:10px">
+          <textarea id="claudeKeyInput" rows="3" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false"
+            style="width:100%;box-sizing:border-box;padding:10px 40px 10px 12px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:0.78rem;font-family:monospace;outline:none;resize:none;color:#1e1b4b;line-height:1.5;word-break:break-all"></textarea>
+          <button id="claudeKeyToggleBtn" onclick="window._toggleClaudeKeyVisibility()" title="Εμφάνιση/Απόκρυψη"
+            style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:1rem;color:#7c3aed;padding:2px 4px">👁</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          <label style="font-size:0.72rem;color:#374151;white-space:nowrap;font-weight:600">Αρχικό budget:</label>
+          <div style="position:relative;flex:1">
+            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:0.8rem;color:#6b7280">$</span>
+            <input id="claudeBudgetInput" type="number" min="0" step="0.01" placeholder="5.00"
+              style="width:100%;box-sizing:border-box;padding:6px 8px 6px 20px;border:1.5px solid #e5e7eb;border-radius:7px;font-size:0.82rem;outline:none;color:#1e1b4b">
+          </div>
+          <span style="font-size:0.65rem;color:#9ca3af">USD (Anthropic)</span>
+        </div>
+
         <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button onclick="document.getElementById('claudeKeyModal').style.display='none'" style="padding:6px 14px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer;font-size:0.8rem;color:#374151">Άκυρο</button>
-          <button onclick="window._saveClaudeKey()" style="padding:6px 14px;border:none;border-radius:6px;background:#5b21b6;color:white;cursor:pointer;font-size:0.8rem;font-weight:600">Αποθήκευση</button>
+          <button onclick="document.getElementById('claudeKeyModal').style.display='none'" style="padding:7px 16px;border:1px solid #e5e7eb;border-radius:7px;background:white;cursor:pointer;font-size:0.8rem;color:#374151">Άκυρο</button>
+          <button onclick="window._saveClaudeKey()" style="padding:7px 16px;border:none;border-radius:7px;background:#5b21b6;color:white;cursor:pointer;font-size:0.8rem;font-weight:700">Αποθήκευση</button>
         </div>
       </div>
     </div>
@@ -5535,14 +5551,42 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
     window._showClaudeKeyModal = function() {
       const modal = document.getElementById('claudeKeyModal');
       const input = document.getElementById('claudeKeyInput');
+      const budgetInput = document.getElementById('claudeBudgetInput');
       input.value = localStorage.getItem('claude_api_key') || '';
+      input.dataset.hidden = 'false';
+      input.style.fontFamily = 'monospace';
+      const btn = document.getElementById('claudeKeyToggleBtn');
+      if (btn) btn.textContent = '🙈';
+      const budget = localStorage.getItem('claude_budget_usd');
+      budgetInput.value = budget || '';
       modal.style.display = 'flex';
       setTimeout(() => input.focus(), 50);
     };
+    window._toggleClaudeKeyVisibility = function() {
+      const input = document.getElementById('claudeKeyInput');
+      const btn = document.getElementById('claudeKeyToggleBtn');
+      const isVisible = input.dataset.hidden !== 'true';
+      if (isVisible) {
+        input._realVal = input.value;
+        input.value = '•'.repeat(input.value.length);
+        input.style.fontFamily = 'monospace';
+        input.dataset.hidden = 'true';
+        btn.textContent = '👁';
+      } else {
+        input.value = input._realVal || input.value;
+        input.dataset.hidden = 'false';
+        btn.textContent = '🙈';
+      }
+    };
     window._saveClaudeKey = function() {
-      const v = document.getElementById('claudeKeyInput').value.trim();
+      const inputEl = document.getElementById('claudeKeyInput');
+      const raw = inputEl.dataset.hidden === 'true' ? (inputEl._realVal || '') : inputEl.value;
+      const v = raw.trim();
+      const b = parseFloat(document.getElementById('claudeBudgetInput').value) || 0;
       if (v) { localStorage.setItem('claude_api_key', v); localStorage.removeItem('homer_state'); }
       else localStorage.removeItem('claude_api_key');
+      if (b > 0) localStorage.setItem('claude_budget_usd', String(b));
+      else localStorage.removeItem('claude_budget_usd');
       document.getElementById('claudeKeyModal').style.display = 'none';
       ['claudeKeyBtn','claudeKeyBtnHeader'].forEach(id => {
         const btn = document.getElementById(id);
