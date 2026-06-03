@@ -3760,7 +3760,7 @@
     // τους CTK αριθμούς τους μέσα στους 20 βγαλμένους.
     // Επιστρέφει ΟΛΕΣ τις τέλειες αντιστοιχίσεις + κορυφαίες μερικές.
     // Homer state: stored in localStorage per day
-    const _HOMER_VER = 'ctk-v1'; // bump when prompt changes to force regeneration
+    const _HOMER_VER = 'ctk-v2'; // bump when prompt changes to force regeneration
     function _homerLoad() {
       const today = new Date().toISOString().slice(0, 10);
       try {
@@ -3884,50 +3884,78 @@
       return null;
     }
 
-    // Async: process new draws with Claude, save, then re-render story panel
+    // Batch: send all unprocessed draws at once, Claude picks one word per draw
+    async function _buildHomerBatch(newDraws, contextWords, apiKey) {
+      const entries = newDraws.map(d => ({drawId: d.id, words: (_findDrawWords(d.n).words || [])}));
+      const hasWords = entries.filter(e => e.words.length > 0);
+      if (hasWords.length === 0) return entries.map(e => ({drawId: e.drawId, word: null, claude: true}));
+
+      const ctx = contextWords.length ? `Αφήγηση έως τώρα: «${contextWords.join(' ')}»\n\n` : '';
+      const lines = hasWords.map((e, i) => `[${i+1}] ${e.words.map(w => w.toLowerCase()).join(' ')}`).join('\n');
+      const prompt = `${ctx}Φτιάχνουμε αφήγηση σε νέα ελληνικά, μια λέξη ανά κλήρωση.\nΕπίλεξε ΜΙΑ λέξη από κάθε γραμμή που να συνεχίζει φυσικά την αφήγηση:\n\n${lines}\n\nΓράψε ΜΟΝΟ τις επιλεγμένες λέξεις σε σειρά, χωρισμένες με κενό.`;
+      const sys = `Επιλέγεις λέξεις για αφήγηση σε νέα ελληνικά. Κάθε λέξη πρέπει να ανήκει στη λίστα της αντίστοιχης κλήρωσης.`;
+      const cleanKey = (apiKey || '').trim();
+
+      for (const model of ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6']) {
+        const r = await _anthropicFetch(cleanKey, model, sys, prompt, hasWords.length * 8 + 30);
+        if (!r.ok) { console.warn('[Claude batch]', r.err); continue; }
+        const resWords = r.text.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        let wi = 0;
+        return entries.map(e => {
+          if (!e.words.length) return {drawId: e.drawId, word: null, claude: true};
+          const resp = resWords[wi++] || '';
+          const picked = e.words.find(w => w.toLowerCase() === resp)
+                      || e.words.find(w => resp.includes(w.toLowerCase()))
+                      || e.words[0];
+          return {drawId: e.drawId, word: picked.toLowerCase(), claude: true};
+        });
+      }
+      // Fallback: first valid word for each
+      return entries.map(e => ({drawId: e.drawId, word: e.words[0]?.toLowerCase() || null, claude: true}));
+    }
+
+    // Async: process new draws with Claude (batch for history, individual for 1-2 new)
     async function _buildHomerStoryAsync(storyDraws, storyEl, draw) {
       const apiKey = localStorage.getItem('claude_api_key') || '';
       if (!apiKey) return;
       let state = _homerLoad();
-      // Reset if: old Homer words, OR all entries failed (word=null)
-      if (state.words.length > 0 && (!state.words.some(w => w.claude) || state.words.every(w => !w.word))) {
-        state = {date: state.date, ptr: 0, words: []};
+      if (state.words.length > 0 && state.words.every(w => !w.word)) {
+        state = {date: state.date, ver: _HOMER_VER, ptr: 0, words: []};
       }
-      const processedIds = new Set(state.words.filter(w => w.word).map(w => w.drawId));
-      let changed = false, lastErr = null;
-      for (const d of storyDraws) {
-        if (processedIds.has(d.id)) continue;
-        try {
-          const context = state.words.filter(w => w.word).map(w => w.word);
-          const phrase = await _callClaudeWord(d.n, context, apiKey);
-          state.words.push({drawId: d.id, word: phrase || null, claude: true});
-        } catch(e) {
-          lastErr = e.message;
-          state.words.push({drawId: d.id, word: null, claude: true, err: e.message});
+      const processedIds = new Set(state.words.map(w => w.drawId));
+      const newDraws = storyDraws.filter(d => !processedIds.has(d.id));
+      if (newDraws.length === 0) return;
+
+      try {
+        const context = state.words.filter(w => w.word).map(w => w.word);
+        let newEntries;
+        if (newDraws.length <= 2) {
+          // Real-time: individual calls, each sees previous context
+          newEntries = [];
+          for (const d of newDraws) {
+            const ctx = [...context, ...newEntries.filter(e => e.word).map(e => e.word)];
+            const word = await _callClaudeWord(d.n, ctx, apiKey);
+            newEntries.push({drawId: d.id, word: word || null, claude: true});
+          }
+        } else {
+          // Historical backfill: one batch call
+          newEntries = await _buildHomerBatch(newDraws, context, apiKey);
         }
+        state.words.push(...newEntries);
         state.ptr = state.words.length;
-        processedIds.add(d.id);
-        changed = true;
-      }
-      if (changed) {
+
+        const allWords = state.words.filter(w => w.word).map(w => w.word);
+        if (allWords.length && !state.prediction) {
+          try { state.prediction = await _callClaudePrediction(allWords, apiKey); } catch(_) {}
+        }
         _homerSave(state);
-        if (lastErr && !state.words.some(w => w.word)) {
-          storyEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px">
-            <div style="font-size:0.75rem;color:#991b1b;font-weight:700;margin-bottom:4px">⚠️ Σφάλμα Claude API</div>
-            <div style="font-size:0.65rem;color:#7f1d1d;font-family:monospace">${lastErr}</div>
-            <div style="font-size:0.6rem;color:#9ca3af;margin-top:6px">Έλεγξε το API key · <button onclick="localStorage.removeItem('homer_state');location.reload()" style="border:none;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:0.6rem">Επαναφορά</button></div>
-          </div>`;
-          return;
-        }
-        // Generate prediction for next phrase after all draws processed
-        const ctx = state.words.filter(w => w.word).map(w => w.word);
-        if (ctx.length && !state.prediction) {
-          try {
-            state.prediction = await _callClaudePrediction(ctx, apiKey);
-          } catch(_) {}
-          _homerSave(state);
-        }
         _renderHomerPanel(state, draw, storyEl);
+      } catch(e) {
+        storyEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px">
+          <div style="font-size:0.75rem;color:#991b1b;font-weight:700;margin-bottom:4px">⚠️ Σφάλμα Claude API</div>
+          <div style="font-size:0.65rem;color:#7f1d1d;font-family:monospace">${e.message}</div>
+          <div style="font-size:0.6rem;color:#9ca3af;margin-top:6px">Έλεγξε το API key · <button onclick="localStorage.removeItem('homer_state');location.reload()" style="border:none;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 6px;cursor:pointer;font-size:0.6rem">Επαναφορά</button></div>
+        </div>`;
       }
     }
 
@@ -4132,12 +4160,12 @@
       const storyEl = document.getElementById('dtStory');
       if (storyEl) {
         const draws = _draws();
-        // Κληρώσεις σήμερα — max 12 λέξεις
+        // Κληρώσεις από τα μεσάνυχτα (εκτίμηση: ~160 κληρώσεις/μέρα), max 120
         const _now = new Date();
-        const minSinceMidnight = _now.getHours() * 60 + _now.getMinutes();
-        const drawsToday = Math.max(1, Math.floor(minSinceMidnight / 5));
-        const storyStart = Math.max(0, idx - drawsToday + 1);
-        const storyDraws = draws.slice(Math.max(storyStart, idx - 11), idx + 1);
+        const hoursElapsed = _now.getHours() + _now.getMinutes() / 60;
+        const drawsEstimate = Math.min(120, Math.round(hoursElapsed * 160 / 24) + 2);
+        const storyStart = Math.max(0, idx - drawsEstimate + 1);
+        const storyDraws = draws.slice(storyStart, idx + 1);
         const apiKey = localStorage.getItem('claude_api_key') || '';
         if (apiKey) {
           let homerState = _homerLoad();
