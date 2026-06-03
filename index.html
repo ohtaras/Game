@@ -3758,26 +3758,22 @@
     }
 
 
-    // Call Claude API: chars from draw inspire the narrative word choice
+    // Each draw → Claude writes the next natural phrase (4-6 words) in the narrative
     async function _callClaudeWord(drawNums, context, apiKey) {
       const chars = _drawToChars(drawNums);
-      const recentContext = context.slice(-8);
-      const contextStr = recentContext.length > 0
-        ? `Αφήγηση: «${recentContext.join(' ')}»`
-        : 'Αρχή επικής αφήγησης.';
-      const prompt = `Είσαι επικός ποιητής. Γράφεις μια συνεχή αφήγηση στο ύφος Ομήρου, μία λέξη κάθε φορά.
+      // Pick a few evocative chars as thematic hint
+      const hint = chars.filter(c => c.length >= 2 || 'θλψξφχ'.includes(c)).slice(0, 5).join(' ') || chars.slice(0, 6).join(' ');
+      const fullText = context.join(' ');
+      const contextStr = fullText
+        ? `Αφήγηση έως τώρα:\n«${fullText}»\n\n`
+        : '';
+      const prompt = `${contextStr}Είσαι επικός αφηγητής στο ύφος του Ομήρου. Γράφεις μια ελληνική αφήγηση που ξετυλίγεται σιγά-σιγά.
 
-${contextStr}
+Η κλήρωση εμπνέει αυτό το θεματικό χρώμα: ${hint}
 
-Οι αριθμοί της κλήρωσης ενεργοποίησαν αυτά τα γράμματα/δίγραμμα: ${chars.join(' ')}
+Γράψε τις ΕΠΟΜΕΝΕΣ 4-6 λέξεις που συνεχίζουν φυσικά και αβίαστα το κείμενο. Γράψε ακριβώς όπως θα έγραφε ένας συγγραφέας — με άρθρα, ρήματα, ουσιαστικά, επίθετα, ό,τι χρειάζεται για φυσική ροή. Χωρίς τελεία στο τέλος.
 
-Επίλεξε ΜΙΑ ελληνική λέξη που:
-• Είναι ΑΠΟΚΛΕΙΣΤΙΚΑ ουσιαστικό, ρήμα ή επίθετο (απαγορεύεται: μου, σου, του, την, στη, στα, στον, και, αλλά, για, που, από, με)
-• Έχει τουλάχιστον 4 γράμματα
-• Συνεχίζει φυσικά και δραματικά την αφήγηση
-• Μοιάζει ηχητικά ή νοηματικά με κάποιο από τα ενεργοποιημένα γράμματα
-
-Απάντησε με ΜΙΑ ΜΟΝΟ λέξη, με τόνο, χωρίς τελεία.`;
+Απάντησε με 4-6 ΜΟΝΟ λέξεις.`;
 
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -3789,14 +3785,14 @@ ${contextStr}
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 30,
+          max_tokens: 60,
           messages: [{role: 'user', content: prompt}]
         })
       });
       if (!resp.ok) throw new Error(`API ${resp.status}`);
       const data = await resp.json();
-      const word = (data.content?.[0]?.text || '').trim().toLowerCase().replace(/[.,;:!?«»"'\s]/g, '');
-      return word || null;
+      const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
+      return phrase || null;
     }
 
     // Async: process new draws with Claude, save, then re-render story panel
@@ -3831,20 +3827,23 @@ ${contextStr}
 
     // Render the story panel from Claude state
     function _renderHomerPanel(homerState, draw, storyEl) {
-      const matchedWords = homerState.words.filter(w => w.word);
-      const currentWord = matchedWords[matchedWords.length - 1]?.word || '';
+      const matchedPhrases = homerState.words.filter(w => w.word);
+      // Full narrative: phrases joined naturally, last phrase highlighted
+      const proseHtml = matchedPhrases.length === 0 ? '' : (() => {
+        const parts = matchedPhrases.map((entry, i) => {
+          const isLast = i === matchedPhrases.length - 1;
+          if (isLast) return `<span style="background:#ddd6fe;color:#4c1d95;font-weight:700;border-radius:4px;padding:1px 5px">${entry.word}</span>`;
+          // Add comma after every ~3rd phrase for rhythm
+          const comma = (i + 1) % 3 === 0 ? ',' : '';
+          return `<span style="color:#1e1b4b">${entry.word}${comma}</span>`;
+        });
+        return parts.join(' ');
+      })();
 
-      const proseTokens = matchedWords.map((entry, i) => {
-        const isLast = i === matchedWords.length - 1;
-        const punct = !isLast && (i + 1) % 6 === 0 ? ',' : '';
-        if (isLast) {
-          return `<span style="background:#ddd6fe;color:#4c1d95;font-weight:800;border-radius:4px;padding:1px 6px">${entry.word} ✦</span>`;
-        }
-        return `<span style="color:#1e1b4b;font-weight:600">${entry.word}${punct}</span>`;
-      });
-      const proseHtml = proseTokens.join(' ');
-
-      const { nums: allNums, isoKino } = currentWord ? _wordNums(currentWord) : {nums:[], isoKino:null};
+      // "Παίξε αυτούς": use the last actual word of the last phrase
+      const lastPhrase = matchedPhrases[matchedPhrases.length - 1]?.word || '';
+      const lastWord = lastPhrase.trim().split(/\s+/).pop() || '';
+      const { nums: allNums, isoKino } = lastWord ? _wordNums(lastWord) : {nums:[], isoKino:null};
       const numBalls = allNums.map(n =>
         `<span style="background:${n===isoKino?'#7c3aed':'#4f46e5'};color:white;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.78rem;margin:2px">${n}</span>`
       ).join('');
@@ -3858,18 +3857,19 @@ ${contextStr}
         ${apiKey ? '<span style="font-size:0.6rem;color:#16a34a;flex-shrink:0">✓ ενεργό</span>' : '<span style="font-size:0.6rem;color:#e53e3e;flex-shrink:0">απαιτείται κλειδί</span>'}
       </div>`;
 
+      const totalWords = matchedPhrases.reduce((s, e) => s + e.word.trim().split(/\s+/).length, 0);
       storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:10px 12px">
         <div style="margin-bottom:8px">
-          <span style="font-size:0.75rem;font-weight:700;color:#5b21b6">✦ Αφήγηση Claude — ${matchedWords.length} λέξεις σήμερα</span>
+          <span style="font-size:0.75rem;font-weight:700;color:#5b21b6">✦ Αφήγηση Claude — ${matchedPhrases.length} κληρώσεις · ${totalWords} λέξεις</span>
         </div>
         ${apiKeyHtml}
         <div style="max-height:160px;overflow-y:auto;margin-bottom:8px;padding:10px 12px;background:white;border-radius:7px;border:1px solid #ddd6fe;font-size:0.9rem;line-height:2.2;font-family:Georgia,serif;word-spacing:6px">
           ${proseHtml || '<span style="color:#9ca3af;font-size:0.72rem;font-family:sans-serif">Βάλε Claude API key για να ξεκινήσει η αφήγηση…</span>'}
         </div>
-        ${currentWord ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
+        ${lastWord && allNums.length ? `<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:9px 11px;margin-bottom:8px">
           <div style="font-size:0.72rem;color:#15803d;font-weight:700;margin-bottom:5px">🎯 Παίξε αυτούς — επόμενη κλήρωση:</div>
           <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${numBalls}</div>
-          <div style="font-size:0.58rem;color:#9ca3af">από: «<strong>${currentWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
+          <div style="font-size:0.58rem;color:#9ca3af">από: «<strong>${lastWord}</strong>» · <span style="color:#4f46e5">■</span>γράμματα · <span style="color:#7c3aed">■</span>ισοψηφία (${isoKino})</div>
         </div>` : ''}
         <div style="display:flex;gap:6px;align-items:center">
           <span style="font-size:0.65rem;color:#6b7280;flex-shrink:0">Προβλέπω επόμενη λέξη:</span>
