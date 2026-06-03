@@ -3807,23 +3807,30 @@
 
 Απάντησε με 4-6 ΜΟΝΟ λέξεις.`;
 
+      const cleanKey = (apiKey || '').trim();
+      const reqBody = {
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 60,
+        messages: [{role: 'user', content: prompt}]
+      };
+      console.log('[Claude] sending request, model:', reqBody.model, 'key prefix:', cleanKey.slice(0,10));
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
+          'x-api-key': cleanKey,
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true'
         },
-        body: JSON.stringify({
-          model: 'claude-3-5-haiku-20241022',
-          max_tokens: 60,
-          messages: [{role: 'user', content: prompt}]
-        })
+        body: JSON.stringify(reqBody)
       });
       if (!resp.ok) {
         let errMsg = `API ${resp.status}`;
-        try { const e = await resp.json(); errMsg = `${resp.status}: ${e.error?.message || JSON.stringify(e)}`; } catch(_) {}
+        try {
+          const txt = await resp.text();
+          try { const e = JSON.parse(txt); errMsg = `${resp.status}: ${e.error?.message || txt.slice(0,300)}`; }
+          catch(_) { errMsg = `${resp.status}: ${txt.slice(0,300)}`; }
+        } catch(_) {}
         throw new Error(errMsg);
       }
       const data = await resp.json();
