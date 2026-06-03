@@ -3808,34 +3808,36 @@
 Απάντησε με 4-6 ΜΟΝΟ λέξεις.`;
 
       const cleanKey = (apiKey || '').trim();
-      const reqBody = {
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 60,
-        messages: [{role: 'user', content: prompt}]
-      };
-      console.log('[Claude] sending request, model:', reqBody.model, 'key prefix:', cleanKey.slice(0,10));
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': cleanKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify(reqBody)
-      });
-      if (!resp.ok) {
+      // Try models in order; 3.x base models (20240307) are retired as of 2026
+      const MODELS = ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
+      let lastErr;
+      for (const model of MODELS) {
+        console.log('[Claude] trying model:', model, 'key prefix:', cleanKey.slice(0,10));
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': cleanKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({model, max_tokens: 60, messages: [{role: 'user', content: prompt}]})
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
+          return phrase || null;
+        }
         let errMsg = `API ${resp.status}`;
         try {
           const txt = await resp.text();
           try { const e = JSON.parse(txt); errMsg = `${resp.status}: ${e.error?.message || txt.slice(0,300)}`; }
           catch(_) { errMsg = `${resp.status}: ${txt.slice(0,300)}`; }
         } catch(_) {}
-        throw new Error(errMsg);
+        console.warn('[Claude] model', model, 'failed:', errMsg);
+        lastErr = new Error(errMsg);
       }
-      const data = await resp.json();
-      const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
-      return phrase || null;
+      throw lastErr;
     }
 
     // Async: process new draws with Claude, save, then re-render story panel
