@@ -4477,7 +4477,6 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#991b1b">⚠️ ${e.message}</div>`;
       }
 
-      const runBtn = document.getElementById('claudeAnalysisRunBtn');
       if (runBtn) { runBtn.disabled = false; runBtn.textContent = '🔄 Ανάλυση τώρα'; }
       if (btn) { btn.disabled = false; btn.textContent = '🧠 Ανάλυση'; }
     };
