@@ -5935,23 +5935,48 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
     window.dtStoryNumLookup = function(text) {
       const el = document.getElementById('storyNumResult');
       if (!el || !text.trim()) { if(el) el.innerHTML=''; return; }
-      const nums = new Set(text.trim().split(/[\s,]+/).map(Number).filter(n => n>=1 && n<=80));
-      if (!nums.size) { el.innerHTML=''; return; }
-      const partNames = ['Υποκείμενο','Ρήμα','Επίρρημα','Τόπος','Συναίσθημα','Έκβαση'];
-      const partColors = _STORY_PART_COLORS;
-      let anyFound = false;
-      let html = '';
+      const numArr = text.trim().split(/[\s,]+/).map(Number).filter(n => n>=1 && n<=80);
+      if (!numArr.length) { el.innerHTML=''; return; }
+      const numSet = new Set(numArr);
+
+      // Search _STORY_LISTS (phrase-structured vocabulary) + _GREEK_WORDS (flat word list)
+      const perfStory = [], partStory = [], perfWords = [], partWords = [];
       for (let p = 0; p < 6; p++) {
-        const { perfect, partial } = _findBestWord([...nums], p);
-        if (!perfect.length && !partial.length) continue;
-        anyFound = true;
-        const chips = [
-          ...perfect.map(c => `<span style="background:${partColors[p]};color:white;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block;font-weight:700">${c.w}<sup style="font-size:0.5em;margin-left:2px">✓</sup></span>`),
-          ...partial.slice(0,4).map(c => `<span style="background:${partColors[p]}99;color:white;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block">${c.w}<sup style="font-size:0.5em;margin-left:2px">${c.hits}/${c.total}</sup></span>`)
-        ].join('');
-        html += `<div style="margin-bottom:4px"><span style="font-size:0.58rem;color:${partColors[p]};font-weight:700;margin-right:4px">${partNames[p]}:</span>${chips}</div>`;
+        const { perfect, partial } = _findBestWord(numArr, p);
+        perfStory.push(...perfect);
+        partStory.push(...partial);
       }
-      el.innerHTML = anyFound
+      // Also search _GREEK_WORDS
+      for (const raw of _GREEK_WORDS) {
+        const w = raw.charAt(0) + raw.slice(1).toLowerCase();
+        const { nums } = _wordNums(w);
+        if (!nums.length) continue;
+        const hits = nums.filter(n => numSet.has(n)).length;
+        if (hits === nums.length) perfWords.push({w, hits, total: nums.length});
+        else if (hits / nums.length >= 0.83) partWords.push({w, hits, total: nums.length});
+      }
+      perfWords.sort((a,b) => b.total - a.total);
+      partWords.sort((a,b) => (b.hits/b.total) - (a.hits/a.total) || b.total - a.total);
+
+      const chip = (c, color, solid) =>
+        `<span style="background:${solid?color:color+'99'};color:white;border-radius:5px;padding:2px 8px;font-size:0.75rem;margin:2px;display:inline-block;font-weight:${solid?'700':'400'}">${c.w}<sup style="font-size:0.5em;margin-left:2px">${solid?'✓':c.hits+'/'+c.total}</sup></span>`;
+
+      let html = '';
+      if (perfStory.length || partStory.length) {
+        const chips = [
+          ...perfStory.map(c => chip(c,'#7c3aed',true)),
+          ...partStory.slice(0,6).map(c => chip(c,'#7c3aed',false))
+        ].join('');
+        html += `<div style="margin-bottom:5px"><span style="font-size:0.58rem;color:#7c3aed;font-weight:700;margin-right:4px">📖 Φράσεις:</span>${chips}</div>`;
+      }
+      if (perfWords.length || partWords.length) {
+        const chips = [
+          ...perfWords.slice(0,12).map(c => chip(c,'#0369a1',true)),
+          ...partWords.slice(0,6).map(c => chip(c,'#0369a1',false))
+        ].join('');
+        html += `<div><span style="font-size:0.58rem;color:#0369a1;font-weight:700;margin-right:4px">🔤 Λέξεις:</span>${chips}</div>`;
+      }
+      el.innerHTML = html
         ? `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:7px;padding:7px 10px">${html}</div>`
         : `<div style="font-size:0.65rem;color:#9ca3af">Καμία λέξη δεν ταιριάζει με αυτούς τους αριθμούς</div>`;
     };
