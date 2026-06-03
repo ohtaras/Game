@@ -3788,6 +3788,9 @@
 
     async function _loadBook() {
       if (_bookVocab !== null) return;
+      // Show loading indicator in story panel while fetching
+      const storyEl = document.getElementById('dtStory');
+      if (storyEl) storyEl.innerHTML = `<div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:10px;padding:12px;font-size:0.75rem;color:#7c3aed">📖 Φορτώνω βιβλίο…</div>`;
       _bookVocab = [];
       try {
         const raw = await ghGet('data/book_game_theory.txt');
@@ -3798,6 +3801,8 @@
           const lc = w.toLowerCase();
           if (!seen.has(lc)) { seen.add(lc); _bookVocab.push(lc); }
         }
+        // Re-render now that vocab is ready
+        if (typeof _render === 'function') _render();
       } catch(e) { _bookVocab = []; }
     }
     // Start loading immediately (non-blocking)
