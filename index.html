@@ -3808,8 +3808,8 @@
 Απάντησε με 4-6 ΜΟΝΟ λέξεις.`;
 
       const cleanKey = (apiKey || '').trim();
-      // Try models in order; 3.x base models (20240307) are retired as of 2026
-      const MODELS = ['claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'];
+      // Claude 3.x/3.5.x retired as of 2026; use Claude 4 models
+      const MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
       let lastErr;
       for (const model of MODELS) {
         console.log('[Claude] trying model:', model, 'key prefix:', cleanKey.slice(0,10));
