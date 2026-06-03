@@ -802,7 +802,7 @@
         κλ.
       </label>
       <button id="claudeKeyBtn" onclick="window._openClaudeSection()" style="margin-left:12px;font-size:0.72rem;padding:3px 9px;border:1px solid #c4b5fd;border-radius:6px;background:#f5f3ff;color:#5b21b6;cursor:pointer" title="Claude API Key">✦ Claude</button>
-      <button id="dtClaudeAnalysisBtn" onclick="window.dtRunClaudeAnalysis()" style="margin-left:8px;font-size:0.72rem;padding:3px 10px;border:1px solid #0ea5e9;border-radius:6px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:600" title="Claude αναλύει τις κληρώσεις και αποφασίζει τι να παίξει">🧠 Claude</button>
+      <button id="dtClaudeAnalysisBtn" onclick="window._openClaudeAnalysis()" style="margin-left:8px;font-size:0.72rem;padding:3px 10px;border:1px solid #0ea5e9;border-radius:6px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:600" title="Claude ανάλυση">🧠 Ανάλυση</button>
     </div>
     <!-- Claude API Key modal -->
     <div id="dtDistCfg" style="display:none;font-size:0.72rem;color:#555;margin:6px 0;padding:6px 10px;background:#f0fdf4;border-radius:6px;border:1px solid #6ee7b7;flex-wrap:wrap;gap:4px 8px;align-items:center">
@@ -836,7 +836,6 @@
       <div id="lexResult" style="margin-top:10px"></div>
     </div>
     <div id="dtStory" style="margin:6px 0"></div>
-    <div id="dtClaudeAnalysis" style="margin:6px 0"></div>
     <div id="dtGrid" class="dt-grid"></div>
     <div id="dtPred"></div>
     <div id="dtWords"></div>
@@ -849,6 +848,22 @@
   <div id="status"></div>
   <div id="results"></div>
 </details>
+
+<!-- ── Claude Analysis ── -->
+<div id="claudeAnalysisSection" style="max-width:960px;margin:14px auto 0;padding:0 16px">
+  <details id="claudeAnalysisDetails" style="background:white;border-radius:10px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+    <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:#0369a1;list-style:none;display:flex;align-items:center;gap:8px">
+      <span>🧠 Claude — Ανάλυση &amp; Επόμενη Κλήρωση</span>
+      <span id="claudeAnalysisBadge" style="margin-left:auto;font-size:0.65rem;padding:2px 7px;border-radius:10px;background:#e0f2fe;color:#0369a1;display:none">● Live</span>
+      <button onclick="event.preventDefault();event.stopPropagation();window.dtRunClaudeAnalysis(false)" id="claudeAnalysisRunBtn"
+        style="margin-left:8px;font-size:0.72rem;padding:3px 10px;border:1px solid #0ea5e9;border-radius:6px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:600">🔄 Ανάλυση τώρα</button>
+    </summary>
+    <div style="margin-top:10px">
+      <div id="dtClaudeAnalysis"></div>
+      <div style="font-size:0.62rem;color:#cbd5e1;margin-top:6px">Αυτόματη ανάλυση σε κάθε νέα κλήρωση όταν το Live Monitor τρέχει · απαιτεί Claude API Key</div>
+    </div>
+  </details>
+</div>
 
 <div id="sqSection">
   <details>
@@ -4401,7 +4416,11 @@
       </div>`;
 
       const btn = document.getElementById('dtClaudeAnalysisBtn');
-      if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      const runBtn = document.getElementById('claudeAnalysisRunBtn');
+      if (runBtn) { runBtn.disabled = true; runBtn.textContent = '⏳ …'; }
+      const badge = document.getElementById('claudeAnalysisBadge');
+      if (badge) badge.style.display = autoTriggered ? 'inline' : 'none';
 
       const sys = `Είσαι έμπειρος αναλυτής του KINO (ελληνική λοταρία). Αναλύεις δεδομένα και αποφασίζεις έξυπνα τι να παίξει κάποιος, σαν έμπειρος παίκτης που χρησιμοποιεί λογική και μοτίβα. Απαντάς στα ελληνικά.`;
 
@@ -4458,7 +4477,16 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#991b1b">⚠️ ${e.message}</div>`;
       }
 
-      if (btn) { btn.disabled = false; btn.textContent = '🧠 Claude'; }
+      const runBtn = document.getElementById('claudeAnalysisRunBtn');
+      if (runBtn) { runBtn.disabled = false; runBtn.textContent = '🔄 Ανάλυση τώρα'; }
+      if (btn) { btn.disabled = false; btn.textContent = '🧠 Ανάλυση'; }
+    };
+    window._openClaudeAnalysis = function() {
+      const details = document.getElementById('claudeAnalysisDetails');
+      if (!details) return;
+      details.open = true;
+      details.scrollIntoView({behavior: 'smooth', block: 'start'});
+      window.dtRunClaudeAnalysis(false);
     };
     window.dtToggleDir=function(){
       _algoReverse=!_algoReverse;
@@ -5574,7 +5602,11 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
       _render();
       // Auto-trigger Claude analysis on each new draw (if API key set)
       const apiKey=(localStorage.getItem('claude_api_key')||'').trim();
-      if(apiKey) window.dtRunClaudeAnalysis(true);
+      if(apiKey){
+        const det=document.getElementById('claudeAnalysisDetails');
+        if(det) det.open=true;
+        window.dtRunClaudeAnalysis(true);
+      }
     };
 
     window._openClaudeSection = function() {
