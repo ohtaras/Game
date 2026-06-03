@@ -855,10 +855,10 @@
     <summary style="cursor:pointer;font-size:0.85rem;font-weight:600;color:#0369a1;list-style:none;display:flex;align-items:center;gap:8px">
       <span>🧠 Claude — Ανάλυση &amp; Επόμενη Κλήρωση</span>
       <span id="claudeAnalysisBadge" style="margin-left:auto;font-size:0.65rem;padding:2px 7px;border-radius:10px;background:#e0f2fe;color:#0369a1;display:none">● Live</span>
-      <button onclick="event.preventDefault();event.stopPropagation();window.dtRunClaudeAnalysis(false)" id="claudeAnalysisRunBtn"
-        style="margin-left:8px;font-size:0.72rem;padding:3px 10px;border:1px solid #0ea5e9;border-radius:6px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:600">🔄 Ανάλυση τώρα</button>
     </summary>
     <div style="margin-top:10px">
+      <button onclick="window.dtRunClaudeAnalysis(false)" id="claudeAnalysisRunBtn"
+        style="font-size:0.78rem;padding:6px 16px;border:1.5px solid #0ea5e9;border-radius:7px;background:#f0f9ff;color:#0369a1;cursor:pointer;font-weight:700;margin-bottom:10px">🔄 Ανάλυση τώρα</button>
       <div id="dtClaudeAnalysis"></div>
       <div style="font-size:0.62rem;color:#cbd5e1;margin-top:6px">Αυτόματη ανάλυση σε κάθε νέα κλήρωση όταν το Live Monitor τρέχει · απαιτεί Claude API Key</div>
     </div>
