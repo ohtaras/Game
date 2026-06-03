@@ -3448,6 +3448,7 @@
   // ── Delay Panel ────────────────────────────────────────────────────────────
   (function(){
     let _dtIdx=-1;
+    let _claudeAnalyzing=false;
 
     // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
     let _dtLive=[];
@@ -4387,6 +4388,10 @@
       // Skip duplicate auto-trigger for same draw
       if (autoTriggered && prevState && prevState.analyzedDrawId === currentDraw.id) return;
 
+      // Prevent concurrent calls
+      if (_claudeAnalyzing) return;
+      _claudeAnalyzing = true;
+
       // Build evaluation of previous prediction
       let evalText = '';
       let evalHTML = '';
@@ -4488,6 +4493,8 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
         </div>`;
       } catch(e) {
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#991b1b">⚠️ ${e.message}</div>`;
+      } finally {
+        _claudeAnalyzing = false;
       }
 
       if (runBtn) { runBtn.disabled = false; runBtn.textContent = '🔄 Ανάλυση τώρα'; }
@@ -5606,12 +5613,11 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
           _dtLive.push({id:draw.id,n:draw.n,b:draw.b||0});
         }
       }
-      // Auto-trigger Claude analysis regardless of whether Delay section is open
+      // Auto-trigger Claude analysis (only if section already open, no forced scroll)
       const apiKey=(localStorage.getItem('claude_api_key')||'').trim();
       if(apiKey){
         const det=document.getElementById('claudeAnalysisDetails');
-        if(det) det.open=true;
-        window.dtRunClaudeAnalysis(true);
+        if(det&&det.open) window.dtRunClaudeAnalysis(true);
       }
       const el=document.querySelector('#delaySection details');
       if(!el?.open) return;
