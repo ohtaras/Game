@@ -3758,6 +3758,23 @@
     }
 
 
+    // Drawn KINO numbers → available Greek chars/digraphs (CTK reverse lookup)
+    function _drawToChars(drawNums) {
+      const drawSet = new Set(drawNums);
+      const chars = [];
+      for (let pos = 1; pos <= 80; pos++) {
+        if (!drawSet.has(_CTK[pos])) continue;
+        let ch;
+        if (pos <= 24) ch = _GR_UP[pos - 1];
+        else if (pos <= 48) ch = _GR_LO[pos - 25];
+        else if (pos <= 55) ch = _GR_AC[pos - 49];
+        else if (pos <= 62) ch = _GR_DI2[pos - 56];
+        else ch = _GR_DI[pos - 63];
+        if (ch) chars.push(ch);
+      }
+      return chars;
+    }
+
     // Each draw → Claude writes the next natural phrase (4-6 words) in the narrative
     async function _callClaudeWord(drawNums, context, apiKey) {
       const chars = _drawToChars(drawNums);
