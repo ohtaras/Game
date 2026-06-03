@@ -4292,12 +4292,14 @@
     window.dtGoLive=function(){const d=_draws();if(d.length>0){_dtIdx=d.length-1;_render();}};
 
     // ── Claude Analysis: sees draw history → decides what to play next ──────
-    window.dtRunClaudeAnalysis = async function() {
+    window.dtRunClaudeAnalysis = async function(autoTriggered) {
       const el = document.getElementById('dtClaudeAnalysis');
       if (!el) return;
       const apiKey = (localStorage.getItem('claude_api_key') || '').trim();
       if (!apiKey) {
-        el.innerHTML = `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#92400e">⚠️ Χρειάζεσαι Claude API key — κλίκ στο <b>✦ Claude Key</b> για να το βάλεις.</div>`;
+        if (!autoTriggered) {
+          el.innerHTML = `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;font-size:0.75rem;color:#92400e">⚠️ Χρειάζεσαι Claude API key — κλίκ στο <b>✦ Claude Key</b> για να το βάλεις.</div>`;
+        }
         return;
       }
       const draws = _draws();
@@ -4305,17 +4307,44 @@
       const idx = _dtIdx >= 0 && _dtIdx < draws.length ? _dtIdx : draws.length - 1;
       const currentDraw = draws[idx];
 
+      // Load previous prediction
+      let prevState = null;
+      try { prevState = JSON.parse(localStorage.getItem('claude_analysis_state') || 'null'); } catch(e) {}
+
+      // Skip duplicate auto-trigger for same draw
+      if (autoTriggered && prevState && prevState.analyzedDrawId === currentDraw.id) return;
+
+      // Build evaluation of previous prediction
+      let evalText = '';
+      let evalHTML = '';
+      if (prevState && prevState.analyzedDrawId && prevState.picks && prevState.picks.length) {
+        const prevIdx = draws.findIndex(d => d.id === prevState.analyzedDrawId);
+        if (prevIdx >= 0 && prevIdx < idx) {
+          const resultDraw = draws[prevIdx + 1];
+          if (resultDraw) {
+            const hits = prevState.picks.filter(n => resultDraw.n.includes(n));
+            evalText = `\nΑΞΙΟΛΟΓΗΣΗ ΠΡΟΗΓΟΥΜΕΝΗΣ ΠΡΟΒΛΕΨΗΣ:
+Κλήρωση #${prevState.analyzedDrawId} → πρότεινα: [${prevState.picks.join(', ')}]
+Επόμενη κλήρωση #${resultDraw.id} → έβγαλε: [${resultDraw.n.join(', ')}]
+Επιτυχίες: ${hits.length}/8${hits.length ? ` (${hits.join(', ')})` : ' (κανένας)'}\n`;
+            const hitColor = hits.length >= 5 ? '#15803d' : hits.length >= 3 ? '#b45309' : '#991b1b';
+            const hitBg = hits.length >= 5 ? '#f0fdf4' : hits.length >= 3 ? '#fffbeb' : '#fef2f2';
+            evalHTML = `<div style="background:${hitBg};border:1px solid ${hitColor}33;border-radius:7px;padding:8px 10px;font-size:0.68rem;color:${hitColor};margin-bottom:8px;line-height:1.6">
+              <b>📊 Αξιολόγηση κλ. #${prevState.analyzedDrawId}:</b> Πρότεινα [${prevState.picks.join(' ')}] → Επιτυχίες: <b>${hits.length}/8</b>${hits.length ? ` (${hits.join(', ')})` : ''}
+            </div>`;
+          }
+        }
+      }
+
       // Send last 30 draws as context
       const historyStart = Math.max(0, idx - 29);
       const history = draws.slice(historyStart, idx + 1);
 
-      // Format draws for Claude
       const historyText = history.map((d, i) => {
         const label = i === history.length - 1 ? `#${d.id} (ΤΡΕΧΟΥΣΑ)` : `#${d.id}`;
         return `${label}: [${d.n.join(', ')}]`;
       }).join('\n');
 
-      // Frequency analysis (last 30 draws)
       const freq = new Array(81).fill(0);
       history.forEach(d => d.n.forEach(n => freq[n]++));
       const hot = [...freq.keys()].filter(n=>n>0).sort((a,b)=>freq[b]-freq[a]).slice(0,10);
@@ -4331,46 +4360,54 @@
 
       const sys = `Είσαι έμπειρος αναλυτής του KINO (ελληνική λοταρία). Αναλύεις δεδομένα και αποφασίζεις έξυπνα τι να παίξει κάποιος, σαν έμπειρος παίκτης που χρησιμοποιεί λογική και μοτίβα. Απαντάς στα ελληνικά.`;
 
-      const prompt = `Ιστορικό τελευταίων ${history.length} κληρώσεων KINO (κάθε κλήρωση βγάζει 20 αριθμούς από 1-80):
+      const prompt = `${evalText}Ιστορικό τελευταίων ${history.length} κληρώσεων KINO (κάθε κλήρωση βγάζει 20 αριθμούς από 1-80):
 
 ${historyText}
 
-Στατιστικά (τελευταίες 30 κλ.):
+Στατιστικά (τελευταίες ${history.length} κλ.):
 - Πιο "ζεστοί" (συχνοί): ${hot.join(', ')}
 - Πιο "κρύοι" (σπάνιοι): ${cold.join(', ')}
 
-Αναλύω ΤΙ ΠΑΙΖΩ στην ΕΠΟΜΕΝΗ κλήρωση (μετά την τρέχουσα ${currentDraw.id}).
-Σκέψου σαν έξυπνος παίκτης: κοίτα μοτίβα, ζεστούς/κρύους αριθμούς, επαναλήψεις, κατανομή. Αποφάσισε 8 αριθμούς να παίξω.
+${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψη και μάθε από τα λάθη. ' : ''}Αποφάσισε 8 αριθμούς για την ΕΠΟΜΕΝΗ κλήρωση (μετά την #${currentDraw.id}).
+Σκέψου σαν έξυπνος παίκτης: κοίτα μοτίβα, ζεστούς/κρύους αριθμούς, επαναλήψεις, κατανομή.
 
 Απάντησε με:
 1. Τους 8 αριθμούς (γραμμή: "ΠΑΙΞΕ: X X X X X X X X")
-2. Σύντομη αιτιολόγηση (3-5 προτάσεις)`;
+2. Σύντομη αιτιολόγηση (3-5 προτάσεις)${evalText ? '\n3. Σχόλιο για την προηγούμενη πρόβλεψη (τι έγινε σωστά/λάθος)' : ''}`;
 
       try {
-        const r = await _anthropicFetch(apiKey, 'claude-haiku-4-5-20251001', sys, prompt, 400);
+        const r = await _anthropicFetch(apiKey, 'claude-haiku-4-5-20251001', sys, prompt, 500);
         if (!r.ok) throw new Error(r.err);
 
-        // Extract numbers from "ΠΑΙΞΕ: ..." line
         const playLine = r.text.match(/ΠΑΙΞΕ[:\s]+([0-9 ]+)/i);
         const nums = playLine
           ? [...new Set(playLine[1].trim().split(/\s+/).map(Number).filter(n => n>=1 && n<=80))].slice(0,8)
           : [];
 
-        // Get explanation (everything after the ΠΑΙΞΕ line, or full text if not found)
         const explanation = r.text.replace(/ΠΑΙΞΕ[:\s]+[0-9 ]+/i, '').trim();
+
+        // Save state for next evaluation
+        if (nums.length) {
+          localStorage.setItem('claude_analysis_state', JSON.stringify({
+            analyzedDrawId: currentDraw.id,
+            picks: nums,
+            reasoning: explanation
+          }));
+        }
 
         const balls = nums.map(n =>
           `<span style="background:#0284c7;color:white;border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem;margin:3px">${n}</span>`
         ).join('');
 
         el.innerHTML = `<div style="background:#f0f9ff;border:2px solid #0ea5e9;border-radius:10px;padding:12px;margin:6px 0">
-          <div style="font-size:0.82rem;font-weight:700;color:#0369a1;margin-bottom:8px">🧠 Claude — Επόμενη κλήρωση</div>
+          <div style="font-size:0.82rem;font-weight:700;color:#0369a1;margin-bottom:8px">🧠 Claude — Επόμενη κλήρωση #${currentDraw.id + 1}</div>
+          ${evalHTML}
           ${nums.length ? `<div style="margin-bottom:10px">
             <div style="font-size:0.68rem;color:#0369a1;font-weight:600;margin-bottom:4px">▶ Παίξε αυτούς:</div>
             <div style="display:flex;flex-wrap:wrap">${balls}</div>
           </div>` : ''}
           <div style="background:white;border-radius:7px;padding:9px 11px;font-size:0.72rem;color:#1e293b;line-height:1.6;border:1px solid #bae6fd">${explanation.replace(/\n/g,'<br>')}</div>
-          <div style="font-size:0.58rem;color:#94a3b8;margin-top:6px">Βάσει ${history.length} κληρώσεων · κλ. #${currentDraw.id}</div>
+          <div style="font-size:0.58rem;color:#94a3b8;margin-top:6px">Βάσει ${history.length} κληρώσεων · κλ. #${currentDraw.id}${autoTriggered ? ' · αυτόματη ανάλυση' : ''}</div>
         </div>`;
       } catch(e) {
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#991b1b">⚠️ ${e.message}</div>`;
@@ -5490,6 +5527,9 @@ ${historyText}
       if(d.length===0) return;
       if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
       _render();
+      // Auto-trigger Claude analysis on each new draw (if API key set)
+      const apiKey=(localStorage.getItem('claude_api_key')||'').trim();
+      if(apiKey) window.dtRunClaudeAnalysis(true);
     };
 
     window._showClaudeKeyModal = function() {
