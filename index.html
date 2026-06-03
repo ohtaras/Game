@@ -5606,19 +5606,19 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
           _dtLive.push({id:draw.id,n:draw.n,b:draw.b||0});
         }
       }
-      const el=document.querySelector('#delaySection details');
-      if(!el?.open) return;
-      const d=_draws();
-      if(d.length===0) return;
-      if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
-      _render();
-      // Auto-trigger Claude analysis on each new draw (if API key set)
+      // Auto-trigger Claude analysis regardless of whether Delay section is open
       const apiKey=(localStorage.getItem('claude_api_key')||'').trim();
       if(apiKey){
         const det=document.getElementById('claudeAnalysisDetails');
         if(det) det.open=true;
         window.dtRunClaudeAnalysis(true);
       }
+      const el=document.querySelector('#delaySection details');
+      if(!el?.open) return;
+      const d=_draws();
+      if(d.length===0) return;
+      if(_dtIdx<0||_dtIdx>=d.length-2) _dtIdx=d.length-1;
+      _render();
     };
 
     window._openClaudeSection = function() {
