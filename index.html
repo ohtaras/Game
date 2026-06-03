@@ -3821,7 +3821,11 @@
           messages: [{role: 'user', content: prompt}]
         })
       });
-      if (!resp.ok) throw new Error(`API ${resp.status}`);
+      if (!resp.ok) {
+        let errMsg = `API ${resp.status}`;
+        try { const e = await resp.json(); errMsg = `${resp.status}: ${e.error?.message || JSON.stringify(e)}`; } catch(_) {}
+        throw new Error(errMsg);
+      }
       const data = await resp.json();
       const phrase = (data.content?.[0]?.text || '').trim().replace(/[.,;:!?«»"']/g, '').replace(/\s+/g, ' ');
       return phrase || null;
