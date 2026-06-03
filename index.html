@@ -343,6 +343,7 @@
     <h1>KINO — Κληρώσεις ΟΠΑΠ</h1>
     <div style="font-size:.8rem;opacity:.7">Επιλέξτε ημερομηνία ή μήνα &nbsp;<span style="background:#e76f51;padding:1px 7px;border-radius:10px;font-size:.72rem">v3</span></div>
   </div>
+  <button id="claudeKeyBtnHeader" onclick="window._showClaudeKeyModal()" style="margin-left:auto;font-size:0.78rem;padding:5px 12px;border:1px solid #c4b5fd;border-radius:8px;background:#f5f3ff;color:#5b21b6;cursor:pointer;white-space:nowrap">✦ Claude Key</button>
 </header>
 
 <div id="tokenBar">
@@ -5315,18 +5316,23 @@
       if (v) { localStorage.setItem('claude_api_key', v); localStorage.removeItem('homer_state'); }
       else localStorage.removeItem('claude_api_key');
       document.getElementById('claudeKeyModal').style.display = 'none';
-      const btn = document.getElementById('claudeKeyBtn');
-      btn.style.background = v ? '#ede9fe' : '#f5f3ff';
-      btn.style.borderColor = v ? '#7c3aed' : '#c4b5fd';
-      btn.textContent = v ? '✦ Claude ✓' : '✦ Claude Key';
+      ['claudeKeyBtn','claudeKeyBtnHeader'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.style.background = v ? '#ede9fe' : '#f5f3ff';
+        btn.style.borderColor = v ? '#7c3aed' : '#c4b5fd';
+        btn.textContent = v ? '✦ Claude ✓' : '✦ Claude Key';
+      });
       if (v) dtRender();
     };
     // Init button state on load
     (function() {
       const k = localStorage.getItem('claude_api_key');
       if (k) {
-        const btn = document.getElementById('claudeKeyBtn');
-        if (btn) { btn.style.background='#ede9fe'; btn.style.borderColor='#7c3aed'; btn.textContent='✦ Claude ✓'; }
+        ['claudeKeyBtn','claudeKeyBtnHeader'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) { btn.style.background='#ede9fe'; btn.style.borderColor='#7c3aed'; btn.textContent='✦ Claude ✓'; }
+        });
       }
     })();
 
