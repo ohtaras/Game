@@ -457,14 +457,21 @@ async function fetchLiveNow() {
         nextFetchAt = toMs(d.activeDraws[0].drawTime) + 15000;
       }
     }
-  } catch(e) { console.warn('fetchLiveNow:', e); }
+  } catch(e) {
+    console.warn('fetchLiveNow:', e);
+    document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης με OPAP — νέα προσπάθεια...';
+  }
 
-  if (draw && draw.id !== lastDrawId) {
-    lastDrawId = draw.id;
+  if (draw) {
+    // Always display the current draw (even if already in saved data)
     renderDraw(draw);
-    updateDelays(draw.nums);
     renderWordMatches(draw.nums);
-    saveDrawToGitHub(draw);
+    // Only update delays + save when this is a genuinely new draw
+    if (draw.id !== lastDrawId) {
+      lastDrawId = draw.id;
+      updateDelays(draw.nums);
+      saveDrawToGitHub(draw);
+    }
   }
 }
 
