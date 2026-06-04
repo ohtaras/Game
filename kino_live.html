@@ -35,9 +35,13 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #drawMeta{font-size:.8rem;color:#aaa;min-width:160px}
 #drawMeta strong{display:block;font-size:1rem;color:#fff;margin-bottom:4px}
 .num-grid{display:flex;flex-wrap:wrap;gap:4px;flex:1}
-.num-ball{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;background:#263238;color:#b0bec5;border:2px solid #37474f;cursor:default}
-.num-ball.letter{background:#1a237e;color:#e8eaf6;border-color:#3949ab}
-.num-ball.drawn{background:#4a148c;color:#e1bee7;border-color:#7b1fa2}
+.num-ball{width:36px;height:36px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;background:#263238;color:#b0bec5;border:2px solid #37474f;cursor:default}
+.num-ball.drawn{background:#1a2744;color:#e8eaf6;border-color:#37474f}
+.num-ball.letter{background:#1a237e;color:#c5cae9;border-color:#3949ab}
+.num-ball.lower{background:#1b3a4a;color:#b2dfdb;border-color:#26747a}
+.num-ball.accent{background:#4a1232;color:#f8bbd0;border-color:#880e4f}
+.num-ball.cluster{background:#1b3a1a;color:#c8e6c9;border-color:#2e7d32}
+.num-ball.diph{background:#263238;color:#80cbc4;border-color:#00695c}
 #drawLettersLine{font-size:1rem;color:#ce93d8;margin-top:6px;font-family:monospace;letter-spacing:.12em;word-break:break-all}
 
 /* ── Delay table ── */
@@ -123,10 +127,27 @@ const LIVE_BASE_ID= 1155022;
 const pad = n => String(n).padStart(2,'0');
 function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── Character mapping ──────────────────────────────────────────────────────
-const GR_UP = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ'; // 1-24
-const LETTER_TO_NUM = {};
-[...GR_UP].forEach((c, i) => LETTER_TO_NUM[c] = i + 1);
+// ── Full 1-80 character mapping (frequency-aligned, 240K draws) ────────────
+const NUM_TO_CHAR = [
+  null,
+  'ευ','τρ','Ξ','Χ','η','αυ','χτ','ψ','λλ','τ',     // 1-10
+  'μπ','Υ','γ','φ','οι','κ','Ω','Ο','Ψ','σκ',        // 11-20
+  'Η','ο','αι','Α','Δ','Ρ','χ','ρχ','ντ','Γ',        // 21-30
+  'ν','θ','σ','δ','χρ','Σ','Τ','π','ξ','μ',          // 31-40
+  'υ','Φ','τσ','λ','ό','Λ','ή','Μ','θρ','στ',        // 41-50
+  'ζ','ου','α','Ζ','ει','σπ','κτ','νδ','β','Κ',      // 51-60
+  'γκ','ύ','ρ','ω','Ε','σσ','ί','Β','Ι','φτ',        // 61-70
+  'Ν','γγ','ε','ά','Π','πρ','ώ','Θ','ι','έ'          // 71-80
+];
+// Reverse: lowercase string → number (lowercase wins over uppercase)
+const CHAR_TO_NUM = {};
+for (let n=1; n<=80; n++) {
+  const c = NUM_TO_CHAR[n], key = c.toLowerCase();
+  if (c === key || !CHAR_TO_NUM[key]) CHAR_TO_NUM[key] = n;
+}
+CHAR_TO_NUM['ς'] = CHAR_TO_NUM['σ']; // final sigma alias
+// Sorted longest-first for greedy word decomposition
+const PATTERNS = Object.keys(CHAR_TO_NUM).sort((a,b) => b.length - a.length);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let liveRunning      = false;
@@ -137,7 +158,7 @@ let drawCounter      = 0;              // total draws processed this session
 let lastSeen         = new Array(81).fill(-1);
 let delays           = new Array(81).fill(0);
 let delaysReady      = false;
-let bookIndex        = [];             // [{word, nums:Set, sentence, si}]
+let bookIndex        = [];             // [{word, units, numSet, sentence, si}]
 let bookReady        = false;
 let saveLock         = false;
 let liveBuffer       = new Map();      // id → {id, n, b}
@@ -202,15 +223,25 @@ function localTimeStr(ms) {
   return new Date(ms).toLocaleTimeString('el-GR',{timeZone:'Europe/Athens',hour:'2-digit',minute:'2-digit'});
 }
 
-function stripAccents(s) {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g,'');
+function decomposeWord(word) {
+  // Greedy decompose into character units using PATTERNS (longest first)
+  const w = word.toLowerCase().replace(/ς/g,'σ');
+  const units = [];
+  let i = 0;
+  while (i < w.length) {
+    let matched = false;
+    for (const p of PATTERNS) {
+      if (w.slice(i, i+p.length) === p) { units.push(p); i += p.length; matched = true; break; }
+    }
+    if (!matched) i++;
+  }
+  return units;
 }
 
-function wordToNums(w) {
-  const up = stripAccents(w).toUpperCase();
-  const nums = new Set();
-  for (const ch of up) if (ch in LETTER_TO_NUM) nums.add(LETTER_TO_NUM[ch]);
-  return nums;
+function getDrawnCharSet(nums) {
+  const s = new Set();
+  for (const n of nums) { const c = NUM_TO_CHAR[n]; if (c) s.add(c.toLowerCase()); }
+  return s;
 }
 
 function delayColor(d) {
@@ -254,12 +285,14 @@ async function loadBook() {
     const sent = sentences[si];
     const rawWords = sent.match(/[Ͱ-Ͽἀ-῿ΆΈ-ΊΌΎ-ΡΣ-ώ]+/g) || [];
     for (const rw of rawWords) {
-      const nums = wordToNums(rw);
-      if (nums.size < 3) continue;
-      const key = [...nums].sort((a,b)=>a-b).join(',');
+      const units = decomposeWord(rw);
+      if (units.length < 2) continue;
+      const numSet = new Set(units.map(u => CHAR_TO_NUM[u]).filter(Boolean));
+      if (numSet.size < 2) continue;
+      const key = [...numSet].sort((a,b)=>a-b).join(',');
       if (seen.has(key)) continue;
       seen.add(key);
-      bookIndex.push({word:rw, nums, sentence:sent, si});
+      bookIndex.push({word:rw, units, numSet, sentence:sent, si});
     }
   }
 
@@ -376,13 +409,13 @@ function renderDelayTable() {
 // ── Word matching ──────────────────────────────────────────────────────────
 function findWordMatches(drawnNums) {
   if (!bookReady) return [];
-  const letterNums = new Set(drawnNums.filter(n=>n>=1&&n<=24));
+  const drawnChars = getDrawnCharSet(drawnNums);
   const matches = [];
   for (const entry of bookIndex) {
-    if ([...entry.nums].every(n=>letterNums.has(n))) matches.push(entry);
+    if (entry.units.every(u => drawnChars.has(u))) matches.push(entry);
   }
-  matches.sort((a,b)=>b.nums.size-a.nums.size||a.si-b.si);
-  return matches.slice(0,25);
+  matches.sort((a,b) => b.units.length - a.units.length || a.si - b.si);
+  return matches.slice(0, 25);
 }
 
 function renderWordMatches(nums) {
@@ -393,16 +426,15 @@ function renderWordMatches(nums) {
     list.innerHTML='<div style="color:#666;font-size:.85rem">Δεν βρέθηκαν λέξεις για αυτή την κλήρωση.</div>';
     return;
   }
-  const html = matches.map(({word,nums:wn,sentence}) => {
-    const lenClass = `wm-len-${Math.min(wn.size,6)}`;
+  const html = matches.map(({word, units, numSet, sentence}) => {
+    const lenClass = `wm-len-${Math.min(units.length, 6)}`;
     const esc = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const re = new RegExp(`(${esc})`,'gi');
+    const re = new RegExp(`(${esc})`, 'gi');
     const ctx = sentence.replace(re,'<em>$1</em>');
-    const numList = [...wn].sort((a,b)=>a-b).join(' ');
-    const letters = [...wn].sort((a,b)=>a-b).map(n=>GR_UP[n-1]).join('');
+    const unitsStr = units.map(u => `${u}·${CHAR_TO_NUM[u]}`).join(' ');
     return `<div class="word-match ${lenClass}">
       <div class="wm-word">${word}</div>
-      <div class="wm-nums">Αριθμοί: ${numList} → ${letters}</div>
+      <div class="wm-nums">${unitsStr}</div>
       <div class="wm-ctx">${ctx}</div>
     </div>`;
   }).join('');
@@ -410,22 +442,34 @@ function renderWordMatches(nums) {
 }
 
 // ── Draw rendering ─────────────────────────────────────────────────────────
+function charClass(c) {
+  if (!c) return '';
+  const DIPHS = new Set(['ευ','αυ','οι','αι','ου','ει']);
+  if (DIPHS.has(c.toLowerCase())) return ' diph';
+  if (c.length === 2) return ' cluster';
+  if (c.length === 1 && c !== c.toLowerCase()) return ' letter';
+  if (/[άέήίόύώ]/.test(c)) return ' accent';
+  return ' lower';
+}
+
 function renderDraw(draw) {
   document.getElementById('drawId').textContent = `Κλήρωση #${draw.id}`;
   document.getElementById('drawTime').textContent = draw.time;
 
   const grid = document.getElementById('numGrid');
   const balls = draw.nums.map(n => {
-    const isLetter = n>=1&&n<=24;
-    const letter = isLetter ? GR_UP[n-1] : '';
-    return `<div class="num-ball${isLetter?' letter':''} drawn" title="${isLetter?GR_UP[n-1]+' ('+n+')':n}">
-      ${isLetter?`<span style="font-size:.62rem;display:block;line-height:1">${letter}</span>`:''}<span style="line-height:1">${n}</span>
+    const c = NUM_TO_CHAR[n] || '';
+    const cls = 'num-ball drawn' + charClass(c);
+    const fs = c.length > 1 ? '.55rem' : '.68rem';
+    return `<div class="${cls}" title="${c} (${n})">
+      <span style="font-size:${fs};display:block;line-height:1.1">${c}</span>
+      <span style="font-size:.55rem;opacity:.75">${n}</span>
     </div>`;
   }).join('');
   grid.innerHTML = balls;
 
-  const letters = draw.nums.filter(n=>n>=1&&n<=24).sort((a,b)=>a-b).map(n=>GR_UP[n-1]).join(' ');
-  document.getElementById('drawLettersLine').textContent = letters || '(χωρίς γράμματα 1-24)';
+  const charLine = draw.nums.map(n => NUM_TO_CHAR[n] || '').join(' ');
+  document.getElementById('drawLettersLine').textContent = charLine;
 }
 
 // ── Update delays on new draw ──────────────────────────────────────────────
