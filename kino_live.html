@@ -94,6 +94,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <h2>Τρέχουσα Κλήρωση</h2>
     <div id="drawCard">
       <div id="drawMeta"><strong id="drawId">—</strong><span id="drawTime">Φόρτωση...</span></div>
+      <div id="apiDebug" style="font-size:.7rem;color:#ef9a9a;margin-top:2px;font-family:monospace"></div>
       <div style="flex:1">
         <div class="num-grid" id="numGrid"></div>
         <div id="drawLettersLine"></div>
@@ -216,11 +217,28 @@ function refreshTokenState() {
 }
 
 async function apiFetch(url) {
-  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
-  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)}); if(r.ok)return r.json(); } catch(_) {}
-  const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return JSON.parse((await r.json()).contents);
+  const dbg = s => { try { const el=document.getElementById('apiDebug'); if(el) el.textContent=s; } catch(_){} };
+  try {
+    dbg('🔗 Σύνδεση OPAP...');
+    const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});
+    if(r.ok) { dbg(''); return r.json(); }
+    dbg('⚠ OPAP direct: HTTP '+r.status);
+  } catch(e) { dbg('⚠ OPAP direct: '+e.message); }
+  try {
+    dbg('🔗 Proxy 1 (corsproxy)...');
+    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});
+    if(r.ok) { dbg(''); return r.json(); }
+    dbg('⚠ corsproxy: HTTP '+r.status);
+  } catch(e) { dbg('⚠ corsproxy: '+e.message); }
+  try {
+    dbg('🔗 Proxy 2 (allorigins)...');
+    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+    if(!r.ok) { dbg('⚠ allorigins: HTTP '+r.status); throw new Error('HTTP '+r.status); }
+    const j=await r.json();
+    if(j?.contents) { dbg(''); return JSON.parse(j.contents); }
+    dbg('⚠ allorigins: κενό περιεχόμενο');
+    throw new Error('empty contents');
+  } catch(e) { dbg('⚠ allorigins: '+e.message); throw e; }
 }
 
 async function ghGet(path) {
