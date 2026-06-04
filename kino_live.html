@@ -694,29 +694,30 @@ function lookupWord() {
   const out = document.getElementById('lookupResult');
   if (!raw) { out.innerHTML = ''; return; }
   const norm = normWord(raw);
-  const tiles = [];
-  let i = 0, leftover = '';
-  while (i < norm.length) {
-    let matched = false;
-    for (const p of PATTERNS) {
-      if (p.length <= norm.length - i && norm.startsWith(p, i)) {
-        tiles.push(p); i += p.length; matched = true; break;
-      }
+  // DFS decomposition — same logic as spellWord, collects tile sequence
+  const result = [];
+  function dfs(i) {
+    if (i === norm.length) return true;
+    for (const t of PATTERNS) {
+      if (t.length > norm.length - i) continue;
+      if (!norm.startsWith(t, i)) continue;
+      result.push(t);
+      if (dfs(i + t.length)) return true;
+      result.pop();
     }
-    if (!matched) { leftover += norm[i]; i++; }
+    return false;
   }
-  if (!tiles.length) {
-    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε κανένας χαρακτήρας.</div>';
+  if (!dfs(0)) {
+    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει χαρακτήρες εκτός χάρτη πλακιδίων.</div>';
     return;
   }
-  const tileHtml = tiles.map(t => {
+  const tileHtml = result.map(t => {
     const n = CHAR_TO_NUM[t];
     return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${n}</span></div>`;
   }).join('');
-  const numList = tiles.map(t => CHAR_TO_NUM[t]).join(' - ');
-  const warn = leftover ? `<div class="lk-warn">Αγνοήθηκαν: ${leftover}</div>` : '';
+  const numList = result.map(t => CHAR_TO_NUM[t]).join(' - ');
   out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
-    <div class="lk-nums">Αριθμοί: ${numList}</div>${warn}`;
+    <div class="lk-nums">Αριθμοί: ${numList}</div>`;
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
