@@ -37,8 +37,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .num-grid{display:flex;flex-wrap:wrap;gap:4px;flex:1}
 .num-ball{width:36px;height:36px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;background:#263238;color:#b0bec5;border:2px solid #37474f;cursor:default}
 .num-ball.drawn{background:#1a2744;color:#e8eaf6;border-color:#37474f}
-.num-ball.vowel{background:#1a237e;color:#c5cae9;border-color:#3949ab}
-.num-ball.consonant{background:#1b3a4a;color:#b2dfdb;border-color:#26747a}
+.num-ball.letter{background:#1a237e;color:#c5cae9;border-color:#3949ab}
+.num-ball.lower{background:#1b3a4a;color:#b2dfdb;border-color:#26747a}
+.num-ball.accent{background:#4a1232;color:#f8bbd0;border-color:#880e4f}
+.num-ball.cluster{background:#1b3a1a;color:#c8e6c9;border-color:#2e7d32}
+.num-ball.diph{background:#263238;color:#80cbc4;border-color:#00695c}
 #drawLettersLine{font-size:1rem;color:#ce93d8;margin-top:6px;font-family:monospace;letter-spacing:.12em;word-break:break-all}
 
 /* ── Delay table ── */
@@ -147,20 +150,27 @@ const LIVE_BASE_ID= 1155022;
 const pad = n => String(n).padStart(2,'0');
 function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── Letter → number range mapping ─────────────────────────────────────────
-// α=1-12, ε=13-21, ο=22-29, ι=30-37, ν=38-44, τ=45-51, σ=52-57,
-// κ=58-61, μ=62-65, ρ=66-69, π=70-72, ω=73-75, δ=76-77, λ=78-79, η=80
-const LETTER_RANGES = [
-  ['α', 1,12], ['ε',13,21], ['ο',22,29], ['ι',30,37],
-  ['ν',38,44], ['τ',45,51], ['σ',52,57], ['κ',58,61],
-  ['μ',62,65], ['ρ',66,69], ['π',70,72], ['ω',73,75],
-  ['δ',76,77], ['λ',78,79], ['η',80,80]
+// ── 1-80 character mapping (unique symbol per number) ─────────────────────
+const NUM_TO_CHAR = [
+  null,
+  'ευ','τρ','Ξ','Χ','η','αυ','χτ','ψ','λλ','τ',     // 1-10
+  'μπ','Υ','γ','φ','οι','κ','Ω','Ο','Ψ','σκ',        // 11-20
+  'Η','ο','αι','Α','Δ','Ρ','χ','ρχ','ντ','Γ',        // 21-30
+  'ν','θ','σ','δ','χρ','Σ','Τ','π','ξ','μ',          // 31-40
+  'υ','Φ','τσ','λ','ό','Λ','ή','Μ','θρ','στ',        // 41-50
+  'ζ','ου','α','Ζ','ει','σπ','κτ','νδ','β','Κ',      // 51-60
+  'γκ','ύ','ρ','ω','Ε','σσ','ί','Β','Ι','φτ',        // 61-70
+  'Ν','γγ','ε','ά','Π','πρ','ώ','Θ','ι','έ'          // 71-80
 ];
-const NUM_TO_CHAR = new Array(81).fill(null);
-for (const [ch, from, to] of LETTER_RANGES)
-  for (let n = from; n <= to; n++) NUM_TO_CHAR[n] = ch;
-const LETTER_TO_RANGE = Object.fromEntries(LETTER_RANGES.map(([ch,f,t]) => [ch,[f,t]]));
-const PATTERNS = LETTER_RANGES.map(([ch]) => ch);
+// Reverse map: lowercase string → number (lowercase wins over uppercase)
+const CHAR_TO_NUM = {};
+for (let n = 1; n <= 80; n++) {
+  const c = NUM_TO_CHAR[n], key = c.toLowerCase();
+  if (c === key || !CHAR_TO_NUM[key]) CHAR_TO_NUM[key] = n;
+}
+CHAR_TO_NUM['ς'] = CHAR_TO_NUM['σ'];
+// Longest-first for DFS decomposition
+const PATTERNS = Object.keys(CHAR_TO_NUM).sort((a,b) => b.length - a.length);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let liveRunning      = false;
@@ -237,11 +247,8 @@ function localTimeStr(ms) {
 }
 
 function normWord(word) {
-  return word.toLowerCase()
-    .replace(/ά/g,'α').replace(/έ/g,'ε').replace(/ή/g,'η')
-    .replace(/ί/g,'ι').replace(/ϊ/g,'ι').replace(/ΐ/g,'ι')
-    .replace(/ό/g,'ο').replace(/ύ/g,'υ').replace(/ϋ/g,'υ').replace(/ΰ/g,'υ')
-    .replace(/ώ/g,'ω').replace(/ς/g,'σ');
+  // Keep accents: ύ≠υ, ή≠η etc. are distinct tiles. Only lowercase + final-sigma alias.
+  return word.toLowerCase().replace(/ς/g, 'σ');
 }
 
 // Strict Scrabble check: can `word` be spelled from tile multiset `avail`?
@@ -265,7 +272,8 @@ function drawTileMultiset(nums) {
   const m = new Map();
   for (const n of nums) {
     const c = NUM_TO_CHAR[n]; if (!c) continue;
-    m.set(c, (m.get(c) || 0) + 1);
+    const key = c.toLowerCase();
+    m.set(key, (m.get(key) || 0) + 1);
   }
   return m;
 }
@@ -426,20 +434,26 @@ async function claudeSentence(tiles, nums, apiKey) {
   const model = 'claude-haiku-4-5-20251001';
   const sys = 'Απαντάς ΜΟΝΟ με αυτό που ζητείται. ΚΑΜΙΑ εισαγωγή, ΚΑΜΙΑ επεξήγηση, ΚΑΝΕΝΑ σχόλιο, ΚΑΝΕΝΑ κεφαλαίο τίτλος. Μόνο η απάντηση.';
 
-  // Build letter inventory with counts
+  // Normalize tiles for Claude: uppercase single letters → lowercase (Υ→υ, Λ→λ etc.)
+  // Accented tiles (ύ, ί, ό, ά, ή, ώ, έ) stay as-is — they are DIFFERENT tiles from unaccented
+  const normTiles = tiles.map(t =>
+    (t.length === 1 && t !== t.toLowerCase()) ? t.toLowerCase() : t
+  );
+
+  // Build tile inventory with counts
   const tileCount = {};
-  for (const t of tiles) tileCount[t] = (tileCount[t] || 0) + 1;
+  for (const t of normTiles) tileCount[t] = (tileCount[t] || 0) + 1;
   const tileList = Object.entries(tileCount)
     .map(([t, n]) => n > 1 ? `${t}(×${n})` : t).join(', ');
 
   // Turn 1: get candidate word list from Claude
-  const prompt1 = 'Διαθέσιμα γράμματα: ' + tileList + '\n\n'
+  const prompt1 = 'Διαθέσιμα πλακίδια: ' + tileList + '\n\n'
     + 'ΚΑΝΟΝΕΣ:\n'
-    + '1. Κάθε γράμμα μία μόνο φορά (εκτός αν υπάρχει ×2 κ.λπ.)\n'
-    + '2. ΜΟΝΟ λέξεις που χρησιμοποιούν ΑΠΟΚΛΕΙΣΤΙΚΑ γράμματα από αυτά: α ε ο ι ν τ σ κ μ ρ π ω δ λ η\n'
-    + '3. ΟΧΙ λέξεις με β, γ, ζ, θ, ξ, υ, φ, χ, ψ ή άλλα γράμματα εκτός λίστας\n'
+    + '1. Κάθε πλακίδιο μία μόνο φορά (εκτός αν υπάρχει ×2 κ.λπ.)\n'
+    + '2. Τονισμένο ≠ άτονο: «ύ»≠«υ», «ί»≠«ι», «ό»≠«ο», «ή»≠«η», «ά»≠«α», «έ»≠«ε», «ώ»≠«ω» — ΕΛΕΓΞΕ τους τόνους!\n'
+    + '3. Δίγραφα (αυ, ευ, αι, οι, ου, λλ, μπ, γκ, γγ, νδ, ντ, ρχ, τρ, χτ, χρ, φτ, πρ, σπ, σκ, σσ, κτ, τσ, θρ) = ΕΝΑ πλακίδιο\n'
     + '4. ΜΟΝΟ ολοκληρωμένες λέξεις ελληνικού λεξιλογίου, τουλάχιστον 3 γράμματα\n'
-    + '5. ΟΧΙ συλλαβές, ΟΧΙ τμήματα λέξεων\n\n'
+    + '5. ΟΧΙ συλλαβές, ΟΧΙ τμήματα λέξεων, ΟΧΙ τυχαίοι συνδυασμοί γραμμάτων\n\n'
     + 'Γράψε μόνο ελληνικές λέξεις που μπορούν να σχηματιστούν, μία ανά γραμμή. Χωρίς εξηγήσεις, χωρίς τίτλους, ΜΟΝΟ λέξεις.';
 
   const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
@@ -499,7 +513,12 @@ async function renderAutoSentence(nums, sig) {
 // ── Draw rendering ─────────────────────────────────────────────────────────
 function charClass(c) {
   if (!c) return '';
-  return 'αεοιηω'.includes(c) ? ' vowel' : ' consonant';
+  const DIPHS = new Set(['ευ','αυ','οι','αι','ου','ει']);
+  if (DIPHS.has(c.toLowerCase())) return ' diph';
+  if (c.length === 2) return ' cluster';
+  if (c.length === 1 && c !== c.toLowerCase()) return ' letter';
+  if (/[άέήίόύώ]/.test(c)) return ' accent';
+  return ' lower';
 }
 
 function renderDraw(draw) {
@@ -510,8 +529,9 @@ function renderDraw(draw) {
   const balls = draw.nums.map(n => {
     const c = NUM_TO_CHAR[n] || '';
     const cls = 'num-ball drawn' + charClass(c);
+    const fs = c.length > 1 ? '.55rem' : '.68rem';
     return `<div class="${cls}" title="${c} (${n})">
-      <span style="font-size:.68rem;display:block;line-height:1.1">${c}</span>
+      <span style="font-size:${fs};display:block;line-height:1.1">${c}</span>
       <span style="font-size:.55rem;opacity:.75">${n}</span>
     </div>`;
   }).join('');
@@ -693,16 +713,16 @@ function lookupWord() {
     return false;
   }
   if (!dfs(0)) {
-    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει γράμματα εκτός των 15 διαθέσιμων (α ε ο ι ν τ σ κ μ ρ π ω δ λ η).</div>';
+    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει χαρακτήρες εκτός χάρτη πλακιδίων.</div>';
     return;
   }
   const tileHtml = result.map(t => {
-    const [f, to] = LETTER_TO_RANGE[t] || ['-','-'];
-    const rng = f === to ? `${f}` : `${f}-${to}`;
-    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${rng}</span></div>`;
+    const n = CHAR_TO_NUM[t];
+    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${n}</span></div>`;
   }).join('');
+  const numList = result.map(t => CHAR_TO_NUM[t]).join(' - ');
   out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
-    <div class="lk-nums">Γράμματα: ${result.join(' · ')}</div>`;
+    <div class="lk-nums">Αριθμοί: ${numList}</div>`;
 }
 
 // ── Numbers → Tiles lookup ─────────────────────────────────────────────────
