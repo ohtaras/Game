@@ -65,6 +65,20 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #bookStatus{font-size:.8rem;color:#aaa}
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
 
+/* ── Word lookup ── */
+#lookupBox{display:flex;gap:8px;flex-wrap:wrap}
+#wordInput{flex:1;min-width:180px;padding:9px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:1rem;outline:none}
+#wordInput:focus{border-color:#5c6bc0}
+#lookupBtn{padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer}
+#lookupBtn:hover{background:#3f51b5}
+#lookupResult{margin-top:10px}
+.lk-tiles{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.lk-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:38px;padding:5px 7px;border-radius:8px;background:#1a2744;border:2px solid #37474f}
+.lk-tile .lk-c{font-size:.8rem;font-weight:700;color:#e8eaf6}
+.lk-tile .lk-n{font-size:.7rem;color:#9fa8da;font-weight:700}
+.lk-nums{margin-top:8px;font-size:.9rem;color:#b39ddb;font-family:monospace;letter-spacing:.06em}
+.lk-warn{font-size:.8rem;color:#ef9a9a;margin-top:6px}
+
 /* ── Responsive ── */
 @media(max-width:600px){
   #delayGrid{grid-template-columns:repeat(8,1fr)}
@@ -103,6 +117,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="delaySec">
     <h2>Καθυστερήσεις (κληρώσεις απουσίας ανά αριθμό)</h2>
     <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
+  </section>
+
+  <!-- Word → Numbers lookup -->
+  <section id="lookupSec">
+    <h2>Λέξη → Αριθμοί</h2>
+    <div id="lookupBox">
+      <input type="text" id="wordInput" placeholder="Γράψε μια λέξη (π.χ. ΝΙΚΗ)" autocomplete="off" spellcheck="false">
+      <button id="lookupBtn">Ανάλυση</button>
+    </div>
+    <div id="lookupResult"></div>
   </section>
 
   <!-- Word Matches -->
@@ -158,7 +182,8 @@ let drawCounter      = 0;              // total draws processed this session
 let lastSeen         = new Array(81).fill(-1);
 let delays           = new Array(81).fill(0);
 let delaysReady      = false;
-let bookIndex        = [];             // [{word, units, numSet, sentence, si}]
+let bookIndex        = [];             // [{word, norm, sentence, si}]
+let lastDrawNums     = null;           // last fetched draw's numbers (for re-render)
 let bookReady        = false;
 let saveLock         = false;
 let liveBuffer       = new Map();      // id → {id, n, b}
@@ -223,25 +248,40 @@ function localTimeStr(ms) {
   return new Date(ms).toLocaleTimeString('el-GR',{timeZone:'Europe/Athens',hour:'2-digit',minute:'2-digit'});
 }
 
-function decomposeWord(word) {
-  // Greedy decompose into character units using PATTERNS (longest first)
-  const w = word.toLowerCase().replace(/ς/g,'σ');
-  const units = [];
-  let i = 0;
-  while (i < w.length) {
-    let matched = false;
-    for (const p of PATTERNS) {
-      if (w.slice(i, i+p.length) === p) { units.push(p); i += p.length; matched = true; break; }
-    }
-    if (!matched) i++;
-  }
-  return units;
+function normWord(word) {
+  // Lowercase + normalize final sigma; KEEP accents (accented vowels are distinct tiles)
+  return word.toLowerCase().replace(/ς/g,'σ');
 }
 
-function getDrawnCharSet(nums) {
-  const s = new Set();
-  for (const n of nums) { const c = NUM_TO_CHAR[n]; if (c) s.add(c.toLowerCase()); }
-  return s;
+// Scrabble-style: can `word` be spelled using the available tile multiset?
+// avail = Map(char → count). Returns the chosen tile list, or null.
+// Each tile is consumed once; tries longest patterns first, backtracks.
+function spellWord(word, avail) {
+  function dfs(i) {
+    if (i === word.length) return [];
+    for (const t of PATTERNS) {
+      if (t.length > word.length - i) continue;
+      if ((avail.get(t)||0) <= 0) continue;
+      if (!word.startsWith(t, i)) continue;
+      avail.set(t, avail.get(t) - 1);
+      const rest = dfs(i + t.length);
+      if (rest) return [t, ...rest];
+      avail.set(t, avail.get(t) + 1);
+    }
+    return null;
+  }
+  return dfs(0);
+}
+
+function drawTileMultiset(nums) {
+  const m = new Map();
+  for (const n of nums) {
+    const c = NUM_TO_CHAR[n];
+    if (!c) continue;
+    const k = c.toLowerCase();
+    m.set(k, (m.get(k)||0) + 1);
+  }
+  return m;
 }
 
 function delayColor(d) {
@@ -285,20 +325,19 @@ async function loadBook() {
     const sent = sentences[si];
     const rawWords = sent.match(/[Ͱ-Ͽἀ-῿ΆΈ-ΊΌΎ-ΡΣ-ώ]+/g) || [];
     for (const rw of rawWords) {
-      const units = decomposeWord(rw);
-      if (units.length < 2) continue;
-      const numSet = new Set(units.map(u => CHAR_TO_NUM[u]).filter(Boolean));
-      if (numSet.size < 2) continue;
-      const key = [...numSet].sort((a,b)=>a-b).join(',');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      bookIndex.push({word:rw, units, numSet, sentence:sent, si});
+      const norm = normWord(rw);
+      if (norm.length < 2) continue;       // skip 1-char words
+      if (seen.has(norm)) continue;        // keep first occurrence
+      seen.add(norm);
+      bookIndex.push({word:rw, norm, sentence:sent, si});
     }
   }
 
   bookReady = true;
   document.getElementById('bookStatus').textContent =
     `Βιβλίο φορτώθηκε — ${sentences.length} προτάσεις, ${bookIndex.length} μοναδικές λέξεις στο ευρετήριο`;
+  // Re-render matches if a draw already arrived before the book finished loading
+  if (lastDrawNums) renderWordMatches(lastDrawNums);
 }
 
 // ── Historical delays ──────────────────────────────────────────────────────
@@ -409,13 +448,15 @@ function renderDelayTable() {
 // ── Word matching ──────────────────────────────────────────────────────────
 function findWordMatches(drawnNums) {
   if (!bookReady) return [];
-  const drawnChars = getDrawnCharSet(drawnNums);
+  const base = drawTileMultiset(drawnNums);
   const matches = [];
   for (const entry of bookIndex) {
-    if (entry.units.every(u => drawnChars.has(u))) matches.push(entry);
+    const tiles = spellWord(entry.norm, new Map(base)); // fresh copy per word
+    if (tiles) matches.push({...entry, tiles});
   }
-  matches.sort((a,b) => b.units.length - a.units.length || a.si - b.si);
-  return matches.slice(0, 25);
+  // Longest word first (most tiles used), then sentence order
+  matches.sort((a,b) => b.tiles.length - a.tiles.length || a.si - b.si);
+  return matches.slice(0, 40);
 }
 
 function renderWordMatches(nums) {
@@ -426,19 +467,19 @@ function renderWordMatches(nums) {
     list.innerHTML='<div style="color:#666;font-size:.85rem">Δεν βρέθηκαν λέξεις για αυτή την κλήρωση.</div>';
     return;
   }
-  const html = matches.map(({word, units, numSet, sentence}) => {
-    const lenClass = `wm-len-${Math.min(units.length, 6)}`;
+  const html = matches.map(({word, tiles, sentence}) => {
+    const lenClass = `wm-len-${Math.min(tiles.length, 6)}`;
     const esc = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const re = new RegExp(`(${esc})`, 'gi');
     const ctx = sentence.replace(re,'<em>$1</em>');
-    const unitsStr = units.map(u => `${u}·${CHAR_TO_NUM[u]}`).join(' ');
+    const tileStr = tiles.map(t => `${t}·${CHAR_TO_NUM[t]}`).join(' ');
     return `<div class="word-match ${lenClass}">
       <div class="wm-word">${word}</div>
-      <div class="wm-nums">${unitsStr}</div>
+      <div class="wm-nums">${tileStr}</div>
       <div class="wm-ctx">${ctx}</div>
     </div>`;
   }).join('');
-  list.innerHTML = html;
+  list.innerHTML = `<div style="font-size:.72rem;color:#7986cb;margin-bottom:4px">${matches.length} λέξεις (σαν σκραμπλ από τα 20 πλακίδια)</div>` + html;
 }
 
 // ── Draw rendering ─────────────────────────────────────────────────────────
@@ -581,6 +622,7 @@ async function fetchLiveNow() {
       liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
 
     // Always render the current draw
+    lastDrawNums = draw.nums;
     renderDraw(draw);
     renderWordMatches(draw.nums);
 
@@ -625,9 +667,47 @@ function stopLive() {
   document.getElementById('countdown').textContent = '';
 }
 
+// ── Word → Numbers lookup ──────────────────────────────────────────────────
+function lookupWord() {
+  const raw = document.getElementById('wordInput').value.trim();
+  const out = document.getElementById('lookupResult');
+  if (!raw) { out.innerHTML = ''; return; }
+  const norm = normWord(raw);
+  // Greedy longest-first decomposition (no availability limit — pure analysis)
+  const tiles = [];
+  let i = 0, leftover = '';
+  while (i < norm.length) {
+    let matched = false;
+    for (const p of PATTERNS) {
+      if (p.length <= norm.length - i && norm.startsWith(p, i)) {
+        tiles.push(p); i += p.length; matched = true; break;
+      }
+    }
+    if (!matched) { leftover += norm[i]; i++; }
+  }
+  if (!tiles.length) {
+    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε κανένας χαρακτήρας.</div>';
+    return;
+  }
+  const tileHtml = tiles.map(t => {
+    const n = CHAR_TO_NUM[t];
+    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${n}</span></div>`;
+  }).join('');
+  const numList = tiles.map(t => CHAR_TO_NUM[t]).join(' - ');
+  const warn = leftover ? `<div class="lk-warn">Αγνοήθηκαν: ${leftover}</div>` : '';
+  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
+    <div class="lk-nums">Αριθμοί: ${numList}</div>${warn}`;
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   refreshTokenState();
+
+  document.getElementById('lookupBtn').addEventListener('click', lookupWord);
+  document.getElementById('wordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupWord();
+  });
+  document.getElementById('wordInput').addEventListener('input', lookupWord);
 
   // Placeholder delay grid
   let ph = '';
