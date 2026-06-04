@@ -65,6 +65,21 @@ button{padding:8px 18px;border:none;border-radius:8px;font-size:.85rem;font-weig
   </section>
 
   <section>
+    <h2>Claude API Key</h2>
+    <label for="claudeInput">Key (για αυτόματη σύνθεση πρότασης από τις λέξεις της κλήρωσης)</label>
+    <input type="password" id="claudeInput" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+    <div class="btn-row">
+      <button class="btn-save" onclick="saveClaude()">💾 Αποθήκευση</button>
+      <button class="btn-check" onclick="checkClaude()">✓ Επαλήθευση</button>
+      <button class="btn-clear" onclick="clearClaude()">🗑 Διαγραφή</button>
+    </div>
+    <div id="claudeStatus"></div>
+    <div class="info-box" style="margin-top:12px">
+      <p>Από <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>. Αποθηκεύεται μόνο στο browser σου (<code>localStorage</code>) και χρησιμοποιείται απευθείας με το Anthropic API.</p>
+    </div>
+  </section>
+
+  <section>
     <h2>Πληροφορίες</h2>
     <div class="info-box">
       <p>Το GitHub token χρειάζεται για <strong>αποθήκευση κληρώσεων</strong> στο repository.</p>
@@ -132,16 +147,71 @@ async function checkToken() {
   }
 }
 
-// Load saved token on page open
+// ── Claude API key ──────────────────────────────────────────────
+function setClaudeStatus(msg, type) {
+  const el = document.getElementById('claudeStatus');
+  el.textContent = msg;
+  el.className = type;
+}
+
+function saveClaude() {
+  const val = document.getElementById('claudeInput').value.trim();
+  if (!val) { setClaudeStatus('⚠ Εισήγαγε ένα key πρώτα', 'err'); return; }
+  if (!val.startsWith('sk-ant-')) {
+    setClaudeStatus('⚠ Το key δεν φαίνεται έγκυρο (πρέπει να ξεκινά με sk-ant-)', 'err');
+    return;
+  }
+  localStorage.setItem('claude_api_key', val);
+  setClaudeStatus('✓ Claude key αποθηκεύτηκε', 'ok');
+}
+
+function clearClaude() {
+  localStorage.removeItem('claude_api_key');
+  document.getElementById('claudeInput').value = '';
+  setClaudeStatus('Claude key διαγράφηκε', 'info');
+}
+
+async function checkClaude() {
+  const key = (localStorage.getItem('claude_api_key') || document.getElementById('claudeInput').value).trim();
+  if (!key) { setClaudeStatus('⚠ Δεν υπάρχει key για έλεγχο', 'err'); return; }
+  setClaudeStatus('⏳ Επαλήθευση...', 'info');
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({model: 'claude-haiku-4-5-20251001', max_tokens: 8, messages: [{role:'user', content:'γεια'}]}),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (r.ok) setClaudeStatus('✓ Claude key έγκυρο και λειτουργεί', 'ok');
+    else if (r.status === 401) setClaudeStatus('✗ Key άκυρο (401)', 'err');
+    else { const t = await r.text(); setClaudeStatus('✗ Σφάλμα ' + r.status + ': ' + t.slice(0,120), 'err'); }
+  } catch(e) {
+    setClaudeStatus('✗ Αδυναμία σύνδεσης: ' + e.message, 'err');
+  }
+}
+
+// Load saved keys on page open
 window.addEventListener('load', () => {
   const saved = localStorage.getItem('gh_token');
   if (saved) {
     document.getElementById('tokenInput').value = saved;
     setStatus('✓ Token αποθηκευμένο στο browser', 'ok');
   }
-  // Allow Enter key to save
+  const claude = localStorage.getItem('claude_api_key');
+  if (claude) {
+    document.getElementById('claudeInput').value = claude;
+    setClaudeStatus('✓ Claude key αποθηκευμένο στο browser', 'ok');
+  }
   document.getElementById('tokenInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') saveToken();
+  });
+  document.getElementById('claudeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveClaude();
   });
 });
 </script>
