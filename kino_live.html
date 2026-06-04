@@ -240,6 +240,32 @@ function normWord(word) {
   return word.toLowerCase().replace(/ς/g,'σ');
 }
 
+// Strict Scrabble check: can `word` be spelled from tile multiset `avail`?
+function spellWord(word, avail) {
+  function dfs(i) {
+    if (i === word.length) return true;
+    for (const t of PATTERNS) {
+      if (t.length > word.length - i) continue;
+      if ((avail.get(t)||0) <= 0) continue;
+      if (!word.startsWith(t, i)) continue;
+      avail.set(t, avail.get(t) - 1);
+      if (dfs(i + t.length)) return true;
+      avail.set(t, avail.get(t) + 1);
+    }
+    return false;
+  }
+  return dfs(0);
+}
+
+function drawTileMultiset(nums) {
+  const m = new Map();
+  for (const n of nums) {
+    const c = NUM_TO_CHAR[n]; if (!c) continue;
+    m.set(c.toLowerCase(), (m.get(c.toLowerCase())||0) + 1);
+  }
+  return m;
+}
+
 function delayColor(d) {
   const t = Math.min(d / 60, 1);
   const hue = Math.round(120 * (1 - t));
@@ -390,38 +416,40 @@ async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
   return (data.content?.[0]?.text||'').trim();
 }
 
-// Two-turn Scrabble: Turn 1 → Claude commits to word list; Turn 2 → sentence from that list only
-async function claudeSentence(tiles, apiKey) {
+// Turn 1: Claude proposes candidate words → JS verifies each strictly → Turn 2: sentence from verified only
+async function claudeSentence(tiles, nums, apiKey) {
   const key = apiKey.trim();
   const model = 'claude-haiku-4-5-20251001';
-  const sys = 'Είσαι διαιτητής Σκραμπλ. Ακολουθείς τους κανόνες αυστηρά: κάθε πλακίδιο χρησιμοποιείται ΜΟΝΟ ΜΙΑ ΦΟΡΑ.';
+  const sys = 'Απαντάς στα ελληνικά. Ακολουθείς ακριβώς τις οδηγίες.';
 
-  const prompt1 = 'Πλακίδια κλήρωσης: ' + tiles.join(', ') + '\n\n'
-    + 'Βρες ΜΟΝΟ τις ελληνικές λέξεις που μπορούν να σχηματιστούν από αυτά τα πλακίδια '
-    + '(κάθε πλακίδιο μία φορά, κανένα επιπλέον γράμμα). '
-    + 'Απάντησε ΜΟΝΟ με λίστα λέξεων, μία ανά γραμμή, χωρίς εξηγήσεις.';
+  // Turn 1: get candidate word list from Claude
+  const prompt1 = 'Πλακίδια: ' + tiles.join(', ') + '\n'
+    + 'Ποιες ελληνικές λέξεις μπορώ να γράψω χρησιμοποιώντας μόνο αυτά τα πλακίδια (κάθε ένα μέγιστο μία φορά); '
+    + 'Απάντησε μόνο με τις λέξεις, μία ανά γραμμή, χωρίς άλλο κείμενο.';
 
-  const wordListRaw = await anthropicFetch(key, model, sys,
-    [{role:'user', content: prompt1}], 400);
+  const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
 
-  const words = wordListRaw.split('\n')
+  // Parse Claude's suggestions
+  const candidates = rawWords.split('\n')
     .map(l => l.replace(/^[-–•*\d.)\s]+/, '').trim())
     .filter(l => l.length >= 2);
 
-  if (!words.length) return {sentence: null, words: []};
+  // JS strictly verifies each candidate against the actual tile multiset
+  const base = drawTileMultiset(nums);
+  const verified = candidates.filter(w => spellWord(normWord(w), new Map(base)));
 
-  const prompt2 = 'Φτιάξε μια πρόταση ή φράση χρησιμοποιώντας ΜΟΝΟ λέξεις από την παραπάνω λίστα σου. '
-    + 'Απάντησε ΜΟΝΟ με την πρόταση/φράση, χωρίς εξηγήσεις.';
+  if (!verified.length) return {sentence: null, words: [], rejected: candidates};
 
-  const sentence = await anthropicFetch(key, model, sys, [
-    {role:'user',      content: prompt1},
-    {role:'assistant', content: wordListRaw},
-    {role:'user',      content: prompt2}
-  ], 150);
+  // Turn 2: clean single prompt with ONLY verified words
+  const prompt2 = 'Χρησιμοποιώντας ΜΟΝΟ αυτές τις λέξεις: ' + verified.join(', ')
+    + ' — φτιάξε μια σύντομη πρόταση ή φράση. Απάντησε ΜΟΝΟ με την πρόταση, χωρίς εξηγήσεις.';
+
+  const sentence = await anthropicFetch(key, model, sys, [{role:'user', content: prompt2}], 150);
 
   return {
     sentence: sentence.replace(/^["«»\s]+|["«»\s]+$/g,'').trim() || null,
-    words
+    words: verified,
+    rejected: candidates.filter(w => !verified.includes(w))
   };
 }
 
@@ -437,22 +465,24 @@ async function renderAutoSentence(nums, sig) {
   }
 
   if (claudeCacheSig === sig && claudeCache) {
-    const {sentence, words} = claudeCache;
+    const {sentence, words, rejected} = claudeCache;
     el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
-      + `<span class="as-meta">Λέξεις Σκραμπλ: ${words.join(', ')}</span>`;
+      + `<span class="as-meta">✓ Επαληθευμένες λέξεις (JS Scrabble): ${words.join(', ')||'—'}`
+      + (rejected?.length ? ` · ✗ Απορρίφθηκαν: ${rejected.join(', ')}` : '') + '</span>';
     return;
   }
 
-  el.innerHTML = '<span class="as-meta">✦ Claude: βρίσκει λέξεις Σκραμπλ…</span>';
+  el.innerHTML = '<span class="as-meta">✦ Βήμα 1/2: Claude βρίσκει λέξεις…</span>';
   if (claudeBusy) return;
   claudeBusy = true;
   const tiles = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
-    const result = await claudeSentence(tiles, key);
+    const result = await claudeSentence(tiles, nums, key);
     claudeCacheSig = sig; claudeCache = result;
-    const {sentence, words} = result;
+    const {sentence, words, rejected} = result;
     el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
-      + `<span class="as-meta">Λέξεις Σκραμπλ: ${words.join(', ')}</span>`;
+      + `<span class="as-meta">✓ Επαληθευμένες λέξεις (JS Scrabble): ${words.join(', ')||'—'}`
+      + (rejected?.length ? ` · ✗ Απορρίφθηκαν: ${rejected.join(', ')}` : '') + '</span>';
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
   } finally {
