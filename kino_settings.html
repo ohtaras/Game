@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ρυθμίσεις — Kino Live</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
+.back{font-size:.85rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px;margin-left:auto}
+.back:hover{background:#2a2a4a}
+
+main{max-width:600px;margin:0 auto;padding:20px 16px}
+section{background:#1a1a2e;border-radius:10px;padding:20px;margin-bottom:16px}
+section h2{font-size:.95rem;font-weight:600;color:#7986cb;margin-bottom:14px;text-transform:uppercase;letter-spacing:.06em}
+
+label{display:block;font-size:.85rem;color:#aaa;margin-bottom:6px}
+input[type=password],input[type=text]{
+  width:100%;padding:10px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;
+  color:#e8e8e8;font-size:.9rem;font-family:monospace;outline:none
+}
+input:focus{border-color:#5c6bc0}
+
+.btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button{padding:8px 18px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer}
+.btn-save{background:#2e7d32;color:#c8e6c9}
+.btn-save:hover{background:#388e3c}
+.btn-clear{background:#4a1212;color:#ef9a9a}
+.btn-clear:hover{background:#6a1212}
+.btn-check{background:#1a237e;color:#c5cae9}
+.btn-check:hover{background:#283593}
+
+#status{margin-top:12px;font-size:.82rem;padding:8px 12px;border-radius:6px;display:none}
+#status.ok{background:#1b5e20;color:#a5d6a7;display:block}
+#status.err{background:#4a1212;color:#ef9a9a;display:block}
+#status.info{background:#1a237e;color:#c5cae9;display:block}
+
+.info-box{background:#0e0e1a;border-radius:8px;padding:14px;font-size:.82rem;color:#90a4ae;line-height:1.6}
+.info-box strong{color:#9fa8da}
+.info-box code{background:#1e1e2e;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.8rem;color:#80cbc4}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ Ρυθμίσεις</h1>
+  <a href="kino_live.html" class="back">← Kino Live</a>
+</header>
+
+<main>
+  <section>
+    <h2>GitHub Personal Access Token</h2>
+    <label for="tokenInput">Token (αποθηκεύεται μόνο στο browser σου — δεν στέλνεται πουθενά)</label>
+    <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    <div class="btn-row">
+      <button class="btn-save" onclick="saveToken()">💾 Αποθήκευση</button>
+      <button class="btn-check" onclick="checkToken()">✓ Επαλήθευση</button>
+      <button class="btn-clear" onclick="clearToken()">🗑 Διαγραφή</button>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section>
+    <h2>Πληροφορίες</h2>
+    <div class="info-box">
+      <p>Το GitHub token χρειάζεται για <strong>αποθήκευση κληρώσεων</strong> στο repository.</p>
+      <br>
+      <p><strong>Πώς να δημιουργήσεις token:</strong></p>
+      <ol style="margin:8px 0 0 16px">
+        <li>GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</li>
+        <li>Generate new token → σημείωσε <code>repo</code> scope</li>
+        <li>Αντέγραψε το token και επέστρεψε εδώ</li>
+      </ol>
+      <br>
+      <p>Το token αποθηκεύεται στο <code>localStorage</code> του browser σου. Δεν αποστέλλεται σε κανένα server εκτός GitHub API.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+function setStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = type;
+}
+
+function saveToken() {
+  const val = document.getElementById('tokenInput').value.trim();
+  if (!val) { setStatus('⚠ Εισήγαγε ένα token πρώτα', 'err'); return; }
+  if (!val.startsWith('ghp_') && !val.startsWith('github_pat_')) {
+    setStatus('⚠ Το token δεν φαίνεται έγκυρο (πρέπει να ξεκινά με ghp_ ή github_pat_)', 'err');
+    return;
+  }
+  localStorage.setItem('gh_token', val);
+  document.getElementById('tokenInput').value = val;
+  setStatus('✓ Token αποθηκεύτηκε επιτυχώς', 'ok');
+}
+
+function clearToken() {
+  localStorage.removeItem('gh_token');
+  document.getElementById('tokenInput').value = '';
+  setStatus('Token διαγράφηκε', 'info');
+}
+
+async function checkToken() {
+  const token = localStorage.getItem('gh_token') || document.getElementById('tokenInput').value.trim();
+  if (!token) { setStatus('⚠ Δεν υπάρχει token για έλεγχο', 'err'); return; }
+  setStatus('⏳ Επαλήθευση...', 'info');
+  try {
+    const r = await fetch('https://api.github.com/repos/ohtaras/Game', {
+      headers: {Authorization: 'token '+token, Accept: 'application/vnd.github.v3+json'},
+      signal: AbortSignal.timeout(10000)
+    });
+    if (r.ok) {
+      const data = await r.json();
+      setStatus(`✓ Token έγκυρο — πρόσβαση στο ${data.full_name} (${data.permissions?.push?'με':'χωρίς'} δικαίωμα εγγραφής)`, 'ok');
+    } else if (r.status === 401) {
+      setStatus('✗ Token άκυρο ή ληγμένο', 'err');
+    } else if (r.status === 404) {
+      setStatus('✗ Repository δεν βρέθηκε (έλεγξε τα δικαιώματα)', 'err');
+    } else {
+      setStatus('✗ Σφάλμα: HTTP ' + r.status, 'err');
+    }
+  } catch(e) {
+    setStatus('✗ Αδυναμία σύνδεσης: ' + e.message, 'err');
+  }
+}
+
+// Load saved token on page open
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('gh_token');
+  if (saved) {
+    document.getElementById('tokenInput').value = saved;
+    setStatus('✓ Token αποθηκευμένο στο browser', 'ok');
+  }
+  // Allow Enter key to save
+  document.getElementById('tokenInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveToken();
+  });
+});
+</script>
+</body>
+</html>
