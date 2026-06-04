@@ -449,7 +449,9 @@ async function claudeSentence(tiles, nums, apiKey) {
     + 'ΚΑΝΟΝΕΣ:\n'
     + '1. Κάθε πλακίδιο μία μόνο φορά (εκτός αν υπάρχει ×2 κ.λπ.)\n'
     + '2. Τονισμένο ≠ άτονο: «ύ»≠«υ», «ί»≠«ι», «ό»≠«ο», «ή»≠«η», «ά»≠«α», «έ»≠«ε», «ώ»≠«ω» — ΕΛΕΓΞΕ τους τόνους!\n'
-    + '3. Δίγραφα (αυ, ευ, αι, οι, ου, λλ, μπ, γκ, γγ, νδ, ντ, ρχ, τρ, χτ, χρ, φτ, πρ, σπ, σκ, σσ, κτ, τσ, θρ) = ΕΝΑ πλακίδιο\n\n'
+    + '3. Δίγραφα (αυ, ευ, αι, οι, ου, λλ, μπ, γκ, γγ, νδ, ντ, ρχ, τρ, χτ, χρ, φτ, πρ, σπ, σκ, σσ, κτ, τσ, θρ) = ΕΝΑ πλακίδιο\n'
+    + '4. ΜΟΝΟ ολοκληρωμένες λέξεις του ελληνικού λεξιλογίου — τουλάχιστον 3 γράμματα\n'
+    + '5. ΟΧΙ συλλαβές, ΟΧΙ τμήματα λέξεων, ΟΧΙ τυχαίοι συνδυασμοί γραμμάτων\n\n'
     + 'Γράψε μόνο ελληνικές λέξεις που μπορούν να σχηματιστούν, μία ανά γραμμή. Χωρίς εξηγήσεις, χωρίς τίτλους, ΜΟΝΟ λέξεις.';
 
   const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
@@ -457,7 +459,7 @@ async function claudeSentence(tiles, nums, apiKey) {
   // Parse Claude's suggestions — strip bullet/numbering, skip headers and sentences
   const candidates = rawWords.split('\n')
     .map(l => l.replace(/^[-–•*\d.)\s]+/, '').trim())
-    .filter(l => l.length >= 2 && l.length <= 25 && !l.includes(':') && !l.includes(' ') && !l.includes(','));
+    .filter(l => l.length >= 3 && l.length <= 25 && !l.includes(':') && !l.includes(' ') && !l.includes(','));
 
   // JS strictly verifies each candidate against the actual tile multiset
   const base = drawTileMultiset(nums);
