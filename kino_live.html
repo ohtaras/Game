@@ -54,11 +54,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
 
 /* ── Word lookup ── */
-#lookupBox{display:flex;gap:8px;flex-wrap:wrap}
-#wordInput{flex:1;min-width:180px;padding:9px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:1rem;outline:none}
-#wordInput:focus{border-color:#5c6bc0}
-#lookupBtn{padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer}
-#lookupBtn:hover{background:#3f51b5}
+#lookupBox,#numsLookupBox{display:flex;gap:8px;flex-wrap:wrap}
+#wordInput,#numsInput{flex:1;min-width:180px;padding:9px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:1rem;outline:none}
+#wordInput:focus,#numsInput:focus{border-color:#5c6bc0}
+#lookupBtn,#numsLookupBtn{padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer}
+#lookupBtn:hover,#numsLookupBtn:hover{background:#3f51b5}
 #lookupResult{margin-top:10px}
 .lk-tiles{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .lk-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:38px;padding:5px 7px;border-radius:8px;background:#1a2744;border:2px solid #37474f}
@@ -119,6 +119,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button id="lookupBtn">Ανάλυση</button>
     </div>
     <div id="lookupResult"></div>
+  </section>
+
+  <!-- Numbers → Tiles lookup -->
+  <section id="numsLookupSec">
+    <h2>Αριθμοί → Λέξη</h2>
+    <div id="numsLookupBox">
+      <input type="text" id="numsInput" placeholder="π.χ. 5 12 31 10  ή  5,12,31,10" autocomplete="off" spellcheck="false">
+      <button id="numsLookupBtn">Ανάλυση</button>
+    </div>
+    <div id="numsLookupResult"></div>
   </section>
 
   <!-- Auto-composed sentence -->
@@ -720,15 +730,38 @@ function lookupWord() {
     <div class="lk-nums">Αριθμοί: ${numList}</div>`;
 }
 
+// ── Numbers → Tiles lookup ─────────────────────────────────────────────────
+function lookupNums() {
+  const raw = document.getElementById('numsInput').value.trim();
+  const out = document.getElementById('numsLookupResult');
+  if (!raw) { out.innerHTML = ''; return; }
+  const nums = raw.split(/[\s,;]+/).map(s => parseInt(s, 10)).filter(n => n >= 1 && n <= 80);
+  if (!nums.length) {
+    out.innerHTML = '<div class="lk-warn">Δώσε αριθμούς 1–80 χωρισμένους με κενό ή κόμμα.</div>';
+    return;
+  }
+  const invalid = raw.split(/[\s,;]+/).filter(s => s && (isNaN(parseInt(s,10)) || parseInt(s,10) < 1 || parseInt(s,10) > 80));
+  const tiles = nums.map(n => ({ n, t: NUM_TO_CHAR[n] }));
+  const word = tiles.map(x => x.t).join('');
+  const tileHtml = tiles.map(({n, t}) =>
+    `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${n}</span></div>`
+  ).join('');
+  const warn = invalid.length ? `<div class="lk-warn">Αγνοήθηκαν: ${invalid.join(', ')}</div>` : '';
+  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
+    <div class="lk-nums">Λέξη: ${word}</div>${warn}`;
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   refreshTokenState();
 
   document.getElementById('lookupBtn').addEventListener('click', lookupWord);
-  document.getElementById('wordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') lookupWord();
-  });
+  document.getElementById('wordInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupWord(); });
   document.getElementById('wordInput').addEventListener('input', lookupWord);
+
+  document.getElementById('numsLookupBtn').addEventListener('click', lookupNums);
+  document.getElementById('numsInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupNums(); });
+  document.getElementById('numsInput').addEventListener('input', lookupNums);
 
   // Placeholder delay grid
   let ph = '';
