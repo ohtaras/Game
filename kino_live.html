@@ -18,13 +18,12 @@ header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 #countdown{font-size:.8rem;color:#aaa;margin-left:auto}
 
-/* ── Token section ── */
-#tokenSec{background:#1a1a2e;padding:10px 16px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#tokenSec label{font-size:.8rem;color:#aaa;white-space:nowrap}
-#tokenInput{background:#0f0f1f;color:#e8e8e8;border:1px solid #3a3a5a;border-radius:6px;padding:5px 10px;font-size:.8rem;width:280px;max-width:100%}
-#tokenStatus{font-size:.75rem;color:#aaa}
-.save-btn{background:#1565c0;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:.78rem;cursor:pointer}
-.save-btn:hover{background:#1976d2}
+/* ── Header settings link ── */
+#settingsLink{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+#settingsLink:hover{background:#2a2a4a}
+/* ── Token bar ── */
+#tokenBar{background:#1a1a2e;padding:8px 16px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.78rem}
+#tokenState{color:#aaa}
 
 /* ── Main layout ── */
 main{max-width:1100px;margin:0 auto;padding:12px 12px}
@@ -64,7 +63,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 /* ── Responsive ── */
 @media(max-width:600px){
-  #tokenInput{width:100%}
   #delayGrid{grid-template-columns:repeat(8,1fr)}
 }
 </style>
@@ -74,14 +72,13 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 <header>
   <h1>🎱 Kino Live</h1>
   <span id="liveBadge" class="badge off">⏸ ΕΚΤΟΣ</span>
+  <a href="kino_settings.html" id="settingsLink" title="Ρυθμίσεις">⚙ Ρυθμίσεις</a>
   <span id="countdown"></span>
 </header>
 
-<div id="tokenSec">
-  <label>GitHub Token:</label>
-  <input id="tokenInput" type="password" placeholder="ghp_... (για αποθήκευση κληρώσεων)">
-  <button class="save-btn" onclick="saveToken()">Αποθήκευση</button>
-  <span id="tokenStatus"></span>
+<div id="tokenBar">
+  <span id="tokenState"></span>
+  <a href="kino_settings.html">Άνοιγμα ρυθμίσεων →</a>
 </div>
 
 <main>
@@ -117,9 +114,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 // ── Constants ──────────────────────────────────────────────────────────────
 const REPO        = 'ohtaras/Game';
 const DATA_BRANCH = 'main';
-const OPAP_URL    = 'https://api.opap.gr/draws/v3.0/1100/last-result-and-active';
+const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
 const BOOK_URL    = 'https://raw.githubusercontent.com/ohtaras/Game/gh-pages/data/book_game_theory.txt';
 const BOOK_URL2   = 'https://ohtaras.github.io/Game/data/book_game_theory.txt';
+const TZ_MS       = 3 * 3600 * 1000;           // Athens UTC+3
+const LIVE_BASE_MS= Date.UTC(2024, 11, 31, 22, 0, 0); // 2025-01-01 00:00 EET
+const LIVE_BASE_ID= 1155022;
+const pad = n => String(n).padStart(2,'0');
+function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
 // ── Character mapping ──────────────────────────────────────────────────────
 const GR_UP = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ'; // 1-24
@@ -127,17 +129,19 @@ const LETTER_TO_NUM = {};
 [...GR_UP].forEach((c, i) => LETTER_TO_NUM[c] = i + 1);
 
 // ── State ──────────────────────────────────────────────────────────────────
-let liveRunning  = false;
-let liveTimerId  = null;
-let lastDrawId   = 0;
-let drawCounter  = 0;              // total draws processed this session
-let lastSeen     = new Array(81).fill(-1); // lastSeen[n] = drawCounter when n last drawn
-let delays       = new Array(81).fill(0);  // current delay per number
-let delaysReady  = false;
-let bookIndex    = [];             // [{word, nums:Set, sentence, sentenceKey}]
-let bookReady    = false;
-let saveLock     = false;
-let pendingDraws = [];             // draws waiting to be saved
+let liveRunning      = false;
+let liveTimerId      = null;
+let liveCountdownId  = null;
+let lastDrawId       = 0;
+let drawCounter      = 0;              // total draws processed this session
+let lastSeen         = new Array(81).fill(-1);
+let delays           = new Array(81).fill(0);
+let delaysReady      = false;
+let bookIndex        = [];             // [{word, nums:Set, sentence, si}]
+let bookReady        = false;
+let saveLock         = false;
+let liveBuffer       = new Map();      // id → {id, n, b}
+let liveLastSavedCount = 0;
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -145,9 +149,11 @@ function ghHeaders() {
   return t ? {Authorization:'token '+t,'Content-Type':'application/json'} : {'Content-Type':'application/json'};
 }
 
-function saveToken() {
-  const v = document.getElementById('tokenInput').value.trim();
-  if (v) { localStorage.setItem('gh_token', v); document.getElementById('tokenStatus').textContent = '✓ Αποθηκεύτηκε'; }
+function refreshTokenState() {
+  const has = !!localStorage.getItem('gh_token');
+  document.getElementById('tokenState').textContent = has
+    ? '🔑 GitHub token αποθηκευμένο — οι νέες κληρώσεις αποθηκεύονται αυτόματα'
+    : '⚠ Δεν υπάρχει token — άνοιξε τις ρυθμίσεις για αποθήκευση κληρώσεων';
 }
 
 async function apiFetch(url) {
@@ -196,17 +202,8 @@ function localTimeStr(ms) {
   return new Date(ms).toLocaleTimeString('el-GR',{timeZone:'Europe/Athens',hour:'2-digit',minute:'2-digit'});
 }
 
-function drawYearMonth(ms) {
-  const d = new Date(ms);
-  // Use Athens time (UTC+3 summer)
-  const gd = new Date(d.getTime() + 3*3600000);
-  const y = gd.getUTCFullYear();
-  const m = String(gd.getUTCMonth()+1).padStart(2,'0');
-  return [String(y), m];
-}
-
 function stripAccents(s) {
-  return s.normalize('NFD').replace(/[̀-ͯͅ]/g,'');
+  return s.normalize('NFD').replace(/[̀-ͯ]/g,'');
 }
 
 function wordToNums(w) {
@@ -217,16 +214,24 @@ function wordToNums(w) {
 }
 
 function delayColor(d) {
-  // Green→Yellow→Orange→Red scale; expected delay = 4 draws
   const t = Math.min(d / 60, 1);
   const hue = Math.round(120 * (1 - t));
   const sat = 80, lig = t < 0.5 ? 42 : 38;
   return `hsl(${hue},${sat}%,${lig}%)`;
 }
 
-function fmtSec(s) {
-  const m = Math.floor(s/60), ss = Math.floor(s%60);
-  return m>0 ? `${m}:${String(ss).padStart(2,'0')}` : `${ss}s`;
+function fmtMs(ms) {
+  const s = Math.round(ms / 1000);
+  return `${pad(Math.floor(s/60))}:${pad(s%60)}`;
+}
+
+// ── Timer helper ──────────────────────────────────────────────────────────
+function msToNext() {
+  const now = new Date(), m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds()/1000;
+  const cur5 = Math.floor(m/5)*5;
+  let diff = (cur5+5)*60 + 15 - (m*60+s);
+  if (diff <= 0) diff += 300;
+  return diff * 1000;
 }
 
 // ── Book loading & indexing ────────────────────────────────────────────────
@@ -240,7 +245,6 @@ async function loadBook() {
   }
   if (!text) { document.getElementById('bookStatus').textContent = '⚠ Αδυναμία φόρτωσης βιβλίου.'; return; }
 
-  // Split into sentences (by period+space, newline, question/excl mark)
   const sentences = text.split(/(?<=[.!?])\s+|\n{2,}/).map(s=>s.trim()).filter(s=>s.length>10);
 
   const seen = new Set();
@@ -248,13 +252,12 @@ async function loadBook() {
 
   for (let si=0; si<sentences.length; si++) {
     const sent = sentences[si];
-    // Tokenize words (only letters)
     const rawWords = sent.match(/[Ͱ-Ͽἀ-῿ΆΈ-ΊΌΎ-ΡΣ-ώ]+/g) || [];
     for (const rw of rawWords) {
       const nums = wordToNums(rw);
-      if (nums.size < 3) continue; // skip very short words
+      if (nums.size < 3) continue;
       const key = [...nums].sort((a,b)=>a-b).join(',');
-      if (seen.has(key)) continue; // keep first occurrence only
+      if (seen.has(key)) continue;
       seen.add(key);
       bookIndex.push({word:rw, nums, sentence:sent, si});
     }
@@ -271,9 +274,7 @@ async function loadHistoricalDelays() {
   const months = [];
   for (let i=0; i<3; i++) {
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    months.push(`${y}_${m}`);
+    months.push(`${d.getFullYear()}_${pad(d.getMonth()+1)}`);
   }
 
   let allDraws = [];
@@ -283,7 +284,6 @@ async function loadHistoricalDelays() {
   }
   allDraws.sort((a,b)=>a.id-b.id);
 
-  // Compute last-seen index for each number
   const hist = new Array(81).fill(-1);
   for (let i=0; i<allDraws.length; i++) {
     for (const n of allDraws[i].n) if (n>=1&&n<=80) hist[n] = i;
@@ -291,13 +291,71 @@ async function loadHistoricalDelays() {
   const total = allDraws.length;
   for (let n=1; n<=80; n++) {
     delays[n] = hist[n]===-1 ? total : total - hist[n];
-    lastSeen[n] = hist[n]===-1 ? -1 : hist[n];
+    lastSeen[n] = hist[n];
   }
   drawCounter = total;
 
   if (allDraws.length) lastDrawId = allDraws[allDraws.length-1].id;
   delaysReady = true;
   renderDelayTable();
+}
+
+// ── Gap-fill: fetch last N days from OPAP and save any missing draws ───────
+async function gapFill(days=3) {
+  if (!localStorage.getItem('gh_token')) return;
+  const el = document.getElementById('saveStatus');
+  el.textContent = '⏳ Έλεγχος κληρώσεων τελευταίων ' + days + ' ημερών...';
+  try {
+    const byMonth = {};
+    for (let d=0; d<days; d++) {
+      const dt = new Date(Date.now() - d * 86400000);
+      const dayStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+      const items = await fetchDaySeq(dayStr);
+      for (const item of items) {
+        if (!item.winningNumbers?.list?.length) continue;
+        const id = item.drawId;
+        const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
+        const dt2 = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+        const ym = `${dt2.getUTCFullYear()}_${pad(dt2.getUTCMonth()+1)}`;
+        if (!byMonth[ym]) byMonth[ym] = [];
+        byMonth[ym].push({id, n:[...item.winningNumbers.list].sort((a,b)=>a-b), b:(item.winningNumbers.bonus||[])[0]||null});
+      }
+    }
+    let totalNew = 0;
+    for (const [ym, draws] of Object.entries(byMonth)) {
+      const path = `data/raw/kino_raw_${ym}.json`;
+      const mStr = ym.replace('_','-');
+      const existing = await ghGet(path) || {month:mStr, draws:[]};
+      const exIds = new Set(existing.draws.map(d=>d.id));
+      const newOnes = draws.filter(d=>!exIds.has(d.id));
+      if (!newOnes.length) continue;
+      const merged = [...existing.draws, ...newOnes].sort((a,b)=>a.id-b.id);
+      await ghPut(path, {month:mStr, draws:merged}, `Gap-fill: +${newOnes.length} ${mStr}`);
+      totalNew += newOnes.length;
+    }
+    el.textContent = totalNew > 0
+      ? `✓ Gap-fill: ${totalNew} νέες κληρώσεις αποθηκεύτηκαν`
+      : '✓ Gap-fill: όλα ενημερωμένα';
+  } catch(e) {
+    el.textContent = '⚠ Gap-fill σφάλμα: ' + e.message;
+    console.error('gapFill error:', e);
+  }
+}
+
+async function fetchDaySeq(dayStr, size=10) {
+  let items=[], page=0;
+  while(true) {
+    const url = `${OPAP_BASE}/draw-date/${dayStr}/${dayStr}?page=${page}&size=${size}`;
+    let raw=null;
+    try { raw = await apiFetch(url); } catch(_) {}
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg);
+    if (Array.isArray(raw) || raw.last===true || pg.length===0 || pg.length<size) break;
+    page++;
+    if (page>35) break;
+  }
+  return items;
 }
 
 // ── Delay table rendering ──────────────────────────────────────────────────
@@ -321,11 +379,8 @@ function findWordMatches(drawnNums) {
   const letterNums = new Set(drawnNums.filter(n=>n>=1&&n<=24));
   const matches = [];
   for (const entry of bookIndex) {
-    if ([...entry.nums].every(n=>letterNums.has(n))) {
-      matches.push(entry);
-    }
+    if ([...entry.nums].every(n=>letterNums.has(n))) matches.push(entry);
   }
-  // Sort by word length desc, then by sentence order
   matches.sort((a,b)=>b.nums.size-a.nums.size||a.si-b.si);
   return matches.slice(0,25);
 }
@@ -340,7 +395,6 @@ function renderWordMatches(nums) {
   }
   const html = matches.map(({word,nums:wn,sentence}) => {
     const lenClass = `wm-len-${Math.min(wn.size,6)}`;
-    // Highlight the matched word in its sentence
     const esc = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
     const re = new RegExp(`(${esc})`,'gi');
     const ctx = sentence.replace(re,'<em>$1</em>');
@@ -370,7 +424,6 @@ function renderDraw(draw) {
   }).join('');
   grid.innerHTML = balls;
 
-  // Letter line: show which uppercase Greek letters were drawn
   const letters = draw.nums.filter(n=>n>=1&&n<=24).sort((a,b)=>a-b).map(n=>GR_UP[n-1]).join(' ');
   document.getElementById('drawLettersLine').textContent = letters || '(χωρίς γράμματα 1-24)';
 }
@@ -378,139 +431,151 @@ function renderDraw(draw) {
 // ── Update delays on new draw ──────────────────────────────────────────────
 function updateDelays(nums) {
   drawCounter++;
-  for (const n of nums) {
-    if (n>=1&&n<=80) {
-      delays[n] = 0;
-      lastSeen[n] = drawCounter;
-    }
-  }
-  // Increment delay for all others
   for (let n=1; n<=80; n++) {
-    if (!nums.includes(n)) delays[n]++;
+    if (nums.includes(n)) { delays[n] = 0; lastSeen[n] = drawCounter; }
+    else delays[n]++;
   }
   if (delaysReady) renderDelayTable();
 }
 
-// ── GitHub save ────────────────────────────────────────────────────────────
-async function saveDrawToGitHub(draw) {
-  if (!localStorage.getItem('gh_token')) return;
-  pendingDraws.push(draw);
+// ── GitHub auto-save ───────────────────────────────────────────────────────
+async function autoSaveLiveBuffer() {
+  if (!localStorage.getItem('gh_token') || !liveBuffer.size) return;
   if (saveLock) return;
   saveLock = true;
-  document.getElementById('saveStatus').textContent = '⏳ Αποθήκευση...';
+  const el = document.getElementById('saveStatus');
+  el.textContent = '⏳ Αποθήκευση...';
   try {
-    // Group pending by month
     const byMonth = {};
-    for (const d of pendingDraws) {
-      const [y,m] = drawYearMonth(toMs(d.rawTime));
-      const key = `${y}_${m}`;
-      if (!byMonth[key]) byMonth[key] = [];
-      byMonth[key].push(d);
+    for (const [id, d] of liveBuffer) {
+      const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
+      const dt = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+      const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
+      if (!byMonth[ym]) byMonth[ym] = [];
+      byMonth[ym].push(d);
     }
+    let totalNew = 0;
     for (const [ym, draws] of Object.entries(byMonth)) {
+      const mStr = ym.replace('_','-');
       const path = `data/raw/kino_raw_${ym}.json`;
-      let data = await ghGet(path) || {month:ym.replace('_','-'), draws:[]};
-      const ids = new Set(data.draws.map(d=>d.id));
-      let added = 0;
-      for (const d of draws) {
-        if (!ids.has(d.id)) {
-          data.draws.push({id:d.id, n:d.nums, b:d.bonus});
-          ids.add(d.id);
-          added++;
-        }
-      }
-      if (added>0) {
-        data.draws.sort((a,b)=>a.id-b.id);
-        await ghPut(path, data, `kino live: +${added} draw(s) ${ym}`);
-        document.getElementById('saveStatus').textContent = `✓ Αποθηκεύτηκαν ${added} κλήρωση(εις) → ${path}`;
-      } else {
-        document.getElementById('saveStatus').textContent = '✓ Ήδη αποθηκευμένες';
-      }
+      const existing = await ghGet(path) || {month:mStr, draws:[]};
+      const exIds = new Set(existing.draws.map(d=>d.id));
+      const newOnes = draws.filter(d=>!exIds.has(d.id));
+      if (!newOnes.length) continue;
+      const merged = [...existing.draws, ...newOnes].sort((a,b)=>a.id-b.id);
+      await ghPut(path, {month:mStr, draws:merged}, `Live +${newOnes.length} ${mStr}`);
+      totalNew += newOnes.length;
     }
-    pendingDraws = [];
+    liveLastSavedCount = liveBuffer.size;
+    el.textContent = totalNew > 0
+      ? `✅ Αποθηκεύτηκαν ${totalNew} κλήρωση(εις) — ${new Date().toLocaleTimeString('el-GR')}`
+      : '✓ Ήδη αποθηκευμένες';
   } catch(e) {
-    document.getElementById('saveStatus').textContent = '⚠ Σφάλμα αποθήκευσης: ' + e.message;
-    console.error('Save error:', e);
+    el.textContent = '⚠ Σφάλμα αποθήκευσης: ' + e.message;
+    console.error('autoSave error:', e);
   } finally {
     saveLock = false;
   }
 }
 
 // ── Live monitoring ────────────────────────────────────────────────────────
-let nextFetchAt = 0;
-
 async function fetchLiveNow() {
-  let draw = null;
   try {
-    const d = await apiFetch(OPAP_URL);
-    if (d?.lastResult?.winningNumbers?.list?.length) {
-      const r = d.lastResult;
-      draw = {
-        id: r.drawId,
-        rawTime: r.drawTime,
-        time: localTimeStr(toMs(r.drawTime)),
-        nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
-        bonus: (r.winningNumbers.bonus||[])[0]||null
-      };
-      // Schedule next fetch right after when new draw is expected
-      if (d.activeDraws?.[0]?.drawTime) {
-        nextFetchAt = toMs(d.activeDraws[0].drawTime) + 15000;
+    let draw = null;
+
+    // 1. last-result-and-active (fastest)
+    try {
+      const d = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+      if (d?.lastResult?.winningNumbers?.list?.length) {
+        const r = d.lastResult;
+        draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
+          nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
+          bonus: (r.winningNumbers.bonus||[])[0]||null};
+      }
+    } catch(_) {}
+
+    // 2. Estimated draw ID
+    if (!draw) {
+      const est = estDrawId();
+      for (const tryId of [est, est-1, est-2, est+1]) {
+        try {
+          const d = await apiFetch(`${OPAP_BASE}/${tryId}`);
+          if (d?.winningNumbers?.list?.length) {
+            draw = {id: d.drawId, time: localTimeStr(toMs(d.drawTime)),
+              nums: [...d.winningNumbers.list].sort((a,b)=>a-b),
+              bonus: (d.winningNumbers.bonus||[])[0]||null};
+            break;
+          }
+        } catch(_) {}
       }
     }
-  } catch(e) {
-    console.warn('fetchLiveNow:', e);
-    document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης με OPAP — νέα προσπάθεια...';
-  }
 
-  if (draw) {
-    // Always display the current draw (even if already in saved data)
+    // 3. draw-date fallback (today)
+    if (!draw) {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+      try {
+        const data = await apiFetch(`${OPAP_BASE}/draw-date/${todayStr}/${todayStr}?page=0&size=300`);
+        const items = Array.isArray(data) ? data : (data?.content || data?.draws || []);
+        const valid = items.filter(i=>i.winningNumbers?.list?.length).sort((a,b)=>b.drawId-a.drawId);
+        if (valid.length) {
+          const r = valid[0];
+          draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
+            nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
+            bonus: (r.winningNumbers.bonus||[])[0]||null};
+        }
+      } catch(_) {}
+    }
+
+    if (!draw) {
+      document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης — επόμενη προσπάθεια σε λίγο';
+      return;
+    }
+
+    // Buffer for saving
+    if (!liveBuffer.has(draw.id))
+      liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
+
+    // Always render the current draw
     renderDraw(draw);
     renderWordMatches(draw.nums);
-    // Only update delays + save when this is a genuinely new draw
+
+    // Update delays only on new draw
     if (draw.id !== lastDrawId) {
       lastDrawId = draw.id;
       updateDelays(draw.nums);
-      saveDrawToGitHub(draw);
     }
-  }
-}
 
-function msToNextDraw() {
-  const now = Date.now();
-  if (nextFetchAt > now) return nextFetchAt - now;
-  // Fallback: poll every 30 seconds
-  return 30000;
+    // Auto-save every 6+ buffered draws
+    if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
+
+  } catch(e) {
+    console.error('fetchLiveNow:', e);
+    document.getElementById('drawTime').textContent = '⚠ Σφάλμα — νέα προσπάθεια σε λίγο';
+  }
 }
 
 function scheduleLive() {
   if (!liveRunning) return;
-  const ms = msToNextDraw();
-  document.getElementById('countdown').textContent = `Επόμενη σε: ${fmtSec(ms/1000)}`;
-  liveTimerId = setTimeout(async () => {
-    if (!liveRunning) return;
-    await fetchLiveNow();
-    scheduleLive();
-  }, Math.max(ms, 10000));
+  liveTimerId = setTimeout(() => { fetchLiveNow(); scheduleLive(); }, msToNext());
 }
-
-let countdownInterval = null;
 
 function startLive() {
   liveRunning = true;
   document.getElementById('liveBadge').className = 'badge on';
   document.getElementById('liveBadge').textContent = '● ΖΩΝΤΑΝΑ';
-  countdownInterval = setInterval(() => {
-    if (!liveRunning) { clearInterval(countdownInterval); return; }
-    const ms = nextFetchAt - Date.now();
-    document.getElementById('countdown').textContent = ms>0 ? `Επόμενη σε: ${fmtSec(ms/1000)}` : 'Αναζήτηση...';
-  }, 1000);
-  fetchLiveNow().then(scheduleLive);
+  fetchLiveNow();
+  scheduleLive();
+  liveCountdownId = setInterval(() => {
+    if (!liveRunning) { clearInterval(liveCountdownId); return; }
+    document.getElementById('countdown').textContent = `Επόμενη σε: ${fmtMs(msToNext())}`;
+  }, 500);
 }
 
 function stopLive() {
   liveRunning = false;
   clearTimeout(liveTimerId);
-  clearInterval(countdownInterval);
+  clearInterval(liveCountdownId);
   document.getElementById('liveBadge').className = 'badge off';
   document.getElementById('liveBadge').textContent = '⏸ ΕΚΤΟΣ';
   document.getElementById('countdown').textContent = '';
@@ -518,25 +583,20 @@ function stopLive() {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  const saved = localStorage.getItem('gh_token');
-  if (saved) {
-    document.getElementById('tokenInput').value = saved;
-    document.getElementById('tokenStatus').textContent = '✓ Token αποθηκευμένο';
-  }
+  refreshTokenState();
 
-  // Init delay grid placeholder
-  const grid = document.getElementById('delayGrid');
+  // Placeholder delay grid
   let ph = '';
   for(let n=1;n<=80;n++) ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-val">?</span></div>`;
-  grid.innerHTML = ph;
+  document.getElementById('delayGrid').innerHTML = ph;
 
-  // Load book and delays in background, then start live
+  // Load book + historical delays, then gap-fill, then start live
   Promise.all([
-    loadBook().catch(e=>console.error('book load error',e)),
-    loadHistoricalDelays().catch(e=>console.error('delay load error',e))
-  ]);
+    loadBook().catch(e=>console.error('book error',e)),
+    loadHistoricalDelays().catch(e=>console.error('delay error',e))
+  ]).then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
 
-  // Auto-start live after a short delay so UI is visible first
+  // Auto-start live after short delay
   setTimeout(startLive, 500);
 });
 </script>
