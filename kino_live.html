@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kino Live — Θεωρία Παιγνίων</title>
+<title>Kino Live</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
@@ -51,18 +51,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .d-num{font-size:.68rem;font-weight:700;display:block}
 .d-val{font-size:.62rem;display:block;opacity:.85}
 
-/* ── Word matches ── */
-#wordList{display:flex;flex-direction:column;gap:8px}
-.word-match{background:#0f1117;border-radius:8px;padding:8px 12px;border-left:3px solid #5c6bc0}
-.word-match .wm-word{font-size:1.1rem;font-weight:700;color:#9fa8da;font-family:monospace;letter-spacing:.08em}
-.word-match .wm-nums{font-size:.7rem;color:#7986cb;margin:2px 0}
-.word-match .wm-ctx{font-size:.78rem;color:#90a4ae;line-height:1.5}
-.word-match .wm-ctx em{color:#fff;font-style:normal;font-weight:600}
-.wm-len-6{border-left-color:#f48fb1}
-.wm-len-5{border-left-color:#ce93d8}
-.wm-len-4{border-left-color:#9fa8da}
-.wm-len-3{border-left-color:#4dd0e1}
-#bookStatus{font-size:.8rem;color:#aaa}
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
 
 /* ── Word lookup ── */
@@ -81,7 +69,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 /* ── Auto sentence ── */
 #autoSentence{font-size:1.15rem;line-height:1.6;color:#e8eaf6;background:#0f1117;border-radius:8px;padding:14px 16px;border-left:3px solid #7986cb;font-style:italic}
-#autoSentence .as-alt{display:block;font-size:.95rem;color:#9fa8da;margin-top:8px;font-style:normal}
 #autoSentence .as-meta{display:block;font-size:.72rem;color:#666;margin-top:8px;font-style:normal}
 
 /* ── Responsive ── */
@@ -136,15 +123,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
   <!-- Auto-composed sentence -->
   <section id="sentenceSec">
-    <h2>Πρόταση από την κλήρωση (αυτόματη σύνθεση)</h2>
+    <h2>Πρόταση από την κλήρωση (Claude)</h2>
     <div id="autoSentence">—</div>
-  </section>
-
-  <!-- Word Matches -->
-  <section id="wordSec">
-    <h2>Λέξεις από «Θεωρία Παιγνίων»</h2>
-    <div id="bookStatus">Φόρτωση βιβλίου...</div>
-    <div id="wordList"></div>
   </section>
 </main>
 
@@ -154,8 +134,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 const REPO        = 'ohtaras/Game';
 const DATA_BRANCH = 'main';
 const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
-const BOOK_URL    = 'https://raw.githubusercontent.com/ohtaras/Game/gh-pages/data/book_game_theory.txt';
-const BOOK_URL2   = 'https://ohtaras.github.io/Game/data/book_game_theory.txt';
 const TZ_MS       = 3 * 3600 * 1000;           // Athens UTC+3
 const LIVE_BASE_MS= Date.UTC(2024, 11, 31, 22, 0, 0); // 2025-01-01 00:00 EET
 const LIVE_BASE_ID= 1155022;
@@ -189,15 +167,12 @@ let liveRunning      = false;
 let liveTimerId      = null;
 let liveCountdownId  = null;
 let lastDrawId       = 0;
-let drawCounter      = 0;              // total draws processed this session
+let drawCounter      = 0;
 let lastSeen         = new Array(81).fill(-1);
 let delays           = new Array(81).fill(0);
 let delaysReady      = false;
-let bookIndex        = [];             // [{word, norm, sentence, si}]
-let lastDrawNums     = null;           // last fetched draw's numbers (for re-render)
-let bookReady        = false;
 let saveLock         = false;
-let liveBuffer       = new Map();      // id → {id, n, b}
+let liveBuffer       = new Map();
 let liveLastSavedCount = 0;
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -211,7 +186,7 @@ function refreshTokenState() {
   const cl = !!localStorage.getItem('claude_api_key');
   const parts = [];
   parts.push(gh ? '🔑 GitHub token ✓ (αυτόματη αποθήκευση)' : '⚠ Χωρίς GitHub token (καμία αποθήκευση)');
-  parts.push(cl ? '✦ Claude key ✓ (AI πρόταση)' : '✦ Χωρίς Claude key (ευρετική πρόταση)');
+  parts.push(cl ? '✦ Claude key ✓ (AI πρόταση)' : '✦ Χωρίς Claude key (χωρίς AI πρόταση)');
   document.getElementById('tokenState').textContent = parts.join('  ·  ');
 }
 
@@ -262,39 +237,7 @@ function localTimeStr(ms) {
 }
 
 function normWord(word) {
-  // Lowercase + normalize final sigma; KEEP accents (accented vowels are distinct tiles)
   return word.toLowerCase().replace(/ς/g,'σ');
-}
-
-// Scrabble-style: can `word` be spelled using the available tile multiset?
-// avail = Map(char → count). Returns the chosen tile list, or null.
-// Each tile is consumed once; tries longest patterns first, backtracks.
-function spellWord(word, avail) {
-  function dfs(i) {
-    if (i === word.length) return [];
-    for (const t of PATTERNS) {
-      if (t.length > word.length - i) continue;
-      if ((avail.get(t)||0) <= 0) continue;
-      if (!word.startsWith(t, i)) continue;
-      avail.set(t, avail.get(t) - 1);
-      const rest = dfs(i + t.length);
-      if (rest) return [t, ...rest];
-      avail.set(t, avail.get(t) + 1);
-    }
-    return null;
-  }
-  return dfs(0);
-}
-
-function drawTileMultiset(nums) {
-  const m = new Map();
-  for (const n of nums) {
-    const c = NUM_TO_CHAR[n];
-    if (!c) continue;
-    const k = c.toLowerCase();
-    m.set(k, (m.get(k)||0) + 1);
-  }
-  return m;
 }
 
 function delayColor(d) {
@@ -316,41 +259,6 @@ function msToNext() {
   let diff = (cur5+5)*60 + 15 - (m*60+s);
   if (diff <= 0) diff += 300;
   return diff * 1000;
-}
-
-// ── Book loading & indexing ────────────────────────────────────────────────
-async function loadBook() {
-  let text = null;
-  for (const url of [BOOK_URL, BOOK_URL2]) {
-    try {
-      const r = await fetch(url, {signal:AbortSignal.timeout(20000)});
-      if (r.ok) { text = await r.text(); break; }
-    } catch(_) {}
-  }
-  if (!text) { document.getElementById('bookStatus').textContent = '⚠ Αδυναμία φόρτωσης βιβλίου.'; return; }
-
-  const sentences = text.split(/(?<=[.!?])\s+|\n{2,}/).map(s=>s.trim()).filter(s=>s.length>10);
-
-  const seen = new Set();
-  bookIndex = [];
-
-  for (let si=0; si<sentences.length; si++) {
-    const sent = sentences[si];
-    const rawWords = sent.match(/[Ͱ-Ͽἀ-῿ΆΈ-ΊΌΎ-ΡΣ-ώ]+/g) || [];
-    for (const rw of rawWords) {
-      const norm = normWord(rw);
-      if (norm.length < 2) continue;       // skip 1-char words
-      if (seen.has(norm)) continue;        // keep first occurrence
-      seen.add(norm);
-      bookIndex.push({word:rw, norm, sentence:sent, si});
-    }
-  }
-
-  bookReady = true;
-  document.getElementById('bookStatus').textContent =
-    `Βιβλίο φορτώθηκε — ${sentences.length} προτάσεις, ${bookIndex.length} μοναδικές λέξεις στο ευρετήριο`;
-  // Re-render matches if a draw already arrived before the book finished loading
-  if (lastDrawNums) renderWordMatches(lastDrawNums);
 }
 
 // ── Historical delays ──────────────────────────────────────────────────────
@@ -458,91 +366,6 @@ function renderDelayTable() {
   grid.innerHTML = cells.join('');
 }
 
-// ── Word matching ──────────────────────────────────────────────────────────
-function findWordMatches(drawnNums) {
-  if (!bookReady) return [];
-  const base = drawTileMultiset(drawnNums);
-  const matches = [];
-  for (const entry of bookIndex) {
-    const tiles = spellWord(entry.norm, new Map(base)); // fresh copy per word
-    if (tiles) matches.push({...entry, tiles});
-  }
-  // Longest word first (most tiles used), then sentence order
-  matches.sort((a,b) => b.tiles.length - a.tiles.length || a.si - b.si);
-  return matches;
-}
-
-// ── Auto sentence composition (heuristic) ──────────────────────────────────
-const SENT_ART_DEF = ['ο','η','το','οι','τα'];
-const SENT_ART_OBJ = ['τον','την','το','τους','τις','τα'];
-const SENT_CONJ    = ['και','ή','αλλά','όμως'];
-const SENT_PREP    = ['σε','με','από','για','προς','κατά','χωρίς','πριν','μετά','υπό'];
-const SENT_FUNC    = new Set([
-  ...SENT_ART_DEF, ...SENT_ART_OBJ, 'του','της','των',
-  ...SENT_CONJ, ...SENT_PREP,
-  'να','θα','δεν','μη','μην','ως','σαν','που','ότι','πως','αν','ναι','όχι',
-  'εγώ','εσύ','αυτός','αυτή','αυτό','εμείς','εσείς','αυτοί','αυτές','αυτά',
-  'μου','σου','μας','σας','τους','μια','μιας','ένα','έναν','τι','κάτι','πιο'
-]);
-const isVerbLike = w => w.length>=4 &&
-  /(ούμε|ουμε|άει|άμε|άτε|άνε|ονται|εται|όμαστε|ηκε|ησε|ίζει|ίζουν|εις|ουν|άω|ώ)$/.test(w);
-const isGenitiveLike = w => /(ων|ους|ού|ής|ίας|ίου)$/.test(w);
-
-// Pick a matching article (gender/number/case) from those available in the draw
-function pickArticle(noun, role, has) {
-  let cands = [];
-  if (/(ες|εις)$/.test(noun))      cands = role==='obj' ? ['τις'] : ['οι'];
-  else if (/οι$/.test(noun))       cands = role==='obj' ? ['τους'] : ['οι'];
-  else if (/(η|ξη|ση)$/.test(noun))cands = role==='obj' ? ['την'] : ['η'];
-  else if (/α$/.test(noun))        cands = role==='obj' ? ['την','τα'] : ['η','τα'];
-  else if (/ος$/.test(noun))       cands = role==='obj' ? ['τον'] : ['ο'];
-  else if (/(ης|ας)$/.test(noun))  cands = role==='obj' ? ['τον'] : ['ο'];
-  else if (/(ο|ι)$/.test(noun))    cands = ['το'];
-  return cands.find(has) || '';
-}
-
-function composeSentence(matches) {
-  if (!matches.length) return null;
-  const set = new Set(matches.map(m => m.norm));
-  const orig = {};
-  for (const m of matches) if (!orig[m.norm]) orig[m.norm] = m.word;
-  const o = n => orig[n] || n;
-  const has = w => set.has(w);
-
-  const content = [...set].filter(n => !SENT_FUNC.has(n) && n.length >= 3);
-  const verbs = content.filter(isVerbLike);
-  // Nouns: deprioritise genitive-looking words, then longest first
-  const nouns = content.filter(n => !isVerbLike(n)).sort((a,b) =>
-    (isGenitiveLike(a)?1:0) - (isGenitiveLike(b)?1:0) || b.length - a.length);
-  if (!nouns.length && !verbs.length) return null;
-
-  const used = new Set();
-  const take = arr => { const x = arr.find(w => !used.has(w)); if (x) used.add(x); return x; };
-  const parts = [];
-
-  // Subject: [agreeing article] + noun
-  const n1 = take(nouns);
-  if (n1) {
-    const a1 = pickArticle(n1, 'subj', has);
-    if (a1) parts.push(o(a1));
-    parts.push(o(n1));
-  }
-  // Verb
-  const v = take(verbs);
-  if (v) parts.push(o(v));
-  // Object: [agreeing article] + noun [+ και noun]
-  const n2 = take(nouns);
-  if (n2) {
-    const a2 = pickArticle(n2, 'obj', has);
-    if (a2) parts.push(o(a2));
-    parts.push(o(n2));
-    if (has('και')) { const n3 = take(nouns); if (n3) parts.push('και', o(n3)); }
-  }
-  if (parts.length < 2) return null;
-  let s = parts.join(' ');
-  return s.charAt(0).toUpperCase() + s.slice(1) + '.';
-}
-
 // ── Claude API (browser-direct) ────────────────────────────────────────────
 async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -558,7 +381,6 @@ async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
   });
   if (!resp.ok) { const t = await resp.text().catch(()=> ''); throw new Error(resp.status + ': ' + t.slice(0,150)); }
   const data = await resp.json();
-  // Light usage tracking (cost in USD, Haiku 4.5 pricing)
   try {
     const inTok = data.usage?.input_tokens||0, outTok = data.usage?.output_tokens||0;
     const u = JSON.parse(localStorage.getItem('claude_usage')||'{}');
@@ -568,81 +390,49 @@ async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
   return (data.content?.[0]?.text||'').trim();
 }
 
-async function claudeSentence(words, apiKey) {
-  const sys = 'Είσαι παίκτης Σκραμπλ που φτιάχνει προτάσεις. '
-    + 'Σου δίνω ΑΚΡΙΒΩΣ τις διαθέσιμες λέξεις — αυτές και ΜΟΝΟ αυτές είναι το λεξιλόγιό σου. '
-    + 'ΑΠΑΓΟΡΕΥΕΤΑΙ να χρησιμοποιήσεις οποιαδήποτε άλλη λέξη, άρθρο, σύνδεσμο ή κατάληξη που ΔΕΝ βρίσκεται στη λίστα. '
-    + 'Επέλεξε μερικές ή όλες από τις δοσμένες λέξεις και βάλ\' τις στη σειρά που σχηματίζει ένα νόημα — ακόμα και μια ελλειπτική φράση είναι εντάξει. '
-    + 'Απάντησε ΜΟΝΟ με την πρόταση/φράση, χωρίς εισαγωγικά, χωρίς επεξηγήσεις.';
-  const user = 'Διαθέσιμες λέξεις (χρησιμοποίησε ΜΟΝΟ αυτές): ' + words.join(', ');
+async function claudeSentence(tiles, apiKey) {
+  const sys = 'Είσαι παίκτης Σκραμπλ στα Ελληνικά. '
+    + 'Σου δίνω τα 20 πλακίδια (γράμματα/δίγραφα) που βγήκαν σε μια κλήρωση Κίνο. '
+    + 'Κάθε πλακίδιο μπορεί να χρησιμοποιηθεί ΜΟΝΟ ΜΙΑ ΦΟΡΑ. '
+    + 'Σχημάτισε ελληνικές λέξεις από αυτά τα πλακίδια και φτιάξε μια πρόταση ή φράση. '
+    + 'Μπορείς να χρησιμοποιήσεις μέρος των πλακιδίων — δεν χρειάζεται να τα χρησιμοποιήσεις όλα. '
+    + 'Απάντησε ΜΟΝΟ με την πρόταση/φράση, χωρίς εξηγήσεις ή λίστες.';
+  const user = 'Πλακίδια: ' + tiles.join(', ');
   const txt = await anthropicFetch(apiKey.trim(), 'claude-haiku-4-5-20251001', sys, user, 200);
   return txt.replace(/^["«»\s]+|["«»\s]+$/g,'').trim() || null;
 }
 
 let claudeBusy = false, claudeCacheSig = null, claudeCacheText = null;
 
-async function renderAutoSentence(matches, sig) {
+async function renderAutoSentence(nums, sig) {
   const el = document.getElementById('autoSentence');
-  if (!bookReady) { el.textContent = 'Φόρτωση βιβλίου...'; return; }
-  const heur = composeSentence(matches);
   const key = localStorage.getItem('claude_api_key');
 
-  // No Claude key → heuristic only
   if (!key) {
-    el.innerHTML = heur
-      ? `«${heur}»<span class="as-meta">⚙ Ευρετική σύνθεση από ${matches.length} λέξεις. Πρόσθεσε <a href="kino_settings.html">Claude API key</a> για ποιοτική πρόταση.</span>`
-      : 'Δεν σχηματίστηκε πρόταση. Πρόσθεσε <a href="kino_settings.html">Claude API key</a> για AI σύνθεση.';
+    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις για αυτόματη σύνθεση πρότασης από τα γράμματα της κλήρωσης.';
     return;
   }
 
-  // Cached Claude result for this exact draw
   if (claudeCacheSig === sig && claudeCacheText) {
-    el.innerHTML = `«${claudeCacheText}»<span class="as-meta">✦ Σύνθεση με Claude από ${matches.length} διαθέσιμες λέξεις.</span>`;
+    el.innerHTML = `«${claudeCacheText}»<span class="as-meta">✦ Σύνθεση με Claude</span>`;
     return;
   }
 
-  // Show heuristic as placeholder while Claude works
-  el.innerHTML = (heur ? `«${heur}»` : '…') + '<span class="as-meta">✦ Σύνθεση με Claude…</span>';
-  if (claudeBusy || !matches.length) return;
+  el.innerHTML = '<span class="as-meta">✦ Σύνθεση με Claude…</span>';
+  if (claudeBusy) return;
   claudeBusy = true;
+  const tiles = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
-    const words = matches.slice(0, 60).map(m => m.word);
-    const s = await claudeSentence(words, key);
+    const s = await claudeSentence(tiles, key);
     if (s) {
       claudeCacheSig = sig; claudeCacheText = s;
-      el.innerHTML = `«${s}»<span class="as-meta">✦ Σύνθεση με Claude από ${matches.length} διαθέσιμες λέξεις.</span>`;
+      el.innerHTML = `«${s}»<span class="as-meta">✦ Σύνθεση με Claude από ${tiles.length} πλακίδια κλήρωσης.</span>`;
     }
   } catch(e) {
-    if (heur) el.innerHTML = `«${heur}»<span class="as-meta">⚙ Ευρετική σύνθεση (Claude σφάλμα: ${e.message}).</span>`;
-    else el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
+    el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
   } finally {
     claudeBusy = false;
   }
-}
-
-function renderWordMatches(nums) {
-  const list = document.getElementById('wordList');
-  const allMatches = findWordMatches(nums);
-  renderAutoSentence(allMatches, nums.join(','));
-  if (!bookReady) { list.innerHTML=''; return; }
-  if (!allMatches.length) {
-    list.innerHTML='<div style="color:#666;font-size:.85rem">Δεν βρέθηκαν λέξεις για αυτή την κλήρωση.</div>';
-    return;
-  }
-  const matches = allMatches.slice(0, 40);
-  const html = matches.map(({word, tiles, sentence}) => {
-    const lenClass = `wm-len-${Math.min(tiles.length, 6)}`;
-    const esc = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const re = new RegExp(`(${esc})`, 'gi');
-    const ctx = sentence.replace(re,'<em>$1</em>');
-    const tileStr = tiles.map(t => `${t}·${CHAR_TO_NUM[t]}`).join(' ');
-    return `<div class="word-match ${lenClass}">
-      <div class="wm-word">${word}</div>
-      <div class="wm-nums">${tileStr}</div>
-      <div class="wm-ctx">${ctx}</div>
-    </div>`;
-  }).join('');
-  list.innerHTML = `<div style="font-size:.72rem;color:#7986cb;margin-bottom:4px">${allMatches.length} λέξεις (σαν σκραμπλ από τα 20 πλακίδια) — εμφανίζονται οι ${matches.length} μεγαλύτερες</div>` + html;
 }
 
 // ── Draw rendering ─────────────────────────────────────────────────────────
@@ -784,10 +574,8 @@ async function fetchLiveNow() {
     if (!liveBuffer.has(draw.id))
       liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
 
-    // Always render the current draw
-    lastDrawNums = draw.nums;
     renderDraw(draw);
-    renderWordMatches(draw.nums);
+    renderAutoSentence(draw.nums, draw.id.toString());
 
     // Update delays only on new draw
     if (draw.id !== lastDrawId) {
@@ -836,7 +624,6 @@ function lookupWord() {
   const out = document.getElementById('lookupResult');
   if (!raw) { out.innerHTML = ''; return; }
   const norm = normWord(raw);
-  // Greedy longest-first decomposition (no availability limit — pure analysis)
   const tiles = [];
   let i = 0, leftover = '';
   while (i < norm.length) {
@@ -877,13 +664,9 @@ window.addEventListener('load', () => {
   for(let n=1;n<=80;n++) ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-val">?</span></div>`;
   document.getElementById('delayGrid').innerHTML = ph;
 
-  // Load book + historical delays, then gap-fill, then start live
-  Promise.all([
-    loadBook().catch(e=>console.error('book error',e)),
-    loadHistoricalDelays().catch(e=>console.error('delay error',e))
-  ]).then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
+  loadHistoricalDelays().catch(e=>console.error('delay error',e))
+    .then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
 
-  // Auto-start live after short delay
   setTimeout(startLive, 500);
 });
 </script>
