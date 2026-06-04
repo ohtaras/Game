@@ -79,6 +79,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .lk-nums{margin-top:8px;font-size:.9rem;color:#b39ddb;font-family:monospace;letter-spacing:.06em}
 .lk-warn{font-size:.8rem;color:#ef9a9a;margin-top:6px}
 
+/* ── Auto sentence ── */
+#autoSentence{font-size:1.15rem;line-height:1.6;color:#e8eaf6;background:#0f1117;border-radius:8px;padding:14px 16px;border-left:3px solid #7986cb;font-style:italic}
+#autoSentence .as-alt{display:block;font-size:.95rem;color:#9fa8da;margin-top:8px;font-style:normal}
+#autoSentence .as-meta{display:block;font-size:.72rem;color:#666;margin-top:8px;font-style:normal}
+
 /* ── Responsive ── */
 @media(max-width:600px){
   #delayGrid{grid-template-columns:repeat(8,1fr)}
@@ -127,6 +132,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button id="lookupBtn">Ανάλυση</button>
     </div>
     <div id="lookupResult"></div>
+  </section>
+
+  <!-- Auto-composed sentence -->
+  <section id="sentenceSec">
+    <h2>Πρόταση από την κλήρωση (αυτόματη σύνθεση)</h2>
+    <div id="autoSentence">—</div>
   </section>
 
   <!-- Word Matches -->
@@ -456,17 +467,98 @@ function findWordMatches(drawnNums) {
   }
   // Longest word first (most tiles used), then sentence order
   matches.sort((a,b) => b.tiles.length - a.tiles.length || a.si - b.si);
-  return matches.slice(0, 40);
+  return matches;
+}
+
+// ── Auto sentence composition (heuristic) ──────────────────────────────────
+const SENT_ART_DEF = ['ο','η','το','οι','τα'];
+const SENT_ART_OBJ = ['τον','την','το','τους','τις','τα'];
+const SENT_CONJ    = ['και','ή','αλλά','όμως'];
+const SENT_PREP    = ['σε','με','από','για','προς','κατά','χωρίς','πριν','μετά','υπό'];
+const SENT_FUNC    = new Set([
+  ...SENT_ART_DEF, ...SENT_ART_OBJ, 'του','της','των',
+  ...SENT_CONJ, ...SENT_PREP,
+  'να','θα','δεν','μη','μην','ως','σαν','που','ότι','πως','αν','ναι','όχι',
+  'εγώ','εσύ','αυτός','αυτή','αυτό','εμείς','εσείς','αυτοί','αυτές','αυτά',
+  'μου','σου','μας','σας','τους','μια','μιας','ένα','έναν','τι','κάτι','πιο'
+]);
+const isVerbLike = w => w.length>=4 &&
+  /(ούμε|ουμε|άει|άμε|άτε|άνε|ονται|εται|όμαστε|ηκε|ησε|ίζει|ίζουν|εις|ουν|άω|ώ)$/.test(w);
+const isGenitiveLike = w => /(ων|ους|ού|ής|ίας|ίου)$/.test(w);
+
+// Pick a matching article (gender/number/case) from those available in the draw
+function pickArticle(noun, role, has) {
+  let cands = [];
+  if (/(ες|εις)$/.test(noun))      cands = role==='obj' ? ['τις'] : ['οι'];
+  else if (/οι$/.test(noun))       cands = role==='obj' ? ['τους'] : ['οι'];
+  else if (/(η|ξη|ση)$/.test(noun))cands = role==='obj' ? ['την'] : ['η'];
+  else if (/α$/.test(noun))        cands = role==='obj' ? ['την','τα'] : ['η','τα'];
+  else if (/ος$/.test(noun))       cands = role==='obj' ? ['τον'] : ['ο'];
+  else if (/(ης|ας)$/.test(noun))  cands = role==='obj' ? ['τον'] : ['ο'];
+  else if (/(ο|ι)$/.test(noun))    cands = ['το'];
+  return cands.find(has) || '';
+}
+
+function composeSentence(matches) {
+  if (!matches.length) return null;
+  const set = new Set(matches.map(m => m.norm));
+  const orig = {};
+  for (const m of matches) if (!orig[m.norm]) orig[m.norm] = m.word;
+  const o = n => orig[n] || n;
+  const has = w => set.has(w);
+
+  const content = [...set].filter(n => !SENT_FUNC.has(n) && n.length >= 3);
+  const verbs = content.filter(isVerbLike);
+  // Nouns: deprioritise genitive-looking words, then longest first
+  const nouns = content.filter(n => !isVerbLike(n)).sort((a,b) =>
+    (isGenitiveLike(a)?1:0) - (isGenitiveLike(b)?1:0) || b.length - a.length);
+  if (!nouns.length && !verbs.length) return null;
+
+  const used = new Set();
+  const take = arr => { const x = arr.find(w => !used.has(w)); if (x) used.add(x); return x; };
+  const parts = [];
+
+  // Subject: [agreeing article] + noun
+  const n1 = take(nouns);
+  if (n1) {
+    const a1 = pickArticle(n1, 'subj', has);
+    if (a1) parts.push(o(a1));
+    parts.push(o(n1));
+  }
+  // Verb
+  const v = take(verbs);
+  if (v) parts.push(o(v));
+  // Object: [agreeing article] + noun [+ και noun]
+  const n2 = take(nouns);
+  if (n2) {
+    const a2 = pickArticle(n2, 'obj', has);
+    if (a2) parts.push(o(a2));
+    parts.push(o(n2));
+    if (has('και')) { const n3 = take(nouns); if (n3) parts.push('και', o(n3)); }
+  }
+  if (parts.length < 2) return null;
+  let s = parts.join(' ');
+  return s.charAt(0).toUpperCase() + s.slice(1) + '.';
+}
+
+function renderAutoSentence(matches) {
+  const el = document.getElementById('autoSentence');
+  if (!bookReady) { el.textContent = 'Φόρτωση βιβλίου...'; return; }
+  const s = composeSentence(matches);
+  if (!s) { el.textContent = 'Δεν σχηματίστηκε πρόταση από αυτή την κλήρωση.'; return; }
+  el.innerHTML = `«${s}»<span class="as-meta">⚙ Πειραματική σύνθεση από ${matches.length} διαθέσιμες λέξεις — η σύνταξη μπορεί να μην είναι τέλεια.</span>`;
 }
 
 function renderWordMatches(nums) {
   const list = document.getElementById('wordList');
-  const matches = findWordMatches(nums);
+  const allMatches = findWordMatches(nums);
+  renderAutoSentence(allMatches);
   if (!bookReady) { list.innerHTML=''; return; }
-  if (!matches.length) {
+  if (!allMatches.length) {
     list.innerHTML='<div style="color:#666;font-size:.85rem">Δεν βρέθηκαν λέξεις για αυτή την κλήρωση.</div>';
     return;
   }
+  const matches = allMatches.slice(0, 40);
   const html = matches.map(({word, tiles, sentence}) => {
     const lenClass = `wm-len-${Math.min(tiles.length, 6)}`;
     const esc = word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -479,7 +571,7 @@ function renderWordMatches(nums) {
       <div class="wm-ctx">${ctx}</div>
     </div>`;
   }).join('');
-  list.innerHTML = `<div style="font-size:.72rem;color:#7986cb;margin-bottom:4px">${matches.length} λέξεις (σαν σκραμπλ από τα 20 πλακίδια)</div>` + html;
+  list.innerHTML = `<div style="font-size:.72rem;color:#7986cb;margin-bottom:4px">${allMatches.length} λέξεις (σαν σκραμπλ από τα 20 πλακίδια) — εμφανίζονται οι ${matches.length} μεγαλύτερες</div>` + html;
 }
 
 // ── Draw rendering ─────────────────────────────────────────────────────────
