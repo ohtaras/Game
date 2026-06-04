@@ -420,7 +420,7 @@ async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
 async function claudeSentence(tiles, nums, apiKey) {
   const key = apiKey.trim();
   const model = 'claude-haiku-4-5-20251001';
-  const sys = 'Απαντάς στα ελληνικά. Ακολουθείς ακριβώς τις οδηγίες.';
+  const sys = 'Απαντάς ΜΟΝΟ με αυτό που ζητείται. ΚΑΜΙΑ εισαγωγή, ΚΑΜΙΑ επεξήγηση, ΚΑΝΕΝΑ σχόλιο, ΚΑΝΕΝΑ κεφαλαίο τίτλος. Μόνο η απάντηση.';
 
   // Normalize tiles for Claude: uppercase single letters → lowercase (same letter, different case only)
   // Accented tiles (ύ, ί, ό, ά, ή, ώ, έ) stay as-is — accent makes them a DIFFERENT tile from unaccented
@@ -435,20 +435,19 @@ async function claudeSentence(tiles, nums, apiKey) {
     .map(([t, n]) => n > 1 ? `${t}(×${n})` : t).join(', ');
 
   // Turn 1: get candidate word list from Claude
-  const prompt1 = 'Πλακίδια κλήρωσης: ' + tileList + '\n\n'
-    + 'Αυστηροί κανόνες:\n'
-    + '1. Κάθε πλακίδιο χρησιμοποιείται ΜΟΝΟ ΜΙΑ ΦΟΡΑ (εκτός αν εμφανίζεται με ×2 κ.λπ.)\n'
-    + '2. Τονισμένα και άτονα είναι ΔΙΑΦΟΡΕΤΙΚΑ πλακίδια: το «ύ» ≠ «υ», «ί» ≠ «ι», «ό» ≠ «ο» κ.λπ.\n'
-    + '3. Δίγραφα (αυ, λλ, σκ κ.λπ.) χρησιμοποιούνται ΩΣ ΕΝΙΑΙΟ πλακίδιο\n'
-    + '4. Για κάθε λέξη που προτείνεις, οι τόνοι πρέπει να ταιριάζουν ΑΚΡΙΒΩΣ με τα πλακίδια\n\n'
-    + 'Ποιες ελληνικές λέξεις μπορούν να σχηματιστούν; Μία ανά γραμμή, μόνο λέξεις.';
+  const prompt1 = 'Διαθέσιμα πλακίδια: ' + tileList + '\n\n'
+    + 'ΚΑΝΟΝΕΣ:\n'
+    + '1. Κάθε πλακίδιο μία μόνο φορά (εκτός αν υπάρχει ×2 κ.λπ.)\n'
+    + '2. Τονισμένο ≠ άτονο: «ύ»≠«υ», «ί»≠«ι», «ό»≠«ο», «ή»≠«η», «ά»≠«α», «έ»≠«ε», «ώ»≠«ω» — ΕΛΕΓΞΕ τους τόνους!\n'
+    + '3. Δίγραφα (αυ, ευ, αι, οι, ου, λλ, μπ, γκ, γγ, νδ, ντ, ρχ, τρ, χτ, χρ, φτ, πρ, σπ, σκ, σσ, κτ, τσ, θρ) = ΕΝΑ πλακίδιο\n\n'
+    + 'Γράψε μόνο ελληνικές λέξεις που μπορούν να σχηματιστούν, μία ανά γραμμή. Χωρίς εξηγήσεις, χωρίς τίτλους, ΜΟΝΟ λέξεις.';
 
   const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
 
-  // Parse Claude's suggestions
+  // Parse Claude's suggestions — strip bullet/numbering, skip headers and sentences
   const candidates = rawWords.split('\n')
     .map(l => l.replace(/^[-–•*\d.)\s]+/, '').trim())
-    .filter(l => l.length >= 2);
+    .filter(l => l.length >= 2 && l.length <= 25 && !l.includes(':') && !l.includes(' ') && !l.includes(','));
 
   // JS strictly verifies each candidate against the actual tile multiset
   const base = drawTileMultiset(nums);
