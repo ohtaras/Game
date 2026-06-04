@@ -68,7 +68,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .lk-warn{font-size:.8rem;color:#ef9a9a;margin-top:6px}
 
 /* ── Auto sentence ── */
-#autoSentence{font-size:1.15rem;line-height:1.6;color:#e8eaf6;background:#0f1117;border-radius:8px;padding:14px 16px;border-left:3px solid #7986cb;font-style:italic}
+#autoSentence{font-size:1.15rem;line-height:1.8;color:#e8eaf6;background:#0f1117;border-radius:8px;padding:14px 16px;border-left:3px solid #7986cb}
 #autoSentence .as-meta{display:block;font-size:.72rem;color:#666;margin-top:8px;font-style:normal}
 
 /* ── Responsive ── */
@@ -131,9 +131,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="numsLookupResult"></div>
   </section>
 
-  <!-- Auto-composed sentence -->
+  <!-- Claude words -->
   <section id="sentenceSec">
-    <h2>Πρόταση από την κλήρωση (Claude)</h2>
+    <h2>Λέξεις από την κλήρωση (Claude)</h2>
     <div id="autoSentence">—</div>
   </section>
 </main>
@@ -196,7 +196,7 @@ function refreshTokenState() {
   const cl = !!localStorage.getItem('claude_api_key');
   const parts = [];
   parts.push(gh ? '🔑 GitHub token ✓ (αυτόματη αποθήκευση)' : '⚠ Χωρίς GitHub token (καμία αποθήκευση)');
-  parts.push(cl ? '✦ Claude key ✓ (AI πρόταση)' : '✦ Χωρίς Claude key (χωρίς AI πρόταση)');
+  parts.push(cl ? '✦ Claude key ✓ (AI λέξεις)' : '✦ Χωρίς Claude key (χωρίς AI λέξεις)');
   document.getElementById('tokenState').textContent = parts.join('  ·  ');
 }
 
@@ -463,16 +463,7 @@ async function claudeSentence(tiles, nums, apiKey) {
   const base = drawTileMultiset(nums);
   const verified = candidates.filter(w => spellWord(normWord(w), new Map(base)));
 
-  if (!verified.length) return {sentence: null, words: [], rejected: candidates};
-
-  // Turn 2: clean single prompt with ONLY verified words
-  const prompt2 = 'Χρησιμοποιώντας ΜΟΝΟ αυτές τις λέξεις: ' + verified.join(', ')
-    + ' — φτιάξε μια σύντομη πρόταση ή φράση. Απάντησε ΜΟΝΟ με την πρόταση, χωρίς εξηγήσεις.';
-
-  const sentence = await anthropicFetch(key, model, sys, [{role:'user', content: prompt2}], 150);
-
   return {
-    sentence: sentence.replace(/^["«»\s]+|["«»\s]+$/g,'').trim() || null,
     words: verified,
     rejected: candidates.filter(w => !verified.includes(w))
   };
@@ -485,29 +476,29 @@ async function renderAutoSentence(nums, sig) {
   const key = localStorage.getItem('claude_api_key');
 
   if (!key) {
-    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις για αυτόματη σύνθεση πρότασης.';
+    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις.';
     return;
+  }
+
+  function renderWords({words, rejected}) {
+    const w = words.length ? words.join('  ·  ') : '—';
+    const r = rejected?.length ? `<span class="as-meta">✗ Απορρίφθηκαν: ${rejected.join(', ')}</span>` : '';
+    return `<strong>${w}</strong>${r}`;
   }
 
   if (claudeCacheSig === sig && claudeCache) {
-    const {sentence, words, rejected} = claudeCache;
-    el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
-      + `<span class="as-meta">✓ Επαληθευμένες λέξεις (JS Scrabble): ${words.join(', ')||'—'}`
-      + (rejected?.length ? ` · ✗ Απορρίφθηκαν: ${rejected.join(', ')}` : '') + '</span>';
+    el.innerHTML = renderWords(claudeCache);
     return;
   }
 
-  el.innerHTML = '<span class="as-meta">✦ Βήμα 1/2: Claude βρίσκει λέξεις…</span>';
+  el.innerHTML = '<span class="as-meta">✦ Claude βρίσκει λέξεις…</span>';
   if (claudeBusy) return;
   claudeBusy = true;
   const tiles = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
     const result = await claudeSentence(tiles, nums, key);
     claudeCacheSig = sig; claudeCache = result;
-    const {sentence, words, rejected} = result;
-    el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
-      + `<span class="as-meta">✓ Επαληθευμένες λέξεις (JS Scrabble): ${words.join(', ')||'—'}`
-      + (rejected?.length ? ` · ✗ Απορρίφθηκαν: ${rejected.join(', ')}` : '') + '</span>';
+    el.innerHTML = renderWords(result);
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
   } finally {
