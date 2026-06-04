@@ -623,6 +623,8 @@ async function fetchLiveNow() {
     // 1. last-result-and-active (fastest)
     try {
       const d = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+      const dbg = document.getElementById('apiDebug');
+      if (dbg && d) dbg.textContent = 'API: ' + JSON.stringify(d).slice(0, 120);
       if (d?.lastResult?.winningNumbers?.list?.length) {
         const r = d.lastResult;
         draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
@@ -631,30 +633,15 @@ async function fetchLiveNow() {
       }
     } catch(_) {}
 
-    // 2. Estimated draw ID
-    if (!draw) {
-      const est = estDrawId();
-      for (const tryId of [est, est-1, est-2, est+1]) {
-        try {
-          const d = await apiFetch(`${OPAP_BASE}/${tryId}`);
-          if (d?.winningNumbers?.list?.length) {
-            draw = {id: d.drawId, time: localTimeStr(toMs(d.drawTime)),
-              nums: [...d.winningNumbers.list].sort((a,b)=>a-b),
-              bonus: (d.winningNumbers.bonus||[])[0]||null};
-            break;
-          }
-        } catch(_) {}
-      }
-    }
-
-    // 3. draw-date fallback (today)
+    // 2. fetchDaySeq (same proven path as docs/index.html)
     if (!draw) {
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
       try {
-        const data = await apiFetch(`${OPAP_BASE}/draw-date/${todayStr}/${todayStr}?page=0&size=300`);
-        const items = Array.isArray(data) ? data : (data?.content || data?.draws || []);
+        const items = await fetchDaySeq(todayStr);
         const valid = items.filter(i=>i.winningNumbers?.list?.length).sort((a,b)=>b.drawId-a.drawId);
+        const dbg = document.getElementById('apiDebug');
+        if (dbg) dbg.textContent = 'fetchDaySeq: ' + items.length + ' draws';
         if (valid.length) {
           const r = valid[0];
           draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
