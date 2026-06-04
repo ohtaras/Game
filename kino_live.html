@@ -367,7 +367,7 @@ function renderDelayTable() {
 }
 
 // ── Claude API (browser-direct) ────────────────────────────────────────────
-async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
+async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -376,7 +376,7 @@ async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
-    body: JSON.stringify({model, max_tokens: maxTokens, system: sys, messages: [{role:'user', content: userPrompt}]}),
+    body: JSON.stringify({model, max_tokens: maxTokens, system: sys, messages}),
     signal: AbortSignal.timeout(30000)
   });
   if (!resp.ok) { const t = await resp.text().catch(()=> ''); throw new Error(resp.status + ': ' + t.slice(0,150)); }
@@ -390,44 +390,69 @@ async function anthropicFetch(apiKey, model, sys, userPrompt, maxTokens) {
   return (data.content?.[0]?.text||'').trim();
 }
 
+// Two-turn Scrabble: Turn 1 → Claude commits to word list; Turn 2 → sentence from that list only
 async function claudeSentence(tiles, apiKey) {
-  const sys = 'Είσαι παίκτης Σκραμπλ στα Ελληνικά. '
-    + 'Σου δίνω τα 20 πλακίδια (γράμματα/δίγραφα) που βγήκαν σε μια κλήρωση Κίνο. '
-    + 'Κάθε πλακίδιο μπορεί να χρησιμοποιηθεί ΜΟΝΟ ΜΙΑ ΦΟΡΑ. '
-    + 'Σχημάτισε ελληνικές λέξεις από αυτά τα πλακίδια και φτιάξε μια πρόταση ή φράση. '
-    + 'Μπορείς να χρησιμοποιήσεις μέρος των πλακιδίων — δεν χρειάζεται να τα χρησιμοποιήσεις όλα. '
-    + 'Απάντησε ΜΟΝΟ με την πρόταση/φράση, χωρίς εξηγήσεις ή λίστες.';
-  const user = 'Πλακίδια: ' + tiles.join(', ');
-  const txt = await anthropicFetch(apiKey.trim(), 'claude-haiku-4-5-20251001', sys, user, 200);
-  return txt.replace(/^["«»\s]+|["«»\s]+$/g,'').trim() || null;
+  const key = apiKey.trim();
+  const model = 'claude-haiku-4-5-20251001';
+  const sys = 'Είσαι διαιτητής Σκραμπλ. Ακολουθείς τους κανόνες αυστηρά: κάθε πλακίδιο χρησιμοποιείται ΜΟΝΟ ΜΙΑ ΦΟΡΑ.';
+
+  const prompt1 = 'Πλακίδια κλήρωσης: ' + tiles.join(', ') + '\n\n'
+    + 'Βρες ΜΟΝΟ τις ελληνικές λέξεις που μπορούν να σχηματιστούν από αυτά τα πλακίδια '
+    + '(κάθε πλακίδιο μία φορά, κανένα επιπλέον γράμμα). '
+    + 'Απάντησε ΜΟΝΟ με λίστα λέξεων, μία ανά γραμμή, χωρίς εξηγήσεις.';
+
+  const wordListRaw = await anthropicFetch(key, model, sys,
+    [{role:'user', content: prompt1}], 400);
+
+  const words = wordListRaw.split('\n')
+    .map(l => l.replace(/^[-–•*\d.)\s]+/, '').trim())
+    .filter(l => l.length >= 2);
+
+  if (!words.length) return {sentence: null, words: []};
+
+  const prompt2 = 'Φτιάξε μια πρόταση ή φράση χρησιμοποιώντας ΜΟΝΟ λέξεις από την παραπάνω λίστα σου. '
+    + 'Απάντησε ΜΟΝΟ με την πρόταση/φράση, χωρίς εξηγήσεις.';
+
+  const sentence = await anthropicFetch(key, model, sys, [
+    {role:'user',      content: prompt1},
+    {role:'assistant', content: wordListRaw},
+    {role:'user',      content: prompt2}
+  ], 150);
+
+  return {
+    sentence: sentence.replace(/^["«»\s]+|["«»\s]+$/g,'').trim() || null,
+    words
+  };
 }
 
-let claudeBusy = false, claudeCacheSig = null, claudeCacheText = null;
+let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
 
 async function renderAutoSentence(nums, sig) {
   const el = document.getElementById('autoSentence');
   const key = localStorage.getItem('claude_api_key');
 
   if (!key) {
-    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις για αυτόματη σύνθεση πρότασης από τα γράμματα της κλήρωσης.';
+    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις για αυτόματη σύνθεση πρότασης.';
     return;
   }
 
-  if (claudeCacheSig === sig && claudeCacheText) {
-    el.innerHTML = `«${claudeCacheText}»<span class="as-meta">✦ Σύνθεση με Claude</span>`;
+  if (claudeCacheSig === sig && claudeCache) {
+    const {sentence, words} = claudeCache;
+    el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
+      + `<span class="as-meta">Λέξεις Σκραμπλ: ${words.join(', ')}</span>`;
     return;
   }
 
-  el.innerHTML = '<span class="as-meta">✦ Σύνθεση με Claude…</span>';
+  el.innerHTML = '<span class="as-meta">✦ Claude: βρίσκει λέξεις Σκραμπλ…</span>';
   if (claudeBusy) return;
   claudeBusy = true;
   const tiles = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
-    const s = await claudeSentence(tiles, key);
-    if (s) {
-      claudeCacheSig = sig; claudeCacheText = s;
-      el.innerHTML = `«${s}»<span class="as-meta">✦ Σύνθεση με Claude από ${tiles.length} πλακίδια κλήρωσης.</span>`;
-    }
+    const result = await claudeSentence(tiles, key);
+    claudeCacheSig = sig; claudeCache = result;
+    const {sentence, words} = result;
+    el.innerHTML = (sentence ? `«${sentence}»` : '(δεν σχηματίστηκε πρόταση)')
+      + `<span class="as-meta">Λέξεις Σκραμπλ: ${words.join(', ')}</span>`;
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
   } finally {
