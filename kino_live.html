@@ -422,10 +422,26 @@ async function claudeSentence(tiles, nums, apiKey) {
   const model = 'claude-haiku-4-5-20251001';
   const sys = 'Απαντάς στα ελληνικά. Ακολουθείς ακριβώς τις οδηγίες.';
 
+  // Normalize tiles for Claude: uppercase single letters → lowercase (same letter, different case only)
+  // Accented tiles (ύ, ί, ό, ά, ή, ώ, έ) stay as-is — accent makes them a DIFFERENT tile from unaccented
+  const normTiles = tiles.map(t =>
+    (t.length === 1 && t !== t.toLowerCase()) ? t.toLowerCase() : t
+  );
+
+  // Build tile inventory string with counts for clarity
+  const tileCount = {};
+  for (const t of normTiles) tileCount[t] = (tileCount[t] || 0) + 1;
+  const tileList = Object.entries(tileCount)
+    .map(([t, n]) => n > 1 ? `${t}(×${n})` : t).join(', ');
+
   // Turn 1: get candidate word list from Claude
-  const prompt1 = 'Πλακίδια: ' + tiles.join(', ') + '\n'
-    + 'Ποιες ελληνικές λέξεις μπορώ να γράψω χρησιμοποιώντας μόνο αυτά τα πλακίδια (κάθε ένα μέγιστο μία φορά); '
-    + 'Απάντησε μόνο με τις λέξεις, μία ανά γραμμή, χωρίς άλλο κείμενο.';
+  const prompt1 = 'Πλακίδια κλήρωσης: ' + tileList + '\n\n'
+    + 'Αυστηροί κανόνες:\n'
+    + '1. Κάθε πλακίδιο χρησιμοποιείται ΜΟΝΟ ΜΙΑ ΦΟΡΑ (εκτός αν εμφανίζεται με ×2 κ.λπ.)\n'
+    + '2. Τονισμένα και άτονα είναι ΔΙΑΦΟΡΕΤΙΚΑ πλακίδια: το «ύ» ≠ «υ», «ί» ≠ «ι», «ό» ≠ «ο» κ.λπ.\n'
+    + '3. Δίγραφα (αυ, λλ, σκ κ.λπ.) χρησιμοποιούνται ΩΣ ΕΝΙΑΙΟ πλακίδιο\n'
+    + '4. Για κάθε λέξη που προτείνεις, οι τόνοι πρέπει να ταιριάζουν ΑΚΡΙΒΩΣ με τα πλακίδια\n\n'
+    + 'Ποιες ελληνικές λέξεις μπορούν να σχηματιστούν; Μία ανά γραμμή, μόνο λέξεις.';
 
   const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
 
