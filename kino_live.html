@@ -216,20 +216,11 @@ function refreshTokenState() {
 }
 
 async function apiFetch(url) {
-  // 1. Direct (works if server sets CORS headers)
-  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(10000)}); if(r.ok)return r.json(); } catch(_) {}
-  // 2. corsproxy.io
-  try { const r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
-  // 2b. corsproxy.io legacy format
-  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
-  // 3. allorigins.win
-  try {
-    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(15000)});
-    if(r.ok){ const j=await r.json(); if(j?.contents) return JSON.parse(j.contents); }
-  } catch(_) {}
-  // 4. codetabs proxy
-  try { const r=await fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
-  throw new Error('all proxies failed');
+  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
+  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)}); if(r.ok)return r.json(); } catch(_) {}
+  const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return JSON.parse((await r.json()).contents);
 }
 
 async function ghGet(path) {
