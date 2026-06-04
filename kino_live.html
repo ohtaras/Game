@@ -694,7 +694,7 @@ function lookupWord() {
   const raw = document.getElementById('wordInput').value.trim();
   const out = document.getElementById('lookupResult');
   if (!raw) { out.innerHTML = ''; return; }
-  const norm = normWord(raw);
+  const norm = normWord(raw.replace(/\s+/g, ''));
   // DFS decomposition — same logic as spellWord, collects tile sequence
   const result = [];
   function dfs(i) {
