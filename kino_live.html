@@ -659,20 +659,20 @@ async function fetchLiveNow() {
       bonus: (r.winningNumbers.bonus||[])[0]||null};
       liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
 
-    renderDraw(draw);
-
     // Update delays + trigger Claude only on genuinely new draw
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums);
-      shuffleMapping();
+      shuffleMapping();          // shuffle ΠΡΩΤΑ
+      renderDraw(draw);          // μετά render με το νέο mapping
       lastDrawId = draw.id;
       updateDelays(draw.nums);
-      // Reset cache and show waiting indicator
       claudeCacheSig = null; claudeCache = null;
       document.getElementById('autoSentence').innerHTML = '<span class="as-meta">✦ Νέα κλήρωση — ανάλυση σε 2″…</span>';
       const sig = draw.id.toString();
       const numsSnap = [...draw.nums];
       setTimeout(() => renderAutoSentence(numsSnap, sig), 2000);
+    } else {
+      renderDraw(draw);          // ίδια κλήρωση, χωρίς re-shuffle
     }
 
     // Auto-save every 6+ buffered draws
