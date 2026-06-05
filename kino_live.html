@@ -147,45 +147,25 @@ const LIVE_BASE_ID= 1155022;
 const pad = n => String(n).padStart(2,'0');
 function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── 24-letter mapping (frequency-optimised for Greek words) ───────────────
-// Each number maps to one of 24 Greek letters; common letters get more numbers.
-// α×12  σ×7  ο×6  ι×6  η×5  ν×5  ε×5  ρ×5  λ×3  υ×3  τ×3  μ×3
-// κ×2  θ×2  π×2  γ×2  φ×2  ω×1  δ×1  χ×1  β×1  ξ×1  ζ×1  ψ×1
-const LETTER_TO_NUMS = {
-  'α':[5,16,22,31,38,40,50,53,63,73,74,79],
-  'σ':[10,14,33,34,45,47,80],
-  'ο':[27,32,52,55,62,64],
-  'ι':[1,13,23,41,44,67],
-  'η':[7,8,20,59,76],
-  'ν':[6,15,35,51,57],
-  'ε':[9,28,29,39,77],
-  'ρ':[2,11,56,61,70],
-  'λ':[49,66,72],
-  'υ':[46,60,65],
-  'τ':[21,25,54],
-  'μ':[24,58,68],
-  'κ':[3,71],
-  'θ':[30,78],
-  'π':[18,75],
-  'γ':[48,69],
-  'φ':[26,37],
-  'ω':[43],
-  'δ':[12],
-  'χ':[4],
-  'β':[42],
-  'ξ':[19],
-  'ζ':[36],
-  'ψ':[17]
-};
-const NUM_TO_CHAR = new Array(81).fill(null);
-for (const [ch, nums] of Object.entries(LETTER_TO_NUMS))
-  for (const n of nums) NUM_TO_CHAR[n] = ch;
-// Canonical number per letter (first in list) — used for lookup display
-const CHAR_TO_NUM = Object.fromEntries(
-  Object.entries(LETTER_TO_NUMS).map(([ch, nums]) => [ch, nums[0]])
-);
+// ── 80-symbol mapping: each number has a unique symbol ───────────────────
+const NUM_TO_CHAR = [
+  null,
+  'ευ','τρ','Ξ','Χ','η','αυ','χτ','ψ','λλ','τ',     // 1-10
+  'μπ','Υ','γ','φ','οι','κ','Ω','Ο','Ψ','σκ',        // 11-20
+  'Η','ο','αι','Α','Δ','Ρ','χ','ρχ','ντ','Γ',        // 21-30
+  'ν','θ','σ','δ','χρ','Σ','Τ','π','ξ','μ',          // 31-40
+  'υ','Φ','τσ','λ','ό','Λ','ή','Μ','θρ','στ',        // 41-50
+  'ζ','ου','α','Ζ','ει','σπ','κτ','νδ','β','Κ',      // 51-60
+  'γκ','ύ','ρ','ω','Ε','σσ','ί','Β','Ι','φτ',        // 61-70
+  'Ν','γγ','ε','ά','Π','πρ','ώ','Θ','ι','έ'          // 71-80
+];
+const CHAR_TO_NUM = {};
+for (let n = 1; n <= 80; n++) {
+  const c = NUM_TO_CHAR[n], key = c.toLowerCase();
+  if (c === key || !CHAR_TO_NUM[key]) CHAR_TO_NUM[key] = n;
+}
 CHAR_TO_NUM['ς'] = CHAR_TO_NUM['σ'];
-const PATTERNS = Object.keys(CHAR_TO_NUM);
+const PATTERNS = Object.keys(CHAR_TO_NUM).sort((a,b) => b.length - a.length);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let liveRunning      = false;
@@ -262,12 +242,8 @@ function localTimeStr(ms) {
 }
 
 function normWord(word) {
-  // Strip accents — new system has no accented tiles (ά→α, ή→η, etc.)
-  return word.toLowerCase()
-    .replace(/ά/g,'α').replace(/έ/g,'ε').replace(/ή/g,'η')
-    .replace(/ί/g,'ι').replace(/ϊ/g,'ι').replace(/ΐ/g,'ι')
-    .replace(/ό/g,'ο').replace(/ύ/g,'υ').replace(/ϋ/g,'υ').replace(/ΰ/g,'υ')
-    .replace(/ώ/g,'ω').replace(/ς/g,'σ');
+  // Accents are distinct tiles (ό≠ο, ή≠η, etc.); only lowercase + final-sigma alias.
+  return word.toLowerCase().replace(/ς/g,'σ');
 }
 
 // Strict Scrabble check: can `word` be spelled from tile multiset `avail`?
@@ -525,7 +501,8 @@ async function renderAutoSentence(nums, sig) {
 // ── Draw rendering ─────────────────────────────────────────────────────────
 function charClass(c) {
   if (!c) return '';
-  return 'αεηιουω'.includes(c) ? ' vowel' : ' consonant';
+  const f = c[0].toLowerCase().replace(/[άέήίόύώ]/g, m => ({ά:'α',έ:'ε',ή:'η',ί:'ι',ό:'ο',ύ:'υ',ώ:'ω'}[m]));
+  return 'αεηιουω'.includes(f) ? ' vowel' : ' consonant';
 }
 
 function renderDraw(draw) {
@@ -681,13 +658,12 @@ function lookupWord() {
     return false;
   }
   if (!dfs(0)) {
-    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει γράμματα εκτός των 24 (α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω).</div>';
+    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει συνδυασμό που δεν υπάρχει στα 80 σύμβολα.</div>';
     return;
   }
   const tileHtml = result.map(t => {
-    const nums = LETTER_TO_NUMS[t] || [];
-    const label = nums.length > 3 ? nums.slice(0,3).join(',')+'…' : nums.join(',');
-    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${label}</span></div>`;
+    const num = CHAR_TO_NUM[t] || '';
+    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${num}</span></div>`;
   }).join('');
   const letterList = result.join(' · ');
   out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
