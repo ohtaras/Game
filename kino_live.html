@@ -514,7 +514,7 @@ function annotateProphecy(text) {
 
 let prophNumsForEval = [];
 
-function evaluateProphecy(drawnNums) {
+function evaluateProphecy(drawnNums, drawId, drawTime) {
   if (!prophNumsForEval.length) return;
   const el = document.getElementById('prophEval');
   if (!el) return;
@@ -524,8 +524,23 @@ function evaluateProphecy(drawnNums) {
       ? `<span class="eval-hit">${n}✓</span>`
       : `<span class="eval-miss">${n}</span>`
   ).join(' ');
-  el.style.display = 'block';
-  el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${prophNumsForEval.length} βγήκαν</span><br>${tiles}`;
+
+  const isPerfect = hits.length === prophNumsForEval.length && hits.length > 0;
+
+  if (isPerfect) {
+    // Αποθήκευση στο localStorage
+    const rec = { drawId, time: drawTime, nums: [...prophNumsForEval], score: hits.length };
+    try {
+      const existing = JSON.parse(localStorage.getItem('kino_perfect') || '[]');
+      existing.push(rec);
+      localStorage.setItem('kino_perfect', JSON.stringify(existing));
+    } catch(_) {}
+    el.style.display = 'block';
+    el.innerHTML = `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ! ${hits.length}/${prophNumsForEval.length}</strong> — Κλήρωση #${drawId} ${drawTime}<br>${tiles}`;
+  } else {
+    el.style.display = 'block';
+    el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${prophNumsForEval.length} βγήκαν</span><br>${tiles}`;
+  }
   prophNumsForEval = [];
 }
 
@@ -677,7 +692,7 @@ async function fetchLiveNow() {
 
     // Update delays + trigger Claude only on genuinely new draw
     if (draw.id !== lastDrawId) {
-      evaluateProphecy(draw.nums);
+      evaluateProphecy(draw.nums, draw.id, draw.time);
       renderDraw(draw);          // render με BASE mapping (σταθερό)
       shuffleMapping();          // shuffle ΜΕΤΑ — για Part 2 απάντηση
       lastDrawId = draw.id;
@@ -830,6 +845,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-05 15:06</div>
+<div id="buildStamp">v 2026-06-05 16:50</div>
 </body>
 </html>
