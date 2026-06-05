@@ -76,7 +76,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .oracle-prophecy{font-size:.95rem;line-height:1.8;color:#b0bec5;border-left:3px solid #6a1b9a;padding-left:12px}
 .proph-w{color:#ce93d8}
 .proph-n{font-size:.58rem;color:#9fa8da;vertical-align:super;margin-left:1px}
-.proph-nums-box{margin-top:10px;background:#16101f;border:1px solid #4a1a6a;border-radius:8px;padding:8px 12px;font-family:monospace;font-size:.85rem;color:#ce93d8;letter-spacing:.06em;line-height:1.6}
+.proph-nums-box{margin-bottom:10px;background:#16101f;border:1px solid #4a1a6a;border-radius:8px;padding:8px 12px;font-family:monospace;font-size:.85rem;color:#ce93d8;letter-spacing:.06em;line-height:1.6}
+#prophEval{display:none;background:#0a1a0a;border:1px solid #2e4a2e;border-radius:8px;padding:9px 14px;margin-bottom:8px;font-size:.82rem;line-height:1.7}
+.eval-hit{color:#a5d6a7;font-weight:700}
+.eval-miss{color:#4a4a4a}
 
 /* ── Responsive ── */
 @media(max-width:600px){
@@ -141,6 +144,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <!-- Claude prophecy -->
   <section id="sentenceSec">
     <h2>Προφητεία κλήρωσης (Claude)</h2>
+    <div id="prophEval"></div>
     <div id="autoSentence">—</div>
   </section>
 </main>
@@ -461,6 +465,23 @@ function annotateProphecy(text) {
   return {html, nums};
 }
 
+let prophNumsForEval = [];
+
+function evaluateProphecy(drawnNums) {
+  if (!prophNumsForEval.length) return;
+  const el = document.getElementById('prophEval');
+  if (!el) return;
+  const hits = prophNumsForEval.filter(n => drawnNums.includes(n));
+  const tiles = prophNumsForEval.map(n =>
+    drawnNums.includes(n)
+      ? `<span class="eval-hit">${n}✓</span>`
+      : `<span class="eval-miss">${n}</span>`
+  ).join(' ');
+  el.style.display = 'block';
+  el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${prophNumsForEval.length} βγήκαν</span><br>${tiles}`;
+  prophNumsForEval = [];
+}
+
 function formatOracleOutput(text) {
   const sep = text.indexOf('\n---\n') !== -1 ? '\n---\n' : '---';
   const idx = text.indexOf(sep);
@@ -469,8 +490,12 @@ function formatOracleOutput(text) {
   let html = `<div class="oracle-sentence">${sentence.replace(/\n/g,'<br>')}</div>`;
   if (prophecy) {
     const {html: pHtml, nums} = annotateProphecy(prophecy);
+    const unique = [...new Set(nums)];
+    if (unique.length) {
+      prophNumsForEval = unique;
+      html += `<div class="proph-nums-box">🔢 ${unique.join('  ·  ')}</div>`;
+    }
     html += `<div class="oracle-prophecy">${pHtml}</div>`;
-    if (nums.length) html += `<div class="proph-nums-box">🔢 ${nums.join('  ·  ')}</div>`;
   }
   return html;
 }
@@ -591,8 +616,9 @@ async function fetchLiveNow() {
     renderDraw(draw);
     renderAutoSentence(draw.nums, draw.id.toString());
 
-    // Update delays only on new draw
+    // Update delays + evaluate last prophecy on new draw
     if (draw.id !== lastDrawId) {
+      evaluateProphecy(draw.nums);
       lastDrawId = draw.id;
       updateDelays(draw.nums);
     }
