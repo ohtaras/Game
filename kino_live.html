@@ -411,19 +411,31 @@ async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
   return (data.content?.[0]?.text||'').trim();
 }
 
-async function claudeSentence(words, apiKey) {
+async function claudeSentence(nums, apiKey) {
   const model = 'claude-haiku-4-5-20251001';
-  const sys = 'Απαντάς ΜΟΝΟ με αυτό που ζητείται. Χωρίς εισαγωγές, χωρίς εξηγήσεις. Μόνο οι προτάσεις.';
-  const prompt = `Λέξεις κλήρωσης: ${words.join(', ')}
 
-ΚΑΝΟΝΕΣ (αυστηροί):
-1. Χρησιμοποίησε ΑΠΟΚΛΕΙΣΤΙΚΑ αυτές τις λέξεις — ΚΑΜΙΑ επιπλέον λέξη, ΚΑΝΕΝΑ επιπλέον γράμμα.
-2. Μπορείς να κλίνεις μόνο τις παραπάνω λέξεις (π.χ. μοίρα→μοίρας, φέρνει→φέρνουν).
-3. Φτιάξε 2-3 σύντομες προφητικές προτάσεις με ό,τι έχεις.
-4. Ύφος μαντείου Δελφών: αινιγματικό, σύντομο.
+  // Full mapping table in system context
+  const fullMap = NUM_TO_CHAR.slice(1)
+    .map((w, i) => `${i+1}:${w}`).join('  ');
 
-Μία πρόταση ανά γραμμή. ΜΟΝΟ οι προτάσεις.`;
-  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 250);
+  const sys = `Είσαι μάντης που ερμηνεύει κληρώσεις Κίνο. Γνωρίζεις τον πλήρη πίνακα αντιστοίχισης:
+${fullMap}
+
+Κανόνες:
+• Φτιάχνεις πρόταση χρησιμοποιώντας ΜΟΝΟ τις λέξεις της κλήρωσης (επιτρέπεται κλίση: μοίρα→μοίρας κ.λπ.)
+• Ακολουθεί μία σύντομη προφητεία — ελεύθερο κείμενο, ερμηνεία της κλήρωσης
+• Ύφος μαντείου Δελφών: αινιγματικό, συμπυκνωμένο`;
+
+  const drawn = nums.map(n => `${n}(${NUM_TO_CHAR[n]})`).join(', ');
+  const prompt = `Κλήρωση: ${drawn}
+
+Γράψε:
+1. Πρόταση από τις λέξεις της κλήρωσης (μόνο αυτές, χωρίς έξτρα λέξεις)
+2. Προφητεία — σύντομη ερμηνεία
+
+Χωρίς τίτλους, χωρίς αρίθμηση. Μόνο το κείμενο.`;
+
+  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 300);
 }
 
 let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
@@ -439,9 +451,8 @@ async function renderAutoSentence(nums, sig) {
   el.innerHTML = '<span class="as-meta">✦ Claude σχηματίζει πρόταση…</span>';
   if (claudeBusy) return;
   claudeBusy = true;
-  const words = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
-    const text = await claudeSentence(words, key);
+    const text = await claudeSentence(nums, key);
     claudeCacheSig = sig;
     claudeCache = text.replace(/\n/g,'<br>');
     el.innerHTML = claudeCache;
