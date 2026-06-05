@@ -36,10 +36,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #drawMeta strong{display:block;font-size:1rem;color:#fff;margin-bottom:4px}
 .num-grid{display:flex;flex-wrap:wrap;gap:4px;flex:1}
 .num-ball{width:36px;height:36px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;background:#263238;color:#b0bec5;border:2px solid #37474f;cursor:default}
-.num-ball.drawn{background:#1a2744;color:#e8eaf6;border-color:#37474f}
-.num-ball.vowel{background:#1a237e;color:#c5cae9;border-color:#3949ab}
-.num-ball.consonant{background:#1b3a4a;color:#b2dfdb;border-color:#26747a}
-#drawLettersLine{font-size:1rem;color:#ce93d8;margin-top:6px;font-family:monospace;letter-spacing:.12em;word-break:break-all}
+.num-ball.drawn   {background:#1a2744;color:#e8eaf6;border-color:#37474f}
+.num-ball.article {background:#0d1b4a;color:#c5cae9;border-color:#3f51b5}
+.num-ball.conj    {background:#0d2e1a;color:#a5d6a7;border-color:#2e7d32}
+.num-ball.verb    {background:#2a0d3e;color:#ce93d8;border-color:#7b1fa2}
+.num-ball.noun    {background:#0d2040;color:#90caf9;border-color:#1565c0}
+.num-ball.outcome {background:#3a1000;color:#ff8a65;border-color:#bf360c}
+.num-ball.adverb  {background:#1a1200;color:#ffd54f;border-color:#f57f17}
+#drawLettersLine{font-size:.82rem;color:#b0bec5;margin-top:8px;line-height:1.7;word-break:break-word}
 
 /* ── Delay table ── */
 #delayGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
@@ -109,19 +113,19 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
   </section>
 
-  <!-- Word → Numbers lookup -->
+  <!-- Word search -->
   <section id="lookupSec">
-    <h2>Λέξη → Αριθμοί</h2>
+    <h2>Αναζήτηση στα 80</h2>
     <div id="lookupBox">
-      <input type="text" id="wordInput" placeholder="Γράψε μια λέξη (π.χ. ΝΙΚΗ)" autocomplete="off" spellcheck="false">
-      <button id="lookupBtn">Ανάλυση</button>
+      <input type="text" id="wordInput" placeholder="π.χ. μοίρα  ή  φέρν" autocomplete="off" spellcheck="false">
+      <button id="lookupBtn">Αναζήτηση</button>
     </div>
     <div id="lookupResult"></div>
   </section>
 
-  <!-- Numbers → Tiles lookup -->
+  <!-- Numbers → Words lookup -->
   <section id="numsLookupSec">
-    <h2>Αριθμοί → Λέξη</h2>
+    <h2>Αριθμοί → Λέξεις</h2>
     <div id="numsLookupBox">
       <input type="text" id="numsInput" placeholder="π.χ. 5 12 31 10  ή  5,12,31,10" autocomplete="off" spellcheck="false">
       <button id="numsLookupBtn">Ανάλυση</button>
@@ -129,9 +133,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="numsLookupResult"></div>
   </section>
 
-  <!-- Claude words -->
+  <!-- Claude prophecy -->
   <section id="sentenceSec">
-    <h2>Λέξεις από την κλήρωση (Claude)</h2>
+    <h2>Προφητεία κλήρωσης (Claude)</h2>
     <div id="autoSentence">—</div>
   </section>
 </main>
@@ -148,25 +152,35 @@ const LIVE_BASE_ID= 1155022;
 const pad = n => String(n).padStart(2,'0');
 function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── 80-symbol mapping: each number has a unique symbol ───────────────────
+// ── 80-word mapping: each number maps to a unique prophetic word ──────────
+// 1-8: Άρθρα  9-15: Σύνδεσμοι  16-35: Ρήματα  36-55: Υποκείμενα  56-70: Έκβαση  71-80: Επιρρήματα
 const NUM_TO_CHAR = [
   null,
-  'ευ','τρ','Ξ','Χ','η','αυ','χτ','ψ','λλ','τ',     // 1-10
-  'μπ','Υ','γ','φ','οι','κ','Ω','Ο','Ψ','σκ',        // 11-20
-  'Η','ο','αι','Α','Δ','Ρ','χ','ρχ','ντ','Γ',        // 21-30
-  'ν','θ','σ','δ','χρ','Σ','Τ','π','ξ','μ',          // 31-40
-  'υ','Φ','τσ','λ','ό','Λ','ή','Μ','θρ','στ',        // 41-50
-  'ζ','ου','α','Ζ','ει','σπ','κτ','νδ','β','Κ',      // 51-60
-  'γκ','ύ','ρ','ω','Ε','σσ','ί','Β','Ι','φτ',        // 61-70
-  'Ν','γγ','ε','ά','Π','πρ','ώ','Θ','ι','έ'          // 71-80
+  'ο','η','το','ένα','μια','ένας','τον','την',                                    // 1-8
+  'και','αλλά','για','από','στο','ωστόσο','γιατί',                                // 9-15
+  'φέρνει','αποκαλύπτει','οδηγεί','κρύβει','αλλάζει',                            // 16-20
+  'ανοίγει','κλείνει','βλέπει','γνωρίζει','δείχνει',                             // 21-25
+  'καλεί','σπάει','παίρνει','χάνει','βρίσκει',                                   // 26-30
+  'ακούει','έρχεται','δίνει','ζητά','φτάνει',                                    // 31-35
+  'μοίρα','χρόνος','νύχτα','φως','σκιά',                                         // 36-40
+  'ψυχή','κόσμος','αλήθεια','δύναμη','ελπίδα',                                   // 41-45
+  'φόβος','θάνατος','ζωή','λόγος','νους',                                        // 46-50
+  'καρδιά','αστέρι','σιωπή','ύπνος','πύλη',                                      // 51-55
+  'τέλος','αρχή','δρόμος','αλλαγή','κίνδυνος',                                   // 56-60
+  'ευκαιρία','νίκη','μυστικό','δεσμός','λύτρωση',                               // 61-65
+  'κέρδος','απώλεια','συγχώρεση','ευτυχία','πόνος',                             // 66-70
+  'τώρα','σύντομα','πάντα','ποτέ','εδώ','μόνο','ακόμα','τελικά','πριν','μαζί'   // 71-80
 ];
-const CHAR_TO_NUM = {};
-for (let n = 1; n <= 80; n++) {
-  const c = NUM_TO_CHAR[n], key = c.toLowerCase();
-  if (c === key || !CHAR_TO_NUM[key]) CHAR_TO_NUM[key] = n;
+
+function wordCat(n) {
+  if (n >= 1  && n <= 8)  return ' article';
+  if (n >= 9  && n <= 15) return ' conj';
+  if (n >= 16 && n <= 35) return ' verb';
+  if (n >= 36 && n <= 55) return ' noun';
+  if (n >= 56 && n <= 70) return ' outcome';
+  if (n >= 71 && n <= 80) return ' adverb';
+  return '';
 }
-CHAR_TO_NUM['ς'] = CHAR_TO_NUM['σ'];
-const PATTERNS = Object.keys(CHAR_TO_NUM).sort((a,b) => b.length - a.length);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let liveRunning      = false;
@@ -242,37 +256,6 @@ function localTimeStr(ms) {
   return new Date(ms).toLocaleTimeString('el-GR',{timeZone:'Europe/Athens',hour:'2-digit',minute:'2-digit'});
 }
 
-function normWord(word) {
-  // Accents are distinct tiles (ό≠ο, ή≠η, etc.); only lowercase + final-sigma alias.
-  return word.toLowerCase().replace(/ς/g,'σ');
-}
-
-// Strict Scrabble check: can `word` be spelled from tile multiset `avail`?
-function spellWord(word, avail) {
-  function dfs(i) {
-    if (i === word.length) return true;
-    for (const t of PATTERNS) {
-      if (t.length > word.length - i) continue;
-      if ((avail.get(t)||0) <= 0) continue;
-      if (!word.startsWith(t, i)) continue;
-      avail.set(t, avail.get(t) - 1);
-      if (dfs(i + t.length)) return true;
-      avail.set(t, avail.get(t) + 1);
-    }
-    return false;
-  }
-  return dfs(0);
-}
-
-function drawTileMultiset(nums) {
-  const m = new Map();
-  for (const n of nums) {
-    const c = NUM_TO_CHAR[n]; if (!c) continue;
-    const key = c.toLowerCase();
-    m.set(key, (m.get(key) || 0) + 1);
-  }
-  return m;
-}
 
 function delayColor(d) {
   const t = Math.min(d / 60, 1);
@@ -394,9 +377,10 @@ function renderDelayTable() {
     const d = delays[n];
     const bg = delayColor(d);
     const sym = NUM_TO_CHAR[n] || '';
+    const symShort = sym.length > 5 ? sym.slice(0,4)+'.' : sym;
     cells.push(`<div class="d-cell" style="background:${bg}" title="#${n} (${sym}) — ${d} κληρώσεις απόντος">
       <span class="d-num">${n}</span>
-      <span class="d-sym">${sym}</span>
+      <span class="d-sym">${symShort}</span>
       <span class="d-val">${d}</span>
     </div>`);
   }
@@ -427,42 +411,15 @@ async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
   return (data.content?.[0]?.text||'').trim();
 }
 
-// Turn 1: Claude proposes candidate words → JS verifies each strictly → Turn 2: sentence from verified only
-async function claudeSentence(tiles, nums, apiKey) {
-  const key = apiKey.trim();
+async function claudeSentence(words, apiKey) {
   const model = 'claude-haiku-4-5-20251001';
-  const sys = 'Απαντάς ΜΟΝΟ με αυτό που ζητείται. ΚΑΜΙΑ εισαγωγή, ΚΑΜΙΑ επεξήγηση, ΚΑΝΕΝΑ σχόλιο, ΚΑΝΕΝΑ κεφαλαίο τίτλος. Μόνο η απάντηση.';
+  const sys = 'Απαντάς ΜΟΝΟ με αυτό που ζητείται. Χωρίς εισαγωγές, χωρίς εξηγήσεις. Μόνο οι προτάσεις.';
+  const prompt = `Λέξεις κλήρωσης Κίνο: ${words.join(', ')}
 
-  // Build letter inventory with counts (tiles are already single lowercase letters)
-  const tileCount = {};
-  for (const t of tiles) tileCount[t] = (tileCount[t] || 0) + 1;
-  const tileList = Object.entries(tileCount)
-    .map(([t, n]) => n > 1 ? `${t}(×${n})` : t).join(', ');
+Φτιάξε 2-3 σύντομες προφητικές προτάσεις στα ελληνικά. Χρησιμοποίησε όσες από αυτές τις λέξεις μπορείς — μπορείς να τις κλίνεις (π.χ. μοίρα→μοίρας) και να αλλάξεις σειρά. Ύφος μαντείου Δελφών: αινιγματικό, σύντομο, δυνατό.
 
-  // Turn 1: get candidate word list from Claude
-  const prompt1 = 'Διαθέσιμα γράμματα: ' + tileList + '\n\n'
-    + 'ΚΑΝΟΝΕΣ:\n'
-    + '1. Κάθε γράμμα μία μόνο φορά (εκτός αν υπάρχει ×2 κ.λπ.)\n'
-    + '2. Χρησιμοποίησε ΜΟΝΟ τα 24 γράμματα: α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω — χωρίς τόνους\n'
-    + '3. ΜΟΝΟ ολοκληρωμένες λέξεις ελληνικού λεξιλογίου, τουλάχιστον 3 γράμματα\n'
-    + '4. ΟΧΙ συλλαβές, ΟΧΙ τμήματα λέξεων\n\n'
-    + 'Γράψε μόνο ελληνικές λέξεις που μπορούν να σχηματιστούν, μία ανά γραμμή. Χωρίς εξηγήσεις, χωρίς τίτλους, ΜΟΝΟ λέξεις.';
-
-  const rawWords = await anthropicFetch(key, model, sys, [{role:'user', content: prompt1}], 400);
-
-  // Parse Claude's suggestions — strip bullet/numbering, skip headers and sentences
-  const candidates = rawWords.split('\n')
-    .map(l => l.replace(/^[-–•*\d.)\s]+/, '').trim())
-    .filter(l => l.length >= 3 && l.length <= 25 && !l.includes(':') && !l.includes(' ') && !l.includes(','));
-
-  // JS strictly verifies each candidate against the actual tile multiset
-  const base = drawTileMultiset(nums);
-  const verified = candidates.filter(w => spellWord(normWord(w), new Map(base)));
-
-  return {
-    words: verified,
-    rejected: candidates.filter(w => !verified.includes(w))
-  };
+Μία πρόταση ανά γραμμή. Μόνο οι προτάσεις, τίποτε άλλο.`;
+  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 250);
 }
 
 let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
@@ -470,62 +427,43 @@ let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
 async function renderAutoSentence(nums, sig) {
   const el = document.getElementById('autoSentence');
   const key = localStorage.getItem('claude_api_key');
-
   if (!key) {
     el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις.';
     return;
   }
-
-  function renderWords({words, rejected}) {
-    const w = words.length ? words.join('  ·  ') : '—';
-    const r = rejected?.length ? `<span class="as-meta">✗ Απορρίφθηκαν: ${rejected.join(', ')}</span>` : '';
-    return `<strong>${w}</strong>${r}`;
-  }
-
-  if (claudeCacheSig === sig && claudeCache) {
-    el.innerHTML = renderWords(claudeCache);
-    return;
-  }
-
-  el.innerHTML = '<span class="as-meta">✦ Claude βρίσκει λέξεις…</span>';
+  if (claudeCacheSig === sig && claudeCache) { el.innerHTML = claudeCache; return; }
+  el.innerHTML = '<span class="as-meta">✦ Claude σχηματίζει πρόταση…</span>';
   if (claudeBusy) return;
   claudeBusy = true;
-  const tiles = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
+  const words = nums.map(n => NUM_TO_CHAR[n]).filter(Boolean);
   try {
-    const result = await claudeSentence(tiles, nums, key);
-    claudeCacheSig = sig; claudeCache = result;
-    el.innerHTML = renderWords(result);
+    const text = await claudeSentence(words, key);
+    claudeCacheSig = sig;
+    claudeCache = text.replace(/\n/g,'<br>');
+    el.innerHTML = claudeCache;
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
-  } finally {
-    claudeBusy = false;
-  }
+  } finally { claudeBusy = false; }
 }
 
 // ── Draw rendering ─────────────────────────────────────────────────────────
-function charClass(c) {
-  if (!c) return '';
-  const f = c[0].toLowerCase().replace(/[άέήίόύώ]/g, m => ({ά:'α',έ:'ε',ή:'η',ί:'ι',ό:'ο',ύ:'υ',ώ:'ω'}[m]));
-  return 'αεηιουω'.includes(f) ? ' vowel' : ' consonant';
-}
-
 function renderDraw(draw) {
   document.getElementById('drawId').textContent = `Κλήρωση #${draw.id}`;
   document.getElementById('drawTime').textContent = draw.time;
 
   const grid = document.getElementById('numGrid');
   const balls = draw.nums.map(n => {
-    const c = NUM_TO_CHAR[n] || '';
-    const cls = 'num-ball drawn' + charClass(c);
-    return `<div class="${cls}" title="${c} (${n})">
-      <span style="font-size:.68rem;display:block;line-height:1.1">${c}</span>
+    const w = NUM_TO_CHAR[n] || '';
+    const disp = w.length > 5 ? w.slice(0,5) : w;
+    return `<div class="num-ball drawn${wordCat(n)}" title="${w} (${n})">
+      <span style="font-size:.48rem;display:block;line-height:1.1;letter-spacing:0">${disp}</span>
       <span style="font-size:.55rem;opacity:.75">${n}</span>
     </div>`;
   }).join('');
   grid.innerHTML = balls;
 
-  const charLine = draw.nums.map(n => NUM_TO_CHAR[n] || '').join(' ');
-  document.getElementById('drawLettersLine').textContent = charLine;
+  const wordLine = draw.nums.map(n => NUM_TO_CHAR[n] || '').filter(Boolean).join('  ·  ');
+  document.getElementById('drawLettersLine').textContent = wordLine;
 }
 
 // ── Update delays on new draw ──────────────────────────────────────────────
@@ -642,39 +580,26 @@ function stopLive() {
   document.getElementById('countdown').textContent = '';
 }
 
-// ── Word → Numbers lookup ──────────────────────────────────────────────────
+// ── Word search in the 80-word list ───────────────────────────────────────
 function lookupWord() {
-  const raw = document.getElementById('wordInput').value.trim();
+  const raw = document.getElementById('wordInput').value.trim().toLowerCase();
   const out = document.getElementById('lookupResult');
   if (!raw) { out.innerHTML = ''; return; }
-  const norm = normWord(raw.replace(/\s+/g, ''));
-  // DFS decomposition — same logic as spellWord, collects tile sequence
-  const result = [];
-  function dfs(i) {
-    if (i === norm.length) return true;
-    for (const t of PATTERNS) {
-      if (t.length > norm.length - i) continue;
-      if (!norm.startsWith(t, i)) continue;
-      result.push(t);
-      if (dfs(i + t.length)) return true;
-      result.pop();
-    }
-    return false;
+  const results = [];
+  for (let n = 1; n <= 80; n++) {
+    if ((NUM_TO_CHAR[n] || '').toLowerCase().includes(raw)) results.push(n);
   }
-  if (!dfs(0)) {
-    out.innerHTML = '<div class="lk-warn">Δεν αναγνωρίστηκε — περιέχει συνδυασμό που δεν υπάρχει στα 80 σύμβολα.</div>';
+  if (!results.length) {
+    out.innerHTML = `<div class="lk-warn">Δεν βρέθηκε λέξη που να περιέχει «${raw}».</div>`;
     return;
   }
-  const tileHtml = result.map(t => {
-    const num = CHAR_TO_NUM[t] || '';
-    return `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${num}</span></div>`;
-  }).join('');
-  const letterList = result.join(' · ');
-  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
-    <div class="lk-nums">Γράμματα: ${letterList}</div>`;
+  const html = results.map(n =>
+    `<div class="lk-tile"><span class="lk-c">${NUM_TO_CHAR[n]}</span><span class="lk-n">${n}</span></div>`
+  ).join('');
+  out.innerHTML = `<div class="lk-tiles">${html}</div>`;
 }
 
-// ── Numbers → Tiles lookup ─────────────────────────────────────────────────
+// ── Numbers → Words lookup ─────────────────────────────────────────────────
 function lookupNums() {
   const raw = document.getElementById('numsInput').value.trim();
   const out = document.getElementById('numsLookupResult');
@@ -684,15 +609,11 @@ function lookupNums() {
     out.innerHTML = '<div class="lk-warn">Δώσε αριθμούς 1–80 χωρισμένους με κενό ή κόμμα.</div>';
     return;
   }
-  const invalid = raw.split(/[\s,;]+/).filter(s => s && (isNaN(parseInt(s,10)) || parseInt(s,10) < 1 || parseInt(s,10) > 80));
-  const tiles = nums.map(n => ({ n, t: NUM_TO_CHAR[n] }));
-  const word = tiles.map(x => x.t).join('');
-  const tileHtml = tiles.map(({n, t}) =>
-    `<div class="lk-tile"><span class="lk-c">${t}</span><span class="lk-n">${n}</span></div>`
+  const tileHtml = nums.map(n =>
+    `<div class="lk-tile"><span class="lk-c">${NUM_TO_CHAR[n]||'?'}</span><span class="lk-n">${n}</span></div>`
   ).join('');
-  const warn = invalid.length ? `<div class="lk-warn">Αγνοήθηκαν: ${invalid.join(', ')}</div>` : '';
-  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
-    <div class="lk-nums">Λέξη: ${word}</div>${warn}`;
+  const wordLine = nums.map(n => NUM_TO_CHAR[n]||'?').join('  ·  ');
+  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div><div class="lk-nums">${wordLine}</div>`;
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -709,7 +630,7 @@ window.addEventListener('load', () => {
 
   // Placeholder delay grid
   let ph = '';
-  for(let n=1;n<=80;n++) ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-sym">${NUM_TO_CHAR[n]||''}</span><span class="d-val">?</span></div>`;
+  for(let n=1;n<=80;n++){const s=NUM_TO_CHAR[n]||'';ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-sym">${s.length>5?s.slice(0,4)+'.':s}</span><span class="d-val">?</span></div>`; }
   document.getElementById('delayGrid').innerHTML = ph;
 
   loadHistoricalDelays().catch(e=>console.error('delay error',e))
