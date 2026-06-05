@@ -441,7 +441,7 @@ ${fullMap}`;
 
 Μόνο τα δύο μέρη, χωρίς τίτλους.`;
 
-  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 180);
+  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 250);
 }
 
 // Build reverse lookup: normalized word → number
