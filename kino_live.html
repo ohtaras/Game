@@ -70,8 +70,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .lk-warn{font-size:.8rem;color:#ef9a9a;margin-top:6px}
 
 /* ── Auto sentence ── */
-#autoSentence{font-size:1.15rem;line-height:1.8;color:#e8eaf6;background:#0f1117;border-radius:8px;padding:14px 16px;border-left:3px solid #7986cb}
+#autoSentence{background:#0f1117;border-radius:8px;padding:14px 16px}
 #autoSentence .as-meta{display:block;font-size:.72rem;color:#666;margin-top:8px;font-style:normal}
+.oracle-sentence{font-size:1.1rem;font-weight:600;line-height:1.7;color:#e8eaf6;border-left:3px solid #7986cb;padding-left:12px;margin-bottom:12px}
+.oracle-prophecy{font-size:.95rem;line-height:1.8;color:#b0bec5;border-left:3px solid #6a1b9a;padding-left:12px}
+.proph-w{color:#ce93d8}
+.proph-n{font-size:.58rem;color:#9fa8da;vertical-align:super;margin-left:1px}
 
 /* ── Responsive ── */
 @media(max-width:600px){
@@ -429,13 +433,40 @@ ${fullMap}
   const drawn = nums.map(n => `${n}(${NUM_TO_CHAR[n]})`).join(', ');
   const prompt = `Κλήρωση: ${drawn}
 
-Γράψε:
-1. Πρόταση από τις λέξεις της κλήρωσης (μόνο αυτές, χωρίς έξτρα λέξεις)
-2. Προφητεία — σύντομη ερμηνεία
+Γράψε ακριβώς δύο μέρη χωρισμένα με "---" σε ξεχωριστή γραμμή:
+Μέρος 1: Πρόταση ΑΠΟΚΛΕΙΣΤΙΚΑ από τις λέξεις της κλήρωσης (επιτρέπεται κλίση, χωρίς έξτρα λέξεις).
+Μέρος 2: Σύντομη προφητεία σε ύφος μαντείου — ελεύθερο κείμενο που ερμηνεύει την κλήρωση, χρησιμοποιώντας κατά προτίμηση λέξεις από τον πίνακα.
 
-Χωρίς τίτλους, χωρίς αρίθμηση. Μόνο το κείμενο.`;
+Μόνο τα δύο μέρη, χωρίς τίτλους, χωρίς εξηγήσεις.`;
 
   return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 300);
+}
+
+// Build reverse lookup: normalized word → number
+const WORD_TO_NUM = {};
+for (let n = 1; n <= 80; n++) {
+  const w = (NUM_TO_CHAR[n] || '').toLowerCase();
+  if (w) WORD_TO_NUM[w] = n;
+}
+
+function annotateProphecy(text) {
+  // Split on word boundaries, annotate tokens that match the 80-word list
+  return text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
+    const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
+    const num = WORD_TO_NUM[clean];
+    if (num) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
+    return tok;
+  }).join('');
+}
+
+function formatOracleOutput(text) {
+  const sep = text.indexOf('\n---\n') !== -1 ? '\n---\n' : '---';
+  const idx = text.indexOf(sep);
+  const sentence = (idx !== -1 ? text.slice(0, idx) : text).trim();
+  const prophecy = (idx !== -1 ? text.slice(idx + sep.length) : '').trim();
+  let html = `<div class="oracle-sentence">${sentence.replace(/\n/g,'<br>')}</div>`;
+  if (prophecy) html += `<div class="oracle-prophecy">${annotateProphecy(prophecy)}</div>`;
+  return html;
 }
 
 let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
@@ -454,7 +485,7 @@ async function renderAutoSentence(nums, sig) {
   try {
     const text = await claudeSentence(nums, key);
     claudeCacheSig = sig;
-    claudeCache = text.replace(/\n/g,'<br>');
+    claudeCache = formatOracleOutput(text);
     el.innerHTML = claudeCache;
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
