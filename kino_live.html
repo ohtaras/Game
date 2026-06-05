@@ -437,11 +437,11 @@ ${fullMap}`;
 
 Μέρος 1: Μία ή δύο προτάσεις εμπνευσμένες από τις κληρωμένες λέξεις. Γράψε ελεύθερα για ό,τι σου έρθει.
 
-Μέρος 2: Συνέχεια ελεύθερη — γράψε ό,τι θέλεις. Μέσα στο κείμενο ενσωμάτωσε φυσικά έως 8 λέξεις από τον πίνακα των 80 (όχι απαραίτητα όλες, όσες ταιριάζουν).
+Μέρος 2: Συνέχεια ελεύθερη — γράψε ό,τι θέλεις. Μέσα στο κείμενο ενσωμάτωσε φυσικά έως 8 λέξεις από τον πίνακα (ρήματα/ουσιαστικά/εκβάσεις/επιρρήματα, αριθμοί 16-80). Μην μετράς άρθρα ή συνδέσμους.
 
 Χωρίς τίτλους, μόνο τα δύο μέρη.`;
 
-  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 400);
+  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 600);
 }
 
 // Build reverse lookup: normalized word → number
@@ -456,7 +456,7 @@ function annotateProphecy(text) {
   const html = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
     const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
     const num = WORD_TO_NUM[clean];
-    if (num) { nums.push(num); return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`; }
+    if (num && num >= 16) { nums.push(num); return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`; }
     return tok;
   }).join('');
   return {html, nums};
