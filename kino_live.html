@@ -720,28 +720,26 @@ async function autoSaveLiveBuffer() {
 // ── Live monitoring ────────────────────────────────────────────────────────
 async function fetchLiveNow() {
   try {
-    // Use fetchDaySeq — same proven path as docs/index.html manual load
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-    const items = await fetchDaySeq(todayStr);
-    const valid = items.filter(i=>i.winningNumbers?.list?.length).sort((a,b)=>b.drawId-a.drawId);
-
-    if (!valid.length) {
+    // Single-call endpoint — avoids paginating the whole day through proxies
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    if (!r?.winningNumbers?.list?.length) {
       document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης — επόμενη προσπάθεια σε λίγο';
       return;
     }
 
-    const r = valid[0];
-    const draw = {id: r.drawId, time: localTimeStr(toMs(r.drawTime)),
+    const draw = {
+      id:   r.drawId,
+      time: localTimeStr(toMs(r.drawTime)),
       nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
-      bonus: (r.winningNumbers.bonus||[])[0]||null};
-      liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
+      bonus: (r.winningNumbers.bonus||[])[0]||null
+    };
+    liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
 
-    // Update delays + trigger Claude only on genuinely new draw
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums, draw.id, draw.time);
-      renderDraw(draw);          // render με BASE mapping (σταθερό)
-      shuffleMapping();          // shuffle ΜΕΤΑ — για Part 2 απάντηση
+      renderDraw(draw);
+      shuffleMapping();
       lastDrawId = draw.id;
       updateDelays(draw.nums);
       claudeCacheSig = null; claudeCache = null;
@@ -750,10 +748,9 @@ async function fetchLiveNow() {
       const numsSnap = [...draw.nums];
       setTimeout(() => renderAutoSentence(numsSnap, sig), 2000);
     } else {
-      renderDraw(draw);          // ίδια κλήρωση, χωρίς re-shuffle
+      renderDraw(draw);
     }
 
-    // Auto-save every 6+ buffered draws
     if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
 
   } catch(e) {
@@ -922,6 +919,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-05 21:00</div>
+<div id="buildStamp">v 2026-06-05 22:15</div>
 </body>
 </html>
