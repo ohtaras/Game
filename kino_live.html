@@ -485,13 +485,15 @@ ${fullMap}`;
   return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 600);
 }
 
+let recentProphNums = new Set(); // αριθμοί από τις 2 τελευταίες προβλέψεις
+
 function annotateProphecy(text) {
   const seen = new Set();
   const nums = [];
   const html = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
     const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
     const num = WORD_TO_NUM[clean];
-    if (num && seen.size < 8 && !seen.has(num)) {
+    if (num && seen.size < 8 && !seen.has(num) && !recentProphNums.has(num)) {
       seen.add(num);
       nums.push(num);
       return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
@@ -539,6 +541,11 @@ function formatOracleOutput(text, drawnNums) {
     const unique = [...new Set(nums)];
     if (unique.length) {
       prophNumsForEval = unique;
+      // Κράτα τους αριθμούς των 2 τελευταίων προβλέψεων ως αποκλεισμένους
+      unique.forEach(n => recentProphNums.add(n));
+      if (recentProphNums.size > 16) {
+        recentProphNums = new Set([...recentProphNums].slice(-16));
+      }
       html += `<div class="proph-nums-box">🔢 ${unique.join('  ·  ')}</div>`;
     }
     html += `<div class="oracle-prophecy">${pHtml}</div>`;
