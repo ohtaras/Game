@@ -485,21 +485,22 @@ function evaluateProphecy(drawnNums) {
   prophNumsForEval = [];
 }
 
-function annotateQuestion(text) {
+function annotateQuestion(text, drawnSet) {
   return text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
     const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
     const num = WORD_TO_NUM[clean];
-    if (num) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
+    if (num && drawnSet.has(num)) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
     return tok;
   }).join('');
 }
 
-function formatOracleOutput(text) {
+function formatOracleOutput(text, drawnNums) {
+  const drawnSet = new Set(drawnNums || []);
   const sep = text.indexOf('\n---\n') !== -1 ? '\n---\n' : '---';
   const idx = text.indexOf(sep);
   const sentence = (idx !== -1 ? text.slice(0, idx) : text).trim();
   const prophecy = (idx !== -1 ? text.slice(idx + sep.length) : '').trim();
-  let html = `<div class="oracle-sentence">${annotateQuestion(sentence)}</div>`;
+  let html = `<div class="oracle-sentence">${annotateQuestion(sentence, drawnSet)}</div>`;
   if (prophecy) {
     const {html: pHtml, nums} = annotateProphecy(prophecy);
     const unique = [...new Set(nums)];
@@ -528,7 +529,7 @@ async function renderAutoSentence(nums, sig) {
   try {
     const text = await claudeSentence(nums, key);
     claudeCacheSig = sig;
-    claudeCache = formatOracleOutput(text);
+    claudeCache = formatOracleOutput(text, nums);
     el.innerHTML = claudeCache;
   } catch(e) {
     el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
