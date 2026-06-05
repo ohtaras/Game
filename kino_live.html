@@ -46,6 +46,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .d-cell{border-radius:5px;padding:4px 2px;text-align:center;cursor:default;transition:transform .1s}
 .d-cell:hover{transform:scale(1.15);z-index:1;position:relative}
 .d-num{font-size:.68rem;font-weight:700;display:block}
+.d-sym{font-size:.65rem;display:block;color:#ce93d8;font-family:monospace}
 .d-val{font-size:.62rem;display:block;opacity:.85}
 
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
@@ -391,8 +392,10 @@ function renderDelayTable() {
   for (let n=1; n<=80; n++) {
     const d = delays[n];
     const bg = delayColor(d);
-    cells.push(`<div class="d-cell" style="background:${bg}" title="#${n} — ${d} κληρώσεις απόντος">
+    const sym = NUM_TO_CHAR[n] || '';
+    cells.push(`<div class="d-cell" style="background:${bg}" title="#${n} (${sym}) — ${d} κληρώσεις απόντος">
       <span class="d-num">${n}</span>
+      <span class="d-sym">${sym}</span>
       <span class="d-val">${d}</span>
     </div>`);
   }
@@ -705,7 +708,7 @@ window.addEventListener('load', () => {
 
   // Placeholder delay grid
   let ph = '';
-  for(let n=1;n<=80;n++) ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-val">?</span></div>`;
+  for(let n=1;n<=80;n++) ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-sym">${NUM_TO_CHAR[n]||''}</span><span class="d-val">?</span></div>`;
   document.getElementById('delayGrid').innerHTML = ph;
 
   loadHistoricalDelays().catch(e=>console.error('delay error',e))
