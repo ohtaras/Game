@@ -277,7 +277,8 @@ function drawTileMultiset(nums) {
 function delayColor(d) {
   const t = Math.min(d / 60, 1);
   const hue = Math.round(120 * (1 - t));
-  const sat = 80, lig = t < 0.5 ? 42 : 38;
+  const sat = 92;
+  const lig = Math.round(50 - t * 22); // 50% (πράσινο φωτεινό) → 28% (κόκκινο σκούρο)
   return `hsl(${hue},${sat}%,${lig}%)`;
 }
 
