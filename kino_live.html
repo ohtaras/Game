@@ -580,23 +580,26 @@ function stopLive() {
   document.getElementById('countdown').textContent = '';
 }
 
-// ── Word search in the 80-word list ───────────────────────────────────────
+// ── Word / sentence → Numbers lookup ──────────────────────────────────────
 function lookupWord() {
-  const raw = document.getElementById('wordInput').value.trim().toLowerCase();
+  const raw = document.getElementById('wordInput').value.trim();
   const out = document.getElementById('lookupResult');
   if (!raw) { out.innerHTML = ''; return; }
-  const results = [];
-  for (let n = 1; n <= 80; n++) {
-    if ((NUM_TO_CHAR[n] || '').toLowerCase().includes(raw)) results.push(n);
-  }
-  if (!results.length) {
-    out.innerHTML = `<div class="lk-warn">Δεν βρέθηκε λέξη που να περιέχει «${raw}».</div>`;
-    return;
-  }
-  const html = results.map(n =>
-    `<div class="lk-tile"><span class="lk-c">${NUM_TO_CHAR[n]}</span><span class="lk-n">${n}</span></div>`
+  const tokens = raw.split(/\s+/);
+  const tiles = tokens.map(token => {
+    const t = token.toLowerCase();
+    // exact match first, then partial
+    for (let n = 1; n <= 80; n++) if ((NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w: NUM_TO_CHAR[n], ok: true};
+    for (let n = 1; n <= 80; n++) if ((NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w: NUM_TO_CHAR[n], ok: true};
+    return {n: null, w: token, ok: false};
+  });
+  const html = tiles.map(({n, w, ok}) => ok
+    ? `<div class="lk-tile"><span class="lk-c">${w}</span><span class="lk-n">${n}</span></div>`
+    : `<div class="lk-tile" style="opacity:.45"><span class="lk-c">${w}</span><span class="lk-n">—</span></div>`
   ).join('');
-  out.innerHTML = `<div class="lk-tiles">${html}</div>`;
+  const nums = tiles.filter(x => x.ok).map(x => x.n).join(', ');
+  out.innerHTML = `<div class="lk-tiles">${html}</div>`
+    + (nums ? `<div class="lk-nums">Αριθμοί: ${nums}</div>` : '');
 }
 
 // ── Numbers → Words lookup ─────────────────────────────────────────────────
