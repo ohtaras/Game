@@ -611,13 +611,18 @@ async function fetchLiveNow() {
       liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
 
     renderDraw(draw);
-    renderAutoSentence(draw.nums, draw.id.toString());
 
-    // Update delays + evaluate last prophecy on new draw
+    // Update delays + trigger Claude only on genuinely new draw
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums);
       lastDrawId = draw.id;
       updateDelays(draw.nums);
+      // Reset cache and show waiting indicator
+      claudeCacheSig = null; claudeCache = null;
+      document.getElementById('autoSentence').innerHTML = '<span class="as-meta">✦ Νέα κλήρωση — ανάλυση σε 2″…</span>';
+      const sig = draw.id.toString();
+      const numsSnap = [...draw.nums];
+      setTimeout(() => renderAutoSentence(numsSnap, sig), 2000);
     }
 
     // Auto-save every 6+ buffered draws
