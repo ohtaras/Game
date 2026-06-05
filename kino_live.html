@@ -180,7 +180,7 @@ function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_M
 // ── 80-word mapping: καθημερινό + φύση, χωρίς άρθρα ─────────────────────
 // 1-20: Ρήματα δράσης  21-40: Ρήματα σχέσης/αίσθησης
 // 41-60: Ουσιαστικά φύσης  61-75: Ουσιαστικά ζωής  76-80: Επιρρήματα
-const NUM_TO_CHAR = [
+const BASE_NUM_TO_CHAR = [
   null,
   'περπατώ','τρέχω','κολυμπώ','μαγειρεύω','τρώω',              // 1-5
   'πίνω','κοιμάμαι','ξυπνώ','παίζω','χαμογελώ',                // 6-10
@@ -199,6 +199,29 @@ const NUM_TO_CHAR = [
   'όνειρο','σπίτι','καρδιά','ψυχή','ζωή',                       // 71-75
   'μαζί','βαθιά','ήρεμα','απλά','τώρα'                          // 76-80
 ];
+
+// Mutable mapping — shuffled fresh on each new draw
+let NUM_TO_CHAR = [...BASE_NUM_TO_CHAR];
+let WORD_TO_NUM = {};
+
+function buildWordToNum() {
+  WORD_TO_NUM = {};
+  for (let n = 1; n <= 80; n++) {
+    const w = (NUM_TO_CHAR[n] || '').toLowerCase();
+    if (w) WORD_TO_NUM[w] = n;
+  }
+}
+buildWordToNum();
+
+function shuffleMapping() {
+  const words = BASE_NUM_TO_CHAR.slice(1); // 80 λέξεις από το base
+  for (let i = words.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [words[i], words[j]] = [words[j], words[i]];
+  }
+  NUM_TO_CHAR = [null, ...words];
+  buildWordToNum();
+}
 
 function wordCat(n) {
   if (n >= 1  && n <= 20) return ' verb';
@@ -403,7 +426,7 @@ function renderDelayTable() {
   for (let n=1; n<=80; n++) {
     const d = delays[n];
     const bg = delayColor(d);
-    const sym = NUM_TO_CHAR[n] || '';
+    const sym = BASE_NUM_TO_CHAR[n] || '';
     const symShort = sym.length > 5 ? sym.slice(0,4)+'.' : sym;
     cells.push(`<div class="d-cell" style="background:${bg}" title="#${n} (${sym}) — ${d} κληρώσεις απόντος">
       <span class="d-num">${n}</span>
@@ -462,20 +485,13 @@ ${fullMap}`;
   return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 600);
 }
 
-// Build reverse lookup: normalized word → number
-const WORD_TO_NUM = {};
-for (let n = 1; n <= 80; n++) {
-  const w = (NUM_TO_CHAR[n] || '').toLowerCase();
-  if (w) WORD_TO_NUM[w] = n;
-}
-
 function annotateProphecy(text) {
   const seen = new Set();
   const nums = [];
   const html = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
     const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
     const num = WORD_TO_NUM[clean];
-    if (num && num >= 16 && seen.size < 8 && !seen.has(num)) {
+    if (num && seen.size < 8 && !seen.has(num)) {
       seen.add(num);
       nums.push(num);
       return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
@@ -648,6 +664,7 @@ async function fetchLiveNow() {
     // Update delays + trigger Claude only on genuinely new draw
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums);
+      shuffleMapping();
       lastDrawId = draw.id;
       updateDelays(draw.nums);
       // Reset cache and show waiting indicator
