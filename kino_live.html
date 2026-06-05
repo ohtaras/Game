@@ -525,21 +525,25 @@ function evaluateProphecy(drawnNums, drawId, drawTime) {
       : `<span class="eval-miss">${n}</span>`
   ).join(' ');
 
-  const isPerfect = hits.length === prophNumsForEval.length && hits.length > 0;
+  const total = prophNumsForEval.length;
+  const isPerfect  = hits.length === total && total > 0;
+  const isNearMiss = hits.length === total - 1 && total > 1;
 
-  if (isPerfect) {
-    // Αποθήκευση στο localStorage
-    const rec = { drawId, time: drawTime, nums: [...prophNumsForEval], score: hits.length };
+  if (isPerfect || isNearMiss) {
+    const rec = { drawId, time: drawTime, nums: [...prophNumsForEval], score: hits.length, total };
     try {
       const existing = JSON.parse(localStorage.getItem('kino_perfect') || '[]');
       existing.push(rec);
       localStorage.setItem('kino_perfect', JSON.stringify(existing));
     } catch(_) {}
+    const label = isPerfect
+      ? `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ! ${hits.length}/${total}</strong>`
+      : `<strong style="color:#ffb74d">🔥 ΠΑΡΑ ΕΝΑ! ${hits.length}/${total}</strong>`;
     el.style.display = 'block';
-    el.innerHTML = `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ! ${hits.length}/${prophNumsForEval.length}</strong> — Κλήρωση #${drawId} ${drawTime}<br>${tiles}`;
+    el.innerHTML = `${label} — Κλήρωση #${drawId} ${drawTime}<br>${tiles}`;
   } else {
     el.style.display = 'block';
-    el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${prophNumsForEval.length} βγήκαν</span><br>${tiles}`;
+    el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${total} βγήκαν</span><br>${tiles}`;
   }
   prophNumsForEval = [];
 }
@@ -845,6 +849,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-05 16:50</div>
+<div id="buildStamp">v 2026-06-05 16:54</div>
 </body>
 </html>
