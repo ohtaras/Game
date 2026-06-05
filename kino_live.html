@@ -268,10 +268,11 @@ function localTimeStr(ms) {
 
 
 function delayColor(d) {
-  const t = Math.min(d / 60, 1);
+  const maxD = Math.max(...delays.slice(1), 20);
+  const t = Math.min(d / maxD, 1);
   const hue = Math.round(120 * (1 - t));
-  const sat = 92;
-  const lig = Math.round(50 - t * 22); // 50% (πράσινο φωτεινό) → 28% (κόκκινο σκούρο)
+  const sat = 95;
+  const lig = Math.round(50 - t * 24);
   return `hsl(${hue},${sat}%,${lig}%)`;
 }
 
@@ -484,12 +485,21 @@ function evaluateProphecy(drawnNums) {
   prophNumsForEval = [];
 }
 
+function annotateQuestion(text) {
+  return text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
+    const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
+    const num = WORD_TO_NUM[clean];
+    if (num) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
+    return tok;
+  }).join('');
+}
+
 function formatOracleOutput(text) {
   const sep = text.indexOf('\n---\n') !== -1 ? '\n---\n' : '---';
   const idx = text.indexOf(sep);
   const sentence = (idx !== -1 ? text.slice(0, idx) : text).trim();
   const prophecy = (idx !== -1 ? text.slice(idx + sep.length) : '').trim();
-  let html = `<div class="oracle-sentence">${sentence.replace(/\n/g,'<br>')}</div>`;
+  let html = `<div class="oracle-sentence">${annotateQuestion(sentence)}</div>`;
   if (prophecy) {
     const {html: pHtml, nums} = annotateProphecy(prophecy);
     const unique = [...new Set(nums)];
