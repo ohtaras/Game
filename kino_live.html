@@ -54,6 +54,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
 
+/* ── Delay query ── */
+#delayQueryBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
 /* ── Word lookup ── */
 #lookupBox,#numsLookupBox{display:flex;gap:8px;flex-wrap:wrap}
 #wordInput,#numsInput{flex:1;min-width:180px;padding:9px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:1rem;outline:none}
@@ -118,6 +121,20 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="delaySec">
     <h2>Καθυστερήσεις (κληρώσεις απουσίας ανά αριθμό)</h2>
     <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
+  </section>
+
+  <!-- Delay range query -->
+  <section id="delayQuerySec">
+    <h2>Ερώτηση από καθυστερήσεις</h2>
+    <div id="delayQueryBox">
+      <span style="color:#aaa;font-size:.9rem">Από</span>
+      <input type="number" id="dqMin" min="0" value="10" style="width:58px;padding:8px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:.95rem;text-align:center">
+      <span style="color:#aaa;font-size:.9rem">έως</span>
+      <input type="number" id="dqMax" min="0" value="40" style="width:58px;padding:8px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:.95rem;text-align:center">
+      <span style="color:#aaa;font-size:.9rem">κλ. απουσίας</span>
+      <button id="dqBtn" style="padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer">Δημιουργία</button>
+    </div>
+    <div id="dqResult" style="margin-top:10px"></div>
   </section>
 
   <!-- Word search -->
@@ -736,6 +753,48 @@ window.addEventListener('load', () => {
     .then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
 
   setTimeout(startLive, 500);
+
+  document.getElementById('dqBtn').addEventListener('click', async () => {
+    const minD = parseInt(document.getElementById('dqMin').value) || 0;
+    const maxD = parseInt(document.getElementById('dqMax').value) || 999;
+    const el   = document.getElementById('dqResult');
+
+    const matching = [];
+    for (let n = 1; n <= 80; n++) {
+      if (delays[n] >= minD && delays[n] <= maxD) matching.push(n);
+    }
+
+    if (matching.length < 6) {
+      el.innerHTML = `<span style="color:#ef9a9a">Βρέθηκαν μόνο ${matching.length} αριθμοί στο εύρος ${minD}–${maxD} (χρειάζονται τουλάχιστον 6).</span>`;
+      return;
+    }
+
+    const key = localStorage.getItem('claude_api_key');
+    if (!key) { el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις.'; return; }
+
+    el.innerHTML = '<span class="as-meta">✦ Claude φτιάχνει ερώτηση…</span>';
+
+    const wordList = matching.map(n => `${n}:${NUM_TO_CHAR[n]}`).join(', ');
+    const fullMap  = NUM_TO_CHAR.slice(1).map((w,i) => `${i+1}:${w}`).join('  ');
+    const sys      = `Κάθε αριθμός Κίνο αντιστοιχεί σε λέξη βάσει του πίνακα:\n${fullMap}`;
+    const prompt   = `Οι παρακάτω αριθμοί δεν έχουν βγει εδώ και ${minD}–${maxD} κληρώσεις: ${wordList}
+
+Φτιάξε μία ερώτηση χρησιμοποιώντας ακριβώς 6 από αυτές τις λέξεις. Η ερώτηση να έχει νόημα και να είναι φυσική. Μόνο η ερώτηση, χωρίς άλλο κείμενο.`;
+
+    try {
+      const text = await anthropicFetch(key.trim(), 'claude-haiku-4-5-20251001', sys, [{role:'user', content: prompt}], 250);
+      const matchSet = new Set(matching);
+      const annotated = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
+        const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
+        const num = WORD_TO_NUM[clean];
+        if (num && matchSet.has(num)) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
+        return tok;
+      }).join('');
+      el.innerHTML = `<div class="oracle-sentence" style="margin:0">${annotated}</div>`;
+    } catch(e) {
+      el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
+    }
+  });
 });
 </script>
 </body>
