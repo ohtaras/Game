@@ -452,11 +452,16 @@ for (let n = 1; n <= 80; n++) {
 }
 
 function annotateProphecy(text) {
+  const seen = new Set();
   const nums = [];
   const html = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
     const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
     const num = WORD_TO_NUM[clean];
-    if (num && num >= 16) { nums.push(num); return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`; }
+    if (num && num >= 16 && seen.size < 8 && !seen.has(num)) {
+      seen.add(num);
+      nums.push(num);
+      return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
+    }
     return tok;
   }).join('');
   return {html, nums};
