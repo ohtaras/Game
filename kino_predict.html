@@ -92,6 +92,30 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 /* ── No data ── */
 .no-data{color:#555;font-size:.82rem;padding:12px 0}
 
+/* ── Hot/cold cell states ── */
+.sel-cell.cell-hot{border-color:#b71c1c;background:#1a0808}
+.sel-cell.cell-hot .sel-n{color:#ef9a9a}
+.sel-cell.cell-hot .sel-d{color:#ef5350}
+.sel-cell.cell-cold{border-color:#0d47a1;background:#050d1a}
+.sel-cell.cell-cold .sel-n{color:#90caf9}
+.sel-cell.cell-cold .sel-d{color:#5c9bd4}
+.sel-cell.chosen.cell-hot{background:#2a0a2a;border-color:#e040fb}
+.sel-cell.chosen.cell-cold{background:#0a102a;border-color:#7986cb}
+
+/* ── Hot panel ── */
+.hp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hp-label{font-weight:600;color:#888;min-width:120px;font-size:.76rem}
+.hp-nums{display:flex;flex-wrap:wrap;gap:3px}
+.hp-ball{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;border-radius:5px;font-size:.65rem;font-weight:700;cursor:default}
+.hp-hot{background:#2a0808;border:1.5px solid #c62828;color:#ef9a9a}
+.hp-cold{background:#050d1a;border:1.5px solid #1565c0;color:#90caf9}
+.hp-hint{font-size:.68rem;color:#4a5a4a;margin-left:4px}
+.hp-tip{margin-top:6px;font-size:.65rem;color:#333;font-style:italic}
+
+/* ── Result ball hot/cold badges ── */
+.rb-hot{font-size:.58rem;color:#ef9a9a;display:block;line-height:1.2}
+.rb-cold{font-size:.58rem;color:#90caf9;display:block;line-height:1.2}
+
 /* ── Prediction log ── */
 #predLogSec details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:#80cbc4;user-select:none}
 #predLogSec details summary::before{content:'▶';font-size:.7rem;transition:transform .2s}
@@ -150,6 +174,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <input type="number" id="topNInput" class="ctrl-input" value="8" min="1" max="20">
         αριθμούς
       </label>
+    <!-- Hot panel -->
+    <div id="hotPanel" style="margin-top:10px;padding:8px 12px;background:#0a100a;border-radius:8px;border:1px solid #1a2a1a;font-size:.78rem;min-height:32px"></div>
+
       <button class="btn btn-analyze" id="analyzeBtn">🔍 Ανάλυση</button>
       <button class="btn btn-last" id="lastDrawBtn" title="Φόρτωσε τους αριθμούς της τελευταίας κλήρωσης">📥 Τελευταία κλήρωση</button>
       <button class="btn btn-clear" id="clearBtn">✕ Καθαρισμός</button>
@@ -232,6 +259,7 @@ let delays        = new Array(81).fill(0);
 let selected      = new Set();
 let resultNums    = new Set();
 let coIdx         = null;
+let hotStates     = null;   // {n: {freq, isHot, isCold, drawsInState, remaining}}
 let lastKnownId   = 0;
 let pollTimer     = null;
 let countdownId   = null;
@@ -299,11 +327,14 @@ async function loadData() {
   // Convert to Sets for O(1) lookup
   for (let n = 1; n <= 80; n++) coIdx[n] = new Set(coIdx[n]);
 
+  hotStates = computeHotStates();
+
   const first = allDraws[0], last = allDraws[allDraws.length - 1];
   lastKnownId = last?.id || 0;
   updateStatus();
 
   renderSelGrid();
+  renderHotPanel();
   renderHistory(new Set(), new Set());
 
   // Start live polling
@@ -348,6 +379,9 @@ async function checkForNewDraw() {
       if (n >= 1 && n <= 80) coIdx[n].add(newIdx);
     }
 
+    // Recompute hot states with fresh data
+    hotStates = computeHotStates();
+
     // Evaluate pending predictions against this draw
     evaluatePendingPredictions(newDraw);
 
@@ -358,6 +392,7 @@ async function checkForNewDraw() {
     setTimeout(() => { el.style.color = ''; updateStatus(); }, 3000);
 
     renderSelGrid();
+    renderHotPanel();
     renderHistory(histFilter, resultNums);
 
     // Auto-refresh analysis with updated corrections
@@ -383,6 +418,86 @@ function schedulePoll() {
   pollTimer = setTimeout(() => { checkForNewDraw(); schedulePoll(); }, msToNext());
 }
 
+// ── Hot streak detection ──────────────────────────────────────────────────────
+// From statistical analysis of 236,947 draws:
+// Hot streak median: 36 draws (~3h) · Cold period median: 145 draws (~12h)
+const HOT_W    = 30;   // rolling window
+const HOT_THR  = 0.37; // ≥37% in last 30 = hot
+const COLD_THR = 0.20; // ≤20% in last 30 = cold
+const HOT_MED  = 36;   // median hot streak duration
+const COLD_MED = 145;  // median cold period duration
+
+function computeHotStates() {
+  const T = allDraws.length;
+  if (T < HOT_W) return null;
+  const result = {};
+  for (let n = 1; n <= 80; n++) {
+    // Count appearances in last HOT_W draws
+    let cnt = 0;
+    for (let i = T - HOT_W; i < T; i++) if (allDraws[i].n.includes(n)) cnt++;
+    const freq   = cnt / HOT_W;
+    const isHot  = freq >= HOT_THR;
+    const isCold = freq <= COLD_THR;
+
+    // Sliding window backwards to find streak length
+    let streak = 0;
+    if (isHot || isCold) {
+      let c = cnt;
+      const maxBack = Math.min(300, T - HOT_W);
+      for (let back = 1; back <= maxBack; back++) {
+        const removing = allDraws[T - back].n.includes(n) ? 1 : 0;
+        const entering = allDraws[T - HOT_W - back].n.includes(n) ? 1 : 0;
+        c = c - removing + entering;
+        const wf = c / HOT_W;
+        if (isHot  && wf < HOT_THR)  break;
+        if (isCold && wf > COLD_THR) break;
+        streak = back;
+      }
+    }
+
+    result[n] = {
+      freq, isHot, isCold,
+      drawsInState: streak,
+      remaining: isHot  ? Math.max(0, HOT_MED  - streak)
+               : isCold ? Math.max(0, COLD_MED - streak) : null
+    };
+  }
+  return result;
+}
+
+function renderHotPanel() {
+  const el = document.getElementById('hotPanel');
+  if (!el || !hotStates) return;
+  const hot  = Object.entries(hotStates).filter(([,s]) => s.isHot).sort((a,b) => b[1].drawsInState - a[1].drawsInState);
+  const cold = Object.entries(hotStates).filter(([,s]) => s.isCold).sort((a,b) => b[1].drawsInState - a[1].drawsInState);
+
+  const badge = (n, s) => {
+    const rem = s.remaining !== null ? ` ~${s.remaining}κ ακόμα` : '';
+    const age = s.drawsInState ? ` (${s.drawsInState}κ)` : '';
+    return `<span class="hp-ball ${s.isHot ? 'hp-hot' : 'hp-cold'}" title="${BASE_NUM_TO_CHAR[n]||n}${age}${rem}">${n}</span>`;
+  };
+
+  const hotHtml  = hot.length  ? hot.map(([n,s])  => badge(+n,s)).join('') : '<span style="color:#444">κανένας</span>';
+  const coldHtml = cold.length ? cold.map(([n,s]) => badge(+n,s)).join('') : '<span style="color:#444">κανένας</span>';
+
+  const avgRem = hot.length
+    ? Math.round(hot.reduce((s,[,st]) => s + (st.remaining||0), 0) / hot.length)
+    : '—';
+
+  el.innerHTML = `
+    <div class="hp-row">
+      <span class="hp-label">🔥 Hot τώρα (${hot.length}):</span>
+      <span class="hp-nums">${hotHtml}</span>
+      <span class="hp-hint">εκτ. μέσο ~${avgRem} κλ. ακόμα</span>
+    </div>
+    <div class="hp-row" style="margin-top:5px">
+      <span class="hp-label">❄️ Cold τώρα (${cold.length}):</span>
+      <span class="hp-nums">${coldHtml}</span>
+    </div>
+    <div class="hp-tip">Βάσει ανάλυσης 236.947 κλ.: hot streak διαρκεί 21–60 κλ. (μεσάνα 36), cold period 70–269 κλ. (μεσάνα 145)</div>
+  `;
+}
+
 // ── Selection grid ────────────────────────────────────────────────────────────
 function renderSelGrid() {
   const grid = document.getElementById('selGrid');
@@ -396,11 +511,17 @@ function renderSelGrid() {
     else if (isResult) cls += ' res-hi';
     const w = BASE_NUM_TO_CHAR[n] || '';
     const wShort = w.length > 6 ? w.slice(0, 5) + '.' : w;
+    const hs = hotStates?.[n];
+    let hotCls = '', hotLabel = `${delays[n]}κ`;
+    if (hs?.isHot)  { hotCls = ' cell-hot';  hotLabel = `🔥${hs.drawsInState}κ`; }
+    if (hs?.isCold) { hotCls = ' cell-cold'; hotLabel = `❄️${hs.drawsInState}κ`; }
+    const titleExtra = hs?.isHot  ? ` · 🔥 hot ${hs.drawsInState} κλ. (εκτ. ~${hs.remaining} ακόμα)`
+                     : hs?.isCold ? ` · ❄️ cold ${hs.drawsInState} κλ.` : '';
     cells.push(
-      `<div class="${cls}" data-n="${n}" title="${w} · απουσία: ${delays[n]} κλ.">` +
+      `<div class="${cls}${hotCls}" data-n="${n}" title="${w} · απουσία: ${delays[n]} κλ.${titleExtra}">` +
         `<span class="sel-n">${n}</span>` +
         `<span class="sel-w">${wShort}</span>` +
-        `<span class="sel-d">${delays[n]}κ</span>` +
+        `<span class="sel-d">${hotLabel}</span>` +
       `</div>`
     );
   }
@@ -432,8 +553,13 @@ function setPredLog(log) {
 }
 
 function savePrediction(selArr, predictedArr, method) {
-  const log = getPredLog();
+  if (!predictedArr.length) return;
   const lastDraw = allDraws[allDraws.length - 1];
+  let log;
+  try {
+    log = JSON.parse(localStorage.getItem('kino_pred_log') || '[]');
+  } catch(_) { log = []; }
+
   log.push({
     ts:              Date.now(),
     afterDrawId:     lastDraw?.id || 0,
@@ -444,7 +570,18 @@ function savePrediction(selArr, predictedArr, method) {
     hits:            null,
     hitNums:         null
   });
-  setPredLog(log);
+
+  try {
+    localStorage.setItem('kino_pred_log', JSON.stringify(log.slice(-60)));
+  } catch(e) {
+    console.error('savePrediction: localStorage failed', e);
+    return;
+  }
+
+  // Auto-open the log section so user sees it
+  const det = document.querySelector('#predLogSec details');
+  if (det) det.open = true;
+
   renderPredLog();
 }
 
@@ -570,8 +707,11 @@ function analyzeWeighted(selArr, topN) {
   const results = [];
   for (let n = 1; n <= 80; n++) {
     if (selected.has(n)) continue;
-    const adj = scores[n] + (corr?.[n] || 0);
-    results.push({ n, score: adj, rawScore: scores[n], lift: adj - baseline, corrected: !!(corr?.[n]) });
+    const hs = hotStates?.[n];
+    const hotMult = hs?.isHot ? 1.40 : hs?.isCold ? 0.75 : 1.0;
+    const adj = scores[n] * hotMult + (corr?.[n] || 0);
+    results.push({ n, score: adj, rawScore: scores[n], lift: adj - baseline,
+      corrected: !!(corr?.[n]), isHot: !!hs?.isHot, isCold: !!hs?.isCold });
   }
   results.sort((a, b) => b.score - a.score);
   return { results: results.slice(0, topN), strictCount: null, totalAnalyzed: total, calibrated: !!corr };
@@ -592,9 +732,13 @@ function analyzeStrict(selArr, topN) {
   const corr = computeCorrections();
   const results = Object.entries(counts)
     .map(([n, count]) => {
+      const ni  = parseInt(n);
+      const hs  = hotStates?.[ni];
+      const hotMult = hs?.isHot ? 1.40 : hs?.isCold ? 0.75 : 1.0;
       const raw = count / matchingDraws.length;
-      const adj = raw + (corr?.[parseInt(n)] || 0);
-      return { n: parseInt(n), score: adj, rawScore: raw, lift: adj - baseline, count, corrected: !!(corr?.[parseInt(n)]) };
+      const adj = raw * hotMult + (corr?.[ni] || 0);
+      return { n: ni, score: adj, rawScore: raw, lift: adj - baseline, count,
+        corrected: !!(corr?.[ni]), isHot: !!hs?.isHot, isCold: !!hs?.isCold };
     })
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
@@ -656,13 +800,15 @@ function renderResults(results, strictCount, selArr, method, totalAnalyzed, topN
     const cls  = 'res-ball' + (i < 3 ? ' ' + medals[i] : '');
     const w    = BASE_NUM_TO_CHAR[r.n] || '';
     const wSh  = w.length > 7 ? w.slice(0, 6) + '.' : w;
-    const corrMark = r.corrected ? '<span style="font-size:.5rem;color:#80cbc4" title="διορθωμένο">🔧</span>' : '';
-    return `<div class="${cls}" title="${w} · απουσία: ${delays[r.n]} κλ.${r.corrected?' · βαθμονομημένο':''}">
+    const corrMark = r.corrected ? '<span style="font-size:.5rem;color:#80cbc4" title="βαθμονομημένο">🔧</span>' : '';
+    const hotBadge = r.isHot  ? `<span class="rb-hot">🔥 hot</span>`
+                   : r.isCold ? `<span class="rb-cold">❄️ cold</span>` : '';
+    return `<div class="${cls}" title="${w} · απουσία: ${delays[r.n]} κλ.${r.isHot?' · 🔥 hot τώρα':r.isCold?' · ❄️ cold τώρα':''}${r.corrected?' · βαθμονομημένο':''}">
       <span class="rb-n">${r.n}${corrMark}</span>
       <span class="rb-pct">${pct}%</span>
       <span class="rb-lift ${liftCls}">${liftSign}${liftPct}%</span>
+      ${hotBadge}
       <span class="rb-w">${wSh}</span>
-      <span class="rb-d">${delays[r.n]}κ απ.</span>
     </div>`;
   }).join('');
 
@@ -761,6 +907,7 @@ window.addEventListener('load', () => {
   document.getElementById('selGrid').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalysis(); });
 
   renderPredLog();
+  renderHotPanel();
   loadData();
 });
 </script>
