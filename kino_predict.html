@@ -152,7 +152,24 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 const REPO        = 'ohtaras/Game';
 const DATA_BRANCH = 'main';
+const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
 const pad = n => String(n).padStart(2,'0');
+
+async function apiFetch(url) {
+  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
+  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)}); if(r.ok)return r.json(); } catch(_) {}
+  const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return JSON.parse((await r.json()).contents);
+}
+
+function msToNext() {
+  const now=new Date(), m=now.getMinutes(), s=now.getSeconds()+now.getMilliseconds()/1000;
+  const cur5=Math.floor(m/5)*5;
+  let diff=(cur5+5)*60+15-(m*60+s);
+  if(diff<=0) diff+=300;
+  return diff*1000;
+}
 
 const BASE_NUM_TO_CHAR = [
   null,
@@ -175,11 +192,14 @@ const BASE_NUM_TO_CHAR = [
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let allDraws   = [];
-let delays     = new Array(81).fill(0);
-let selected   = new Set();
-let resultNums = new Set(); // last analysis results
-let coIdx      = null;      // co-occurrence index (built once)
+let allDraws      = [];
+let delays        = new Array(81).fill(0);
+let selected      = new Set();
+let resultNums    = new Set();
+let coIdx         = null;
+let lastKnownId   = 0;
+let pollTimer     = null;
+let countdownId   = null;
 
 // ── GitHub fetch ──────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -245,10 +265,84 @@ async function loadData() {
   for (let n = 1; n <= 80; n++) coIdx[n] = new Set(coIdx[n]);
 
   const first = allDraws[0], last = allDraws[allDraws.length - 1];
-  status.textContent = `✓ ${allDraws.length.toLocaleString('el-GR')} κληρώσεις · ${loaded} μήνες · #${first?.id}–#${last?.id}`;
+  lastKnownId = last?.id || 0;
+  updateStatus();
 
   renderSelGrid();
   renderHistory(new Set(), new Set());
+
+  // Start live polling
+  checkForNewDraw();
+  schedulePoll();
+  countdownId = setInterval(updateStatus, 1000);
+}
+
+// ── Live polling ──────────────────────────────────────────────────────────────
+function updateStatus() {
+  const secs = Math.round(msToNext() / 1000);
+  const mm = String(Math.floor(secs / 60)).padStart(2,'0');
+  const ss = String(secs % 60).padStart(2,'0');
+  const last = allDraws[allDraws.length - 1];
+  document.getElementById('statusBar').textContent =
+    `✓ ${allDraws.length.toLocaleString('el-GR')} κληρώσεις · τελευταία #${last?.id || '—'} · ● ΖΩΝΤΑΝΑ · επόμενος έλεγχος: ${mm}:${ss}`;
+}
+
+async function checkForNewDraw() {
+  try {
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    if (!r?.winningNumbers?.list?.length || r.drawId <= lastKnownId) return;
+
+    const newDraw = {
+      id: r.drawId,
+      n:  [...r.winningNumbers.list].sort((a,b) => a-b),
+      b:  (r.winningNumbers.bonus||[])[0] || null
+    };
+    const newIdx = allDraws.length;
+    allDraws.push(newDraw);
+    lastKnownId = r.drawId;
+
+    // Update delays
+    for (let n = 1; n <= 80; n++) {
+      if (newDraw.n.includes(n)) delays[n] = 0;
+      else delays[n]++;
+    }
+
+    // Extend co-occurrence index incrementally
+    for (const n of newDraw.n) {
+      if (n >= 1 && n <= 80) coIdx[n].add(newIdx);
+    }
+
+    // Flash status bar
+    const el = document.getElementById('statusBar');
+    el.style.color = '#a5d6a7';
+    el.textContent = `🆕 Νέα κλήρωση #${r.drawId} — ${allDraws.length.toLocaleString('el-GR')} κληρώσεις σύνολο`;
+    setTimeout(() => { el.style.color = ''; updateStatus(); }, 3000);
+
+    renderSelGrid();
+    renderHistory(histFilter, resultNums);
+
+    // Auto-refresh analysis if one is active
+    if (selected.size) {
+      const topN  = Math.min(Math.max(parseInt(document.getElementById('topNInput').value) || 8, 1), 20);
+      const method = document.getElementById('methodSel').value;
+      const selArr = [...selected].sort((a,b) => a-b);
+      const { results, strictCount, totalAnalyzed } = method === 'strict'
+        ? analyzeStrict(selArr, topN)
+        : analyzeWeighted(selArr, topN);
+      resultNums = new Set(results.map(r2 => r2.n));
+      renderSelGrid();
+      renderResults(results, strictCount, selArr, method, totalAnalyzed, topN);
+      renderHistory(histFilter, resultNums);
+    }
+  } catch(e) {
+    console.error('checkForNewDraw:', e);
+  }
+}
+
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => { checkForNewDraw(); schedulePoll(); }, msToNext());
 }
 
 // ── Selection grid ────────────────────────────────────────────────────────────
