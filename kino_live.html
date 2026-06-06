@@ -83,10 +83,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .eval-hit{color:#a5d6a7;font-weight:700}
 .eval-miss{color:#4a4a4a}
 
-/* ── Build timestamp ── */
-#buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#444;pointer-events:none;z-index:99}
-
-/* ── Perfect log collapsible ── */
+/* ── Perfect log ── */
 #perfectLogSec details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:#ffd54f;user-select:none}
 #perfectLogSec details summary::before{content:'▶';font-size:.7rem;transition:transform .2s}
 #perfectLogSec details[open] summary::before{transform:rotate(90deg)}
@@ -95,6 +92,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .plog-row{padding:8px 0;border-bottom:1px solid #2a2a3a;font-size:.82rem;line-height:1.7}
 .plog-row:last-child{border-bottom:none}
 .plog-nums{font-family:monospace;font-size:.78rem;color:#9fa8da;letter-spacing:.04em}
+
+/* ── Build timestamp ── */
+#buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#444;pointer-events:none;z-index:99}
 
 /* ── Responsive ── */
 @media(max-width:600px){
@@ -177,7 +177,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="autoSentence">—</div>
   </section>
 
-  <!-- Perfect / Near-miss log -->
+  <!-- Perfect log -->
   <section id="perfectLogSec">
     <details>
       <summary>🏆 Αποθηκευμένες επιτυχίες</summary>
@@ -198,48 +198,49 @@ const LIVE_BASE_ID= 1155022;
 const pad = n => String(n).padStart(2,'0');
 function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── ΕΡΩΤΗΣΗ: εξωτερικός κόσμος (σταθερό) ────────────────────────────────
-// 1-20: Ρήματα δράσης  21-40: Ρήματα σχέσης  41-60: Φύση  61-75: Ζωή  76-80: Επιρρήματα
+// ── ΕΡΩΤΗΣΗ: 80 ρήματα α΄ ενικού — σταθερό (Q words) ───────────────────
+// Ζεύγη από ανάλυση 236.947 κληρώσεων (ισχυρή εμφάνιση στην ίδια κλήρωση):
+// 9+13, 6+73, 63+64, 53+80, 44+53, 31+47+40, 22+54, 34+74, 5+41, 16+78
 const BASE_NUM_TO_CHAR = [
   null,
-  'περπατώ','τρέχω','κολυμπώ','μαγειρεύω','τρώω',              // 1-5
-  'πίνω','κοιμάμαι','ξυπνώ','παίζω','χαμογελώ',                // 6-10
-  'φυτεύω','χορεύω','μαθαίνω','ταξιδεύω','μιλώ',               // 11-15
-  'ακούω','αναπνέω','γελώ','ονειρεύομαι','φτιάχνω',             // 16-20
-  'φροντίζω','μοιράζομαι','προσφέρω','ανακαλύπτω','αισθάνομαι', // 21-25
-  'σκέφτομαι','θυμάμαι','ευχαριστώ','χαίρομαι','ξεκουράζομαι', // 26-30
-  'αγκαλιάζω','βοηθώ','ενώνω','δημιουργώ','απολαμβάνω',         // 31-35
-  'ατενίζω','αναζητώ','επιστρέφω','περιμένω','ανθίζω',          // 36-40
-  'ήλιος','θάλασσα','βουνό','δέντρο','λουλούδι',                // 41-45
-  'νερό','αέρας','φως','φύση','πουλί',                          // 46-50
-  'δάσος','παραλία','κήπος','βράχος','ουρανός',                  // 51-55
-  'βροχή','αστέρι','αυγή','ηλιοβασίλεμα','σύννεφο',             // 56-60
-  'φίλος','οικογένεια','υγεία','χαρά','αγάπη',                  // 61-65
-  'γέλιο','γεύμα','πρωινό','βόλτα','ύπνος',                     // 66-70
-  'όνειρο','σπίτι','καρδιά','ψυχή','ζωή',                       // 71-75
-  'μαζί','βαθιά','ήρεμα','απλά','τώρα'                          // 76-80
+  'διψώ','αγαπώ','φοβάμαι','ελπίζω','ονειρεύομαι',              // 1-5  (pair: 1+5)
+  'ακούω','ρωτώ','ψάχνω','απορώ','θαυμάζω',                      // 6-10 (pair: 6+73, 9+13)
+  'λαχταρώ','αντέχω','ξεκινώ','μαντεύω','ταξιδεύω',              // 11-15 (pair: 9+13)
+  'αναρωτιέμαι','φαντάζομαι','αγωνίζομαι','χάνομαι','εξελίσσομαι', // 16-20 (pair: 16+78)
+  'διδάσκομαι','δίνω','εξερευνώ','μετρώ','κρύβομαι',             // 21-25 (pair: 22+54)
+  'προχωρώ','αγρυπνώ','πλανιέμαι','χτίζω','χάνω',               // 26-30 (pair: 29+16)
+  'βαδίζω','μοιράζω','αναμένω','επιστρέφω','αλλάζω',              // 31-35 (pair: 31+47+40)
+  'κοιτάζω','φεύγω','πλησιάζω','περπατώ','κατακτώ',              // 36-40 (pair: 31+40)
+  'φυτρώνω','ανθίζω','ξαπλώνω','εκπλήσσομαι','σκύβω',            // 41-45 (pair: 5+41, 44+53)
+  'συναντώ','ακολουθώ','ξυπνώ','αναπαύομαι','παρατηρώ',           // 46-50 (pair: 31+47)
+  'συνδέω','σκέφτομαι','ανακαλύπτω','χαρίζω','διαβαίνω',          // 51-55 (pair: 22+54, 44+53, 53+80)
+  'βυθίζομαι','ανεβαίνω','ανακαλώ','αγγίζω','τελειώνω',           // 56-60
+  'στοχάζομαι','μεταβαίνω','αναζητώ','προσδοκώ','θρηνώ',          // 61-65 (pair: 63+64, 34+63, 61+73)
+  'ελευθερώνω','φωνάζω','χαίρομαι','εμβαθύνω','αναπνέω',          // 66-70 (pair: 6+67, 67+74, 68+79)
+  'ανησυχώ','ισορροπώ','σιωπώ','κατευθύνω','διατηρώ',             // 71-75 (pair: 6+73, 61+73)
+  'γειώνομαι','ακτινοβολώ','αποκαλύπτω','αδημονώ','ολοκληρώνω'   // 76-80 (pair: 16+78, 53+80, 68+79)
 ];
 
-// ── ΑΠΑΝΤΗΣΗ: εσωτερικός κόσμος (ανακατεύεται ανά κλήρωση) ──────────────
-// 1-20: Συναισθήματα  21-40: Αφηρημένες έννοιες  41-60: Αισθητηριακά  61-75: Χρόνος/Ουσία  76-80: Σύνδεση
+// ── ΑΠΑΝΤΗΣΗ: 80 ουσιαστικά — ανακατεύεται ανά κλήρωση (A words) ────────
+// Κάθε Q[n] → A[n]: σημαντικό ζεύγος (πχ ανακαλύπτω53→θησαυρός53, σιωπώ73→ησυχία73)
 const BASE_ANS_NUM_TO_CHAR = [
   null,
-  'αγωνία','ευτυχία','λύπη','φόβος','ελπίδα',                   // 1-5
-  'θυμός','υπομονή','θάρρος','πίστη','γαλήνη',                  // 6-10
-  'πάθος','τρυφερότητα','ευγνωμοσύνη','έκπληξη','απογοήτευση',  // 11-15
-  'μελαγχολία','ζήλεια','ανακούφιση','σύγχυση','νοσταλγία',      // 16-20
-  'αλήθεια','ψέμα','χρόνος','μοίρα','τύχη',                     // 21-25
-  'θαύμα','αίνιγμα','σύμπαν','μυστήριο','μαγεία',               // 26-30
-  'παράδοση','μνήμη','φαντασία','σοφία','ελευθερία',             // 31-35
-  'ομορφιά','δικαιοσύνη','αρμονία','ισορροπία','μεταμόρφωση',    // 36-40
-  'φλόγα','κύμα','αύρα','λάμψη','ήχος',                         // 41-45
-  'άρωμα','σκιά','ζέστη','κρύο','σκοτάδι',                      // 46-50
-  'βροντή','ηχώ','δόνηση','σπινθήρας','ροή',                    // 51-55
-  'μυρωδιά','αστραπή','σιωπή','ομίχλη','αντίλαλος',              // 56-60
-  'στιγμή','αιώνας','παρελθόν','παρόν','μέλλον',                // 61-65
-  'ανατολή','μεσάνυχτα','άνοιξη','καλοκαίρι','φθινόπωρο',       // 66-70
-  'χειμώνας','αιωνιότητα','παύση','ρυθμός','κύκλος',            // 71-75
-  'δεσμός','ρίζα','πηγή','κέντρο','ουσία'                       // 76-80
+  'νερό','καρδιά','θάρρος','φως','ξύπνημα',                      // 1-5
+  'ηχώ','απάντηση','εύρεση','αλήθεια','δέος',                     // 6-10
+  'ικανοποίηση','νίκη','δρόμος','αποκάλυψη','ορίζοντας',          // 11-15
+  'σοφία','όραμα','δύναμη','επιστροφή','μεταμόρφωση',             // 16-20
+  'γνώση','χαρά','ανακάλυψη','αξία','φανέρωση',                   // 21-25
+  'στόχος','αυγή','κατεύθυνση','θεμέλιο','ανεύρεση',              // 26-30
+  'προορισμός','αφθονία','στιγμή','πατρίδα','ανανέωση',            // 31-35
+  'ευκρίνεια','πτήση','επαφή','βήμα','κορυφή',                    // 36-40
+  'ρίζα','άνθος','ξεκούραση','θαύμα','ταπεινοφροσύνη',            // 41-45
+  'δεσμός','μονοπάτι','αρχή','γαλήνη','εικόνα',                   // 46-50
+  'αρμονία','ιδέα','θησαυρός','ευγνωμοσύνη','πέρασμα',            // 51-55
+  'βάθος','ύψος','μνήμη','θερμότητα','τέλος',                     // 56-60
+  'νόημα','αλλαγή','πληρότητα','εκπλήρωση','παρηγοριά',           // 61-65
+  'ελευθερία','ανταπόκριση','ευτυχία','μυστήριο','ζωή',            // 66-70
+  'ηρεμία','ευστάθεια','ησυχία','σκοπός','διάρκεια',               // 71-75
+  'γη','λάμψη','διαφάνεια','υπομονή','ολοκλήρωση'                 // 76-80
 ];
 
 // Mutable answer mapping — shuffled fresh on each new draw
@@ -256,7 +257,7 @@ function buildWordToNum() {
 buildWordToNum();
 
 function shuffleMapping() {
-  const words = BASE_ANS_NUM_TO_CHAR.slice(1); // 80 λέξεις απάντησης
+  const words = BASE_ANS_NUM_TO_CHAR.slice(1);
   for (let i = words.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [words[i], words[j]] = [words[j], words[i]];
@@ -518,23 +519,20 @@ async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
 async function claudeSentence(nums, apiKey) {
   const model = 'claude-haiku-4-5-20251001';
 
-  // Ερώτηση: κληρωμένες λέξεις με γραμματικό είδος
-  const drawn = nums.map(n => {
-    const cat = n <= 40 ? 'ρήμα' : n <= 75 ? 'ουσιαστικό' : 'επίρρημα';
-    return `${n}→${BASE_NUM_TO_CHAR[n]}(${cat})`;
-  }).join(', ');
+  // Ερώτηση: 20 κληρωμένες λέξεις από το BASE mapping
+  const drawn = nums.map(n => `${n}→${BASE_NUM_TO_CHAR[n]}`).join(', ');
 
   // Απάντηση: ανακατεμένος πίνακας (shuffled)
   const shuffledMap = NUM_TO_CHAR.slice(1).map((w, i) => `${i+1}:${w}`).join('  ');
 
-  const sys = `Για την ερώτηση χρησιμοποιείς τις κληρωμένες λέξεις ανάλογα με το γραμματικό τους είδος.\nΓια την απάντηση ο πίνακας λέξεων είναι:\n${shuffledMap}`;
+  const sys = `Για την ερώτηση χρησιμοποιείς τις κληρωμένες λέξεις (όλες ρήματα α΄ ενικού).\nΓια την απάντηση ο πίνακας ουσιαστικών είναι:\n${shuffledMap}`;
   const prompt = `Κλήρωση: ${drawn}
 
 Γράψε δύο μέρη χωρισμένα με "---" σε ξεχωριστή γραμμή:
 
-Μέρος 1: Μία ερώτηση που ενσωματώνει φυσικά όσες κληρωμένες λέξεις μπορεί — τα ρήματα ως ρήματα, τα ουσιαστικά ως ουσιαστικά, τα επιρρήματα ως επιρρήματα. Να έχει νόημα και σωστή γραμματική.
+Μέρος 1: Μία ερώτηση που ενσωματώνει φυσικά όσα ρήματα μπορεί από τα κληρωμένα (χρησιμοποιώντας τα ως ρήματα). Να έχει νόημα και σωστή γραμματική.
 
-Μέρος 2: Απάντηση άμεσα στην ερώτηση του Μέρους 1 — να αφορά ακριβώς αυτό που ρωτήθηκε. Γράψε ελεύθερα. Μέσα στο κείμενο ενσωμάτωσε φυσικά έως 8 λέξεις από τον πίνακα (συναισθήματα 1-20, αφηρημένες έννοιες 21-40, αισθητηριακά 41-60, χρόνος/ουσία 61-80).
+Μέρος 2: Απάντηση άμεσα στην ερώτηση — να αφορά ακριβώς αυτό που ρωτήθηκε. Γράψε ελεύθερα. Ενσωμάτωσε φυσικά έως 8 ουσιαστικά από τον πίνακα.
 
 Χωρίς τίτλους, μόνο τα δύο μέρη.`;
 
@@ -723,16 +721,14 @@ async function autoSaveLiveBuffer() {
 // ── Live monitoring ────────────────────────────────────────────────────────
 async function fetchLiveNow() {
   try {
-    // Single-call endpoint — avoids paginating the whole day through proxies
     const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
     const r = raw?.last;
     if (!r?.winningNumbers?.list?.length) {
       document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης — επόμενη προσπάθεια σε λίγο';
       return;
     }
-
     const draw = {
-      id:   r.drawId,
+      id: r.drawId,
       time: localTimeStr(toMs(r.drawTime)),
       nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
       bonus: (r.winningNumbers.bonus||[])[0]||null
@@ -788,25 +784,6 @@ function stopLive() {
   document.getElementById('countdown').textContent = '';
 }
 
-// ── Perfect log ────────────────────────────────────────────────────────────
-function renderPerfectLog() {
-  const el = document.getElementById('perfectLog');
-  if (!el) return;
-  let records = [];
-  try { records = JSON.parse(localStorage.getItem('kino_perfect') || '[]'); } catch(_) {}
-  if (!records.length) {
-    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αποθηκευμένες επιτυχίες ακόμα.</div>';
-    return;
-  }
-  el.innerHTML = records.slice().reverse().map(r => {
-    const isPerfect = r.score === r.total;
-    const label = isPerfect
-      ? `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ ${r.score}/${r.total}</strong>`
-      : `<strong style="color:#ffb74d">🔥 ΠΑΡΑ ΕΝΑ ${r.score}/${r.total}</strong>`;
-    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId} ${r.time}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
-  }).join('');
-}
-
 // ── Word / sentence → Numbers lookup ──────────────────────────────────────
 function lookupWord() {
   const raw = document.getElementById('wordInput').value.trim();
@@ -815,15 +792,14 @@ function lookupWord() {
   const tokens = raw.split(/\s+/);
   const tiles = tokens.map(token => {
     const t = token.toLowerCase();
-    // search question words (Q) then answer words (A), exact first then partial
-    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w: BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w: BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w: BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w: BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
-    return {n: null, w: token, type:'', ok: false};
+    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w:BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
+    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w:BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
+    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w:BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
+    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w:BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
+    return {n: null, w: token, type: null, ok: false};
   });
   const html = tiles.map(({n, w, type, ok}) => ok
-    ? `<div class="lk-tile"><span class="lk-c">${w}</span><span class="lk-n">${n}<sup style="font-size:.55rem;color:#888">${type}</sup></span></div>`
+    ? `<div class="lk-tile"><span class="lk-c" style="font-size:.72rem;color:${type==='Q'?'#ce93d8':'#80cbc4'}">${w}</span><span class="lk-n">${n} (${type})</span></div>`
     : `<div class="lk-tile" style="opacity:.45"><span class="lk-c">${w}</span><span class="lk-n">—</span></div>`
   ).join('');
   const nums = tiles.filter(x => x.ok).map(x => x.n).join(', ');
@@ -853,6 +829,25 @@ function lookupNums() {
   out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
     <div class="lk-nums" style="color:#ce93d8">Q: ${qLine}</div>
     <div class="lk-nums" style="color:#80cbc4">A: ${aLine}</div>`;
+}
+
+// ── Perfect log ───────────────────────────────────────────────────────────
+function renderPerfectLog() {
+  const el = document.getElementById('perfectLog');
+  if (!el) return;
+  let records = [];
+  try { records = JSON.parse(localStorage.getItem('kino_perfect') || '[]'); } catch(_) {}
+  if (!records.length) {
+    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αποθηκευμένες επιτυχίες ακόμα.</div>';
+    return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => {
+    const isPerfect = r.score === r.total;
+    const label = isPerfect
+      ? `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ ${r.score}/${r.total}</strong>`
+      : `<strong style="color:#ffb74d">🔥 ΠΑΡΑ ΕΝΑ ${r.score}/${r.total}</strong>`;
+    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId} ${r.time}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
+  }).join('');
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
@@ -901,7 +896,7 @@ window.addEventListener('load', () => {
 
     const wordList = matching.map(n => `${n}:${BASE_NUM_TO_CHAR[n]}`).join(', ');
     const fullMap  = BASE_NUM_TO_CHAR.slice(1).map((w,i) => `${i+1}:${w}`).join('  ');
-    const sys      = `Κάθε αριθμός Κίνο αντιστοιχεί σε λέξη βάσει του πίνακα:\n${fullMap}`;
+    const sys      = `Κάθε αριθμός Κίνο αντιστοιχεί σε ρήμα βάσει του πίνακα:\n${fullMap}`;
     const prompt   = `Οι παρακάτω αριθμοί δεν έχουν βγει εδώ και ${minD}–${maxD} κληρώσεις: ${wordList}
 
 Φτιάξε μία ερώτηση χρησιμοποιώντας ακριβώς 6 από αυτές τις λέξεις. Η ερώτηση να έχει νόημα και να είναι φυσική. Μόνο η ερώτηση, χωρίς άλλο κείμενο.`;
@@ -922,6 +917,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-05 23:04</div>
+<div id="buildStamp">v 2026-06-06 05:54</div>
 </body>
 </html>
