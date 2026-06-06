@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kino Ανάλυση & Πρόβλεψη</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
+.nav-link{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+.nav-link:hover{background:#2a2a4a}
+
+#statusBar{background:#0e0e1a;padding:8px 16px;font-size:.78rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:32px}
+
+main{max-width:1100px;margin:0 auto;padding:14px}
+section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ── Selection grid ── */
+#selGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.sel-cell{border-radius:7px;padding:6px 2px;text-align:center;cursor:pointer;transition:all .12s;background:#1e2535;border:2px solid #263040;user-select:none;position:relative}
+.sel-cell:hover{border-color:#5c6bc0;z-index:1}
+.sel-cell.chosen{background:#3a1460;border-color:#9c27b0}
+.sel-cell.res-hi{background:#0d2b0d;border-color:#4caf50}
+.sel-cell.res-med{background:#1a2a06;border-color:#8bc34a}
+.sel-cell.chosen.res-hi{background:#2a0d5a;border-color:#e040fb}
+.sel-n{font-size:.72rem;font-weight:700;display:block;color:#dde}
+.sel-w{font-size:.52rem;display:block;color:#556;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel-d{font-size:.5rem;display:block;color:#445;margin-top:1px}
+.sel-cell.chosen .sel-n{color:#e0aaff}
+.sel-cell.chosen .sel-w{color:#9c6dbf}
+.sel-cell.res-hi .sel-n{color:#a5d6a7}
+.sel-cell.res-hi .sel-w{color:#4caf50}
+
+/* ── Controls ── */
+#ctrlRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid #2a2a3a}
+.ctrl-label{font-size:.82rem;color:#aaa;display:flex;align-items:center;gap:6px}
+.ctrl-input{width:60px;padding:7px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:7px;color:#e8e8e8;font-size:.9rem;text-align:center;outline:none}
+.ctrl-input:focus{border-color:#5c6bc0}
+.ctrl-select{padding:7px 10px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:7px;color:#e8e8e8;font-size:.82rem;outline:none}
+.ctrl-select:focus{border-color:#5c6bc0}
+.btn{padding:9px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-analyze{background:#3949ab;color:#fff}
+.btn-analyze:hover{background:#3f51b5}
+.btn-clear{background:#222;color:#999;border:1px solid #333}
+.btn-clear:hover{background:#2a2a2a}
+#selCount{font-size:.78rem;color:#666;margin-left:auto}
+
+/* ── Results ── */
+#resultsBox{margin-top:12px}
+.res-summary{font-size:.8rem;color:#9fa8da;padding:8px 12px;background:#0d0d1a;border-radius:8px;line-height:1.7;margin-bottom:10px}
+.res-summary strong{color:#ce93d8}
+.res-numbers{display:flex;flex-wrap:wrap;gap:7px}
+.res-ball{display:flex;flex-direction:column;align-items:center;padding:9px 11px;border-radius:10px;background:#0d2010;border:2px solid #388e3c;min-width:58px;cursor:default;transition:transform .1s}
+.res-ball:hover{transform:scale(1.06)}
+.res-ball.gold{border-color:#ffd54f;background:#1a1600}
+.res-ball.silver{border-color:#b0bec5;background:#131820}
+.res-ball.bronze{border-color:#ff8a65;background:#1a0e08}
+.rb-n{font-size:1.15rem;font-weight:700;color:#fff}
+.rb-pct{font-size:.62rem;color:#aaa;margin-top:2px}
+.rb-lift{font-size:.58rem;margin-top:1px}
+.rb-lift.pos{color:#81c784}
+.rb-lift.neg{color:#ef9a9a}
+.rb-w{font-size:.58rem;color:#7986cb;margin-top:2px;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.rb-d{font-size:.55rem;color:#555;margin-top:1px}
+
+/* ── History ── */
+#histControls{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+#histSearch{flex:1;min-width:140px;padding:7px 10px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:7px;color:#e8e8e8;font-size:.82rem;outline:none}
+#histSearch:focus{border-color:#5c6bc0}
+#histCount{font-size:.75rem;color:#555}
+#histList{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+#histList::-webkit-scrollbar{width:5px}
+#histList::-webkit-scrollbar-track{background:#111}
+#histList::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+.hist-row{background:#12121f;border-radius:7px;padding:7px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;transition:background .1s}
+.hist-row:hover{background:#16162a}
+.hist-meta{font-size:.68rem;color:#555;min-width:90px;line-height:1.5}
+.hist-meta b{color:#777;display:block}
+.hist-balls{display:flex;flex-wrap:wrap;gap:3px;flex:1}
+.h-ball{width:24px;height:24px;border-radius:5px;background:#1a2030;border:1.5px solid #222a3a;font-size:.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:#8090b0}
+.h-ball.match{background:#2a1060;border-color:#7b1fa2;color:#ce93d8}
+.h-ball.result{background:#0d2010;border-color:#388e3c;color:#a5d6a7}
+.h-ball.both{background:#1a0a2a;border-color:#e040fb;color:#ea80fc}
+
+/* ── No data ── */
+.no-data{color:#555;font-size:.82rem;padding:12px 0}
+
+/* ── Build stamp ── */
+#buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#333;pointer-events:none;z-index:99}
+
+@media(max-width:600px){
+  #selGrid{grid-template-columns:repeat(8,1fr)}
+  .res-ball{min-width:50px;padding:7px 8px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔮 Ανάλυση & Πρόβλεψη</h1>
+  <a href="kino_live.html" class="nav-link">← Live</a>
+  <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
+</header>
+
+<div id="statusBar">⏳ Φόρτωση δεδομένων…</div>
+
+<main>
+
+  <!-- Selection + Analysis -->
+  <section>
+    <h2>Επίλεξε αριθμούς → Ανάλυση συσχέτισης</h2>
+    <div id="selGrid"></div>
+    <div id="ctrlRow">
+      <label class="ctrl-label">Μέθοδος:
+        <select id="methodSel" class="ctrl-select">
+          <option value="weighted">Συσχέτιση (βαρύτητα)</option>
+          <option value="strict">Αυστηρή (μόνο κληρώσεις με ΟΛΑ)</option>
+        </select>
+      </label>
+      <label class="ctrl-label">Πρότεινε
+        <input type="number" id="topNInput" class="ctrl-input" value="8" min="1" max="20">
+        αριθμούς
+      </label>
+      <button class="btn btn-analyze" id="analyzeBtn">🔍 Ανάλυση</button>
+      <button class="btn btn-clear" id="clearBtn">✕ Καθαρισμός</button>
+      <span id="selCount">0 επιλεγμένοι</span>
+    </div>
+    <div id="resultsBox"></div>
+  </section>
+
+  <!-- History -->
+  <section>
+    <h2 id="histTitle">Ιστορικό Κληρώσεων</h2>
+    <div id="histControls">
+      <input type="text" id="histSearch" placeholder="Αριθμός για φίλτρο (π.χ. 7 23 45)…" autocomplete="off">
+      <span id="histCount"></span>
+    </div>
+    <div id="histList"><span class="no-data">Φόρτωση…</span></div>
+  </section>
+
+</main>
+
+<div id="buildStamp">v 2026-06-06</div>
+
+<script>
+'use strict';
+
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const pad = n => String(n).padStart(2,'0');
+
+const BASE_NUM_TO_CHAR = [
+  null,
+  'διψώ','αγαπώ','φοβάμαι','ελπίζω','ονειρεύομαι',
+  'ακούω','ρωτώ','ψάχνω','απορώ','θαυμάζω',
+  'λαχταρώ','αντέχω','ξεκινώ','μαντεύω','ταξιδεύω',
+  'αναρωτιέμαι','φαντάζομαι','αγωνίζομαι','χάνομαι','εξελίσσομαι',
+  'διδάσκομαι','δίνω','εξερευνώ','μετρώ','κρύβομαι',
+  'προχωρώ','αγρυπνώ','πλανιέμαι','χτίζω','χάνω',
+  'βαδίζω','μοιράζω','αναμένω','επιστρέφω','αλλάζω',
+  'κοιτάζω','φεύγω','πλησιάζω','περπατώ','κατακτώ',
+  'φυτρώνω','ανθίζω','ξαπλώνω','εκπλήσσομαι','σκύβω',
+  'συναντώ','ακολουθώ','ξυπνώ','αναπαύομαι','παρατηρώ',
+  'συνδέω','σκέφτομαι','ανακαλύπτω','χαρίζω','διαβαίνω',
+  'βυθίζομαι','ανεβαίνω','ανακαλώ','αγγίζω','τελειώνω',
+  'στοχάζομαι','μεταβαίνω','αναζητώ','προσδοκώ','θρηνώ',
+  'ελευθερώνω','φωνάζω','χαίρομαι','εμβαθύνω','αναπνέω',
+  'ανησυχώ','ισορροπώ','σιωπώ','κατευθύνω','διατηρώ',
+  'γειώνομαι','ακτινοβολώ','αποκαλύπτω','αδημονώ','ολοκληρώνω'
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allDraws   = [];
+let delays     = new Array(81).fill(0);
+let selected   = new Set();
+let resultNums = new Set(); // last analysis results
+let coIdx      = null;      // co-occurrence index (built once)
+
+// ── GitHub fetch ──────────────────────────────────────────────────────────────
+function ghHeaders() {
+  const t = localStorage.getItem('gh_token');
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+async function ghGet(path) {
+  const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+  try {
+    const r = await fetch(raw, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    if (r.ok) return r.json();
+  } catch(_) {}
+  const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
+  try {
+    const r = await fetch(url, { headers: ghHeaders(), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!r.ok) return null;
+    const meta = await r.json();
+    if ((!meta.content || meta.content === '') && meta.download_url) {
+      const dr = await fetch(meta.download_url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!meta.content) return null;
+    return JSON.parse(atob(meta.content.replace(/\n/g, '')));
+  } catch(_) { return null; }
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  const status = document.getElementById('statusBar');
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}_${pad(d.getMonth() + 1)}`);
+  }
+
+  let loaded = 0;
+  for (const ym of months) {
+    status.textContent = `⏳ Φόρτωση ${ym.replace('_', '-')}… (${loaded}/${months.length})`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (data?.draws) { allDraws.push(...data.draws); loaded++; }
+  }
+
+  allDraws.sort((a, b) => a.id - b.id);
+
+  // Compute delays
+  const lastSeen = new Array(81).fill(-1);
+  for (let i = 0; i < allDraws.length; i++) {
+    for (const n of allDraws[i].n) if (n >= 1 && n <= 80) lastSeen[n] = i;
+  }
+  for (let n = 1; n <= 80; n++) {
+    delays[n] = lastSeen[n] === -1 ? allDraws.length : allDraws.length - 1 - lastSeen[n];
+  }
+
+  // Pre-build co-occurrence index: coIdx[n] = Set of draw indices containing n
+  coIdx = {};
+  for (let n = 1; n <= 80; n++) coIdx[n] = [];
+  allDraws.forEach((draw, i) => {
+    for (const n of draw.n) if (n >= 1 && n <= 80) coIdx[n].push(i);
+  });
+  // Convert to Sets for O(1) lookup
+  for (let n = 1; n <= 80; n++) coIdx[n] = new Set(coIdx[n]);
+
+  const first = allDraws[0], last = allDraws[allDraws.length - 1];
+  status.textContent = `✓ ${allDraws.length.toLocaleString('el-GR')} κληρώσεις · ${loaded} μήνες · #${first?.id}–#${last?.id}`;
+
+  renderSelGrid();
+  renderHistory(new Set(), new Set());
+}
+
+// ── Selection grid ────────────────────────────────────────────────────────────
+function renderSelGrid() {
+  const grid = document.getElementById('selGrid');
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    const isChosen = selected.has(n);
+    const isResult = resultNums.has(n);
+    let cls = 'sel-cell';
+    if (isChosen && isResult) cls += ' chosen res-hi';
+    else if (isChosen) cls += ' chosen';
+    else if (isResult) cls += ' res-hi';
+    const w = BASE_NUM_TO_CHAR[n] || '';
+    const wShort = w.length > 6 ? w.slice(0, 5) + '.' : w;
+    cells.push(
+      `<div class="${cls}" data-n="${n}" title="${w} · απουσία: ${delays[n]} κλ.">` +
+        `<span class="sel-n">${n}</span>` +
+        `<span class="sel-w">${wShort}</span>` +
+        `<span class="sel-d">${delays[n]}κ</span>` +
+      `</div>`
+    );
+  }
+  grid.innerHTML = cells.join('');
+  grid.querySelectorAll('.sel-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const n = parseInt(cell.dataset.n);
+      if (selected.has(n)) selected.delete(n);
+      else selected.add(n);
+      updateSelCount();
+      renderSelGrid();
+    });
+  });
+}
+
+function updateSelCount() {
+  const el = document.getElementById('selCount');
+  el.textContent = selected.size
+    ? `${selected.size} επιλεγμένοι: ${[...selected].sort((a,b)=>a-b).join(', ')}`
+    : '0 επιλεγμένοι';
+}
+
+// ── Analysis ──────────────────────────────────────────────────────────────────
+function analyzeWeighted(selArr, topN) {
+  const scores = new Array(81).fill(0);
+  const total = allDraws.length;
+
+  for (let n = 1; n <= 80; n++) {
+    if (selected.has(n)) continue;
+    let sum = 0;
+    for (const s of selArr) {
+      const sSize = coIdx[s].size;
+      if (!sSize) continue;
+      let co = 0;
+      for (const i of coIdx[n]) if (coIdx[s].has(i)) co++;
+      sum += co / sSize;
+    }
+    scores[n] = selArr.length ? sum / selArr.length : 0;
+  }
+
+  const baseline = 20 / 80;
+  const results = [];
+  for (let n = 1; n <= 80; n++) {
+    if (selected.has(n)) continue;
+    results.push({ n, score: scores[n], lift: scores[n] - baseline });
+  }
+  results.sort((a, b) => b.score - a.score);
+  return { results: results.slice(0, topN), strictCount: null, totalAnalyzed: total };
+}
+
+function analyzeStrict(selArr, topN) {
+  const selSet = new Set(selArr);
+  const matchingDraws = allDraws.filter(d => selArr.every(s => d.n.includes(s)));
+  if (!matchingDraws.length) return { results: [], strictCount: 0, totalAnalyzed: allDraws.length };
+
+  const counts = {};
+  for (let n = 1; n <= 80; n++) if (!selSet.has(n)) counts[n] = 0;
+  for (const draw of matchingDraws) {
+    for (const n of draw.n) if (!selSet.has(n)) counts[n] = (counts[n] || 0) + 1;
+  }
+
+  const baseline = 0.25;
+  const results = Object.entries(counts)
+    .map(([n, count]) => ({
+      n: parseInt(n),
+      score: count / matchingDraws.length,
+      lift: count / matchingDraws.length - baseline,
+      count
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
+
+  return { results, strictCount: matchingDraws.length, totalAnalyzed: allDraws.length };
+}
+
+function runAnalysis() {
+  const selArr = [...selected].sort((a, b) => a - b);
+  const box = document.getElementById('resultsBox');
+
+  if (!selArr.length) {
+    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem;margin-top:10px">Πάτα αριθμούς στον πίνακα για να ξεκινήσεις την ανάλυση.</div>';
+    return;
+  }
+  if (!allDraws.length) {
+    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem;margin-top:10px">Τα δεδομένα δεν έχουν φορτωθεί ακόμα — περίμενε λίγο.</div>';
+    return;
+  }
+
+  const topN    = Math.min(Math.max(parseInt(document.getElementById('topNInput').value) || 8, 1), 20);
+  const method  = document.getElementById('methodSel').value;
+  const { results, strictCount, totalAnalyzed } = method === 'strict'
+    ? analyzeStrict(selArr, topN)
+    : analyzeWeighted(selArr, topN);
+
+  resultNums = new Set(results.map(r => r.n));
+  renderSelGrid();
+  renderResults(results, strictCount, selArr, method, totalAnalyzed, topN);
+  renderHistory(new Set(selArr), resultNums);
+}
+
+function renderResults(results, strictCount, selArr, method, totalAnalyzed, topN) {
+  const box = document.getElementById('resultsBox');
+
+  if (!results.length) {
+    box.innerHTML = `<div style="color:#ef9a9a;font-size:.82rem;margin-top:10px">
+      Καμία κλήρωση δεν περιέχει ΟΛΑ μαζί τα νούμερα ${selArr.join(', ')}.<br>
+      Δοκίμασε με λιγότερους αριθμούς ή άλλαξε σε "Συσχέτιση".
+    </div>`;
+    return;
+  }
+
+  const BASELINE = 25.0;
+  const summaryText = method === 'strict'
+    ? `Βρέθηκαν <strong>${strictCount}</strong> κληρώσεις όπου εμφανίστηκαν ΟΛΑ τα επιλεγμένα (${selArr.join(', ')}) μαζί, από σύνολο <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong>. Εμφάνιση κάθε αριθμού σε αυτές τις κληρώσεις:`
+    : `Ανάλυση συσχέτισης για επιλεγμένους <strong>${selArr.join(', ')}</strong> σε <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong> κληρώσεις. Βάση: ${BASELINE}% · οι πάνω από ${BASELINE}% έχουν θετική συσχέτιση.`;
+
+  const medals = ['gold', 'silver', 'bronze'];
+  const balls = results.map((r, i) => {
+    const pct = (r.score * 100).toFixed(1);
+    const liftPct = (r.lift * 100).toFixed(1);
+    const liftSign = r.lift >= 0 ? '+' : '';
+    const liftCls  = r.lift >= 0 ? 'pos' : 'neg';
+    const cls = 'res-ball' + (i < 3 ? ' ' + medals[i] : '');
+    const w = BASE_NUM_TO_CHAR[r.n] || '';
+    const wShort = w.length > 7 ? w.slice(0, 6) + '.' : w;
+    return `<div class="${cls}" title="${w} · απουσία: ${delays[r.n]} κλ.">
+      <span class="rb-n">${r.n}</span>
+      <span class="rb-pct">${pct}%</span>
+      <span class="rb-lift ${liftCls}">${liftSign}${liftPct}%</span>
+      <span class="rb-w">${wShort}</span>
+      <span class="rb-d">${delays[r.n]}κ απ.</span>
+    </div>`;
+  }).join('');
+
+  const topList = results.map(r => r.n).join('  ·  ');
+
+  box.innerHTML = `
+    <div class="res-summary">${summaryText}</div>
+    <div style="font-size:.75rem;color:#555;margin-bottom:8px;font-family:monospace;letter-spacing:.04em">${topList}</div>
+    <div class="res-numbers">${balls}</div>
+  `;
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+let histFilter = new Set();
+
+function renderHistory(selSet, resSet) {
+  if (selSet !== undefined) histFilter = selSet;
+  const filter   = histFilter;
+  const filterArr = [...filter];
+  const list     = document.getElementById('histList');
+  const countEl  = document.getElementById('histCount');
+  const titleEl  = document.getElementById('histTitle');
+
+  const searchRaw = document.getElementById('histSearch').value.trim();
+  const searchNums = searchRaw
+    .split(/[\s,;]+/)
+    .map(s => parseInt(s))
+    .filter(n => n >= 1 && n <= 80);
+
+  const activeFilter = searchNums.length ? searchNums : filterArr;
+
+  let draws = allDraws.slice().reverse();
+
+  if (activeFilter.length) {
+    draws = draws.filter(d => activeFilter.some(n => d.n.includes(n)));
+  }
+
+  titleEl.textContent = `Ιστορικό Κληρώσεων (${draws.length.toLocaleString('el-GR')})`;
+  countEl.textContent = activeFilter.length
+    ? `Φίλτρο: ${activeFilter.join(', ')} → ${draws.length} κλ.`
+    : `Σύνολο: ${draws.length} κλ.`;
+
+  const shown = draws.slice(0, 120);
+
+  list.innerHTML = shown.map(draw => {
+    const balls = draw.n.map(n => {
+      const isChoice = filter.has(n);
+      const isResult = (resSet || resultNums).has(n);
+      const isSrch   = searchNums.length && searchNums.includes(n);
+      let cls = 'h-ball';
+      if (isChoice && isResult) cls += ' both';
+      else if (isChoice || isSrch) cls += ' match';
+      else if (isResult) cls += ' result';
+      return `<div class="${cls}" title="${BASE_NUM_TO_CHAR[n]||n}">${n}</div>`;
+    }).join('');
+
+    return `<div class="hist-row">
+      <div class="hist-meta"><b>#${draw.id}</b></div>
+      <div class="hist-balls">${balls}</div>
+    </div>`;
+  }).join('');
+
+  if (draws.length > 120) {
+    list.innerHTML += `<div style="text-align:center;padding:10px;font-size:.75rem;color:#555">… και άλλες ${(draws.length - 120).toLocaleString('el-GR')} κληρώσεις (χρησιμοποίησε φίλτρο)</div>`;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  renderSelGrid();
+
+  document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    selected.clear();
+    resultNums.clear();
+    updateSelCount();
+    renderSelGrid();
+    document.getElementById('resultsBox').innerHTML = '';
+    renderHistory(new Set(), new Set());
+  });
+
+  document.getElementById('histSearch').addEventListener('input', () => renderHistory());
+  document.getElementById('selGrid').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalysis(); });
+
+  loadData();
+});
+</script>
+</body>
+</html>
