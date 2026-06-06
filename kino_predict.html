@@ -95,10 +95,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .no-data{color:#555;font-size:.82rem;padding:12px 0}
 
 /* ── Prediction log ── */
-#predLogSec details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:#80cbc4;user-select:none}
-#predLogSec details summary::before{content:'▶';font-size:.7rem;transition:transform .2s}
-#predLogSec details[open] summary::before{transform:rotate(90deg)}
-#predLogSec details summary::-webkit-details-marker{display:none}
 .pl-row{padding:9px 12px;background:#0a1510;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.9;border-left:3px solid #333}
 .pl-row.pl-good{border-left-color:#4caf50}
 .pl-row.pl-ok{border-left-color:#ffd54f}
@@ -145,12 +141,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   </section>
 
   <section id="predLogSec">
-    <details>
-      <summary>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</summary>
-      <div id="predLog" style="margin-top:12px">
-        <div style="color:#555;font-size:.82rem">Κάνε μια πρόβλεψη για να ξεκινήσει η καταγραφή.</div>
-      </div>
-    </details>
+    <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
+    <div id="predLog">
+      <div style="color:#555;font-size:.82rem">Κάνε μια πρόβλεψη για να ξεκινήσει η καταγραφή.</div>
+    </div>
   </section>
 
   <section>
@@ -413,8 +407,6 @@ function savePrediction(predictedArr, method) {
     evaluatedDrawId: null, hits: null, hitNums: null });
   try { localStorage.setItem('kino_pred_log', JSON.stringify(log.slice(-60))); }
   catch(e) { console.error('savePrediction failed', e); return; }
-  const det = document.querySelector('#predLogSec details');
-  if (det) det.open = true;
   renderPredLog();
 }
 
