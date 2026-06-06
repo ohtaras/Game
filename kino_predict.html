@@ -46,6 +46,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .btn{padding:9px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s}
 .btn-analyze{background:#3949ab;color:#fff}
 .btn-analyze:hover{background:#3f51b5}
+.btn-last{background:#1a2a1a;color:#80cbc4;border:1px solid #2a4a2a}
+.btn-last:hover{background:#1e321e}
 .btn-clear{background:#222;color:#999;border:1px solid #333}
 .btn-clear:hover{background:#2a2a2a}
 #selCount{font-size:.78rem;color:#666;margin-left:auto}
@@ -149,6 +151,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         αριθμούς
       </label>
       <button class="btn btn-analyze" id="analyzeBtn">🔍 Ανάλυση</button>
+      <button class="btn btn-last" id="lastDrawBtn" title="Φόρτωσε τους αριθμούς της τελευταίας κλήρωσης">📥 Τελευταία κλήρωση</button>
       <button class="btn btn-clear" id="clearBtn">✕ Καθαρισμός</button>
       <span id="selCount">0 επιλεγμένοι</span>
     </div>
@@ -732,6 +735,18 @@ window.addEventListener('load', () => {
   renderSelGrid();
 
   document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+
+  document.getElementById('lastDrawBtn').addEventListener('click', () => {
+    const last = allDraws[allDraws.length - 1];
+    if (!last) return;
+    selected = new Set(last.n);
+    resultNums.clear();
+    updateSelCount();
+    renderSelGrid();
+    document.getElementById('resultsBox').innerHTML = '';
+    renderHistory(new Set(last.n), new Set());
+    runAnalysis();
+  });
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     selected.clear();
