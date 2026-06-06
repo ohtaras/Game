@@ -90,6 +90,28 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 /* ── No data ── */
 .no-data{color:#555;font-size:.82rem;padding:12px 0}
 
+/* ── Prediction log ── */
+#predLogSec details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:#80cbc4;user-select:none}
+#predLogSec details summary::before{content:'▶';font-size:.7rem;transition:transform .2s}
+#predLogSec details[open] summary::before{transform:rotate(90deg)}
+#predLogSec details summary::-webkit-details-marker{display:none}
+.pl-row{padding:9px 12px;background:#0a1510;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.9;border-left:3px solid #333}
+.pl-row.pl-good{border-left-color:#4caf50}
+.pl-row.pl-ok{border-left-color:#ffd54f}
+.pl-row.pl-pending{border-left-color:#3a3a5a}
+.pl-meta{color:#4a5a4a;font-size:.68rem;margin-bottom:3px}
+.pl-label{font-weight:600;margin-bottom:4px}
+.pl-nums{font-family:monospace;font-size:.74rem;letter-spacing:.05em;line-height:2}
+.pl-hit{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a3a1a;border:1.5px solid #4caf50;color:#a5d6a7;font-weight:700;margin:1px}
+.pl-miss-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#111;border:1.5px solid #2a2a2a;color:#333;font-weight:700;margin:1px}
+.pl-pending-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a1a2a;border:1.5px solid #3a3a5a;color:#666;font-weight:700;margin:1px}
+.calib-box{background:#0a1510;border:1px solid #2a4a2a;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.78rem;line-height:1.8;color:#80cbc4}
+.calib-box strong{color:#a5d6a7}
+.eval-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;margin-top:8px}
+.eval-badge.good{background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50}
+.eval-badge.ok{background:#2a2a00;color:#ffd54f;border:1px solid #ffd54f}
+.eval-badge.miss{background:#1a1a1a;color:#666;border:1px solid #333}
+
 /* ── Build stamp ── */
 #buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#333;pointer-events:none;z-index:99}
 
@@ -131,6 +153,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <span id="selCount">0 επιλεγμένοι</span>
     </div>
     <div id="resultsBox"></div>
+  </section>
+
+  <!-- Prediction log -->
+  <section id="predLogSec">
+    <details>
+      <summary>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</summary>
+      <div id="predLog" style="margin-top:12px">
+        <div style="color:#555;font-size:.82rem">Καμία αποθηκευμένη πρόβλεψη ακόμα — κάνε μια ανάλυση.</div>
+      </div>
+    </details>
   </section>
 
   <!-- History -->
@@ -313,6 +345,9 @@ async function checkForNewDraw() {
       if (n >= 1 && n <= 80) coIdx[n].add(newIdx);
     }
 
+    // Evaluate pending predictions against this draw
+    evaluatePendingPredictions(newDraw);
+
     // Flash status bar
     const el = document.getElementById('statusBar');
     el.style.color = '#a5d6a7';
@@ -322,17 +357,17 @@ async function checkForNewDraw() {
     renderSelGrid();
     renderHistory(histFilter, resultNums);
 
-    // Auto-refresh analysis if one is active
+    // Auto-refresh analysis with updated corrections
     if (selected.size) {
       const topN  = Math.min(Math.max(parseInt(document.getElementById('topNInput').value) || 8, 1), 20);
       const method = document.getElementById('methodSel').value;
       const selArr = [...selected].sort((a,b) => a-b);
-      const { results, strictCount, totalAnalyzed } = method === 'strict'
+      const { results, strictCount, totalAnalyzed, calibrated } = method === 'strict'
         ? analyzeStrict(selArr, topN)
         : analyzeWeighted(selArr, topN);
       resultNums = new Set(results.map(r2 => r2.n));
       renderSelGrid();
-      renderResults(results, strictCount, selArr, method, totalAnalyzed, topN);
+      renderResults(results, strictCount, selArr, method, totalAnalyzed, topN, calibrated);
       renderHistory(histFilter, resultNums);
     }
   } catch(e) {
@@ -385,6 +420,130 @@ function updateSelCount() {
     : '0 επιλεγμένοι';
 }
 
+// ── Prediction log & calibration ─────────────────────────────────────────────
+function getPredLog() {
+  try { return JSON.parse(localStorage.getItem('kino_pred_log') || '[]'); } catch(_) { return []; }
+}
+function setPredLog(log) {
+  try { localStorage.setItem('kino_pred_log', JSON.stringify(log.slice(-60))); } catch(_) {}
+}
+
+function savePrediction(selArr, predictedArr, method) {
+  const log = getPredLog();
+  const lastDraw = allDraws[allDraws.length - 1];
+  log.push({
+    ts:              Date.now(),
+    afterDrawId:     lastDraw?.id || 0,
+    selected:        selArr,
+    predicted:       predictedArr,
+    method,
+    evaluatedDrawId: null,
+    hits:            null,
+    hitNums:         null
+  });
+  setPredLog(log);
+  renderPredLog();
+}
+
+function evaluatePendingPredictions(draw) {
+  const log = getPredLog();
+  let changed = false;
+  for (const pred of log) {
+    if (pred.evaluatedDrawId !== null) continue;
+    if (pred.afterDrawId >= draw.id) continue;
+    pred.hitNums         = pred.predicted.filter(n => draw.n.includes(n));
+    pred.hits            = pred.hitNums.length;
+    pred.evaluatedDrawId = draw.id;
+    changed = true;
+  }
+  if (changed) { setPredLog(log); renderPredLog(); }
+}
+
+function computeCorrections() {
+  const log = getPredLog().filter(p => p.evaluatedDrawId !== null && p.predicted?.length);
+  if (log.length < 3) return null;
+  const hitC = {}, predC = {};
+  for (const pred of log) {
+    for (const n of pred.predicted) {
+      predC[n] = (predC[n] || 0) + 1;
+      if (pred.hitNums?.includes(n)) hitC[n] = (hitC[n] || 0) + 1;
+    }
+  }
+  const corr = {};
+  for (let n = 1; n <= 80; n++) {
+    if (!predC[n]) continue;
+    // Laplace-smoothed hit rate vs 25% baseline; dampened by 0.4
+    const smoothed = ((hitC[n] || 0) + 0.5) / (predC[n] + 2);
+    corr[n] = (smoothed - 0.25) * 0.4;
+  }
+  return corr;
+}
+
+function renderPredLog() {
+  const el = document.getElementById('predLog');
+  if (!el) return;
+  const log = getPredLog().slice().reverse();
+  if (!log.length) {
+    el.innerHTML = '<div style="color:#555;font-size:.82rem">Κάνε μια ανάλυση για να ξεκινήσει η καταγραφή.</div>';
+    return;
+  }
+
+  const evaluated = log.filter(p => p.evaluatedDrawId !== null);
+  let calibHtml = '';
+  if (evaluated.length >= 3) {
+    const totalPred = evaluated.reduce((s, p) => s + p.predicted.length, 0);
+    const totalHits = evaluated.reduce((s, p) => s + (p.hits || 0), 0);
+    const avgHit    = (totalHits / totalPred * 100).toFixed(1);
+    const baseline  = 25.0;
+    const edge      = (totalHits / totalPred * 100 - baseline).toFixed(1);
+    const edgeSgn   = parseFloat(edge) >= 0 ? '+' : '';
+    calibHtml = `<div class="calib-box">
+      🔧 <strong>Βαθμονόμηση ενεργή</strong> — ${evaluated.length} αξιολογημένες προβλέψεις<br>
+      Μέσο hit-rate: <strong>${avgHit}%</strong> (βάση 25% · διαφορά: ${edgeSgn}${edge}%)<br>
+      <span style="color:#4a6a4a;font-size:.72rem">Τα correction factors εφαρμόζονται αυτόματα στις επόμενες αναλύσεις.</span>
+    </div>`;
+  }
+
+  const rows = log.slice(0, 25).map(pred => {
+    if (pred.evaluatedDrawId === null) {
+      const nums = pred.predicted.map(n =>
+        `<span class="pl-pending-n">${n}</span>`).join('');
+      return `<div class="pl-row pl-pending">
+        <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId} · [${pred.selected.join(',')}]</div>
+        <div class="pl-label" style="color:#666">⏳ Αναμονή επόμενης κλήρωσης…</div>
+        <div class="pl-nums">${nums}</div>
+      </div>`;
+    }
+    const total = pred.predicted.length;
+    const hits  = pred.hits;
+    const pct   = total ? (hits / total * 100).toFixed(0) : 0;
+    const isGood = hits >= Math.ceil(total * 0.4);
+    const cls  = hits === 0 ? 'pl-row' : isGood ? 'pl-row pl-good' : 'pl-row pl-ok';
+    const badgeCls = hits === 0 ? 'miss' : isGood ? 'good' : 'ok';
+    const badgeTxt = hits === 0
+      ? `✗ ${hits}/${total} — Καμία`
+      : `${hits}/${total} επιτυχίες (${pct}%)`;
+    const nums = pred.predicted.map(n => {
+      const hit = pred.hitNums?.includes(n);
+      return `<span class="${hit ? 'pl-hit' : 'pl-miss-n'}">${n}</span>`;
+    }).join('');
+    return `<div class="${cls}">
+      <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId} · επιλ: [${pred.selected.join(',')}] · αξ.κλ.#${pred.evaluatedDrawId}</div>
+      <span class="eval-badge ${badgeCls}">${badgeTxt}</span>
+      <div class="pl-nums" style="margin-top:6px">${nums}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = calibHtml + rows;
+}
+
+function fmtTs(ts) {
+  return new Date(ts).toLocaleString('el-GR', {
+    timeZone:'Europe/Athens', day:'2-digit', month:'2-digit',
+    hour:'2-digit', minute:'2-digit'
+  });
+}
+
 // ── Analysis ──────────────────────────────────────────────────────────────────
 function analyzeWeighted(selArr, topN) {
   const scores = new Array(81).fill(0);
@@ -404,13 +563,15 @@ function analyzeWeighted(selArr, topN) {
   }
 
   const baseline = 20 / 80;
+  const corr = computeCorrections();
   const results = [];
   for (let n = 1; n <= 80; n++) {
     if (selected.has(n)) continue;
-    results.push({ n, score: scores[n], lift: scores[n] - baseline });
+    const adj = scores[n] + (corr?.[n] || 0);
+    results.push({ n, score: adj, rawScore: scores[n], lift: adj - baseline, corrected: !!(corr?.[n]) });
   }
   results.sort((a, b) => b.score - a.score);
-  return { results: results.slice(0, topN), strictCount: null, totalAnalyzed: total };
+  return { results: results.slice(0, topN), strictCount: null, totalAnalyzed: total, calibrated: !!corr };
 }
 
 function analyzeStrict(selArr, topN) {
@@ -425,17 +586,17 @@ function analyzeStrict(selArr, topN) {
   }
 
   const baseline = 0.25;
+  const corr = computeCorrections();
   const results = Object.entries(counts)
-    .map(([n, count]) => ({
-      n: parseInt(n),
-      score: count / matchingDraws.length,
-      lift: count / matchingDraws.length - baseline,
-      count
-    }))
+    .map(([n, count]) => {
+      const raw = count / matchingDraws.length;
+      const adj = raw + (corr?.[parseInt(n)] || 0);
+      return { n: parseInt(n), score: adj, rawScore: raw, lift: adj - baseline, count, corrected: !!(corr?.[parseInt(n)]) };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
 
-  return { results, strictCount: matchingDraws.length, totalAnalyzed: allDraws.length };
+  return { results, strictCount: matchingDraws.length, totalAnalyzed: allDraws.length, calibrated: !!corr };
 }
 
 function runAnalysis() {
@@ -459,11 +620,12 @@ function runAnalysis() {
 
   resultNums = new Set(results.map(r => r.n));
   renderSelGrid();
-  renderResults(results, strictCount, selArr, method, totalAnalyzed, topN);
+  renderResults(results, strictCount, selArr, method, totalAnalyzed, topN, calibrated);
   renderHistory(new Set(selArr), resultNums);
+  savePrediction(selArr, [...resultNums], method);
 }
 
-function renderResults(results, strictCount, selArr, method, totalAnalyzed, topN) {
+function renderResults(results, strictCount, selArr, method, totalAnalyzed, topN, calibrated) {
   const box = document.getElementById('resultsBox');
 
   if (!results.length) {
@@ -475,24 +637,28 @@ function renderResults(results, strictCount, selArr, method, totalAnalyzed, topN
   }
 
   const BASELINE = 25.0;
+  const calibNote = calibrated
+    ? ` · <span style="color:#80cbc4;font-size:.72rem">🔧 βαθμονομημένο</span>`
+    : '';
   const summaryText = method === 'strict'
-    ? `Βρέθηκαν <strong>${strictCount}</strong> κληρώσεις όπου εμφανίστηκαν ΟΛΑ τα επιλεγμένα (${selArr.join(', ')}) μαζί, από σύνολο <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong>. Εμφάνιση κάθε αριθμού σε αυτές τις κληρώσεις:`
-    : `Ανάλυση συσχέτισης για επιλεγμένους <strong>${selArr.join(', ')}</strong> σε <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong> κληρώσεις. Βάση: ${BASELINE}% · οι πάνω από ${BASELINE}% έχουν θετική συσχέτιση.`;
+    ? `Βρέθηκαν <strong>${strictCount}</strong> κληρώσεις με ΟΛΑ τα επιλεγμένα (${selArr.join(', ')}) από <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong>.${calibNote}`
+    : `Συσχέτιση για <strong>${selArr.join(', ')}</strong> σε <strong>${totalAnalyzed.toLocaleString('el-GR')}</strong> κλ. · βάση ${BASELINE}%${calibNote}`;
 
   const medals = ['gold', 'silver', 'bronze'];
   const balls = results.map((r, i) => {
-    const pct = (r.score * 100).toFixed(1);
+    const pct     = (r.score * 100).toFixed(1);
     const liftPct = (r.lift * 100).toFixed(1);
     const liftSign = r.lift >= 0 ? '+' : '';
     const liftCls  = r.lift >= 0 ? 'pos' : 'neg';
-    const cls = 'res-ball' + (i < 3 ? ' ' + medals[i] : '');
-    const w = BASE_NUM_TO_CHAR[r.n] || '';
-    const wShort = w.length > 7 ? w.slice(0, 6) + '.' : w;
-    return `<div class="${cls}" title="${w} · απουσία: ${delays[r.n]} κλ.">
-      <span class="rb-n">${r.n}</span>
+    const cls  = 'res-ball' + (i < 3 ? ' ' + medals[i] : '');
+    const w    = BASE_NUM_TO_CHAR[r.n] || '';
+    const wSh  = w.length > 7 ? w.slice(0, 6) + '.' : w;
+    const corrMark = r.corrected ? '<span style="font-size:.5rem;color:#80cbc4" title="διορθωμένο">🔧</span>' : '';
+    return `<div class="${cls}" title="${w} · απουσία: ${delays[r.n]} κλ.${r.corrected?' · βαθμονομημένο':''}">
+      <span class="rb-n">${r.n}${corrMark}</span>
       <span class="rb-pct">${pct}%</span>
       <span class="rb-lift ${liftCls}">${liftSign}${liftPct}%</span>
-      <span class="rb-w">${wShort}</span>
+      <span class="rb-w">${wSh}</span>
       <span class="rb-d">${delays[r.n]}κ απ.</span>
     </div>`;
   }).join('');
@@ -579,6 +745,7 @@ window.addEventListener('load', () => {
   document.getElementById('histSearch').addEventListener('input', () => renderHistory());
   document.getElementById('selGrid').addEventListener('keydown', e => { if (e.key === 'Enter') runAnalysis(); });
 
+  renderPredLog();
   loadData();
 });
 </script>
