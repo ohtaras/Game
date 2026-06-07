@@ -228,6 +228,7 @@ let lastKnownId = 0;
 let pollTimer   = null;
 let simAutoRun  = false;
 let simAutoN    = 9;
+let simAllDraws = null;
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -304,6 +305,7 @@ async function checkForNewDraw() {
     if (!r?.winningNumbers?.list?.length || r.drawId <= lastKnownId) return;
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     allDraws.push(newDraw);
+    if (simAllDraws && simAllDraws[simAllDraws.length - 1]?.id !== newDraw.id) simAllDraws.push(newDraw);
     lastKnownId = r.drawId;
     for (let n = 1; n <= 80; n++) { if (newDraw.n.includes(n)) delays[n] = 0; else delays[n]++; }
     hotStates = computeHotStates();
@@ -571,14 +573,14 @@ function probAllNHit(N) {
   return p;
 }
 
-function simulateHumanStrategy(N) {
-  const T = allDraws.length;
+function simulateHumanStrategy(N, draws) {
+  const T = draws.length;
   const WARMUP = HOT_W;
   if (T <= WARMUP) return null;
 
   const rollCount = new Int32Array(81);
   for (let i = 0; i < HOT_W && i < T; i++)
-    for (const n of allDraws[i].n) if (n>=1 && n<=80) rollCount[n]++;
+    for (const n of draws[i].n) if (n>=1 && n<=80) rollCount[n]++;
 
   let seed = 1234567;
   function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
@@ -597,17 +599,17 @@ function simulateHumanStrategy(N) {
   const actualMask = new Uint8Array(81);
 
   for (let i = WARMUP; i < T; i++) {
-    for (const n of allDraws[i].n) if (n>=1 && n<=80) rollCount[n]++;
-    if (i - HOT_W >= 0) for (const n of allDraws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
+    for (const n of draws[i].n) if (n>=1 && n<=80) rollCount[n]++;
+    if (i - HOT_W >= 0) for (const n of draws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
     const winSize = Math.min(HOT_W, i + 1);
 
     actualMask.fill(0);
-    for (const n of allDraws[i].n) actualMask[n] = 1;
+    for (const n of draws[i].n) actualMask[n] = 1;
     let hitCount = 0;
     for (const n of S) if (actualMask[n]) hitCount++;
 
     if (hitCount === N) {
-      wins.push({ drawIdx: i, drawId: allDraws[i].id, cycleLength: i - cycleStart + 1,
+      wins.push({ drawIdx: i, drawId: draws[i].id, cycleLength: i - cycleStart + 1,
         selection: [...S].sort((a,b)=>a-b) });
       cycleStart = i + 1;
       S = randomSelection();
@@ -667,11 +669,33 @@ function renderSimResults(N, result) {
   `;
 }
 
-function runSimBacktest(N) {
+async function loadFullHistoryForSim() {
+  if (simAllDraws) return simAllDraws;
   const box = document.getElementById('simResults');
-  box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + allDraws.length.toLocaleString('el-GR') + ' κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}_${pad(d.getMonth() + 1)}`);
+  }
+  const draws = [];
+  let loaded = 0;
+  for (const ym of months.reverse()) {
+    box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Φόρτωση πλήρους ιστορικού για backtest: ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)</div>`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (data?.draws) { draws.push(...data.draws); loaded++; }
+  }
+  draws.sort((a, b) => a.id - b.id);
+  simAllDraws = draws;
+  return simAllDraws;
+}
+
+async function runSimBacktest(N) {
+  const box = document.getElementById('simResults');
+  const draws = await loadFullHistoryForSim();
+  box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + draws.length.toLocaleString('el-GR') + ' κληρώσεις (πλήρες ιστορικό)... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
   setTimeout(() => {
-    const result = simulateHumanStrategy(N);
+    const result = simulateHumanStrategy(N, draws);
     renderSimResults(N, result);
   }, 50);
 }
