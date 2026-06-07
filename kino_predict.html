@@ -647,10 +647,11 @@ function renderSimResults(N, result) {
   const expected = result.totalDraws * p;
   const oneIn = Math.round(1 / p).toLocaleString('el-GR');
 
-  const winsHtml = result.wins.length
-    ? result.wins.map((w,i) => `
+  const total = result.wins.length;
+  const winsHtml = total
+    ? result.wins.slice().reverse().map((w,i) => `
         <div class="pl-row pl-good">
-          <div class="pl-meta">Νίκη #${i+1} · κλήρωση #${w.drawId} · κύκλος ${w.cycleLength.toLocaleString('el-GR')} κληρώσεις</div>
+          <div class="pl-meta">Νίκη #${total-i} · κλήρωση #${w.drawId} · κύκλος ${w.cycleLength.toLocaleString('el-GR')} κληρώσεις</div>
           <div class="pl-nums">${w.selection.map(n=>`<span class="pl-hit">${n}</span>`).join('')}</div>
         </div>`).join('')
     : '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία πλήρης επιτυχία Ν/Ν σε όλο το ιστορικό.</div>';
