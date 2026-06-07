@@ -325,8 +325,10 @@ function computeHotStates() {
     let cnt = 0;
     for (let i = T - HOT_W; i < T; i++) if (allDraws[i].n.includes(n)) cnt++;
     const freq = cnt / HOT_W, isHot = freq >= HOT_THR, isCold = freq <= COLD_THR;
+    // streak = total consecutive draws (including this one) the number has been hot/cold
     let streak = 0;
     if (isHot || isCold) {
+      streak = 1;
       let c = cnt;
       for (let back = 1; back <= Math.min(300, T - HOT_W); back++) {
         c -= allDraws[T - back].n.includes(n) ? 1 : 0;
@@ -334,7 +336,7 @@ function computeHotStates() {
         const wf = c / HOT_W;
         if (isHot && wf < HOT_THR) break;
         if (isCold && wf > COLD_THR) break;
-        streak = back;
+        streak = back + 1;
       }
     }
     result[n] = { freq, isHot, isCold, drawsInState: streak,
