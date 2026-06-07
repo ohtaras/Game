@@ -226,6 +226,8 @@ let resultNums  = new Set();
 let hotStates   = null;
 let lastKnownId = 0;
 let pollTimer   = null;
+let simAutoRun  = false;
+let simAutoN    = 9;
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -322,6 +324,7 @@ async function checkForNewDraw() {
       renderResults(results);
       renderHistory();
     }
+    if (simAutoRun) runSimBacktest(simAutoN);
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
 
@@ -663,6 +666,15 @@ function renderSimResults(N, result) {
   `;
 }
 
+function runSimBacktest(N) {
+  const box = document.getElementById('simResults');
+  box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + allDraws.length.toLocaleString('el-GR') + ' κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
+  setTimeout(() => {
+    const result = simulateHumanStrategy(N);
+    renderSimResults(N, result);
+  }, 50);
+}
+
 // ── History ────────────────────────────────────────────────────────────────────
 function renderHistory() {
   const list = document.getElementById('histList');
@@ -692,13 +704,10 @@ window.addEventListener('load', () => {
   renderPredLog();
   document.getElementById('analyzeBtn').addEventListener('click', runAutoPredict);
   document.getElementById('simBtn').addEventListener('click', () => {
-    const N = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 2), 12);
-    const box = document.getElementById('simResults');
-    box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + allDraws.length.toLocaleString('el-GR') + ' κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
-    setTimeout(() => {
-      const result = simulateHumanStrategy(N);
-      renderSimResults(N, result);
-    }, 50);
+    simAutoN = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 2), 12);
+    simAutoRun = true;
+    document.getElementById('simBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
+    runSimBacktest(simAutoN);
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
