@@ -140,6 +140,22 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="resultsBox"></div>
   </section>
 
+  <section>
+    <h2>🎮 Προσομοίωση Ανθρώπινου Παίκτη (Backtest)</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Ξεκινά με Ν τυχαίους αριθμούς. Μετά από κάθε κλήρωση κρατά όσους είναι «ζεστοί» στον πίνακα
+      και αντικαθιστά τους υπόλοιπους με άλλους ζεστούς αριθμούς που δεν έχει ήδη. Μόλις πετύχει Ν/Ν,
+      ξεκινά από την αρχή με νέα τυχαία επιλογή. Τρέχει πάνω σε όλο το διαθέσιμο ιστορικό μέχρι την τελευταία κλήρωση.
+    </div>
+    <div id="ctrlRow">
+      <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
+        <input type="number" id="simNInput" class="ctrl-input" value="9" min="2" max="12">
+      </label>
+      <button class="btn btn-analyze" id="simBtn">▶ Εκτέλεση Backtest</button>
+    </div>
+    <div id="simResults" style="margin-top:12px"></div>
+  </section>
+
   <section id="predLogSec">
     <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
     <div id="predLog">
@@ -545,6 +561,108 @@ function renderResults(results) {
     <div class="res-numbers">${balls}</div>`;
 }
 
+// ── Human-Strategy Backtest Simulation ─────────────────────────────────────────
+function probAllNHit(N) {
+  let p = 1;
+  for (let k = 0; k < N; k++) p *= (20 - k) / (80 - k);
+  return p;
+}
+
+function simulateHumanStrategy(N) {
+  const T = allDraws.length;
+  const WARMUP = HOT_W;
+  if (T <= WARMUP) return null;
+
+  const rollCount = new Int32Array(81);
+  for (let i = 0; i < HOT_W && i < T; i++)
+    for (const n of allDraws[i].n) if (n>=1 && n<=80) rollCount[n]++;
+
+  let seed = 1234567;
+  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function randomSelection() {
+    const pool = Array.from({length:80}, (_,i) => i+1);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i+1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return new Set(pool.slice(0, N));
+  }
+
+  let S = randomSelection();
+  let cycleStart = WARMUP;
+  const wins = [];
+  const actualMask = new Uint8Array(81);
+
+  for (let i = WARMUP; i < T; i++) {
+    for (const n of allDraws[i].n) if (n>=1 && n<=80) rollCount[n]++;
+    if (i - HOT_W >= 0) for (const n of allDraws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
+    const winSize = Math.min(HOT_W, i + 1);
+
+    actualMask.fill(0);
+    for (const n of allDraws[i].n) actualMask[n] = 1;
+    let hitCount = 0;
+    for (const n of S) if (actualMask[n]) hitCount++;
+
+    if (hitCount === N) {
+      wins.push({ drawIdx: i, drawId: allDraws[i].id, cycleLength: i - cycleStart + 1,
+        selection: [...S].sort((a,b)=>a-b) });
+      cycleStart = i + 1;
+      S = randomSelection();
+      continue;
+    }
+
+    const isHot = new Array(81), freqArr = new Array(81);
+    for (let n = 1; n <= 80; n++) {
+      const f = rollCount[n] / winSize;
+      freqArr[n] = f;
+      isHot[n] = f >= HOT_THR;
+    }
+
+    const keep = [...S].filter(n => isHot[n]);
+    const needed = N - keep.length;
+    if (needed > 0) {
+      const candidates = [];
+      for (let n = 1; n <= 80; n++) if (!S.has(n)) candidates.push(n);
+      candidates.sort((a,b) => (isHot[b]-isHot[a]) || (freqArr[b]-freqArr[a]));
+      S = new Set([...keep, ...candidates.slice(0, needed)]);
+    }
+  }
+
+  return {
+    totalDraws: T - WARMUP,
+    wins,
+    currentSelection: [...S].sort((a,b)=>a-b),
+    currentCycleLength: T - cycleStart
+  };
+}
+
+function renderSimResults(N, result) {
+  const box = document.getElementById('simResults');
+  if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα.</div>'; return; }
+
+  const p = probAllNHit(N);
+  const expected = result.totalDraws * p;
+  const oneIn = Math.round(1 / p).toLocaleString('el-GR');
+
+  const winsHtml = result.wins.length
+    ? result.wins.map((w,i) => `
+        <div class="pl-row pl-good">
+          <div class="pl-meta">Νίκη #${i+1} · κλήρωση #${w.drawId} · κύκλος ${w.cycleLength.toLocaleString('el-GR')} κληρώσεις</div>
+          <div class="pl-nums">${w.selection.map(n=>`<span class="pl-hit">${n}</span>`).join('')}</div>
+        </div>`).join('')
+    : '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία πλήρης επιτυχία Ν/Ν σε όλο το ιστορικό.</div>';
+
+  box.innerHTML = `
+    <div class="calib-box">
+      🎮 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}<br>
+      Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expected.toFixed(2)} αναμενόμενες «φυσικές» επιτυχίες σε αυτό το διάστημα)<br>
+      Πραγματικές επιτυχίες της στρατηγικής: <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
+      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κληρώσεις χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
+    </div>
+    ${winsHtml}
+  `;
+}
+
 // ── History ────────────────────────────────────────────────────────────────────
 function renderHistory() {
   const list = document.getElementById('histList');
@@ -573,6 +691,15 @@ window.addEventListener('load', () => {
   renderSelGrid();
   renderPredLog();
   document.getElementById('analyzeBtn').addEventListener('click', runAutoPredict);
+  document.getElementById('simBtn').addEventListener('click', () => {
+    const N = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 2), 12);
+    const box = document.getElementById('simResults');
+    box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + allDraws.length.toLocaleString('el-GR') + ' κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
+    setTimeout(() => {
+      const result = simulateHumanStrategy(N);
+      renderSimResults(N, result);
+    }, 50);
+  });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
   loadData();
