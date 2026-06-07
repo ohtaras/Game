@@ -156,6 +156,23 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="simResults" style="margin-top:12px"></div>
   </section>
 
+  <section>
+    <h2>🤖 Προσομοίωση Μηχανής (Backtest)</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Καμία τύχη, καμία διαίσθηση: σε κάθε κλήρωση η μηχανή υπολογίζει από την αρχή ένα σκορ για όλους
+      τους 80 αριθμούς (καθυστέρηση × συντελεστής ζεστού/κρύου — ο ίδιος τύπος με την «Αυτόματη Πρόβλεψη»)
+      και επιλέγει πάντα τους Ν με το υψηλότερο σκορ ως επιλογή για την επόμενη κλήρωση. Καμία «μνήμη»
+      προηγούμενης επιλογής, καμία τυχαιότητα. Τρέχει πάνω σε όλο το διαθέσιμο ιστορικό μέχρι την τελευταία κλήρωση.
+    </div>
+    <div id="ctrlRow">
+      <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
+        <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="2" max="12">
+      </label>
+      <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
+    </div>
+    <div id="simMachineResults" style="margin-top:12px"></div>
+  </section>
+
   <section id="predLogSec">
     <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
     <div id="predLog">
@@ -229,6 +246,8 @@ let pollTimer   = null;
 let simAutoRun  = false;
 let simAutoN    = 9;
 let simAllDraws = null;
+let simMachineAutoRun = false;
+let simMachineAutoN   = 9;
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -327,6 +346,7 @@ async function checkForNewDraw() {
       renderHistory();
     }
     if (simAutoRun) runSimBacktest(simAutoN);
+    if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN);
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
 
@@ -669,6 +689,99 @@ function renderSimResults(N, result) {
   `;
 }
 
+function simulateMachineStrategy(N, draws) {
+  const T = draws.length;
+  const WARMUP = HOT_W;
+  if (T <= WARMUP) return null;
+
+  const rollCount = new Int32Array(81);
+  const lastSeen = new Int32Array(81).fill(-1);
+  for (let i = 0; i < WARMUP; i++)
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+
+  function computeSelection(i, winSize) {
+    const scored = [];
+    for (let n = 1; n <= 80; n++) {
+      const f = rollCount[n] / winSize;
+      const isHot = f >= HOT_THR, isCold = f <= COLD_THR;
+      const hotMult = isHot ? 1.40 : isCold ? 0.75 : 1.0;
+      const delay = lastSeen[n] === -1 ? (i + 1) : (i - lastSeen[n]);
+      scored.push({ n, score: (delay / 4) * hotMult });
+    }
+    scored.sort((a,b) => b.score - a.score || a.n - b.n);
+    return new Set(scored.slice(0, N).map(x => x.n));
+  }
+
+  let cycleStart = WARMUP;
+  const wins = [];
+  const actualMask = new Uint8Array(81);
+  let S = computeSelection(WARMUP - 1, Math.min(HOT_W, WARMUP));
+
+  for (let i = WARMUP; i < T; i++) {
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+    if (i - HOT_W >= 0) for (const n of draws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
+    const winSize = Math.min(HOT_W, i + 1);
+
+    actualMask.fill(0);
+    for (const n of draws[i].n) actualMask[n] = 1;
+    let hitCount = 0;
+    for (const n of S) if (actualMask[n]) hitCount++;
+
+    if (hitCount === N) {
+      wins.push({ drawIdx: i, drawId: draws[i].id, cycleLength: i - cycleStart + 1,
+        selection: [...S].sort((a,b)=>a-b) });
+      cycleStart = i + 1;
+    }
+
+    S = computeSelection(i, winSize);
+  }
+
+  return {
+    totalDraws: T - WARMUP,
+    wins,
+    currentSelection: [...S].sort((a,b)=>a-b),
+    currentCycleLength: T - cycleStart
+  };
+}
+
+function renderMachineSimResults(N, result) {
+  const box = document.getElementById('simMachineResults');
+  if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα.</div>'; return; }
+
+  const p = probAllNHit(N);
+  const expected = result.totalDraws * p;
+  const oneIn = Math.round(1 / p).toLocaleString('el-GR');
+
+  const total = result.wins.length;
+  const winsHtml = total
+    ? result.wins.slice().reverse().map((w,i) => `
+        <div class="pl-row pl-good">
+          <div class="pl-meta">Νίκη #${total-i} · κλήρωση #${w.drawId} · κύκλος ${w.cycleLength.toLocaleString('el-GR')} κληρώσεις</div>
+          <div class="pl-nums">${w.selection.map(n=>`<span class="pl-hit">${n}</span>`).join('')}</div>
+        </div>`).join('')
+    : '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία πλήρης επιτυχία Ν/Ν σε όλο το ιστορικό.</div>';
+
+  box.innerHTML = `
+    <div class="calib-box">
+      🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}<br>
+      Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expected.toFixed(2)} αναμενόμενες «φυσικές» επιτυχίες σε αυτό το διάστημα)<br>
+      Πραγματικές επιτυχίες της στρατηγικής: <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
+      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κληρώσεις χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
+    </div>
+    ${winsHtml}
+  `;
+}
+
+async function runMachineSimBacktest(N) {
+  const box = document.getElementById('simMachineResults');
+  const draws = await loadFullHistoryForSim();
+  box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + draws.length.toLocaleString('el-GR') + ' κληρώσεις (πλήρες ιστορικό)... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>';
+  setTimeout(() => {
+    const result = simulateMachineStrategy(N, draws);
+    renderMachineSimResults(N, result);
+  }, 50);
+}
+
 async function loadFullHistoryForSim() {
   if (simAllDraws) return simAllDraws;
   const box = document.getElementById('simResults');
@@ -733,6 +846,12 @@ window.addEventListener('load', () => {
     simAutoRun = true;
     document.getElementById('simBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
     runSimBacktest(simAutoN);
+  });
+  document.getElementById('simMachineBtn').addEventListener('click', () => {
+    simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 2), 12);
+    simMachineAutoRun = true;
+    document.getElementById('simMachineBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
+    runMachineSimBacktest(simMachineAutoN);
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
