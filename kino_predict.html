@@ -51,6 +51,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .hp-hint{font-size:.68rem;color:#4a5a4a;margin-left:4px}
 .hp-tip{margin-top:6px;font-size:.65rem;color:#333;font-style:italic}
 
+/* ── Strategy picker ── */
+#machineStrategyPicker{display:flex;gap:8px;flex-wrap:wrap}
+.strat-card{padding:9px 14px;background:#11111e;border:1.5px solid #2a2a3a;border-radius:9px;color:#aaa;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
+.strat-card:hover{border-color:#3a3a5a;color:#ddd}
+.strat-card.active{background:#1a1a3a;border-color:#5c6bc0;color:#c5cae9}
+
 /* ── Controls ── */
 #ctrlRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid #2a2a3a}
 .ctrl-label{font-size:.82rem;color:#aaa;display:flex;align-items:center;gap:6px}
@@ -159,13 +165,18 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section>
     <h2>🤖 Προσομοίωση Μηχανής (Backtest)</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
-      Καμία τύχη, καμία διαίσθηση: πρώτα η μηχανή δοκιμάζει πολλούς συνδυασμούς πολλαπλασιαστών
-      ζεστού/κρύου πάνω σε <strong>όλο</strong> το ιστορικό και κρατά αυτόν με τις περισσότερες αναδρομικές
-      «Ν/Ν» επιτυχίες top-N. Μετά, σε κάθε κλήρωση, υπολογίζει από την αρχή ένα σκορ για όλους τους 80
-      αριθμούς (καθυστέρηση × βέλτιστος συντελεστής ζεστού/κρύου) και επιλέγει πάντα τους Ν με το υψηλότερο
-      σκορ. Καμία «μνήμη» προηγούμενης επιλογής, καμία τυχαιότητα. Τρέχει πάνω σε όλο το διαθέσιμο ιστορικό
-      μέχρι την τελευταία κλήρωση.
+      Καμία τύχη, καμία διαίσθηση: η μηχανή ακολουθεί έναν αυστηρά καθορισμένο, ντετερμινιστικό κανόνα
+      επιλογής — διάλεξε μία από τις 4 στρατηγικές παρακάτω (κάθε μία ενσωματώνει διαφορετική «λογική»
+      παιξίματος) και πάτησε «Εκτέλεση» για να δεις πώς θα είχε πάει σε όλο το διαθέσιμο ιστορικό μέχρι
+      την τελευταία κλήρωση.
     </div>
+    <div id="machineStrategyPicker">
+      <button class="strat-card" data-strat="delay">🥶 Κυνηγός Καθυστέρησης</button>
+      <button class="strat-card" data-strat="trend">🔥 Κυνηγός Τάσης</button>
+      <button class="strat-card" data-strat="static">📌 Στατική Επιλογή</button>
+      <button class="strat-card" data-strat="alltime">📊 Συνολική Συχνότητα</button>
+    </div>
+    <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="ctrlRow">
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
         <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="2" max="12">
@@ -250,6 +261,7 @@ let simAutoN    = 9;
 let simAllDraws = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
+let simMachineStrategy = 'delay';
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -348,7 +360,7 @@ async function checkForNewDraw() {
       renderHistory();
     }
     if (simAutoRun) runSimBacktest(simAutoN);
-    if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN);
+    if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
 
@@ -691,93 +703,76 @@ function renderSimResults(N, result) {
   `;
 }
 
-// Counts, for a given (hotMult, coldMult) scoring strategy, how many times across
-// the whole history the top-N ranked numbers (by delay × hot/cold multiplier,
-// computed only from draws seen so far — no look-ahead) would have exactly
-// matched a draw's N/N numbers.
-function evalStrategyHits(N, draws, hotMult, coldMult) {
-  const T = draws.length;
-  const WARMUP = HOT_W;
-  if (T <= WARMUP) return 0;
-
-  const rollCount = new Int32Array(81);
-  const lastSeen = new Int32Array(81).fill(-1);
-  for (let i = 0; i < WARMUP; i++)
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
-
-  const scoreArr = new Float64Array(81);
-  const idxBuf = new Int32Array(80);
-  for (let k = 0; k < 80; k++) idxBuf[k] = k + 1;
-  const actualMask = new Uint8Array(81);
-
-  function rank(i, winSize) {
-    for (let n = 1; n <= 80; n++) {
-      const f = rollCount[n] / winSize;
-      const mult = f >= HOT_THR ? hotMult : f <= COLD_THR ? coldMult : 1.0;
-      const delay = lastSeen[n] === -1 ? i : (i - 1 - lastSeen[n]);
-      scoreArr[n] = delay * mult;
-    }
-    idxBuf.sort((a,b) => scoreArr[b] - scoreArr[a] || a - b);
+const MACHINE_STRATEGIES = {
+  delay: {
+    label: '🥶 Κυνηγός Καθυστέρησης',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη τρέχουσα απουσία</strong> ' +
+          '(αυτούς που λείπουν περισσότερες κληρώσεις). Βασίζεται στη λογική «είναι ώρα να βγει» — ' +
+          'το λεγόμενο <em>gambler\'s fallacy</em>, ότι ο τυχαίος μηχανισμός «θυμάται» πόσο καιρό λείπει ένας αριθμός.'
+  },
+  trend: {
+    label: '🔥 Κυνηγός Τάσης',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>συχνότερα στις τελευταίες ' +
+          HOT_W + ' κληρώσεις</strong> (κυλιόμενο παράθυρο). Βασίζεται στη λογική «η τάση συνεχίζεται» — ' +
+          'momentum / trend-following, το αντίθετο ακριβώς από τον Κυνηγό Καθυστέρησης.'
+  },
+  static: {
+    label: '📌 Στατική Επιλογή',
+    info: 'Διαλέγει Ν αριθμούς <strong>μία φορά στην αρχή</strong> (ψευδοτυχαία, με σταθερό seed) και τους ' +
+          'κρατάει αμετάβλητους σε όλη τη διάρκεια — καμία προσαρμογή, καμία «ανάγνωση» του πίνακα. ' +
+          'Λειτουργεί σαν <em>ομάδα ελέγχου (control group)</em>: δείχνει αν οποιαδήποτε προσπάθεια προσαρμογής έχει καν νόημα.'
+  },
+  alltime: {
+    label: '📊 Συνολική Συχνότητα',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη συνολική εμφάνιση σε όλο το ' +
+          'ιστορικό</strong> μέχρι εκείνη τη στιγμή (όχι κυλιόμενο παράθυρο, αλλά αθροιστική μέτρηση από την αρχή). ' +
+          'Βασίζεται στη λογική «κάποιοι αριθμοί βγαίνουν γενικά πιο συχνά μακροπρόθεσμα».'
   }
+};
 
-  let hits = 0;
-  rank(WARMUP, Math.min(HOT_W, WARMUP));
-
-  for (let i = WARMUP; i < T; i++) {
-    actualMask.fill(0);
-    for (const n of draws[i].n) actualMask[n] = 1;
-    let hc = 0;
-    for (let k = 0; k < N; k++) if (actualMask[idxBuf[k]]) hc++;
-    if (hc === N) hits++;
-
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
-    if (i - HOT_W >= 0) for (const n of draws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
-    rank(i + 1, Math.min(HOT_W, i + 1));
-  }
-
-  return hits;
-}
-
-const MACHINE_HOT_MULTS  = [1.0, 1.2, 1.4, 1.6];
-const MACHINE_COLD_MULTS = [0.6, 0.8, 1.0];
-
-async function findBestMachineStrategy(N, draws, onProgress) {
-  const combos = [];
-  for (const h of MACHINE_HOT_MULTS) for (const c of MACHINE_COLD_MULTS) combos.push({ hotMult: h, coldMult: c });
-  const results = [];
-  for (let idx = 0; idx < combos.length; idx++) {
-    const { hotMult, coldMult } = combos[idx];
-    if (onProgress) onProgress(idx, combos.length, hotMult, coldMult);
-    await new Promise(r => setTimeout(r, 0));
-    results.push({ hotMult, coldMult, hits: evalStrategyHits(N, draws, hotMult, coldMult) });
-  }
-  results.sort((a,b) => b.hits - a.hits || (b.hotMult/b.coldMult) - (a.hotMult/a.coldMult));
-  return results;
-}
-
-function simulateMachineStrategy(N, draws, hotMult, coldMult) {
+function simulateMachineStrategy(N, draws, strategyId) {
   const T = draws.length;
   const WARMUP = HOT_W;
   if (T <= WARMUP) return null;
-  hotMult = hotMult ?? 1.40;
-  coldMult = coldMult ?? 0.75;
 
-  const rollCount = new Int32Array(81);
+  const rollCount = new Int32Array(81);   // count within rolling HOT_W window
+  const totalCount = new Int32Array(81);  // cumulative count since draw 0
   const lastSeen = new Int32Array(81).fill(-1);
   for (let i = 0; i < WARMUP; i++)
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; totalCount[n]++; lastSeen[n] = i; }
+
+  let seed = 7654321;
+  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+  function staticSelection() {
+    const pool = Array.from({length:80}, (_,i) => i+1);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i+1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return new Set(pool.slice(0, N));
+  }
+
+  function topNBy(valueOf) {
+    const scored = [];
+    for (let n = 1; n <= 80; n++) scored.push({ n, v: valueOf(n) });
+    scored.sort((a,b) => b.v - a.v || a.n - b.n);
+    return new Set(scored.slice(0, N).map(x => x.n));
+  }
+
+  const fixedSelection = strategyId === 'static' ? staticSelection() : null;
 
   function computeSelection(i, winSize) {
-    const scored = [];
-    for (let n = 1; n <= 80; n++) {
-      const f = rollCount[n] / winSize;
-      const isHot = f >= HOT_THR, isCold = f <= COLD_THR;
-      const mult = isHot ? hotMult : isCold ? coldMult : 1.0;
-      const delay = lastSeen[n] === -1 ? (i + 1) : (i - lastSeen[n]);
-      scored.push({ n, score: delay * mult });
+    switch (strategyId) {
+      case 'delay':
+        return topNBy(n => lastSeen[n] === -1 ? (i + 1) : (i - lastSeen[n]));
+      case 'trend':
+        return topNBy(n => rollCount[n]);
+      case 'alltime':
+        return topNBy(n => totalCount[n]);
+      case 'static':
+      default:
+        return fixedSelection;
     }
-    scored.sort((a,b) => b.score - a.score || a.n - b.n);
-    return new Set(scored.slice(0, N).map(x => x.n));
   }
 
   let cycleStart = WARMUP;
@@ -786,7 +781,7 @@ function simulateMachineStrategy(N, draws, hotMult, coldMult) {
   let S = computeSelection(WARMUP - 1, Math.min(HOT_W, WARMUP));
 
   for (let i = WARMUP; i < T; i++) {
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; totalCount[n]++; lastSeen[n] = i; }
     if (i - HOT_W >= 0) for (const n of draws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
     const winSize = Math.min(HOT_W, i + 1);
 
@@ -812,26 +807,14 @@ function simulateMachineStrategy(N, draws, hotMult, coldMult) {
   };
 }
 
-function renderMachineSimResults(N, result, search) {
+function renderMachineSimResults(N, strategyId, result) {
   const box = document.getElementById('simMachineResults');
   if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα.</div>'; return; }
 
+  const strat = MACHINE_STRATEGIES[strategyId];
   const p = probAllNHit(N);
   const expected = result.totalDraws * p;
   const oneIn = Math.round(1 / p).toLocaleString('el-GR');
-
-  const searchHtml = search ? `
-    <div class="calib-box" style="border-color:#4a3a1a;color:#ffcc80">
-      🔍 <strong>Αναζήτηση βέλτιστης στρατηγικής</strong> — δοκιμάστηκαν ${search.all.length} συνδυασμοί πολλαπλασιαστών
-      ζεστού/κρύου πάνω σε ολόκληρο το ιστορικό, με κριτήριο το πλήθος των αναδρομικών «${N}/${N}» που θα είχε πετύχει
-      το top-${N} του κάθε συνδυασμού σε κάθε κλήρωση.<br>
-      Νικητής: <strong>ζεστό ×${search.best.hotMult.toFixed(1)} · κρύο ×${search.best.coldMult.toFixed(1)}</strong>
-      — ${search.best.hits.toLocaleString('el-GR')} αναδρομικές «επιτυχίες» top-${N}
-      (εύρος όλων των συνδυασμών: ${search.all[search.all.length-1].hits}–${search.all[0].hits})<br>
-      <span style="font-size:.7rem;color:#bcaaa4">⚠️ Αυτό είναι <em>retrospective overfitting</em>: ο «νικητής» απλώς έτυχε να σκοράρει ελαφρώς καλύτερα
-      πάνω σε <em>αυτό</em> το συγκεκριμένο ιστορικό δείγμα — σε ένα τυχαίο σύστημα κάποιος συνδυασμός θα «κέρδιζε» έτσι κι αλλιώς,
-      χωρίς αυτό να σημαίνει ότι θα έχει κανένα πλεονέκτημα στις επόμενες κληρώσεις.</span>
-    </div>` : '';
 
   const total = result.wins.length;
   const winsHtml = total
@@ -843,10 +826,9 @@ function renderMachineSimResults(N, result, search) {
     : '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία πλήρης επιτυχία Ν/Ν σε όλο το ιστορικό.</div>';
 
   box.innerHTML = `
-    ${searchHtml}
     <div class="calib-box">
       🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}
-      ${search ? ` · στρατηγική: ζεστό ×${search.best.hotMult.toFixed(1)}, κρύο ×${search.best.coldMult.toFixed(1)}` : ''}<br>
+      · στρατηγική: <strong>${strat.label}</strong><br>
       Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expected.toFixed(2)} αναμενόμενες «φυσικές» επιτυχίες σε αυτό το διάστημα)<br>
       Πραγματικές επιτυχίες της στρατηγικής (Ν/Ν με επανεκκίνηση μετά από νίκη): <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
       <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κληρώσεις χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
@@ -855,21 +837,14 @@ function renderMachineSimResults(N, result, search) {
   `;
 }
 
-async function runMachineSimBacktest(N) {
+async function runMachineSimBacktest(N, strategyId) {
   const box = document.getElementById('simMachineResults');
   const draws = await loadFullHistoryForSim();
-
-  const search = await findBestMachineStrategy(N, draws, (idx, total, h, c) => {
-    box.innerHTML = `<div style="color:#ffcc80;font-size:.82rem">🔍 Αναζήτηση βέλτιστης στρατηγικής για ${N}/${N}: δοκιμή ${idx+1}/${total}
-      (ζεστό ×${h.toFixed(1)}, κρύο ×${c.toFixed(1)}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις...</div>`;
-  });
-  const best = search[0];
-
-  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση τελικού backtest με τη βέλτιστη στρατηγική
-    (ζεστό ×${best.hotMult.toFixed(1)}, κρύο ×${best.coldMult.toFixed(1)})...</div>`;
+  const strat = MACHINE_STRATEGIES[strategyId];
+  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest (${strat.label}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις (πλήρες ιστορικό)... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>`;
   setTimeout(() => {
-    const result = simulateMachineStrategy(N, draws, best.hotMult, best.coldMult);
-    renderMachineSimResults(N, result, { all: search, best });
+    const result = simulateMachineStrategy(N, draws, strategyId);
+    renderMachineSimResults(N, strategyId, result);
   }, 50);
 }
 
@@ -938,11 +913,20 @@ window.addEventListener('load', () => {
     document.getElementById('simBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
     runSimBacktest(simAutoN);
   });
+  document.querySelectorAll('#machineStrategyPicker .strat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      simMachineStrategy = card.dataset.strat;
+      document.querySelectorAll('#machineStrategyPicker .strat-card').forEach(c => c.classList.toggle('active', c === card));
+      document.getElementById('machineStrategyInfo').innerHTML =
+        `<strong>${MACHINE_STRATEGIES[simMachineStrategy].label}</strong><br>${MACHINE_STRATEGIES[simMachineStrategy].info}`;
+    });
+  });
+  document.querySelector(`#machineStrategyPicker .strat-card[data-strat="${simMachineStrategy}"]`).click();
   document.getElementById('simMachineBtn').addEventListener('click', () => {
     simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 2), 12);
     simMachineAutoRun = true;
     document.getElementById('simMachineBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
-    runMachineSimBacktest(simMachineAutoN);
+    runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
