@@ -1052,7 +1052,8 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     totalDraws: T - WARMUP,
     wins,
     currentSelection: [...S].sort((a,b)=>a-b),
-    currentCycleLength: T - cycleStart
+    currentCycleLength: T - cycleStart,
+    currentHoldCount: holdCount
   };
 }
 
@@ -1084,7 +1085,7 @@ function renderMachineSimResults(N, strategyId, result, pool, K = 1) {
       · στρατηγική: <strong>${strat.label}</strong>${poolNote}${kNote}<br>
       Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expectedPerDraw.toFixed(2)} αναμενόμενες τυχαίες επιτυχίες${expectedWithK})<br>
       Πραγματικές επιτυχίες (Ν/Ν · επανεκκίνηση μετά από νίκη ή ${K === 1 ? 'κάθε κλήρωση' : `κάθε ${K} κλ.`}): <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
-      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κλ. χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
+      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κλ. χωρίς ${N}/${N}${K > 1 ? ` · <span style="color:#ffcc80">Κ-μπλοκ: ${result.currentHoldCount}/${K} κλ. χρησιμοποιημένες</span>` : ''} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
     </div>
     ${winsHtml}
   `;
