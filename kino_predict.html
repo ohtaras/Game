@@ -177,17 +177,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section>
     <h2>🤖 Προσομοίωση Μηχανής (Backtest)</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
-      Καμία τύχη, καμία διαίσθηση: η μηχανή ακολουθεί έναν αυστηρά καθορισμένο, ντετερμινιστικό κανόνα
-      επιλογής — διάλεξε μία από τις 5 στρατηγικές παρακάτω (κάθε μία ενσωματώνει διαφορετική «λογική»
-      παιξίματος) και πάτησε «Εκτέλεση» για να δεις πώς θα είχε πάει σε όλο το διαθέσιμο ιστορικό μέχρι
-      την τελευταία κλήρωση.
+      Καμία διαίσθηση, καθαρή μαθηματική λογική: επίλεξε μια στρατηγική, ορισμένα το pool αριθμών
+      και πάτα «Εκτέλεση» για να δεις πόσες φορές η μηχανή θα χτύπαγε Ν/Ν σε <em>ολόκληρο</em> το
+      διαθέσιμο ιστορικό — και αν αυτό ξεπερνά το τυχαίο (θεωρητική αναμενόμενη τιμή).
     </div>
     <div id="machineStrategyPicker">
-      <button class="strat-card" data-strat="neighbors">🎯 Γειτονικοί</button>
-      <button class="strat-card" data-strat="repeating">🔁 Επαναλαμβανόμενοι</button>
-      <button class="strat-card" data-strat="balanced">⚖️ Ισορροπημένη</button>
-      <button class="strat-card" data-strat="anti">🎲 Αντι-τυχαίο</button>
-      <button class="strat-card" data-strat="arithmetic">📐 Αριθμητικές</button>
+      <button class="strat-card" data-strat="accel">⚡ Επιτάχυνση</button>
+      <button class="strat-card" data-strat="giants">💤 Ξύπνιοι Γίγαντες</button>
+      <button class="strat-card" data-strat="primes">🧮 Πρώτοι</button>
+      <button class="strat-card" data-strat="gravity">📊 Βαρύτητα</button>
+      <button class="strat-card" data-strat="rhythm">🔄 Ρυθμός</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -286,7 +285,7 @@ let simAutoN    = 9;
 let simAllDraws = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
-let simMachineStrategy = 'neighbors';
+let simMachineStrategy = 'accel';
 let machinePool = new Set(Array.from({length:80}, (_,k) => k+1));
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
@@ -729,56 +728,60 @@ function renderSimResults(N, result) {
   `;
 }
 
+const PRIMES_80 = new Set([2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79]);
+
 const MACHINE_STRATEGIES = {
-  neighbors: {
-    label: '🎯 Γειτονικοί',
-    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που είναι <strong>γείτονες (±1) των αριθμών της προηγούμενης κλήρωσης</strong>. ' +
-          'Αν οι γείτονες είναι περισσότεροι από Ν, προτιμώνται αυτοί με τη μεγαλύτερη πρόσφατη συχνότητα. ' +
-          'Η ιδέα: οι «γειτονικές περιοχές» του πίνακα τείνουν να επαναλαμβάνονται σε σύντομο χρονικό διάστημα.'
+  accel: {
+    label: '⚡ Επιτάχυνση',
+    info: 'Σκορ = εμφανίσεις στις <strong>τελευταίες 15 κληρώσεις μείον τις 15-30 κληρώσεις πριν</strong>. ' +
+          'Θετικό σκορ σημαίνει ο αριθμός κερδίζει έδαφος — η «γκάζα» πατημένη. ' +
+          'Βασίζεται στη λογική momentum: αυτό που επιταχύνεται τείνει να συνεχίσει λίγο ακόμα.'
   },
-  repeating: {
-    label: '🔁 Επαναλαμβανόμενοι',
-    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>περισσότερες φορές στις τελευταίες 4 κληρώσεις</strong>. ' +
-          'Βασίζεται στη λογική ότι αριθμοί που επαναλαμβάνονται συχνά σε ένα μικρό παράθυρο έχουν «ενεργή φάση» — ' +
-          'σε αντίθεση με τον Κυνηγό Τάσης (30 κλ.), εδώ το παράθυρο είναι σκοπίμως πολύ στενό.'
+  giants: {
+    label: '💤 Ξύπνιοι Γίγαντες',
+    info: 'Σκορ = εμφανίσεις στο παράθυρο <strong>31-60 κληρώσεων πριν, μείον τις τελευταίες 30</strong>. ' +
+          'Επιλέγει αριθμούς που ήταν «ζεστοί» παλιότερα αλλά έχουν κοιμηθεί — ' +
+          'θεωρία: ο κύκλος ενεργοποίησης θα επαναληφθεί.'
   },
-  balanced: {
-    label: '⚖️ Ισορροπημένη',
-    info: 'Σε κάθε κλήρωση επιλέγει τους <strong>πιο «παγωμένους» αριθμούς από κάθε δεκάδα</strong> (1-10, 11-20, … 71-80). ' +
-          'Εγγυάται κατανομή σε όλο το εύρος 1-80, αποφεύγοντας «συμπλέγματα» σε ένα μόνο τμήμα. ' +
-          'Αν Ν > 8, οι επιπλέον θέσεις γεμίζουν με τους παγωμένους αριθμούς ανεξαρτήτως δεκάδας.'
+  primes: {
+    label: '🧮 Πρώτοι',
+    info: 'Παίζει <strong>αποκλειστικά με πρώτους αριθμούς</strong> εντός του pool (2, 3, 5, 7… 79 — 22 πρώτοι μεταξύ 1-80). ' +
+          'Τους κατατάσσει κατά <strong>καθυστέρηση</strong> (πόσο καιρό λείπουν) και παίρνει τους Ν πιο απόντες. ' +
+          'Αν οι πρώτοι στο pool είναι λιγότεροι από Ν, συμπληρώνει με τους υπόλοιπους κατά καθυστέρηση.'
   },
-  anti: {
-    label: '🎲 Αντι-τυχαίο',
-    info: 'Σε κάθε κλήρωση <strong>αποφεύγει τους 20 αριθμούς που μόλις βγήκαν</strong> και επιλέγει Ν από τους υπόλοιπους 60 ' +
-          'βάσει της πρόσφατης συχνότητάς τους. Η λογική: αν κάτι μόλις «καλύφθηκε», θα αργήσει λίγο να ξαναβγεί — ' +
-          'μια παραλλαγή της λογικής «απουσία» αλλά εφαρμοσμένη σε ολόκληρη την τελευταία κλήρωση.'
+  gravity: {
+    label: '📊 Βαρύτητα',
+    info: 'Σκορ = <strong>καθυστέρηση × ιστορική συχνότητα</strong> (ιστορικές εμφανίσεις / σύνολο κληρώσεων). ' +
+          'Επιλέγει αριθμούς που είναι συγχρόνως πολύ απόντες ΚΑΙ ιστορικά συχνοί — ' +
+          'η απουσία τους είναι «παρά φύσιν» και αναμένεται διόρθωση.'
   },
-  arithmetic: {
-    label: '📐 Αριθμητικές',
-    info: 'Βρίσκει ποια <strong>αριθμητική πρόοδος</strong> (εκκίνηση + σταθερό βήμα) είχε τα περισσότερα χτυπήματα ' +
-          'στις πρώτες κληρώσεις του ιστορικού, και χρησιμοποιεί αυτή τη σταθερή ακολουθία για ΟΛΗ τη διάρκεια. ' +
-          'Παράδειγμα: 1,5,9,13,… (βήμα 4) ή 2,6,10,14,… Λειτουργεί σαν <em>control group</em> με δομή.'
+  rhythm: {
+    label: '🔄 Ρυθμός',
+    info: 'Κάθε αριθμός έχει <strong>φυσική περίοδο</strong> = σύνολο κληρώσεων / εμφανίσεις (~4 κλ. για τους «κανονικούς»). ' +
+          'Επιλέγει τους αριθμούς των οποίων η τρέχουσα καθυστέρηση είναι <strong>πιο κοντά στη φυσική τους περίοδο</strong> — ' +
+          'αυτούς που «χτυπάνε στο ρυθμό τους» και είναι «στη σειρά».'
   }
 };
 
 function simulateMachineStrategy(N, draws, strategyId, pool) {
   const T = draws.length;
-  const WARMUP = HOT_W;
-  const ROLL10 = 4;
+  const WARMUP = HOT_W;  // 30 draws
+  const W15 = 15, W60 = 60;
   if (T <= WARMUP) return null;
   if (pool.size < N) return null;
 
   const poolArr = [...pool].sort((a,b) => a-b);
-  const rollCount  = new Int32Array(81);
-  const roll10     = new Int32Array(81);
+  const rollCount  = new Int32Array(81);  // last 30
+  const roll15a    = new Int32Array(81);  // last 15
+  const roll60     = new Int32Array(81);  // last 60
+  const totalCount = new Int32Array(81);  // cumulative
   const lastSeen   = new Int32Array(81).fill(-1);
 
   for (let i = 0; i < WARMUP; i++) {
-    for (const n of draws[i].n) if (pool.has(n)) { rollCount[n]++; lastSeen[n] = i; }
-  }
-  for (let i = Math.max(0, WARMUP - ROLL10); i < WARMUP; i++) {
-    for (const n of draws[i].n) if (pool.has(n)) roll10[n]++;
+    for (const n of draws[i].n) if (pool.has(n)) {
+      rollCount[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
+      if (i >= WARMUP - W15) roll15a[n]++;
+    }
   }
 
   function topNBy(valueOf) {
@@ -787,74 +790,37 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
     return new Set(scored.slice(0, N).map(x => x.n));
   }
 
-  // Pre-compute fixed arithmetic sequence for 'arithmetic' strategy
-  let arithmeticSeq = null;
-  if (strategyId === 'arithmetic') {
-    let bestScore = -1;
-    for (let step = 2; step <= 16; step++) {
-      for (let start = 1; start <= step; start++) {
-        const seq = [];
-        for (let n = start; n <= 80 && seq.length < N; n += step) {
-          if (pool.has(n)) seq.push(n);
-        }
-        if (seq.length < N) continue;
-        let score = 0;
-        for (let i = 0; i < WARMUP; i++) {
-          const drawSet = new Set(draws[i].n);
-          for (const n of seq) if (drawSet.has(n)) score++;
-        }
-        if (score > bestScore) { bestScore = score; arithmeticSeq = new Set(seq); }
-      }
-    }
-    if (!arithmeticSeq) arithmeticSeq = new Set(poolArr.slice(0, N));
-  }
-
   function computeSelection(i) {
+    const delay = n => lastSeen[n] === -1 ? (i+1) : (i - lastSeen[n]);
     switch (strategyId) {
-      case 'neighbors': {
-        const prevSet = new Set(draws[i].n);
-        const arr = poolArr.map(n => ({
-          n, v: (prevSet.has(n-1) || prevSet.has(n+1) ? 1000 : 0) + rollCount[n]
-        }));
-        arr.sort((a,b) => b.v - a.v || a.n - b.n);
-        return new Set(arr.slice(0, N).map(x => x.n));
-      }
-      case 'repeating':
-        return topNBy(n => roll10[n]);
-      case 'balanced': {
-        const decades = [[1,10],[11,20],[21,30],[31,40],[41,50],[51,60],[61,70],[71,80]];
-        const picks = [], picked = new Set();
-        for (const [lo, hi] of decades) {
-          let best = -1, bestDelay = -1;
-          for (let n = lo; n <= hi; n++) {
-            if (!pool.has(n)) continue;
-            const d = lastSeen[n] === -1 ? (i+1) : (i - lastSeen[n]);
-            if (d > bestDelay) { bestDelay = d; best = n; }
-          }
-          if (best !== -1) { picks.push(best); picked.add(best); }
-        }
+      case 'accel':
+        // score = last-15 freq minus previous-15 freq (roll15b = rollCount - roll15a)
+        return topNBy(n => roll15a[n] - (rollCount[n] - roll15a[n]));
+      case 'giants':
+        // score = freq in 31-60 window minus last-30 (roll30b = roll60 - rollCount)
+        return topNBy(n => (roll60[n] - rollCount[n]) - rollCount[n]);
+      case 'primes': {
+        const primePool = poolArr.filter(n => PRIMES_80.has(n));
+        const sorted = [...primePool].sort((a,b) => delay(b) - delay(a));
+        const picks = sorted.slice(0, N);
         if (picks.length < N) {
-          const extra = poolArr
-            .filter(n => !picked.has(n))
-            .map(n => ({ n, d: lastSeen[n]===-1 ? (i+1) : (i-lastSeen[n]) }));
-          extra.sort((a,b) => b.d - a.d);
-          for (let k = 0; picks.length < N && k < extra.length; k++) picks.push(extra[k].n);
+          const extra = poolArr.filter(n => !PRIMES_80.has(n)).sort((a,b) => delay(b)-delay(a));
+          for (let k = 0; picks.length < N && k < extra.length; k++) picks.push(extra[k]);
         }
-        return new Set(picks.slice(0, N));
+        return new Set(picks);
       }
-      case 'anti': {
-        const prevSet = new Set(draws[i].n);
-        const arr = poolArr
-          .filter(n => !prevSet.has(n))
-          .map(n => ({ n, v: rollCount[n] }));
-        arr.sort((a,b) => b.v - a.v || a.n - b.n);
-        // If too many excluded, fall back to full pool sorted by rollCount
-        const src = arr.length >= N ? arr : poolArr.map(n => ({ n, v: rollCount[n] })).sort((a,b) => b.v-a.v);
-        return new Set(src.slice(0, N).map(x => x.n));
+      case 'gravity':
+        // score = delay × historical_frequency_rate
+        return topNBy(n => delay(n) * (totalCount[n] / (i + 1)));
+      case 'rhythm':
+      default: {
+        // score = -|delay - expected_period|, only for numbers seen ≥3 times
+        return topNBy(n => {
+          if (totalCount[n] < 3) return -1e9;
+          const period = (i + 1) / totalCount[n];
+          return -Math.abs(delay(n) - period);
+        });
       }
-      case 'arithmetic':
-      default:
-        return arithmeticSeq;
     }
   }
 
@@ -864,10 +830,12 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
   let S = computeSelection(WARMUP - 1);
 
   for (let i = WARMUP; i < T; i++) {
-    // Update rolling counts with draw[i]
-    for (const n of draws[i].n) if (pool.has(n)) { rollCount[n]++; lastSeen[n] = i; roll10[n]++; }
+    for (const n of draws[i].n) if (pool.has(n)) {
+      rollCount[n]++; roll15a[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
+    }
     if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (pool.has(n)) rollCount[n]--;
-    if (i - ROLL10 >= 0) for (const n of draws[i-ROLL10].n) if (pool.has(n)) roll10[n]--;
+    if (i - W15   >= 0) for (const n of draws[i-W15].n)   if (pool.has(n)) roll15a[n]--;
+    if (i - W60   >= 0) for (const n of draws[i-W60].n)   if (pool.has(n)) roll60[n]--;
 
     actualMask.fill(0);
     for (const n of draws[i].n) actualMask[n] = 1;
