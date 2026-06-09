@@ -130,6 +130,21 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .eval-badge.miss{background:#1a1a1a;color:#666;border:1px solid #333}
 #buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#333;pointer-events:none;z-index:99}
 @media(max-width:600px){#selGrid{grid-template-columns:repeat(8,1fr)}.res-ball{min-width:50px;padding:7px 8px}}
+
+/* ── Co-occurrence ── */
+#coOccStatus{font-size:.8rem;color:#80cbc4;padding:6px 0;margin-bottom:8px}
+#coOccGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:12px}
+.co-cell{border-radius:6px;padding:5px 2px;text-align:center;font-size:.68rem;font-weight:700;cursor:pointer;transition:all .12s;background:#1e2535;border:2px solid #263040;color:#556;user-select:none}
+.co-cell:hover{border-color:#5c6bc0}
+.co-selected{background:#1a1a3a!important;border-color:#9c27b0!important;color:#e1bee7!important}
+.co-p1{background:#0d2b0d;border-color:#2e7d32;color:#a5d6a7}
+.co-p2{background:#0a3a0a;border-color:#388e3c;color:#c8e6c9}
+.co-p3{background:#07490a;border-color:#43a047;color:#e8f5e9}
+.co-n1{background:#1a0808;border-color:#b71c1c;color:#ef9a9a}
+.co-n2{background:#2a0808;border-color:#c62828;color:#ffcdd2}
+.co-n3{background:#3a0808;border-color:#d32f2f;color:#ffebee}
+#coOccInfo{padding:8px 12px;background:#08080f;border:1px solid #1a1a30;border-radius:8px;font-size:.78rem;line-height:1.8;min-height:32px}
+@media(max-width:600px){#coOccGrid{grid-template-columns:repeat(8,1fr)}}
 </style>
 </head>
 <body>
@@ -187,6 +202,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="primes">🧮 Πρώτοι</button>
       <button class="strat-card" data-strat="gravity">📊 Βαρύτητα</button>
       <button class="strat-card" data-strat="rhythm">🔄 Ρυθμός</button>
+      <button class="strat-card" data-strat="community">🔗 Κοινότητα</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -208,6 +224,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
     </div>
     <div id="simMachineResults" style="margin-top:12px"></div>
+  </section>
+
+  <section id="coOccSec">
+    <h2>🔗 Ανάλυση Συν-εμφάνισης</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Πόσο συχνά κάθε αριθμός εμφανίζεται <em>μαζί</em> με κάθε άλλο. Κάνε κλικ σε έναν αριθμό για να δεις τους «φίλους» και τους «αντιπάλους» του σε 36 μήνες κληρώσεων. Βάση: 19/79 ≈ 24.1% (αναμενόμενη πιθανότητα συν-εμφάνισης).
+    </div>
+    <div id="coOccStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
+    <div id="coOccGrid"></div>
+    <div id="coOccInfo"></div>
   </section>
 
   <section id="predLogSec">
@@ -287,6 +313,10 @@ let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
 let simMachineStrategy = 'accel';
 let machinePool = new Set(Array.from({length:80}, (_,k) => k+1));
+let globalCoOcc    = null;   // Int32Array(81*81)
+let globalApp      = null;   // Int32Array(81)
+let coOccSelectedN = null;
+let coOccBuilt     = false;
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -386,6 +416,22 @@ async function checkForNewDraw() {
     }
     if (simAutoRun) runSimBacktest(simAutoN);
     if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
+    if (globalCoOcc && globalApp) {
+      const nums = newDraw.n, L = nums.length;
+      for (let k = 0; k < L; k++) globalApp[nums[k]]++;
+      for (let a = 0; a < L; a++) {
+        const na = nums[a], rowA = na * 81;
+        for (let b = a + 1; b < L; b++) {
+          const nb = nums[b];
+          globalCoOcc[rowA + nb]++;
+          globalCoOcc[nb * 81 + na]++;
+        }
+      }
+      if (coOccSelectedN !== null) {
+        renderCoOccGrid(coOccSelectedN);
+        updateCoOccInfo(coOccSelectedN);
+      }
+    }
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
 
@@ -760,8 +806,109 @@ const MACHINE_STRATEGIES = {
     info: 'Κάθε αριθμός έχει <strong>φυσική περίοδο</strong> = σύνολο κληρώσεων / εμφανίσεις (~4 κλ. για τους «κανονικούς»). ' +
           'Επιλέγει τους αριθμούς των οποίων η τρέχουσα καθυστέρηση είναι <strong>πιο κοντά στη φυσική τους περίοδο</strong> — ' +
           'αυτούς που «χτυπάνε στο ρυθμό τους» και είναι «στη σειρά».'
+  },
+  community: {
+    label: '🔗 Κοινότητα',
+    info: 'Σκορ = <strong>άθροισμα ιστορικής συν-εμφάνισης</strong> με τους 20 αριθμούς της τελευταίας κλήρωσης. ' +
+          'Για κάθε κληρωθέντα αριθμό d: score += coOcc[d][n] / appearances[d]. ' +
+          'Επιλέγει τους Ν που εμφανίζονται πιο συχνά μαζί με αριθμούς που μόλις κληρώθηκαν — ' +
+          '«παρέες» που τείνουν να συγκληρώνονται.'
   }
 };
+
+// ── Co-occurrence matrix ────────────────────────────────────────────────────────
+const CO_BASELINE = 19 / 79;
+const CO_SIGMA    = 0.00175;
+
+function buildCoOcc(draws) {
+  globalCoOcc = new Int32Array(81 * 81);
+  globalApp   = new Int32Array(81);
+  for (const draw of draws) {
+    const nums = draw.n, L = nums.length;
+    for (let k = 0; k < L; k++) globalApp[nums[k]]++;
+    for (let a = 0; a < L; a++) {
+      const na = nums[a], rowA = na * 81;
+      for (let b = a + 1; b < L; b++) {
+        const nb = nums[b];
+        globalCoOcc[rowA + nb]++;
+        globalCoOcc[nb * 81 + na]++;
+      }
+    }
+  }
+}
+
+function coOccClass(dev) {
+  const s = dev / CO_SIGMA;
+  if (s >=  2) return 'co-p3';
+  if (s >=  1) return 'co-p2';
+  if (s >= 0.5) return 'co-p1';
+  if (s <= -2) return 'co-n3';
+  if (s <= -1) return 'co-n2';
+  if (s <= -0.5) return 'co-n1';
+  return '';
+}
+
+function renderCoOccGrid(selectedN) {
+  const grid = document.getElementById('coOccGrid');
+  if (!grid) return;
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    let cls = 'co-cell', title = String(n);
+    if (selectedN !== null && selectedN === n) {
+      cls += ' co-selected';
+    } else if (selectedN !== null && globalCoOcc && globalApp) {
+      const app = globalApp[selectedN];
+      if (app > 0) {
+        const rate = globalCoOcc[selectedN * 81 + n] / app;
+        const dev = rate - CO_BASELINE;
+        const cc = coOccClass(dev);
+        if (cc) cls += ' ' + cc;
+        title = `${n}: ${(rate*100).toFixed(2)}% (${dev>=0?'+':''}${(dev/CO_SIGMA).toFixed(1)}σ)`;
+      }
+    }
+    cells.push(`<div class="${cls}" data-n="${n}" title="${title}">${n}</div>`);
+  }
+  grid.innerHTML = cells.join('');
+}
+
+function updateCoOccInfo(selectedN) {
+  const info = document.getElementById('coOccInfo');
+  if (!info) return;
+  if (selectedN === null || !globalCoOcc || !globalApp) {
+    info.innerHTML = '<span style="color:#444">Κάνε κλικ σε έναν αριθμό για λεπτομέρειες.</span>';
+    return;
+  }
+  const app = globalApp[selectedN];
+  if (!app) { info.innerHTML = '<span style="color:#444">Δεν υπάρχουν δεδομένα.</span>'; return; }
+  const others = [];
+  for (let n = 1; n <= 80; n++) {
+    if (n === selectedN) continue;
+    const rate = globalCoOcc[selectedN * 81 + n] / app;
+    others.push({ n, dev: rate - CO_BASELINE, rate });
+  }
+  others.sort((a, b) => b.dev - a.dev);
+  const top5 = others.slice(0, 5);
+  const bot5 = others.slice(-5).reverse();
+  const fmt = x => `<strong style="color:#c5cae9">${x.n}</strong> <span style="color:#555">${(x.rate*100).toFixed(1)}%</span>`;
+  info.innerHTML =
+    `<strong style="color:#9c27b0">#${selectedN}</strong> — εμφανίστηκε ${app.toLocaleString('el-GR')} φορές · βάση ${(CO_BASELINE*100).toFixed(2)}%<br>` +
+    `<span style="color:#a5d6a7">🤝 Φίλοι:</span> ${top5.map(fmt).join(' · ')}<br>` +
+    `<span style="color:#ef9a9a">🚫 Αντίπαλοι:</span> ${bot5.map(fmt).join(' · ')}`;
+}
+
+async function initCoOccSection() {
+  if (coOccBuilt) return;
+  coOccBuilt = true;
+  const statusEl = document.getElementById('coOccStatus');
+  if (statusEl) statusEl.textContent = '⏳ Φόρτωση πλήρους ιστορικού…';
+  const draws = await loadFullHistoryForSim(statusEl);
+  if (statusEl) statusEl.textContent = '⚙️ Κατασκευή μήτρας συν-εμφάνισης…';
+  await new Promise(r => setTimeout(r, 50));
+  buildCoOcc(draws);
+  if (statusEl) statusEl.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
+  renderCoOccGrid(coOccSelectedN);
+  updateCoOccInfo(coOccSelectedN);
+}
 
 function simulateMachineStrategy(N, draws, strategyId, pool) {
   const T = draws.length;
@@ -777,10 +924,26 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
   const totalCount = new Int32Array(81);  // cumulative
   const lastSeen   = new Int32Array(81).fill(-1);
 
+  const isCommunity = strategyId === 'community';
+  const stratCoOcc  = isCommunity ? new Int32Array(81 * 81) : null;
+  const stratApp    = isCommunity ? new Int32Array(81)       : null;
+
   for (let i = 0; i < WARMUP; i++) {
     for (const n of draws[i].n) if (pool.has(n)) {
       rollCount[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
       if (i >= WARMUP - W15) roll15a[n]++;
+    }
+    if (isCommunity) {
+      const nums = draws[i].n, L = nums.length;
+      for (let k = 0; k < L; k++) stratApp[nums[k]]++;
+      for (let a = 0; a < L; a++) {
+        const na = nums[a], rowA = na * 81;
+        for (let b = a + 1; b < L; b++) {
+          const nb = nums[b];
+          stratCoOcc[rowA + nb]++;
+          stratCoOcc[nb * 81 + na]++;
+        }
+      }
     }
   }
 
@@ -812,6 +975,17 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
       case 'gravity':
         // score = delay × historical_frequency_rate
         return topNBy(n => delay(n) * (totalCount[n] / (i + 1)));
+      case 'community': {
+        const lastNums = draws[i].n;
+        return topNBy(n => {
+          let score = 0;
+          for (let k = 0; k < lastNums.length; k++) {
+            const d = lastNums[k], app = stratApp[d];
+            if (app > 0) score += stratCoOcc[d * 81 + n] / app;
+          }
+          return score;
+        });
+      }
       case 'rhythm':
       default: {
         // score = -|delay - expected_period|, only for numbers seen ≥3 times
@@ -832,6 +1006,18 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
   for (let i = WARMUP; i < T; i++) {
     for (const n of draws[i].n) if (pool.has(n)) {
       rollCount[n]++; roll15a[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
+    }
+    if (isCommunity) {
+      const nums = draws[i].n, L = nums.length;
+      for (let k = 0; k < L; k++) stratApp[nums[k]]++;
+      for (let a = 0; a < L; a++) {
+        const na = nums[a], rowA = na * 81;
+        for (let b = a + 1; b < L; b++) {
+          const nb = nums[b];
+          stratCoOcc[rowA + nb]++;
+          stratCoOcc[nb * 81 + na]++;
+        }
+      }
     }
     if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (pool.has(n)) rollCount[n]--;
     if (i - W15   >= 0) for (const n of draws[i-W15].n)   if (pool.has(n)) roll15a[n]--;
@@ -908,9 +1094,9 @@ async function runMachineSimBacktest(N, strategyId) {
   }, 50);
 }
 
-async function loadFullHistoryForSim() {
+async function loadFullHistoryForSim(statusEl) {
   if (simAllDraws) return simAllDraws;
-  const box = document.getElementById('simResults');
+  const box = statusEl || document.getElementById('simResults');
   const now = new Date();
   const months = [];
   for (let i = 0; i < 36; i++) {
@@ -920,7 +1106,7 @@ async function loadFullHistoryForSim() {
   const draws = [];
   let loaded = 0;
   for (const ym of months.reverse()) {
-    box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Φόρτωση πλήρους ιστορικού για backtest: ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)</div>`;
+    if (box) box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Φόρτωση πλήρους ιστορικού: ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)</div>`;
     const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
     if (data?.draws) { draws.push(...data.draws); loaded++; }
   }
@@ -1027,6 +1213,25 @@ window.addEventListener('load', () => {
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
+
+  // Lazy load co-occ section
+  const coOccSec = document.getElementById('coOccSec');
+  if (coOccSec && 'IntersectionObserver' in window) {
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) { obs.unobserve(coOccSec); initCoOccSection(); }
+    }, { threshold: 0.1 });
+    obs.observe(coOccSec);
+  }
+  // Click delegation for co-occ grid
+  document.getElementById('coOccGrid').addEventListener('click', e => {
+    const cell = e.target.closest('[data-n]');
+    if (!cell || !globalCoOcc) return;
+    const n = parseInt(cell.dataset.n, 10);
+    coOccSelectedN = (coOccSelectedN === n) ? null : n;
+    renderCoOccGrid(coOccSelectedN);
+    updateCoOccInfo(coOccSelectedN);
+  });
+
   loadData();
 });
 </script>
