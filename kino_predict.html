@@ -203,6 +203,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="gravity">📊 Βαρύτητα</button>
       <button class="strat-card" data-strat="rhythm">🔄 Ρυθμός</button>
       <button class="strat-card" data-strat="community">🔗 Κοινότητα</button>
+      <button class="strat-card" data-strat="neighbors">🎯 Γειτονικοί</button>
+      <button class="strat-card" data-strat="repeating">🔁 Επαναλαμβανόμενοι</button>
+      <button class="strat-card" data-strat="balanced">⚖️ Ισορροπημένη</button>
+      <button class="strat-card" data-strat="anti">🎲 Αντι-τυχαίο</button>
+      <button class="strat-card" data-strat="arithmetic">📐 Αριθμητικές</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -819,6 +824,36 @@ const MACHINE_STRATEGIES = {
           'Για κάθε κληρωθέντα αριθμό d: score += coOcc[d][n] / appearances[d]. ' +
           'Επιλέγει τους Ν που εμφανίζονται πιο συχνά μαζί με αριθμούς που μόλις κληρώθηκαν — ' +
           '«παρέες» που τείνουν να συγκληρώνονται.'
+  },
+  neighbors: {
+    label: '🎯 Γειτονικοί',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που είναι <strong>γείτονες (±1) των αριθμών της προηγούμενης κλήρωσης</strong>. ' +
+          'Αν οι γείτονες είναι περισσότεροι από Ν, προτιμώνται αυτοί με τη μεγαλύτερη πρόσφατη συχνότητα. ' +
+          'Η ιδέα: οι «γειτονικές περιοχές» του πίνακα τείνουν να επαναλαμβάνονται σε σύντομο χρονικό διάστημα.'
+  },
+  repeating: {
+    label: '🔁 Επαναλαμβανόμενοι',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>περισσότερες φορές στις τελευταίες 4 κληρώσεις</strong>. ' +
+          'Βασίζεται στη λογική ότι αριθμοί που επαναλαμβάνονται συχνά σε ένα μικρό παράθυρο έχουν «ενεργή φάση» — ' +
+          'σε αντίθεση με τον Κυνηγό Τάσης (30 κλ.), εδώ το παράθυρο είναι σκοπίμως πολύ στενό.'
+  },
+  balanced: {
+    label: '⚖️ Ισορροπημένη',
+    info: 'Σε κάθε κλήρωση επιλέγει τους <strong>πιο «παγωμένους» αριθμούς από κάθε δεκάδα</strong> (1-10, 11-20, … 71-80). ' +
+          'Εγγυάται κατανομή σε όλο το εύρος 1-80, αποφεύγοντας «συμπλέγματα» σε ένα μόνο τμήμα. ' +
+          'Αν Ν > 8, οι επιπλέον θέσεις γεμίζουν με τους παγωμένους αριθμούς ανεξαρτήτως δεκάδας.'
+  },
+  anti: {
+    label: '🎲 Αντι-τυχαίο',
+    info: 'Σε κάθε κλήρωση <strong>αποφεύγει τους 20 αριθμούς που μόλις βγήκαν</strong> και επιλέγει Ν από τους υπόλοιπους 60 ' +
+          'βάσει της πρόσφατης συχνότητάς τους. Η λογική: αν κάτι μόλις «καλύφθηκε», θα αργήσει λίγο να ξαναβγεί — ' +
+          'μια παραλλαγή της λογικής «απουσία» αλλά εφαρμοσμένη σε ολόκληρη την τελευταία κλήρωση.'
+  },
+  arithmetic: {
+    label: '📐 Αριθμητικές',
+    info: 'Βρίσκει ποια <strong>αριθμητική πρόοδος</strong> (εκκίνηση + σταθερό βήμα) είχε τα περισσότερα χτυπήματα ' +
+          'στις πρώτες κληρώσεις του ιστορικού, και χρησιμοποιεί αυτή τη σταθερή ακολουθία για ΟΛΗ τη διάρκεια. ' +
+          'Παράδειγμα: 1,5,9,13,… (βήμα 4) ή 2,6,10,14,… Λειτουργεί σαν <em>control group</em> με δομή.'
   }
 };
 
@@ -919,7 +954,7 @@ async function initCoOccSection() {
 function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
   const T = draws.length;
   const WARMUP = HOT_W;  // 30 draws
-  const W15 = 15, W60 = 60;
+  const W15 = 15, W60 = 60, W4 = 4;
   if (T <= WARMUP) return null;
   if (pool.size < N) return null;
 
@@ -927,6 +962,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
   const rollCount  = new Int32Array(81);  // last 30
   const roll15a    = new Int32Array(81);  // last 15
   const roll60     = new Int32Array(81);  // last 60
+  const roll4      = new Int32Array(81);  // last 4
   const totalCount = new Int32Array(81);  // cumulative
   const lastSeen   = new Int32Array(81).fill(-1);
 
@@ -938,6 +974,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     for (const n of draws[i].n) if (pool.has(n)) {
       rollCount[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
       if (i >= WARMUP - W15) roll15a[n]++;
+      if (i >= WARMUP - W4) roll4[n]++;
     }
     if (isCommunity) {
       const nums = draws[i].n, L = nums.length;
@@ -957,6 +994,28 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     const scored = poolArr.map(n => ({ n, v: valueOf(n) }));
     scored.sort((a,b) => b.v - a.v || a.n - b.n);
     return new Set(scored.slice(0, N).map(x => x.n));
+  }
+
+  // Pre-compute fixed arithmetic sequence for 'arithmetic' strategy
+  let arithmeticSeq = null;
+  if (strategyId === 'arithmetic') {
+    let bestScore = -1;
+    for (let step = 2; step <= 16; step++) {
+      for (let start = 1; start <= step; start++) {
+        const seq = [];
+        for (let n = start; n <= 80 && seq.length < N; n += step) {
+          if (pool.has(n)) seq.push(n);
+        }
+        if (seq.length < N) continue;
+        let score = 0;
+        for (let i = 0; i < WARMUP; i++) {
+          const drawSet = new Set(draws[i].n);
+          for (const n of seq) if (drawSet.has(n)) score++;
+        }
+        if (score > bestScore) { bestScore = score; arithmeticSeq = new Set(seq); }
+      }
+    }
+    if (!arithmeticSeq) arithmeticSeq = new Set(poolArr.slice(0, N));
   }
 
   function computeSelection(i) {
@@ -992,6 +1051,48 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
           return score;
         });
       }
+      case 'neighbors': {
+        const prevSet = new Set(draws[i].n);
+        const arr = poolArr.map(n => ({
+          n, v: (prevSet.has(n-1) || prevSet.has(n+1) ? 1000 : 0) + rollCount[n]
+        }));
+        arr.sort((a,b) => b.v - a.v || a.n - b.n);
+        return new Set(arr.slice(0, N).map(x => x.n));
+      }
+      case 'repeating':
+        return topNBy(n => roll4[n]);
+      case 'balanced': {
+        const decades = [[1,10],[11,20],[21,30],[31,40],[41,50],[51,60],[61,70],[71,80]];
+        const picks = [], picked = new Set();
+        for (const [lo, hi] of decades) {
+          let best = -1, bestDelay = -1;
+          for (let n = lo; n <= hi; n++) {
+            if (!pool.has(n)) continue;
+            const d = delay(n);
+            if (d > bestDelay) { bestDelay = d; best = n; }
+          }
+          if (best !== -1) { picks.push(best); picked.add(best); }
+        }
+        if (picks.length < N) {
+          const extra = poolArr
+            .filter(n => !picked.has(n))
+            .map(n => ({ n, d: delay(n) }));
+          extra.sort((a,b) => b.d - a.d);
+          for (let k = 0; picks.length < N && k < extra.length; k++) picks.push(extra[k].n);
+        }
+        return new Set(picks.slice(0, N));
+      }
+      case 'anti': {
+        const prevSet = new Set(draws[i].n);
+        const arr = poolArr
+          .filter(n => !prevSet.has(n))
+          .map(n => ({ n, v: rollCount[n] }));
+        arr.sort((a,b) => b.v - a.v || a.n - b.n);
+        const src = arr.length >= N ? arr : poolArr.map(n => ({ n, v: rollCount[n] })).sort((a,b) => b.v-a.v);
+        return new Set(src.slice(0, N).map(x => x.n));
+      }
+      case 'arithmetic':
+        return arithmeticSeq;
       case 'rhythm':
       default: {
         // score = -|delay - expected_period|, only for numbers seen ≥3 times
@@ -1012,7 +1113,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
 
   for (let i = WARMUP; i < T; i++) {
     for (const n of draws[i].n) if (pool.has(n)) {
-      rollCount[n]++; roll15a[n]++; roll60[n]++; totalCount[n]++; lastSeen[n] = i;
+      rollCount[n]++; roll15a[n]++; roll60[n]++; roll4[n]++; totalCount[n]++; lastSeen[n] = i;
     }
     if (isCommunity) {
       const nums = draws[i].n, L = nums.length;
@@ -1029,6 +1130,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (pool.has(n)) rollCount[n]--;
     if (i - W15   >= 0) for (const n of draws[i-W15].n)   if (pool.has(n)) roll15a[n]--;
     if (i - W60   >= 0) for (const n of draws[i-W60].n)   if (pool.has(n)) roll60[n]--;
+    if (i - W4    >= 0) for (const n of draws[i-W4].n)    if (pool.has(n)) roll4[n]--;
 
     actualMask.fill(0);
     for (const n of draws[i].n) actualMask[n] = 1;
