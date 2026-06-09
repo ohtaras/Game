@@ -56,6 +56,18 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .strat-card{padding:9px 14px;background:#11111e;border:1.5px solid #2a2a3a;border-radius:9px;color:#aaa;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s}
 .strat-card:hover{border-color:#3a3a5a;color:#ddd}
 .strat-card.active{background:#1a1a3a;border-color:#5c6bc0;color:#c5cae9}
+/* ── Pool panel ── */
+#poolPanel{margin-top:10px;padding:9px 12px;background:#08080f;border:1px solid #1a1a30;border-radius:8px}
+#poolHeader{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+#poolLabel{font-size:.78rem;font-weight:600;color:#7986cb;margin-right:2px}
+#poolCount{font-size:.72rem;color:#555;margin-left:auto}
+.pool-preset{padding:3px 9px;border:1px solid #252535;border-radius:5px;background:#0e0e1e;color:#778;font-size:.7rem;font-weight:600;cursor:pointer;transition:all .12s}
+.pool-preset:hover{border-color:#5c6bc0;color:#c5cae9}
+#poolGrid{display:grid;grid-template-columns:repeat(16,1fr);gap:2px}
+.pool-chip{border-radius:4px;padding:3px 1px;text-align:center;font-size:.6rem;font-weight:700;cursor:pointer;transition:all .1s;background:#0e0e1e;border:1px solid #1a1a2a;color:#445;user-select:none}
+.pool-chip.on{background:#131d30;border-color:#3949ab;color:#9fa8da}
+.pool-chip:hover{border-color:#5c6bc0}
+@media(max-width:600px){#poolGrid{grid-template-columns:repeat(10,1fr)}}
 
 /* ── Controls ── */
 #ctrlRow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid #2a2a3a}
@@ -178,6 +190,18 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="arithmetic">📐 Αριθμητικές</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
+    <div id="poolPanel">
+      <div id="poolHeader">
+        <span id="poolLabel">Pool αριθμών:</span>
+        <button class="pool-preset" data-range="all">1-80 (όλοι)</button>
+        <button class="pool-preset" data-range="1-40">1-40</button>
+        <button class="pool-preset" data-range="41-80">41-80</button>
+        <button class="pool-preset" data-range="odd">Μονοί</button>
+        <button class="pool-preset" data-range="even">Ζυγοί</button>
+        <span id="poolCount">80 επιλεγμένοι</span>
+      </div>
+      <div id="poolGrid"></div>
+    </div>
     <div id="ctrlRow">
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
         <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="2" max="12">
@@ -263,6 +287,7 @@ let simAllDraws = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
 let simMachineStrategy = 'neighbors';
+let machinePool = new Set(Array.from({length:80}, (_,k) => k+1));
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -737,26 +762,27 @@ const MACHINE_STRATEGIES = {
   }
 };
 
-function simulateMachineStrategy(N, draws, strategyId) {
+function simulateMachineStrategy(N, draws, strategyId, pool) {
   const T = draws.length;
   const WARMUP = HOT_W;
   const ROLL10 = 4;
   if (T <= WARMUP) return null;
+  if (pool.size < N) return null;
 
+  const poolArr = [...pool].sort((a,b) => a-b);
   const rollCount  = new Int32Array(81);
   const roll10     = new Int32Array(81);
   const lastSeen   = new Int32Array(81).fill(-1);
 
   for (let i = 0; i < WARMUP; i++) {
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+    for (const n of draws[i].n) if (pool.has(n)) { rollCount[n]++; lastSeen[n] = i; }
   }
   for (let i = Math.max(0, WARMUP - ROLL10); i < WARMUP; i++) {
-    for (const n of draws[i].n) if (n>=1 && n<=80) roll10[n]++;
+    for (const n of draws[i].n) if (pool.has(n)) roll10[n]++;
   }
 
   function topNBy(valueOf) {
-    const scored = [];
-    for (let n = 1; n <= 80; n++) scored.push({ n, v: valueOf(n) });
+    const scored = poolArr.map(n => ({ n, v: valueOf(n) }));
     scored.sort((a,b) => b.v - a.v || a.n - b.n);
     return new Set(scored.slice(0, N).map(x => x.n));
   }
@@ -765,10 +791,12 @@ function simulateMachineStrategy(N, draws, strategyId) {
   let arithmeticSeq = null;
   if (strategyId === 'arithmetic') {
     let bestScore = -1;
-    for (let step = 2; step <= 8; step++) {
+    for (let step = 2; step <= 16; step++) {
       for (let start = 1; start <= step; start++) {
         const seq = [];
-        for (let n = start; n <= 80 && seq.length < N; n += step) seq.push(n);
+        for (let n = start; n <= 80 && seq.length < N; n += step) {
+          if (pool.has(n)) seq.push(n);
+        }
         if (seq.length < N) continue;
         let score = 0;
         for (let i = 0; i < WARMUP; i++) {
@@ -778,18 +806,16 @@ function simulateMachineStrategy(N, draws, strategyId) {
         if (score > bestScore) { bestScore = score; arithmeticSeq = new Set(seq); }
       }
     }
-    if (!arithmeticSeq) arithmeticSeq = new Set(Array.from({length:N}, (_,k) => k*4+1));
+    if (!arithmeticSeq) arithmeticSeq = new Set(poolArr.slice(0, N));
   }
 
   function computeSelection(i) {
     switch (strategyId) {
       case 'neighbors': {
         const prevSet = new Set(draws[i].n);
-        const arr = [];
-        for (let n = 1; n <= 80; n++) {
-          const isNeighbor = prevSet.has(n-1) || prevSet.has(n+1);
-          arr.push({ n, v: (isNeighbor ? 1000 : 0) + rollCount[n] });
-        }
+        const arr = poolArr.map(n => ({
+          n, v: (prevSet.has(n-1) || prevSet.has(n+1) ? 1000 : 0) + rollCount[n]
+        }));
         arr.sort((a,b) => b.v - a.v || a.n - b.n);
         return new Set(arr.slice(0, N).map(x => x.n));
       }
@@ -797,34 +823,34 @@ function simulateMachineStrategy(N, draws, strategyId) {
         return topNBy(n => roll10[n]);
       case 'balanced': {
         const decades = [[1,10],[11,20],[21,30],[31,40],[41,50],[51,60],[61,70],[71,80]];
-        const picks = [];
-        const picked = new Set();
+        const picks = [], picked = new Set();
         for (const [lo, hi] of decades) {
-          let best = lo, bestDelay = -1;
+          let best = -1, bestDelay = -1;
           for (let n = lo; n <= hi; n++) {
+            if (!pool.has(n)) continue;
             const d = lastSeen[n] === -1 ? (i+1) : (i - lastSeen[n]);
             if (d > bestDelay) { bestDelay = d; best = n; }
           }
-          picks.push(best); picked.add(best);
+          if (best !== -1) { picks.push(best); picked.add(best); }
         }
-        if (N > 8) {
-          const extra = [];
-          for (let n = 1; n <= 80; n++) {
-            if (!picked.has(n)) extra.push({ n, d: lastSeen[n]===-1 ? (i+1) : (i-lastSeen[n]) });
-          }
+        if (picks.length < N) {
+          const extra = poolArr
+            .filter(n => !picked.has(n))
+            .map(n => ({ n, d: lastSeen[n]===-1 ? (i+1) : (i-lastSeen[n]) }));
           extra.sort((a,b) => b.d - a.d);
-          for (let k = 0; k < N-8 && k < extra.length; k++) picks.push(extra[k].n);
+          for (let k = 0; picks.length < N && k < extra.length; k++) picks.push(extra[k].n);
         }
         return new Set(picks.slice(0, N));
       }
       case 'anti': {
         const prevSet = new Set(draws[i].n);
-        const arr = [];
-        for (let n = 1; n <= 80; n++) {
-          if (!prevSet.has(n)) arr.push({ n, v: rollCount[n] });
-        }
+        const arr = poolArr
+          .filter(n => !prevSet.has(n))
+          .map(n => ({ n, v: rollCount[n] }));
         arr.sort((a,b) => b.v - a.v || a.n - b.n);
-        return new Set(arr.slice(0, N).map(x => x.n));
+        // If too many excluded, fall back to full pool sorted by rollCount
+        const src = arr.length >= N ? arr : poolArr.map(n => ({ n, v: rollCount[n] })).sort((a,b) => b.v-a.v);
+        return new Set(src.slice(0, N).map(x => x.n));
       }
       case 'arithmetic':
       default:
@@ -839,9 +865,9 @@ function simulateMachineStrategy(N, draws, strategyId) {
 
   for (let i = WARMUP; i < T; i++) {
     // Update rolling counts with draw[i]
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; roll10[n]++; }
-    if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
-    if (i - ROLL10 >= 0) for (const n of draws[i-ROLL10].n) if (n>=1 && n<=80) roll10[n]--;
+    for (const n of draws[i].n) if (pool.has(n)) { rollCount[n]++; lastSeen[n] = i; roll10[n]++; }
+    if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (pool.has(n)) rollCount[n]--;
+    if (i - ROLL10 >= 0) for (const n of draws[i-ROLL10].n) if (pool.has(n)) roll10[n]--;
 
     actualMask.fill(0);
     for (const n of draws[i].n) actualMask[n] = 1;
@@ -865,14 +891,16 @@ function simulateMachineStrategy(N, draws, strategyId) {
   };
 }
 
-function renderMachineSimResults(N, strategyId, result) {
+function renderMachineSimResults(N, strategyId, result, pool) {
   const box = document.getElementById('simMachineResults');
-  if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα.</div>'; return; }
+  if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα ή το pool είναι πολύ μικρό.</div>'; return; }
 
   const strat = MACHINE_STRATEGIES[strategyId];
+  const poolSize = pool ? pool.size : 80;
   const p = probAllNHit(N);
   const expected = result.totalDraws * p;
   const oneIn = Math.round(1 / p).toLocaleString('el-GR');
+  const poolNote = poolSize < 80 ? ` · <span style="color:#9fa8da">pool: ${poolSize} αριθμοί [${[...pool].sort((a,b)=>a-b).slice(0,6).join(',')}${pool.size>6?'…':''}]</span>` : '';
 
   const total = result.wins.length;
   const winsHtml = total
@@ -886,7 +914,7 @@ function renderMachineSimResults(N, strategyId, result) {
   box.innerHTML = `
     <div class="calib-box">
       🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}
-      · στρατηγική: <strong>${strat.label}</strong><br>
+      · στρατηγική: <strong>${strat.label}</strong>${poolNote}<br>
       Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expected.toFixed(2)} αναμενόμενες «φυσικές» επιτυχίες σε αυτό το διάστημα)<br>
       Πραγματικές επιτυχίες της στρατηγικής (Ν/Ν με επανεκκίνηση μετά από νίκη): <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
       <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κληρώσεις χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
@@ -897,12 +925,18 @@ function renderMachineSimResults(N, strategyId, result) {
 
 async function runMachineSimBacktest(N, strategyId) {
   const box = document.getElementById('simMachineResults');
+  if (machinePool.size < N) {
+    box.innerHTML = `<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool έχει ${machinePool.size} αριθμούς — πρέπει να είναι τουλάχιστον Ν=${N}. Πρόσθεσε περισσότερους αριθμούς στο pool.</div>`;
+    return;
+  }
   const draws = await loadFullHistoryForSim();
   const strat = MACHINE_STRATEGIES[strategyId];
-  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest (${strat.label}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις (πλήρες ιστορικό)... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>`;
+  const poolNote = machinePool.size < 80 ? ` · pool: ${machinePool.size} αριθμοί` : '';
+  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest (${strat.label}${poolNote}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>`;
+  const pool = new Set(machinePool);
   setTimeout(() => {
-    const result = simulateMachineStrategy(N, draws, strategyId);
-    renderMachineSimResults(N, strategyId, result);
+    const result = simulateMachineStrategy(N, draws, strategyId, pool);
+    renderMachineSimResults(N, strategyId, result, pool);
   }, 50);
 }
 
@@ -960,10 +994,46 @@ function renderHistory() {
   if (draws.length > 120) list.innerHTML += `<div style="text-align:center;padding:10px;font-size:.75rem;color:#555">… και άλλες ${(draws.length-120).toLocaleString('el-GR')} κληρώσεις</div>`;
 }
 
+// ── Pool panel ────────────────────────────────────────────────────────────────
+function renderPoolGrid() {
+  const grid = document.getElementById('poolGrid');
+  const chips = [];
+  for (let n = 1; n <= 80; n++) {
+    chips.push(`<div class="pool-chip${machinePool.has(n)?' on':''}" data-n="${n}">${n}</div>`);
+  }
+  grid.innerHTML = chips.join('');
+  grid.querySelectorAll('.pool-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const n = parseInt(chip.dataset.n);
+      if (machinePool.has(n)) machinePool.delete(n); else machinePool.add(n);
+      chip.classList.toggle('on', machinePool.has(n));
+      document.getElementById('poolCount').textContent = `${machinePool.size} επιλεγμένοι`;
+    });
+  });
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   renderSelGrid();
   renderPredLog();
+  renderPoolGrid();
+
+  document.querySelectorAll('.pool-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const r = btn.dataset.range;
+      machinePool.clear();
+      for (let n = 1; n <= 80; n++) {
+        if (r === 'all')   machinePool.add(n);
+        else if (r === '1-40'  && n <= 40) machinePool.add(n);
+        else if (r === '41-80' && n >= 41) machinePool.add(n);
+        else if (r === 'odd'  && n % 2 === 1) machinePool.add(n);
+        else if (r === 'even' && n % 2 === 0) machinePool.add(n);
+      }
+      renderPoolGrid();
+      document.getElementById('poolCount').textContent = `${machinePool.size} επιλεγμένοι`;
+    });
+  });
+
   document.getElementById('analyzeBtn').addEventListener('click', runAutoPredict);
   document.getElementById('simBtn').addEventListener('click', () => {
     simAutoN = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 2), 12);
