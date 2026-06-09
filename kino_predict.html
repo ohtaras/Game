@@ -213,6 +213,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <button class="pool-preset" data-range="41-80">41-80</button>
         <button class="pool-preset" data-range="odd">Μονοί</button>
         <button class="pool-preset" data-range="even">Ζυγοί</button>
+        <button class="pool-preset" data-range="clear">✕ Καθαρισμός</button>
+        <button class="pool-preset" data-range="lastdraw">↺ Τελευταία Κλήρωση</button>
         <span id="poolCount">80 επιλεγμένοι</span>
       </div>
       <div id="poolGrid"></div>
@@ -1191,12 +1193,18 @@ window.addEventListener('load', () => {
     btn.addEventListener('click', () => {
       const r = btn.dataset.range;
       machinePool.clear();
-      for (let n = 1; n <= 80; n++) {
-        if (r === 'all')   machinePool.add(n);
-        else if (r === '1-40'  && n <= 40) machinePool.add(n);
-        else if (r === '41-80' && n >= 41) machinePool.add(n);
-        else if (r === 'odd'  && n % 2 === 1) machinePool.add(n);
-        else if (r === 'even' && n % 2 === 0) machinePool.add(n);
+      if (r === 'lastdraw') {
+        const last = allDraws[allDraws.length - 1];
+        if (last) last.n.forEach(n => machinePool.add(n));
+      } else {
+        for (let n = 1; n <= 80; n++) {
+          if (r === 'all')   machinePool.add(n);
+          else if (r === '1-40'  && n <= 40) machinePool.add(n);
+          else if (r === '41-80' && n >= 41) machinePool.add(n);
+          else if (r === 'odd'  && n % 2 === 1) machinePool.add(n);
+          else if (r === 'even' && n % 2 === 0) machinePool.add(n);
+          // 'clear' → nothing added, pool stays empty
+        }
       }
       renderPoolGrid();
       document.getElementById('poolCount').textContent = `${machinePool.size} επιλεγμένοι`;
