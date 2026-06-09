@@ -208,6 +208,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="balanced">⚖️ Ισορροπημένη</button>
       <button class="strat-card" data-strat="anti">🎲 Αντι-τυχαίο</button>
       <button class="strat-card" data-strat="arithmetic">📐 Αριθμητικές</button>
+      <button class="strat-card" data-strat="delay">🥶 Κυνηγός Καθυστέρησης</button>
+      <button class="strat-card" data-strat="trend">🔥 Κυνηγός Τάσης</button>
+      <button class="strat-card" data-strat="static">📌 Στατική Επιλογή</button>
+      <button class="strat-card" data-strat="alltime">📊 Συνολική Συχνότητα</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -854,6 +858,30 @@ const MACHINE_STRATEGIES = {
     info: 'Βρίσκει ποια <strong>αριθμητική πρόοδος</strong> (εκκίνηση + σταθερό βήμα) είχε τα περισσότερα χτυπήματα ' +
           'στις πρώτες κληρώσεις του ιστορικού, και χρησιμοποιεί αυτή τη σταθερή ακολουθία για ΟΛΗ τη διάρκεια. ' +
           'Παράδειγμα: 1,5,9,13,… (βήμα 4) ή 2,6,10,14,… Λειτουργεί σαν <em>control group</em> με δομή.'
+  },
+  delay: {
+    label: '🥶 Κυνηγός Καθυστέρησης',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη τρέχουσα απουσία</strong> ' +
+          '(αυτούς που λείπουν περισσότερες κληρώσεις). Βασίζεται στη λογική «είναι ώρα να βγει» — ' +
+          'το λεγόμενο <em>gambler\'s fallacy</em>, ότι ο τυχαίος μηχανισμός «θυμάται» πόσο καιρό λείπει ένας αριθμός.'
+  },
+  trend: {
+    label: '🔥 Κυνηγός Τάσης',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>συχνότερα στις τελευταίες ' +
+          HOT_W + ' κληρώσεις</strong> (κυλιόμενο παράθυρο). Βασίζεται στη λογική «η τάση συνεχίζεται» — ' +
+          'momentum / trend-following, το αντίθετο ακριβώς από τον Κυνηγό Καθυστέρησης.'
+  },
+  static: {
+    label: '📌 Στατική Επιλογή',
+    info: 'Διαλέγει Ν αριθμούς <strong>μία φορά στην αρχή</strong> (ψευδοτυχαία, με σταθερό seed) και τους ' +
+          'κρατάει αμετάβλητους σε όλη τη διάρκεια — καμία προσαρμογή, καμία «ανάγνωση» του πίνακα. ' +
+          'Λειτουργεί σαν <em>ομάδα ελέγχου (control group)</em>: δείχνει αν οποιαδήποτε προσπάθεια προσαρμογής έχει καν νόημα.'
+  },
+  alltime: {
+    label: '📊 Συνολική Συχνότητα',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη συνολική εμφάνιση σε όλο το ' +
+          'ιστορικό</strong> μέχρι εκείνη τη στιγμή (όχι κυλιόμενο παράθυρο, αλλά αθροιστική μέτρηση από την αρχή). ' +
+          'Βασίζεται στη λογική «κάποιοι αριθμοί βγαίνουν γενικά πιο συχνά μακροπρόθεσμα».'
   }
 };
 
@@ -1018,9 +1046,30 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     if (!arithmeticSeq) arithmeticSeq = new Set(poolArr.slice(0, N));
   }
 
+  // Pre-compute fixed pseudo-random selection for 'static' strategy
+  let staticSeq = null;
+  if (strategyId === 'static') {
+    let seed = 7654321;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const arr = [...poolArr];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i+1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    staticSeq = new Set(arr.slice(0, N));
+  }
+
   function computeSelection(i) {
     const delay = n => lastSeen[n] === -1 ? (i+1) : (i - lastSeen[n]);
     switch (strategyId) {
+      case 'delay':
+        return topNBy(n => delay(n));
+      case 'trend':
+        return topNBy(n => rollCount[n]);
+      case 'alltime':
+        return topNBy(n => totalCount[n]);
+      case 'static':
+        return staticSeq;
       case 'accel':
         // score = last-15 freq minus previous-15 freq (roll15b = rollCount - roll15a)
         return topNBy(n => roll15a[n] - (rollCount[n] - roll15a[n]));
