@@ -182,7 +182,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="ctrlRow">
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
-        <input type="number" id="simNInput" class="ctrl-input" value="9" min="2" max="12">
+        <input type="number" id="simNInput" class="ctrl-input" value="9" min="1" max="12">
       </label>
       <button class="btn btn-analyze" id="simBtn">▶ Εκτέλεση Backtest</button>
     </div>
@@ -219,7 +219,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="ctrlRow">
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
-        <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="2" max="12">
+        <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="1" max="12">
       </label>
       <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
     </div>
@@ -1190,7 +1190,7 @@ window.addEventListener('load', () => {
 
   document.getElementById('analyzeBtn').addEventListener('click', runAutoPredict);
   document.getElementById('simBtn').addEventListener('click', () => {
-    simAutoN = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 2), 12);
+    simAutoN = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 1), 12);
     simAutoRun = true;
     document.getElementById('simBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
     runSimBacktest(simAutoN);
@@ -1206,7 +1206,7 @@ window.addEventListener('load', () => {
   const defaultCard = document.querySelector(`#machineStrategyPicker .strat-card[data-strat="${simMachineStrategy}"]`);
   if (defaultCard) defaultCard.click();
   document.getElementById('simMachineBtn').addEventListener('click', () => {
-    simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 2), 12);
+    simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 1), 12);
     simMachineAutoRun = true;
     document.getElementById('simMachineBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
     runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
