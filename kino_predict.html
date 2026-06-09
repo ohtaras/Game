@@ -166,15 +166,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <h2>🤖 Προσομοίωση Μηχανής (Backtest)</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
       Καμία τύχη, καμία διαίσθηση: η μηχανή ακολουθεί έναν αυστηρά καθορισμένο, ντετερμινιστικό κανόνα
-      επιλογής — διάλεξε μία από τις 4 στρατηγικές παρακάτω (κάθε μία ενσωματώνει διαφορετική «λογική»
+      επιλογής — διάλεξε μία από τις 5 στρατηγικές παρακάτω (κάθε μία ενσωματώνει διαφορετική «λογική»
       παιξίματος) και πάτησε «Εκτέλεση» για να δεις πώς θα είχε πάει σε όλο το διαθέσιμο ιστορικό μέχρι
       την τελευταία κλήρωση.
     </div>
     <div id="machineStrategyPicker">
-      <button class="strat-card" data-strat="delay">🥶 Κυνηγός Καθυστέρησης</button>
-      <button class="strat-card" data-strat="trend">🔥 Κυνηγός Τάσης</button>
-      <button class="strat-card" data-strat="static">📌 Στατική Επιλογή</button>
-      <button class="strat-card" data-strat="alltime">📊 Συνολική Συχνότητα</button>
+      <button class="strat-card" data-strat="neighbors">🎯 Γειτονικοί</button>
+      <button class="strat-card" data-strat="repeating">🔁 Επαναλαμβανόμενοι</button>
+      <button class="strat-card" data-strat="balanced">⚖️ Ισορροπημένη</button>
+      <button class="strat-card" data-strat="anti">🎲 Αντι-τυχαίο</button>
+      <button class="strat-card" data-strat="arithmetic">📐 Αριθμητικές</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="ctrlRow">
@@ -203,7 +204,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   </section>
 </main>
 
-<div id="buildStamp">v 2026-06-06b</div>
+<div id="buildStamp">v 2026-06-09</div>
 
 <script>
 'use strict';
@@ -261,7 +262,7 @@ let simAutoN    = 9;
 let simAllDraws = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
-let simMachineStrategy = 'delay';
+let simMachineStrategy = 'neighbors';
 
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -704,52 +705,53 @@ function renderSimResults(N, result) {
 }
 
 const MACHINE_STRATEGIES = {
-  delay: {
-    label: '🥶 Κυνηγός Καθυστέρησης',
-    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη τρέχουσα απουσία</strong> ' +
-          '(αυτούς που λείπουν περισσότερες κληρώσεις). Βασίζεται στη λογική «είναι ώρα να βγει» — ' +
-          'το λεγόμενο <em>gambler\'s fallacy</em>, ότι ο τυχαίος μηχανισμός «θυμάται» πόσο καιρό λείπει ένας αριθμός.'
+  neighbors: {
+    label: '🎯 Γειτονικοί',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που είναι <strong>γείτονες (±1) των αριθμών της προηγούμενης κλήρωσης</strong>. ' +
+          'Αν οι γείτονες είναι περισσότεροι από Ν, προτιμώνται αυτοί με τη μεγαλύτερη πρόσφατη συχνότητα. ' +
+          'Η ιδέα: οι «γειτονικές περιοχές» του πίνακα τείνουν να επαναλαμβάνονται σε σύντομο χρονικό διάστημα.'
   },
-  trend: {
-    label: '🔥 Κυνηγός Τάσης',
-    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>συχνότερα στις τελευταίες ' +
-          HOT_W + ' κληρώσεις</strong> (κυλιόμενο παράθυρο). Βασίζεται στη λογική «η τάση συνεχίζεται» — ' +
-          'momentum / trend-following, το αντίθετο ακριβώς από τον Κυνηγό Καθυστέρησης.'
+  repeating: {
+    label: '🔁 Επαναλαμβανόμενοι',
+    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς που εμφανίστηκαν <strong>περισσότερες φορές στις τελευταίες 10 κληρώσεις</strong>. ' +
+          'Βασίζεται στη λογική ότι αριθμοί που επαναλαμβάνονται συχνά σε ένα μικρό παράθυρο έχουν «ενεργή φάση» — ' +
+          'σε αντίθεση με τον Κυνηγό Τάσης (30 κλ.), εδώ το παράθυρο είναι σκοπίμως πολύ στενό.'
   },
-  static: {
-    label: '📌 Στατική Επιλογή',
-    info: 'Διαλέγει Ν αριθμούς <strong>μία φορά στην αρχή</strong> (ψευδοτυχαία, με σταθερό seed) και τους ' +
-          'κρατάει αμετάβλητους σε όλη τη διάρκεια — καμία προσαρμογή, καμία «ανάγνωση» του πίνακα. ' +
-          'Λειτουργεί σαν <em>ομάδα ελέγχου (control group)</em>: δείχνει αν οποιαδήποτε προσπάθεια προσαρμογής έχει καν νόημα.'
+  balanced: {
+    label: '⚖️ Ισορροπημένη',
+    info: 'Σε κάθε κλήρωση επιλέγει τους <strong>πιο «παγωμένους» αριθμούς από κάθε δεκάδα</strong> (1-10, 11-20, … 71-80). ' +
+          'Εγγυάται κατανομή σε όλο το εύρος 1-80, αποφεύγοντας «συμπλέγματα» σε ένα μόνο τμήμα. ' +
+          'Αν Ν > 8, οι επιπλέον θέσεις γεμίζουν με τους παγωμένους αριθμούς ανεξαρτήτως δεκάδας.'
   },
-  alltime: {
-    label: '📊 Συνολική Συχνότητα',
-    info: 'Σε κάθε κλήρωση επιλέγει τους Ν αριθμούς με τη <strong>μεγαλύτερη συνολική εμφάνιση σε όλο το ' +
-          'ιστορικό</strong> μέχρι εκείνη τη στιγμή (όχι κυλιόμενο παράθυρο, αλλά αθροιστική μέτρηση από την αρχή). ' +
-          'Βασίζεται στη λογική «κάποιοι αριθμοί βγαίνουν γενικά πιο συχνά μακροπρόθεσμα».'
+  anti: {
+    label: '🎲 Αντι-τυχαίο',
+    info: 'Σε κάθε κλήρωση <strong>αποφεύγει τους 20 αριθμούς που μόλις βγήκαν</strong> και επιλέγει Ν από τους υπόλοιπους 60 ' +
+          'βάσει της πρόσφατης συχνότητάς τους. Η λογική: αν κάτι μόλις «καλύφθηκε», θα αργήσει λίγο να ξαναβγεί — ' +
+          'μια παραλλαγή της λογικής «απουσία» αλλά εφαρμοσμένη σε ολόκληρη την τελευταία κλήρωση.'
+  },
+  arithmetic: {
+    label: '📐 Αριθμητικές',
+    info: 'Βρίσκει ποια <strong>αριθμητική πρόοδος</strong> (εκκίνηση + σταθερό βήμα) είχε τα περισσότερα χτυπήματα ' +
+          'στις πρώτες κληρώσεις του ιστορικού, και χρησιμοποιεί αυτή τη σταθερή ακολουθία για ΟΛΗ τη διάρκεια. ' +
+          'Παράδειγμα: 1,5,9,13,… (βήμα 4) ή 2,6,10,14,… Λειτουργεί σαν <em>control group</em> με δομή.'
   }
 };
 
 function simulateMachineStrategy(N, draws, strategyId) {
   const T = draws.length;
   const WARMUP = HOT_W;
+  const ROLL10 = 10;
   if (T <= WARMUP) return null;
 
-  const rollCount = new Int32Array(81);   // count within rolling HOT_W window
-  const totalCount = new Int32Array(81);  // cumulative count since draw 0
-  const lastSeen = new Int32Array(81).fill(-1);
-  for (let i = 0; i < WARMUP; i++)
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; totalCount[n]++; lastSeen[n] = i; }
+  const rollCount  = new Int32Array(81);
+  const roll10     = new Int32Array(81);
+  const lastSeen   = new Int32Array(81).fill(-1);
 
-  let seed = 7654321;
-  function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
-  function staticSelection() {
-    const pool = Array.from({length:80}, (_,i) => i+1);
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rnd() * (i+1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    return new Set(pool.slice(0, N));
+  for (let i = 0; i < WARMUP; i++) {
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; }
+  }
+  for (let i = Math.max(0, WARMUP - ROLL10); i < WARMUP; i++) {
+    for (const n of draws[i].n) if (n>=1 && n<=80) roll10[n]++;
   }
 
   function topNBy(valueOf) {
@@ -759,31 +761,87 @@ function simulateMachineStrategy(N, draws, strategyId) {
     return new Set(scored.slice(0, N).map(x => x.n));
   }
 
-  const fixedSelection = strategyId === 'static' ? staticSelection() : null;
+  // Pre-compute fixed arithmetic sequence for 'arithmetic' strategy
+  let arithmeticSeq = null;
+  if (strategyId === 'arithmetic') {
+    let bestScore = -1;
+    for (let step = 2; step <= 8; step++) {
+      for (let start = 1; start <= step; start++) {
+        const seq = [];
+        for (let n = start; n <= 80 && seq.length < N; n += step) seq.push(n);
+        if (seq.length < N) continue;
+        let score = 0;
+        for (let i = 0; i < WARMUP; i++) {
+          const drawSet = new Set(draws[i].n);
+          for (const n of seq) if (drawSet.has(n)) score++;
+        }
+        if (score > bestScore) { bestScore = score; arithmeticSeq = new Set(seq); }
+      }
+    }
+    if (!arithmeticSeq) arithmeticSeq = new Set(Array.from({length:N}, (_,k) => k*4+1));
+  }
 
-  function computeSelection(i, winSize) {
+  function computeSelection(i) {
     switch (strategyId) {
-      case 'delay':
-        return topNBy(n => lastSeen[n] === -1 ? (i + 1) : (i - lastSeen[n]));
-      case 'trend':
-        return topNBy(n => rollCount[n]);
-      case 'alltime':
-        return topNBy(n => totalCount[n]);
-      case 'static':
+      case 'neighbors': {
+        const prevSet = new Set(draws[i].n);
+        const arr = [];
+        for (let n = 1; n <= 80; n++) {
+          const isNeighbor = prevSet.has(n-1) || prevSet.has(n+1);
+          arr.push({ n, v: (isNeighbor ? 1000 : 0) + rollCount[n] });
+        }
+        arr.sort((a,b) => b.v - a.v || a.n - b.n);
+        return new Set(arr.slice(0, N).map(x => x.n));
+      }
+      case 'repeating':
+        return topNBy(n => roll10[n]);
+      case 'balanced': {
+        const decades = [[1,10],[11,20],[21,30],[31,40],[41,50],[51,60],[61,70],[71,80]];
+        const picks = [];
+        const picked = new Set();
+        for (const [lo, hi] of decades) {
+          let best = lo, bestDelay = -1;
+          for (let n = lo; n <= hi; n++) {
+            const d = lastSeen[n] === -1 ? (i+1) : (i - lastSeen[n]);
+            if (d > bestDelay) { bestDelay = d; best = n; }
+          }
+          picks.push(best); picked.add(best);
+        }
+        if (N > 8) {
+          const extra = [];
+          for (let n = 1; n <= 80; n++) {
+            if (!picked.has(n)) extra.push({ n, d: lastSeen[n]===-1 ? (i+1) : (i-lastSeen[n]) });
+          }
+          extra.sort((a,b) => b.d - a.d);
+          for (let k = 0; k < N-8 && k < extra.length; k++) picks.push(extra[k].n);
+        }
+        return new Set(picks.slice(0, N));
+      }
+      case 'anti': {
+        const prevSet = new Set(draws[i].n);
+        const arr = [];
+        for (let n = 1; n <= 80; n++) {
+          if (!prevSet.has(n)) arr.push({ n, v: rollCount[n] });
+        }
+        arr.sort((a,b) => b.v - a.v || a.n - b.n);
+        return new Set(arr.slice(0, N).map(x => x.n));
+      }
+      case 'arithmetic':
       default:
-        return fixedSelection;
+        return arithmeticSeq;
     }
   }
 
   let cycleStart = WARMUP;
   const wins = [];
   const actualMask = new Uint8Array(81);
-  let S = computeSelection(WARMUP - 1, Math.min(HOT_W, WARMUP));
+  let S = computeSelection(WARMUP - 1);
 
   for (let i = WARMUP; i < T; i++) {
-    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; totalCount[n]++; lastSeen[n] = i; }
-    if (i - HOT_W >= 0) for (const n of draws[i - HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
-    const winSize = Math.min(HOT_W, i + 1);
+    // Update rolling counts with draw[i]
+    for (const n of draws[i].n) if (n>=1 && n<=80) { rollCount[n]++; lastSeen[n] = i; roll10[n]++; }
+    if (i - HOT_W >= 0) for (const n of draws[i-HOT_W].n) if (n>=1 && n<=80) rollCount[n]--;
+    if (i - ROLL10 >= 0) for (const n of draws[i-ROLL10].n) if (n>=1 && n<=80) roll10[n]--;
 
     actualMask.fill(0);
     for (const n of draws[i].n) actualMask[n] = 1;
@@ -796,7 +854,7 @@ function simulateMachineStrategy(N, draws, strategyId) {
       cycleStart = i + 1;
     }
 
-    S = computeSelection(i, winSize);
+    S = computeSelection(i);
   }
 
   return {
@@ -921,7 +979,8 @@ window.addEventListener('load', () => {
         `<strong>${MACHINE_STRATEGIES[simMachineStrategy].label}</strong><br>${MACHINE_STRATEGIES[simMachineStrategy].info}`;
     });
   });
-  document.querySelector(`#machineStrategyPicker .strat-card[data-strat="${simMachineStrategy}"]`).click();
+  const defaultCard = document.querySelector(`#machineStrategyPicker .strat-card[data-strat="${simMachineStrategy}"]`);
+  if (defaultCard) defaultCard.click();
   document.getElementById('simMachineBtn').addEventListener('click', () => {
     simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 2), 12);
     simMachineAutoRun = true;
