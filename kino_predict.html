@@ -221,6 +221,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
         <input type="number" id="simMachineNInput" class="ctrl-input" value="9" min="1" max="12">
       </label>
+      <label class="ctrl-label">Κράτηση επιλογής (Κ κλ.)
+        <select id="simMachineKInput" class="ctrl-input" style="width:64px">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="10">10</option>
+        </select>
+      </label>
       <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
     </div>
     <div id="simMachineResults" style="margin-top:12px"></div>
@@ -311,6 +320,7 @@ let simAutoN    = 9;
 let simAllDraws = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
+let simMachineAutoK   = 1;
 let simMachineStrategy = 'accel';
 let machinePool = new Set(Array.from({length:80}, (_,k) => k+1));
 let globalCoOcc    = null;   // Int32Array(81*81)
@@ -415,7 +425,7 @@ async function checkForNewDraw() {
       renderHistory();
     }
     if (simAutoRun) runSimBacktest(simAutoN);
-    if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
+    if (simMachineAutoRun) runMachineSimBacktest(simMachineAutoN, simMachineStrategy, simMachineAutoK);
     if (globalCoOcc && globalApp) {
       const nums = newDraw.n, L = nums.length;
       for (let k = 0; k < L; k++) globalApp[nums[k]]++;
@@ -910,7 +920,7 @@ async function initCoOccSection() {
   updateCoOccInfo(coOccSelectedN);
 }
 
-function simulateMachineStrategy(N, draws, strategyId, pool) {
+function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
   const T = draws.length;
   const WARMUP = HOT_W;  // 30 draws
   const W15 = 15, W60 = 60;
@@ -1002,6 +1012,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
   const wins = [];
   const actualMask = new Uint8Array(81);
   let S = computeSelection(WARMUP - 1);
+  let holdCount = 0;   // how many draws current S has been played
 
   for (let i = WARMUP; i < T; i++) {
     for (const n of draws[i].n) if (pool.has(n)) {
@@ -1032,9 +1043,15 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
       wins.push({ drawIdx: i, drawId: draws[i].id, cycleLength: i - cycleStart + 1,
         selection: [...S].sort((a,b)=>a-b) });
       cycleStart = i + 1;
+      holdCount = 0;
+      S = computeSelection(i);
+    } else {
+      holdCount++;
+      if (holdCount >= K) {
+        holdCount = 0;
+        S = computeSelection(i);
+      }
     }
-
-    S = computeSelection(i);
   }
 
   return {
@@ -1045,16 +1062,18 @@ function simulateMachineStrategy(N, draws, strategyId, pool) {
   };
 }
 
-function renderMachineSimResults(N, strategyId, result, pool) {
+function renderMachineSimResults(N, strategyId, result, pool, K = 1) {
   const box = document.getElementById('simMachineResults');
   if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα ή το pool είναι πολύ μικρό.</div>'; return; }
 
   const strat = MACHINE_STRATEGIES[strategyId];
   const poolSize = pool ? pool.size : 80;
   const p = probAllNHit(N);
-  const expected = result.totalDraws * p;
+  const expectedPerDraw = result.totalDraws * p;
+  const expectedWithK = K > 1 ? ` · αναμενόμενες με Κ=${K}: ~${(result.totalDraws * (1 - Math.pow(1-p, K)) / K).toFixed(2)}` : '';
   const oneIn = Math.round(1 / p).toLocaleString('el-GR');
   const poolNote = poolSize < 80 ? ` · <span style="color:#9fa8da">pool: ${poolSize} αριθμοί [${[...pool].sort((a,b)=>a-b).slice(0,6).join(',')}${pool.size>6?'…':''}]</span>` : '';
+  const kNote = K > 1 ? ` · <span style="color:#ffcc80">κράτηση Κ=${K} κλ.</span>` : '';
 
   const total = result.wins.length;
   const winsHtml = total
@@ -1068,16 +1087,16 @@ function renderMachineSimResults(N, strategyId, result, pool) {
   box.innerHTML = `
     <div class="calib-box">
       🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}
-      · στρατηγική: <strong>${strat.label}</strong>${poolNote}<br>
-      Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expected.toFixed(2)} αναμενόμενες «φυσικές» επιτυχίες σε αυτό το διάστημα)<br>
-      Πραγματικές επιτυχίες της στρατηγικής (Ν/Ν με επανεκκίνηση μετά από νίκη): <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
-      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κληρώσεις χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
+      · στρατηγική: <strong>${strat.label}</strong>${poolNote}${kNote}<br>
+      Θεωρητική πιθανότητα ανά κλήρωση: <strong>1 στις ${oneIn}</strong> (~${expectedPerDraw.toFixed(2)} αναμενόμενες τυχαίες επιτυχίες${expectedWithK})<br>
+      Πραγματικές επιτυχίες (Ν/Ν · επανεκκίνηση μετά από νίκη ή ${K === 1 ? 'κάθε κλήρωση' : `κάθε ${K} κλ.`}): <strong style="color:${result.wins.length ? '#a5d6a7' : '#ef9a9a'}">${result.wins.length}</strong><br>
+      <span style="color:#4a6a4a;font-size:.72rem">Τρέχων κύκλος: ${result.currentCycleLength.toLocaleString('el-GR')} κλ. χωρίς ${N}/${N} · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]</span>
     </div>
     ${winsHtml}
   `;
 }
 
-async function runMachineSimBacktest(N, strategyId) {
+async function runMachineSimBacktest(N, strategyId, K) {
   const box = document.getElementById('simMachineResults');
   if (machinePool.size < N) {
     box.innerHTML = `<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool έχει ${machinePool.size} αριθμούς — πρέπει να είναι τουλάχιστον Ν=${N}. Πρόσθεσε περισσότερους αριθμούς στο pool.</div>`;
@@ -1086,11 +1105,12 @@ async function runMachineSimBacktest(N, strategyId) {
   const draws = await loadFullHistoryForSim();
   const strat = MACHINE_STRATEGIES[strategyId];
   const poolNote = machinePool.size < 80 ? ` · pool: ${machinePool.size} αριθμοί` : '';
-  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest (${strat.label}${poolNote}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>`;
+  const kNote = K > 1 ? ` · κράτηση Κ=${K}` : '';
+  box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest (${strat.label}${poolNote}${kNote}) πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις... (μπορεί να πάρει λίγα δευτερόλεπτα)</div>`;
   const pool = new Set(machinePool);
   setTimeout(() => {
-    const result = simulateMachineStrategy(N, draws, strategyId, pool);
-    renderMachineSimResults(N, strategyId, result, pool);
+    const result = simulateMachineStrategy(N, draws, strategyId, pool, K);
+    renderMachineSimResults(N, strategyId, result, pool, K);
   }, 50);
 }
 
@@ -1207,9 +1227,10 @@ window.addEventListener('load', () => {
   if (defaultCard) defaultCard.click();
   document.getElementById('simMachineBtn').addEventListener('click', () => {
     simMachineAutoN = Math.min(Math.max(parseInt(document.getElementById('simMachineNInput').value) || 9, 1), 12);
+    simMachineAutoK = Math.max(parseInt(document.getElementById('simMachineKInput').value) || 1, 1);
     simMachineAutoRun = true;
     document.getElementById('simMachineBtn').textContent = '▶ Εκτέλεση Backtest (αυτόματη επανάληψη ενεργή 🔄)';
-    runMachineSimBacktest(simMachineAutoN, simMachineStrategy);
+    runMachineSimBacktest(simMachineAutoN, simMachineStrategy, simMachineAutoK);
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
