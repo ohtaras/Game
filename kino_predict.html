@@ -228,6 +228,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <button class="pool-preset" data-range="clear">✕ Καθαρισμός</button>
         <button class="pool-preset" data-range="lastdraw">↺ Τελευταία Κλήρωση</button>
         <button class="pool-preset" data-range="similar">🧲 Μετά την Πιο Όμοια</button>
+        <button class="pool-preset" data-range="similar3">🧲 Και οι 3 Μαζί</button>
         <span id="poolCount">80 επιλεγμένοι</span>
       </div>
       <div id="poolGrid"></div>
@@ -1742,7 +1743,7 @@ window.addEventListener('load', () => {
   document.querySelectorAll('.pool-preset').forEach(btn => {
     btn.addEventListener('click', async () => {
       const r = btn.dataset.range;
-      if (r === 'similar') {
+      if (r === 'similar' || r === 'similar3') {
         const poolCountEl = document.getElementById('poolCount');
         const infoEl = document.getElementById('similarInfo');
         poolCountEl.textContent = '⏳ Αναζήτηση σε όλο το ιστορικό…';
@@ -1759,11 +1760,19 @@ window.addEventListener('load', () => {
           }
           const similar = bestIdx >= 0 ? draws[bestIdx] : null;
           const next = bestIdx >= 0 ? draws[bestIdx + 1] : null;
-          if (next) next.n.forEach(n => machinePool.add(n));
+          if (r === 'similar3') {
+            if (last) last.n.forEach(n => machinePool.add(n));
+            if (similar) similar.n.forEach(n => machinePool.add(n));
+            if (next) next.n.forEach(n => machinePool.add(n));
+          } else if (next) {
+            next.n.forEach(n => machinePool.add(n));
+          }
           if (similar && next) {
             infoEl.innerHTML = `Τελευταία <b>#${last.id}</b>: [${last.n.join(', ')}]<br>` +
               `Πιο όμοια <b>#${similar.id}</b> (${bestOverlap}/20 κοινοί): [${similar.n.join(', ')}]<br>` +
-              `Φορτώθηκε η επόμενή της <b>#${next.id}</b>: [${next.n.join(', ')}]`;
+              (r === 'similar3'
+                ? `Φορτώθηκαν και οι 3 κληρώσεις (επόμενη <b>#${next.id}</b>): [${next.n.join(', ')}]`
+                : `Φορτώθηκε η επόμενή της <b>#${next.id}</b>: [${next.n.join(', ')}]`);
           }
         }
         renderPoolGrid();
