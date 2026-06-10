@@ -214,6 +214,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="alltime">📊 Συνολική Συχνότητα</button>
       <button class="strat-card" data-strat="columns">🏛️ Κάθετες Στήλες</button>
       <button class="strat-card" data-strat="hotcolumns">🔥 Ζεστές Κάθετες</button>
+      <button class="strat-card" data-strat="mix">🌈 Μίξη Στρατηγικών</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -899,6 +900,16 @@ const MACHINE_STRATEGIES = {
           'κάθε στήλης</strong> και επιλέγει τους πιο πρόσφατους αριθμούς από τη(ις) στήλη(ες) με τη ' +
           '<strong>μικρότερη μέση καθυστέρηση</strong> — η ιδέα ότι «ολόκληρες στήλες» που είναι «ζεστές» ' +
           'τώρα τείνουν να συνεχίσουν να βγαίνουν.'
+  },
+  mix: {
+    label: '🌈 Μίξη Στρατηγικών',
+    info: 'Συνδυάζει <strong>όλες τις στρατηγικές</strong> (καθυστέρηση, τάση, επιτάχυνση, γίγαντες, ' +
+          'επαναλαμβανόμενοι, σύνολο ιστορικού, βαρύτητα, ρυθμός, κοινότητα, γειτονικοί, ισορροπημένη, ' +
+          'αντι-τυχαίο, αριθμητική πρόοδος, στατική επιλογή, πρώτοι αριθμοί). Για κάθε αριθμό υπολογίζει το ' +
+          '<strong>σκορ κάθε στρατηγικής</strong>, τα κανονικοποιεί και τα αθροίζει σε ένα <strong>συνολικό ' +
+          'μικτό σκορ</strong>. Μετά εξετάζει τον πίνακα <strong>ανά κάθετη στήλη</strong> — υπολογίζει το ' +
+          'μέσο μικτό σκορ κάθε στήλης, ξεκινά από τη(ις) πιο «ζεστή(ές)» στήλη(ες) και επιλέγει μέσα σε ' +
+          'αυτές τους αριθμούς με το υψηλότερο μικτό σκορ.'
   }
 };
 
@@ -1011,9 +1022,9 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
   const totalCount = new Int32Array(81);  // cumulative
   const lastSeen   = new Int32Array(81).fill(-1);
 
-  const isCommunity = strategyId === 'community';
-  const stratCoOcc  = isCommunity ? new Int32Array(81 * 81) : null;
-  const stratApp    = isCommunity ? new Int32Array(81)       : null;
+  const needCoOcc = strategyId === 'community' || strategyId === 'mix';
+  const stratCoOcc  = needCoOcc ? new Int32Array(81 * 81) : null;
+  const stratApp    = needCoOcc ? new Int32Array(81)       : null;
 
   for (let i = 0; i < WARMUP; i++) {
     for (const n of draws[i].n) if (pool.has(n)) {
@@ -1021,7 +1032,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
       if (i >= WARMUP - W15) roll15a[n]++;
       if (i >= WARMUP - W4) roll4[n]++;
     }
-    if (isCommunity) {
+    if (needCoOcc) {
       const nums = draws[i].n, L = nums.length;
       for (let k = 0; k < L; k++) stratApp[nums[k]]++;
       for (let a = 0; a < L; a++) {
@@ -1043,7 +1054,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
 
   // Pre-compute fixed arithmetic sequence for 'arithmetic' strategy
   let arithmeticSeq = null;
-  if (strategyId === 'arithmetic') {
+  if (strategyId === 'arithmetic' || strategyId === 'mix') {
     let bestScore = -1;
     for (let step = 2; step <= 16; step++) {
       for (let start = 1; start <= step; start++) {
@@ -1065,7 +1076,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
 
   // Pre-compute fixed pseudo-random selection for 'static' strategy
   let staticSeq = null;
-  if (strategyId === 'static') {
+  if (strategyId === 'static' || strategyId === 'mix') {
     let seed = 7654321;
     const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
     const arr = [...poolArr];
@@ -1122,6 +1133,84 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
         for (const col of cols) {
           if (picks.length >= N) break;
           const sorted = [...col.members].sort((a,b) => delay(a) - delay(b));
+          for (const n of sorted) {
+            if (picks.length >= N) break;
+            picks.push(n);
+          }
+        }
+        return new Set(picks);
+      }
+      case 'mix': {
+        const lastNums = draws[i].n;
+        const prevSet = new Set(lastNums);
+        // coldest number per decade (for 'balanced' signal)
+        const decades = [[1,10],[11,20],[21,30],[31,40],[41,50],[51,60],[61,70],[71,80]];
+        const coldestInDecade = new Set();
+        for (const [lo, hi] of decades) {
+          let best = -1, bestDelay = -1;
+          for (let n = lo; n <= hi; n++) {
+            if (!pool.has(n)) continue;
+            const d = delay(n);
+            if (d > bestDelay) { bestDelay = d; best = n; }
+          }
+          if (best !== -1) coldestInDecade.add(best);
+        }
+        // raw signal values per number, one array per "sub-strategy"
+        const metrics = poolArr.map(n => {
+          const d = delay(n);
+          const period = totalCount[n] >= 3 ? (i + 1) / totalCount[n] : (i + 1);
+          let community = 0;
+          for (let k = 0; k < lastNums.length; k++) {
+            const dn = lastNums[k], app = stratApp[dn];
+            if (app > 0) community += stratCoOcc[dn * 81 + n] / app;
+          }
+          return {
+            n,
+            delay:      d,
+            trend:      rollCount[n],
+            accel:      roll15a[n] - (rollCount[n] - roll15a[n]),
+            giants:     (roll60[n] - rollCount[n]) - rollCount[n],
+            repeating:  roll4[n],
+            alltime:    totalCount[n],
+            gravity:    d * (totalCount[n] / (i + 1)),
+            rhythm:     -Math.abs(d - period),
+            community,
+            neighbors:  (prevSet.has(n-1) || prevSet.has(n+1)) ? 1 : 0,
+            balanced:   coldestInDecade.has(n) ? 1 : 0,
+            anti:       prevSet.has(n) ? 0 : 1,
+            arithmetic: arithmeticSeq.has(n) ? 1 : 0,
+            static:     staticSeq.has(n) ? 1 : 0,
+            primes:     PRIMES_80.has(n) ? 1 : 0
+          };
+        });
+        // min-max normalize each signal across the pool, then sum into a blended score
+        const keys = ['delay','trend','accel','giants','repeating','alltime','gravity','rhythm',
+                       'community','neighbors','balanced','anti','arithmetic','static','primes'];
+        const blended = new Map();
+        for (const n of poolArr) blended.set(n, 0);
+        for (const key of keys) {
+          let lo = Infinity, hi = -Infinity;
+          for (const m of metrics) { if (m[key] < lo) lo = m[key]; if (m[key] > hi) hi = m[key]; }
+          const range = hi - lo;
+          for (const m of metrics) {
+            const norm = range > 0 ? (m[key] - lo) / range : 0.5;
+            blended.set(m.n, blended.get(m.n) + norm);
+          }
+        }
+        // group into the 10 vertical columns, score each by its average blended value
+        const cols = [];
+        for (let c = 1; c <= 10; c++) {
+          const members = [];
+          for (let n = c; n <= 80; n += 10) if (pool.has(n)) members.push(n);
+          if (!members.length) continue;
+          const score = members.reduce((s,n) => s + blended.get(n), 0) / members.length;
+          cols.push({ members, score });
+        }
+        cols.sort((a,b) => b.score - a.score);
+        const picks = [];
+        for (const col of cols) {
+          if (picks.length >= N) break;
+          const sorted = [...col.members].sort((a,b) => blended.get(b) - blended.get(a));
           for (const n of sorted) {
             if (picks.length >= N) break;
             picks.push(n);
@@ -1223,7 +1312,7 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
     for (const n of draws[i].n) if (pool.has(n)) {
       rollCount[n]++; roll15a[n]++; roll60[n]++; roll4[n]++; totalCount[n]++; lastSeen[n] = i;
     }
-    if (isCommunity) {
+    if (needCoOcc) {
       const nums = draws[i].n, L = nums.length;
       for (let k = 0; k < L; k++) stratApp[nums[k]]++;
       for (let a = 0; a < L; a++) {
