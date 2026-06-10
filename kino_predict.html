@@ -231,6 +231,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <span id="poolCount">80 επιλεγμένοι</span>
       </div>
       <div id="poolGrid"></div>
+      <div id="similarInfo" style="margin-top:6px;font-size:.78rem;color:#999"></div>
     </div>
     <div id="ctrlRow">
       <label class="ctrl-label">Αριθμοί προς κυνήγι (Ν)
@@ -1743,7 +1744,9 @@ window.addEventListener('load', () => {
       const r = btn.dataset.range;
       if (r === 'similar') {
         const poolCountEl = document.getElementById('poolCount');
+        const infoEl = document.getElementById('similarInfo');
         poolCountEl.textContent = '⏳ Αναζήτηση σε όλο το ιστορικό…';
+        infoEl.textContent = '';
         const draws = await loadFullHistoryForSim();
         machinePool.clear();
         const last = draws[draws.length - 1];
@@ -1754,8 +1757,14 @@ window.addEventListener('load', () => {
             const overlap = draws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
             if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
           }
+          const similar = bestIdx >= 0 ? draws[bestIdx] : null;
           const next = bestIdx >= 0 ? draws[bestIdx + 1] : null;
           if (next) next.n.forEach(n => machinePool.add(n));
+          if (similar && next) {
+            infoEl.innerHTML = `Τελευταία <b>#${last.id}</b>: [${last.n.join(', ')}]<br>` +
+              `Πιο όμοια <b>#${similar.id}</b> (${bestOverlap}/20 κοινοί): [${similar.n.join(', ')}]<br>` +
+              `Φορτώθηκε η επόμενή της <b>#${next.id}</b>: [${next.n.join(', ')}]`;
+          }
         }
         renderPoolGrid();
         poolCountEl.textContent = `${machinePool.size} επιλεγμένοι`;
