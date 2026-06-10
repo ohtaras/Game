@@ -243,7 +243,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="simMachineResults" style="margin-top:12px"></div>
     <div id="scanRow" style="margin-top:12px">
-      <button class="btn btn-analyze" id="scanBtn">🔎 Σάρωση Όλων των Στρατηγικών (Ν=2,3,4)</button>
+      <button class="btn btn-analyze" id="scanBtn">🔎 Σάρωση Όλων των Στρατηγικών (Ν=4,5,6)</button>
     </div>
     <div id="scanResults" style="margin-top:12px"></div>
   </section>
@@ -254,6 +254,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       Κάθε φορά που η σάρωση βρίσκει «✅ Σωστό τάιμινγκ», η πρόταση καταγράφεται εδώ. Όταν ο συνδυασμός πετύχει Ν/Ν
       (ή λήξει η αναμονή), ελέγχουμε αν χρειάστηκε λιγότερες κληρώσεις απ' όσες θα περίμενε κανείς θεωρητικά (1/p),
       ώστε να δούμε αν το σήμα τάιμινγκ έχει πραγματική αξία.
+    </div>
+    <div style="margin-bottom:10px">
+      <button class="btn" id="scanLogResetBtn">🗑 Ρίσετ Ημερολογίου</button>
     </div>
     <div id="scanLog"></div>
   </section>
@@ -1546,13 +1549,13 @@ async function loadFullHistoryForSim(statusEl) {
 // ── Strategy scanner & timing calibration ───────────────────────────────────────
 async function runStrategyScan() {
   const box = document.getElementById('scanResults');
-  if (machinePool.size < 2) {
-    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool χρειάζεται τουλάχιστον 2 αριθμούς.</div>';
+  if (machinePool.size < 4) {
+    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool χρειάζεται τουλάχιστον 4 αριθμούς.</div>';
     return;
   }
   const draws = await loadFullHistoryForSim();
   const pool = new Set(machinePool);
-  const Ns = [2, 3, 4];
+  const Ns = [4, 5, 6];
   const strategyIds = Object.keys(MACHINE_STRATEGIES);
   const total = strategyIds.length * Ns.length;
   const candidates = [];
@@ -1583,7 +1586,7 @@ async function runStrategyScan() {
 function renderScanResults(candidates) {
   const box = document.getElementById('scanResults');
   if (!candidates.length) {
-    box.innerHTML = '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία στρατηγική (Ν=2,3,4) δεν είναι αυτή τη στιγμή σε «✅ Σωστό τάιμινγκ» με το τρέχον pool.</div>';
+    box.innerHTML = '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία στρατηγική (Ν=4,5,6) δεν είναι αυτή τη στιγμή σε «✅ Σωστό τάιμινγκ» με το τρέχον pool.</div>';
     return;
   }
   box.innerHTML = candidates.map(c => {
@@ -1805,6 +1808,11 @@ window.addEventListener('load', () => {
   renderHistory();
 
   document.getElementById('scanBtn').addEventListener('click', runStrategyScan);
+  document.getElementById('scanLogResetBtn').addEventListener('click', () => {
+    if (!confirm('Σίγουρα θέλεις να διαγράψεις όλο το ημερολόγιο τάιμινγκ;')) return;
+    setScanLog([]);
+    renderScanLog();
+  });
   renderScanLog();
 
   // Lazy load co-occ section
