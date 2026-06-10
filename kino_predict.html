@@ -462,6 +462,16 @@ function schedulePoll() {
 // ── Hot streak ─────────────────────────────────────────────────────────────────
 const HOT_W = 30, HOT_THR = 0.37, COLD_THR = 0.20, HOT_MED = 36, COLD_MED = 145;
 
+// ── Day boundaries ─────────────────────────────────────────────────────────────
+// Kino draws every 5 minutes → 288 draws/day, with a fixed daily ID offset.
+// #1305886 (00:00 χθες) and #1306174 (00:00 σήμερα) are both first-of-day draws,
+// confirming: drawId % DRAWS_PER_DAY === FIRST_DRAW_OF_DAY_OFFSET marks a 00:00 draw.
+const DRAWS_PER_DAY = 288;
+const FIRST_DRAW_OF_DAY_OFFSET = 1305886 % DRAWS_PER_DAY;
+function isFirstDrawOfDay(drawId) {
+  return ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY === FIRST_DRAW_OF_DAY_OFFSET;
+}
+
 function computeHotStates() {
   const T = allDraws.length;
   if (T < HOT_W) return null;
@@ -1546,7 +1556,7 @@ function renderHistory() {
       const cls = 'h-ball' + (isSrch ? ' srch' : isResult ? ' result' : '');
       return `<div class="${cls}" title="${BASE_NUM_TO_CHAR[n]||n}">${n}</div>`;
     }).join('');
-    return `<div class="hist-row"><div class="hist-meta"><b>#${draw.id}</b></div><div class="hist-balls">${balls}</div></div>`;
+    return `<div class="hist-row"><div class="hist-meta"><b>#${draw.id}</b>${isFirstDrawOfDay(draw.id) ? '<span style="color:#ffcc80">🌅 00:00</span>' : ''}</div><div class="hist-balls">${balls}</div></div>`;
   }).join('');
   if (draws.length > 120) list.innerHTML += `<div style="text-align:center;padding:10px;font-size:.75rem;color:#555">… και άλλες ${(draws.length-120).toLocaleString('el-GR')} κληρώσεις</div>`;
 }
