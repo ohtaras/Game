@@ -227,7 +227,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <button class="pool-preset" data-range="even">Ζυγοί</button>
         <button class="pool-preset" data-range="clear">✕ Καθαρισμός</button>
         <button class="pool-preset" data-range="lastdraw">↺ Τελευταία Κλήρωση</button>
-        <button class="pool-preset" data-range="similar">🧲 Πιο Όμοια Κλήρωση</button>
+        <button class="pool-preset" data-range="similar">🧲 Μετά την Πιο Όμοια</button>
         <span id="poolCount">80 επιλεγμένοι</span>
       </div>
       <div id="poolGrid"></div>
@@ -1500,12 +1500,13 @@ window.addEventListener('load', () => {
         const last = allDraws[allDraws.length - 1];
         if (last) {
           const lastSet = new Set(last.n);
-          let best = null, bestOverlap = -1;
+          let bestIdx = -1, bestOverlap = -1;
           for (let i = allDraws.length - 2; i >= 0; i--) {
             const overlap = allDraws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
-            if (overlap > bestOverlap) { bestOverlap = overlap; best = allDraws[i]; }
+            if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
           }
-          if (best) best.n.forEach(n => machinePool.add(n));
+          const next = bestIdx >= 0 ? allDraws[bestIdx + 1] : null;
+          if (next) next.n.forEach(n => machinePool.add(n));
         }
       } else {
         for (let n = 1; n <= 80; n++) {
