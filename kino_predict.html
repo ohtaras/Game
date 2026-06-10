@@ -1359,6 +1359,14 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
   };
 }
 
+function percentile(sortedArr, p) {
+  if (!sortedArr.length) return null;
+  const idx = (sortedArr.length - 1) * p;
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return sortedArr[lo];
+  return sortedArr[lo] + (sortedArr[hi] - sortedArr[lo]) * (idx - lo);
+}
+
 function renderMachineSimResults(N, strategyId, result, pool, K = 1) {
   const box = document.getElementById('simMachineResults');
   if (!result) { box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">Χρειάζονται περισσότερα δεδομένα ή το pool είναι πολύ μικρό.</div>'; return; }
@@ -1381,7 +1389,45 @@ function renderMachineSimResults(N, strategyId, result, pool, K = 1) {
         </div>`).join('')
     : '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία πλήρης επιτυχία Ν/Ν σε όλο το ιστορικό.</div>';
 
+  // Timing analysis: compare current cycle length to the distribution of
+  // cycle lengths that preceded past wins for this strategy/pool/N.
+  let timingHtml = '';
+  const cycleLengths = result.wins.map(w => w.cycleLength).sort((a,b) => a-b);
+  if (cycleLengths.length >= 5) {
+    const lo = percentile(cycleLengths, 0.25);
+    const hi = percentile(cycleLengths, 0.75);
+    const cur = result.currentCycleLength;
+    const loR = Math.round(lo), hiR = Math.round(hi);
+    if (cur >= lo && cur <= hi) {
+      timingHtml = `
+        <div class="calib-box" style="border-color:#a5d6a7;margin-bottom:8px">
+          ✅ <strong style="color:#a5d6a7">Σωστό τάιμινγκ!</strong> Ο τρέχων κύκλος (${cur.toLocaleString('el-GR')} κλ.) είναι μέσα στο εύρος
+          όπου συνήθως «έκλεινε» αυτή η στρατηγική στο παρελθόν (${loR.toLocaleString('el-GR')}–${hiR.toLocaleString('el-GR')} κλ.,
+          βάσει ${cycleLengths.length} επιτυχιών) · τρέχουσα επιλογή: [${result.currentSelection.join(', ')}]
+        </div>`;
+    } else if (cur < lo) {
+      timingHtml = `
+        <div class="calib-box" style="margin-bottom:8px">
+          ⏳ <strong>Νωρίς ακόμα.</strong> Ο τρέχων κύκλος (${cur.toLocaleString('el-GR')} κλ.) είναι κάτω από το συνηθισμένο εύρος
+          «κλεισίματος» (${loR.toLocaleString('el-GR')}–${hiR.toLocaleString('el-GR')} κλ., βάσει ${cycleLengths.length} επιτυχιών).
+        </div>`;
+    } else {
+      timingHtml = `
+        <div class="calib-box" style="border-color:#ffcc80;margin-bottom:8px">
+          ⚠️ <strong style="color:#ffcc80">Καθυστερημένο.</strong> Ο τρέχων κύκλος (${cur.toLocaleString('el-GR')} κλ.) έχει ξεπεράσει
+          το συνηθισμένο εύρος «κλεισίματος» (${loR.toLocaleString('el-GR')}–${hiR.toLocaleString('el-GR')} κλ., βάσει ${cycleLengths.length} επιτυχιών) —
+          μπορεί να «κλείσει» σύντομα ή να είναι σπάνια εξαίρεση.
+        </div>`;
+    }
+  } else {
+    timingHtml = `
+      <div class="calib-box" style="margin-bottom:8px">
+        ℹ️ Πολύ λίγες επιτυχίες (${cycleLengths.length}) για αξιόπιστη ανάλυση τάιμινγκ.
+      </div>`;
+  }
+
   box.innerHTML = `
+    ${timingHtml}
     <div class="calib-box">
       🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}
       · στρατηγική: <strong>${strat.label}</strong>${poolNote}${kNote}<br>
