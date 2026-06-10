@@ -213,6 +213,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="strat-card" data-strat="static">📌 Στατική Επιλογή</button>
       <button class="strat-card" data-strat="alltime">📊 Συνολική Συχνότητα</button>
       <button class="strat-card" data-strat="columns">🏛️ Κάθετες Στήλες</button>
+      <button class="strat-card" data-strat="hotcolumns">🔥 Ζεστές Κάθετες</button>
     </div>
     <div id="machineStrategyInfo" class="calib-box" style="margin-top:8px"></div>
     <div id="poolPanel">
@@ -890,6 +891,14 @@ const MACHINE_STRATEGIES = {
           'Σε κάθε κλήρωση υπολογίζει τη <strong>μέση καθυστέρηση κάθε στήλης</strong> και επιλέγει τους πιο ' +
           'απόντες αριθμούς από τη(ις) στήλη(ες) με τη μεγαλύτερη μέση καθυστέρηση — ' +
           'η ιδέα ότι «ολόκληρες στήλες» μπορεί να είναι «κρύες» μαζί και να διορθωθούν μαζί.'
+  },
+  hotcolumns: {
+    label: '🔥 Ζεστές Κάθετες',
+    info: 'Το αντίστροφο των «Κάθετων Στηλών»: ο πίνακας 1-80 χωρίζεται στις <strong>10 κάθετες στήλες</strong> ' +
+          'των 8 αριθμών (π.χ. στήλη 1: 1,11,21,…,71). Σε κάθε κλήρωση υπολογίζει τη <strong>μέση καθυστέρηση ' +
+          'κάθε στήλης</strong> και επιλέγει τους πιο πρόσφατους αριθμούς από τη(ις) στήλη(ες) με τη ' +
+          '<strong>μικρότερη μέση καθυστέρηση</strong> — η ιδέα ότι «ολόκληρες στήλες» που είναι «ζεστές» ' +
+          'τώρα τείνουν να συνεχίσουν να βγαίνουν.'
   }
 };
 
@@ -1092,6 +1101,27 @@ function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
         for (const col of cols) {
           if (picks.length >= N) break;
           const sorted = [...col.members].sort((a,b) => delay(b) - delay(a));
+          for (const n of sorted) {
+            if (picks.length >= N) break;
+            picks.push(n);
+          }
+        }
+        return new Set(picks);
+      }
+      case 'hotcolumns': {
+        const cols = [];
+        for (let c = 1; c <= 10; c++) {
+          const members = [];
+          for (let n = c; n <= 80; n += 10) if (pool.has(n)) members.push(n);
+          if (!members.length) continue;
+          const score = members.reduce((s,n) => s + delay(n), 0) / members.length;
+          cols.push({ members, score });
+        }
+        cols.sort((a,b) => a.score - b.score);
+        const picks = [];
+        for (const col of cols) {
+          if (picks.length >= N) break;
+          const sorted = [...col.members].sort((a,b) => delay(a) - delay(b));
           for (const n of sorted) {
             if (picks.length >= N) break;
             picks.push(n);
