@@ -1490,24 +1490,32 @@ window.addEventListener('load', () => {
   renderPoolGrid();
 
   document.querySelectorAll('.pool-preset').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const r = btn.dataset.range;
+      if (r === 'similar') {
+        const poolCountEl = document.getElementById('poolCount');
+        poolCountEl.textContent = '⏳ Αναζήτηση σε όλο το ιστορικό…';
+        const draws = await loadFullHistoryForSim();
+        machinePool.clear();
+        const last = draws[draws.length - 1];
+        if (last) {
+          const lastSet = new Set(last.n);
+          let bestIdx = -1, bestOverlap = -1;
+          for (let i = draws.length - 2; i >= 0; i--) {
+            const overlap = draws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
+            if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
+          }
+          const next = bestIdx >= 0 ? draws[bestIdx + 1] : null;
+          if (next) next.n.forEach(n => machinePool.add(n));
+        }
+        renderPoolGrid();
+        poolCountEl.textContent = `${machinePool.size} επιλεγμένοι`;
+        return;
+      }
       machinePool.clear();
       if (r === 'lastdraw') {
         const last = allDraws[allDraws.length - 1];
         if (last) last.n.forEach(n => machinePool.add(n));
-      } else if (r === 'similar') {
-        const last = allDraws[allDraws.length - 1];
-        if (last) {
-          const lastSet = new Set(last.n);
-          let bestIdx = -1, bestOverlap = -1;
-          for (let i = allDraws.length - 2; i >= 0; i--) {
-            const overlap = allDraws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
-            if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
-          }
-          const next = bestIdx >= 0 ? allDraws[bestIdx + 1] : null;
-          if (next) next.n.forEach(n => machinePool.add(n));
-        }
       } else {
         for (let n = 1; n <= 80; n++) {
           if (r === 'all')   machinePool.add(n);
