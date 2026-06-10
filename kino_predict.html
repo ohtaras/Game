@@ -1426,8 +1426,48 @@ function renderMachineSimResults(N, strategyId, result, pool, K = 1) {
       </div>`;
   }
 
+  // Distribution check: real cycle-length distribution vs the theoretical
+  // geometric distribution implied by the per-draw probability p (Galton-board style).
+  let distHtml = '';
+  if (cycleLengths.length >= 10) {
+    const edges = [];
+    for (let k = 1; k <= 9; k++) edges.push(Math.log(1 - k/10) / Math.log(1 - p));
+    const bins = new Array(10).fill(0);
+    for (const cl of cycleLengths) {
+      let bin = 0;
+      while (bin < 9 && cl > edges[bin]) bin++;
+      bins[bin]++;
+    }
+    const totalW = cycleLengths.length;
+    const rows = bins.map((cnt, idx) => {
+      const lo = idx === 0 ? 0 : Math.round(edges[idx-1]);
+      const hi = idx === 9 ? '∞' : Math.round(edges[idx]);
+      const actualPct = cnt / totalW * 100;
+      const barWidth = Math.min(100, actualPct / 20 * 100);
+      const color = actualPct > 15 ? '#ef9a9a' : actualPct < 5 ? '#90caf9' : '#a5d6a7';
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:.7rem;margin-bottom:2px">
+        <span style="width:90px;color:#888">${lo.toLocaleString('el-GR')}–${hi === '∞' ? '∞' : hi.toLocaleString('el-GR')} κλ.</span>
+        <div style="flex:1;background:#0e0e1e;border-radius:3px;height:10px;position:relative">
+          <div style="position:absolute;left:10%;top:0;bottom:0;width:1px;background:#666"></div>
+          <div style="background:${color};height:100%;border-radius:3px;width:${barWidth}%"></div>
+        </div>
+        <span style="width:38px;text-align:right;color:#aaa">${actualPct.toFixed(0)}%</span>
+      </div>`;
+    }).join('');
+    distHtml = `
+      <div class="calib-box" style="margin-bottom:8px">
+        📊 <strong>Κατανομή κύκλων vs θεωρητικό μοντέλο (Galton/γεωμετρική)</strong> — κάθε γραμμή αντιστοιχεί σε ίσο 10% πιθανότητας
+        του θεωρητικού μοντέλου (η γκρι κάθετη γραμμή = 10%). Αν η πραγματική κατανομή (${totalW} νίκες) είναι κοντά στο 10% σε κάθε
+        γραμμή, το παιχνίδι συμπεριφέρεται «καθαρά τυχαία» — σημαντικές αποκλίσεις θα έδειχναν προκατάληψη στο timing.<br>
+        ${rows}
+      </div>`;
+  } else {
+    distHtml = `<div class="calib-box" style="margin-bottom:8px">📊 Χρειάζονται τουλάχιστον 10 ιστορικές νίκες για σύγκριση κατανομής (έχουμε ${cycleLengths.length}).</div>`;
+  }
+
   box.innerHTML = `
     ${timingHtml}
+    ${distHtml}
     <div class="calib-box">
       🤖 <strong>Backtest ολοκληρώθηκε</strong> — ${result.totalDraws.toLocaleString('el-GR')} κληρώσεις, στόχος ${N}/${N}
       · στρατηγική: <strong>${strat.label}</strong>${poolNote}${kNote}<br>
