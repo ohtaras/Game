@@ -242,6 +242,20 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
     </div>
     <div id="simMachineResults" style="margin-top:12px"></div>
+    <div id="scanRow" style="margin-top:12px">
+      <button class="btn btn-analyze" id="scanBtn">🔎 Σάρωση Όλων των Στρατηγικών (Ν=2,3,4)</button>
+    </div>
+    <div id="scanResults" style="margin-top:12px"></div>
+  </section>
+
+  <section id="scanLogSec">
+    <h2>🎯 Ημερολόγιο Τάιμινγκ &amp; Επαλήθευση</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Κάθε φορά που η σάρωση βρίσκει «✅ Σωστό τάιμινγκ», η πρόταση καταγράφεται εδώ. Όταν ο συνδυασμός πετύχει Ν/Ν
+      (ή λήξει η αναμονή), ελέγχουμε αν χρειάστηκε λιγότερες κληρώσεις απ' όσες θα περίμενε κανείς θεωρητικά (1/p),
+      ώστε να δούμε αν το σήμα τάιμινγκ έχει πραγματική αξία.
+    </div>
+    <div id="scanLog"></div>
   </section>
 
   <section id="coOccSec">
@@ -417,6 +431,7 @@ async function checkForNewDraw() {
     for (let n = 1; n <= 80; n++) { if (newDraw.n.includes(n)) delays[n] = 0; else delays[n]++; }
     hotStates = computeHotStates();
     evaluatePendingPredictions(newDraw);
+    evaluateScanLog(newDraw);
     const el = document.getElementById('statusBar');
     el.style.color = '#a5d6a7';
     el.textContent = `🆕 Νέα κλήρωση #${r.drawId} — ${allDraws.length.toLocaleString('el-GR')} κληρώσεις σύνολο`;
@@ -1528,6 +1543,141 @@ async function loadFullHistoryForSim(statusEl) {
   return simAllDraws;
 }
 
+// ── Strategy scanner & timing calibration ───────────────────────────────────────
+async function runStrategyScan() {
+  const box = document.getElementById('scanResults');
+  if (machinePool.size < 2) {
+    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool χρειάζεται τουλάχιστον 2 αριθμούς.</div>';
+    return;
+  }
+  const draws = await loadFullHistoryForSim();
+  const pool = new Set(machinePool);
+  const Ns = [2, 3, 4];
+  const strategyIds = Object.keys(MACHINE_STRATEGIES);
+  const total = strategyIds.length * Ns.length;
+  const candidates = [];
+  let done = 0;
+  for (const strategyId of strategyIds) {
+    for (const N of Ns) {
+      done++;
+      box.innerHTML = `<div style="color:#80cbc4;font-size:.82rem">⏳ Σάρωση ${done}/${total}: ${MACHINE_STRATEGIES[strategyId].label} · Ν=${N}…</div>`;
+      await new Promise(r => setTimeout(r, 0));
+      if (pool.size < N) continue;
+      const result = simulateMachineStrategy(N, draws, strategyId, pool, 1);
+      if (!result) continue;
+      const cycleLengths = result.wins.map(w => w.cycleLength).sort((a,b) => a-b);
+      if (cycleLengths.length < 5) continue;
+      const lo = percentile(cycleLengths, 0.25);
+      const hi = percentile(cycleLengths, 0.75);
+      const cur = result.currentCycleLength;
+      if (cur >= lo && cur <= hi) {
+        candidates.push({ strategyId, N, wins: cycleLengths.length, lo, hi, cur, selection: result.currentSelection, p: probAllNHit(N) });
+      }
+    }
+  }
+  candidates.sort((a,b) => b.wins - a.wins);
+  renderScanResults(candidates);
+  logScanCandidates(candidates);
+}
+
+function renderScanResults(candidates) {
+  const box = document.getElementById('scanResults');
+  if (!candidates.length) {
+    box.innerHTML = '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία στρατηγική (Ν=2,3,4) δεν είναι αυτή τη στιγμή σε «✅ Σωστό τάιμινγκ» με το τρέχον pool.</div>';
+    return;
+  }
+  box.innerHTML = candidates.map(c => {
+    const strat = MACHINE_STRATEGIES[c.strategyId];
+    const oneIn = Math.round(1 / c.p).toLocaleString('el-GR');
+    return `<div class="calib-box" style="border-color:#a5d6a7;margin-bottom:8px">
+      ✅ <strong style="color:#a5d6a7">${strat.label}</strong> · Ν=${c.N} (1 στις ${oneIn})<br>
+      Τρέχων κύκλος ${c.cur.toLocaleString('el-GR')} κλ. εντός ${Math.round(c.lo).toLocaleString('el-GR')}–${Math.round(c.hi).toLocaleString('el-GR')} κλ. (βάσει ${c.wins} νικών)<br>
+      <span style="color:#4a6a4a;font-size:.72rem">Επιλογή: [${c.selection.join(', ')}]</span>
+    </div>`;
+  }).join('');
+}
+
+function getScanLog() { try { return JSON.parse(localStorage.getItem('kino_scan_log') || '[]'); } catch(_) { return []; } }
+function setScanLog(log) { try { localStorage.setItem('kino_scan_log', JSON.stringify(log.slice(-100))); } catch(_) {} }
+
+function logScanCandidates(candidates) {
+  const lastDraw = allDraws[allDraws.length - 1];
+  if (!lastDraw) return;
+  const log = getScanLog();
+  for (const c of candidates) {
+    const dup = log.some(e => e.evaluatedDrawId === null && e.strategyId === c.strategyId && e.N === c.N &&
+      e.selection.length === c.selection.length && e.selection.every((n,i) => n === c.selection[i]));
+    if (dup) continue;
+    log.push({
+      ts: Date.now(), afterDrawId: lastDraw.id, strategyId: c.strategyId, N: c.N,
+      selection: c.selection, oneIn: Math.round(1 / c.p),
+      evaluatedDrawId: null, hit: null, drawsToHit: null
+    });
+  }
+  setScanLog(log);
+  renderScanLog();
+}
+
+function evaluateScanLog(draw) {
+  const log = getScanLog();
+  let changed = false;
+  const drawSet = new Set(draw.n);
+  for (const e of log) {
+    if (e.evaluatedDrawId !== null) continue;
+    const waited = draw.id - e.afterDrawId;
+    if (e.selection.every(n => drawSet.has(n))) {
+      e.evaluatedDrawId = draw.id; e.hit = true; e.drawsToHit = waited; changed = true;
+    } else if (waited >= e.oneIn * 3) {
+      e.evaluatedDrawId = draw.id; e.hit = false; e.drawsToHit = waited; changed = true;
+    }
+  }
+  if (changed) { setScanLog(log); renderScanLog(); }
+}
+
+function renderScanLog() {
+  const el = document.getElementById('scanLog');
+  if (!el) return;
+  const log = getScanLog().slice().reverse();
+  if (!log.length) { el.innerHTML = '<div style="color:#555;font-size:.82rem">Δεν έχει γίνει ακόμα σάρωση. Πάτα «🔎 Σάρωση» στο Machine Backtest.</div>'; return; }
+
+  const hits = log.filter(e => e.hit === true);
+  let calibHtml = '';
+  if (hits.length >= 3) {
+    const ratios = hits.map(e => e.drawsToHit / e.oneIn);
+    const avgRatio = ratios.reduce((a,b)=>a+b,0) / ratios.length;
+    const verdict = avgRatio < 0.9 ? 'πέτυχε κατά μέσο όρο πιο γρήγορα από το θεωρητικά αναμενόμενο — θετικό σήμα.'
+      : avgRatio > 1.1 ? 'πέτυχε κατά μέσο όρο πιο αργά από το θεωρητικά αναμενόμενο — αρνητικό σήμα.'
+      : 'περίπου όσο αναμενόταν θεωρητικά — δεν φαίνεται να έχει αξία (καθαρά τυχαίο).';
+    calibHtml = `<div class="calib-box">🎯 <strong>Επαλήθευση τάιμινγκ</strong> — ${hits.length} αξιολογημένες προτάσεις<br>
+      Μέσος λόγος (κληρώσεις-μέχρι-έκβαση) / (θεωρητικό 1/p): <strong>${avgRatio.toFixed(2)}</strong><br>
+      <span style="color:#4a6a4a;font-size:.72rem">${verdict}</span></div>`;
+  }
+
+  const rows = log.slice(0, 30).map(e => {
+    const strat = MACHINE_STRATEGIES[e.strategyId];
+    if (e.evaluatedDrawId === null) {
+      const lastDraw = allDraws[allDraws.length - 1];
+      const waited = lastDraw ? lastDraw.id - e.afterDrawId : 0;
+      return `<div class="pl-row pl-pending">
+        <div class="pl-meta">${fmtTs(e.ts)} · ${strat?.label || e.strategyId} · Ν=${e.N} · μετά κλ.#${e.afterDrawId}</div>
+        <div style="color:#666;font-size:.78rem;margin-bottom:4px">⏳ Σε αναμονή… ${waited.toLocaleString('el-GR')} κλ. (θεωρητικά 1 στις ${e.oneIn.toLocaleString('el-GR')})</div>
+        <div class="pl-nums">${e.selection.map(n=>`<span class="pl-pending-n">${n}</span>`).join('')}</div>
+      </div>`;
+    }
+    const cls = e.hit ? 'pl-row pl-good' : 'pl-row';
+    const badge = e.hit
+      ? `✓ ${e.drawsToHit.toLocaleString('el-GR')} κλ. (${(e.drawsToHit / e.oneIn).toFixed(2)}×)`
+      : `⏱ έληξε στις ${e.drawsToHit.toLocaleString('el-GR')} κλ.`;
+    return `<div class="${cls}">
+      <div class="pl-meta">${fmtTs(e.ts)} · ${strat?.label || e.strategyId} · Ν=${e.N} · μετά κλ.#${e.afterDrawId} · αξ.#${e.evaluatedDrawId}</div>
+      <span class="eval-badge ${e.hit ? 'good' : 'miss'}">${badge}</span>
+      <div class="pl-nums" style="margin-top:6px">${e.selection.map(n=>`<span class="pl-hit">${n}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = calibHtml + rows;
+}
+
 async function runSimBacktest(N) {
   const box = document.getElementById('simResults');
   const draws = await loadFullHistoryForSim();
@@ -1653,6 +1803,9 @@ window.addEventListener('load', () => {
   });
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
+
+  document.getElementById('scanBtn').addEventListener('click', runStrategyScan);
+  renderScanLog();
 
   // Lazy load co-occ section
   const coOccSec = document.getElementById('coOccSec');
