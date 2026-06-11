@@ -244,8 +244,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn btn-analyze" id="simMachineBtn">▶ Εκτέλεση Backtest</button>
     </div>
     <div id="simMachineResults" style="margin-top:12px"></div>
-    <div id="scanRow" style="margin-top:12px">
+    <div id="scanRow" style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <button class="btn btn-analyze" id="scanBtn">🔎 Σάρωση Όλων των Στρατηγικών (Ν=4,5,6)</button>
+      <button class="btn btn-analyze" id="scanCustomBtn">🔎 Σάρωση Όλων των Στρατηγικών (Ν=x)</button>
+      <input type="number" id="scanCustomNInput" class="ctrl-input" value="7" min="1" max="20" style="width:60px">
     </div>
     <div id="scanResults" style="margin-top:12px"></div>
   </section>
@@ -1549,15 +1551,15 @@ async function loadFullHistoryForSim(statusEl) {
 }
 
 // ── Strategy scanner & timing calibration ───────────────────────────────────────
-async function runStrategyScan() {
+async function runStrategyScan(Ns = [4, 5, 6]) {
   const box = document.getElementById('scanResults');
-  if (machinePool.size < 4) {
-    box.innerHTML = '<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool χρειάζεται τουλάχιστον 4 αριθμούς.</div>';
+  const minN = Math.min(...Ns);
+  if (machinePool.size < minN) {
+    box.innerHTML = `<div style="color:#ef9a9a;font-size:.82rem">⚠️ Το pool χρειάζεται τουλάχιστον ${minN} αριθμούς.</div>`;
     return;
   }
   const draws = await loadFullHistoryForSim();
   const pool = new Set(machinePool);
-  const Ns = [4, 5, 6];
   const strategyIds = Object.keys(MACHINE_STRATEGIES);
   const total = strategyIds.length * Ns.length;
   const candidates = [];
@@ -1581,14 +1583,14 @@ async function runStrategyScan() {
     }
   }
   candidates.sort((a,b) => b.wins - a.wins);
-  renderScanResults(candidates);
+  renderScanResults(candidates, Ns);
   logScanCandidates(candidates);
 }
 
-function renderScanResults(candidates) {
+function renderScanResults(candidates, Ns = [4, 5, 6]) {
   const box = document.getElementById('scanResults');
   if (!candidates.length) {
-    box.innerHTML = '<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία στρατηγική (Ν=4,5,6) δεν είναι αυτή τη στιγμή σε «✅ Σωστό τάιμινγκ» με το τρέχον pool.</div>';
+    box.innerHTML = `<div style="color:#555;font-size:.82rem;padding:8px 0">Καμία στρατηγική (Ν=${Ns.join(',')}) δεν είναι αυτή τη στιγμή σε «✅ Σωστό τάιμινγκ» με το τρέχον pool.</div>`;
     return;
   }
   box.innerHTML = candidates.map(c => {
@@ -1825,7 +1827,11 @@ window.addEventListener('load', () => {
   document.getElementById('histSearch').addEventListener('input', renderHistory);
   renderHistory();
 
-  document.getElementById('scanBtn').addEventListener('click', runStrategyScan);
+  document.getElementById('scanBtn').addEventListener('click', () => runStrategyScan([4, 5, 6]));
+  document.getElementById('scanCustomBtn').addEventListener('click', () => {
+    const N = Math.min(Math.max(parseInt(document.getElementById('scanCustomNInput').value) || 7, 1), 20);
+    runStrategyScan([N]);
+  });
   document.getElementById('scanLogResetBtn').addEventListener('click', () => {
     if (!confirm('Σίγουρα θέλεις να διαγράψεις όλο το ημερολόγιο τάιμινγκ;')) return;
     setScanLog([]);
