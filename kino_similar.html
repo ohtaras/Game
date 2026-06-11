@@ -141,6 +141,11 @@ function findSimilarNext(draws, idx) {
   return { similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
 }
 
+function commonNumbers(a, b, c) {
+  const setB = new Set(b), setC = new Set(c);
+  return a.filter(n => setB.has(n) && setC.has(n));
+}
+
 (async () => {
   let draws = await loadFullHistory();
   if (!draws.length) {
@@ -158,22 +163,32 @@ function findSimilarNext(draws, idx) {
     const next = sn?.next || null;
     const bestOverlap = sn?.overlap ?? 0;
 
+    const predicted = (similar && next) ? commonNumbers(last.n, similar.n, next.n) : [];
+
     const boards = document.getElementById('boards');
     boards.innerHTML =
       renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
       (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar) : '') +
-      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '');
+      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '') +
+      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (κοινοί και των 3)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }) : '');
 
-    // Evaluation: compare the actual current draw with the "next of similar"
-    // that would have been predicted from the previous draw.
+    // Evaluation: compare the actual current draw with the 3-way "common numbers"
+    // prediction that would have been made from the previous draw.
     const evalEl = document.getElementById('evalBox');
     if (idx > 0) {
       const prevSn = findSimilarNext(draws, idx - 1);
       if (prevSn) {
         const actualSet = new Set(last.n);
         const matchCount = prevSn.next.n.reduce((s, n) => s + (actualSet.has(n) ? 1 : 0), 0);
-        evalEl.innerHTML = `🎯 Αξιολόγηση: η πρόβλεψη για την #${last.id} (βάσει της προηγούμενης #${draws[idx-1].id}) ήταν η #${prevSn.next.id} —
+        let html = `🎯 Αξιολόγηση: η πρόβλεψη για την #${last.id} (βάσει της προηγούμενης #${draws[idx-1].id}) ήταν η #${prevSn.next.id} —
           <strong>${matchCount}/20 κοινοί</strong> με την πραγματική #${last.id}`;
+
+        const prevPredicted = commonNumbers(draws[idx-1].n, prevSn.similar.n, prevSn.next.n);
+        if (prevPredicted.length) {
+          const predMatch = prevPredicted.filter(n => actualSet.has(n)).length;
+          html += `<br>🔮 Πρόβλεψη (κοινοί και των 3 — [${prevPredicted.join(', ')}]) για την #${last.id}: <strong>${predMatch}/${prevPredicted.length} βγήκαν</strong>`;
+        }
+        evalEl.innerHTML = html;
       } else {
         evalEl.textContent = '';
       }
