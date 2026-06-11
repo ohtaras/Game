@@ -27,6 +27,7 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 #navRow button{padding:9px 16px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;background:#3949ab;color:#fff}
 #navRow button:disabled{background:#2a2a3a;color:#666;cursor:default}
 #navInfo{font-size:.78rem;color:#aaa}
+#evalBox{font-size:.82rem;color:#a5d6a7;padding:0 14px 10px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -44,6 +45,8 @@ main{max-width:1900px;margin:0 auto;padding:14px}
   <button id="navFwdBtn">Επόμενη ▶</button>
   <button id="navLastBtn">Τελευταία ⏭</button>
 </div>
+
+<div id="evalBox"></div>
 
 <main>
   <div id="boards"></div>
@@ -127,6 +130,17 @@ function renderBoard(title, sub, draw) {
   </div>`;
 }
 
+function findSimilarNext(draws, idx) {
+  const set = new Set(draws[idx].n);
+  let bestIdx = -1, bestOverlap = -1;
+  for (let i = idx - 1; i >= 0; i--) {
+    const overlap = draws[i].n.reduce((s, n) => s + (set.has(n) ? 1 : 0), 0);
+    if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
+  }
+  if (bestIdx < 0 || bestIdx + 1 >= draws.length) return null;
+  return { similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
+}
+
 (async () => {
   let draws = await loadFullHistory();
   if (!draws.length) {
@@ -139,20 +153,33 @@ function renderBoard(title, sub, draw) {
   function render() {
     const idx = viewIdx === -1 ? draws.length - 1 : viewIdx;
     const last = draws[idx];
-    const lastSet = new Set(last.n);
-    let bestIdx = -1, bestOverlap = -1;
-    for (let i = idx - 1; i >= 0; i--) {
-      const overlap = draws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
-      if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
-    }
-    const similar = bestIdx >= 0 ? draws[bestIdx] : null;
-    const next = bestIdx >= 0 ? draws[bestIdx + 1] : null;
+    const sn = findSimilarNext(draws, idx);
+    const similar = sn?.similar || null;
+    const next = sn?.next || null;
+    const bestOverlap = sn?.overlap ?? 0;
 
     const boards = document.getElementById('boards');
     boards.innerHTML =
       renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
       (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar) : '') +
       (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '');
+
+    // Evaluation: compare the actual current draw with the "next of similar"
+    // that would have been predicted from the previous draw.
+    const evalEl = document.getElementById('evalBox');
+    if (idx > 0) {
+      const prevSn = findSimilarNext(draws, idx - 1);
+      if (prevSn) {
+        const actualSet = new Set(last.n);
+        const matchCount = prevSn.next.n.reduce((s, n) => s + (actualSet.has(n) ? 1 : 0), 0);
+        evalEl.innerHTML = `🎯 Αξιολόγηση: η πρόβλεψη για την #${last.id} (βάσει της προηγούμενης #${draws[idx-1].id}) ήταν η #${prevSn.next.id} —
+          <strong>${matchCount}/20 κοινοί</strong> με την πραγματική #${last.id}`;
+      } else {
+        evalEl.textContent = '';
+      }
+    } else {
+      evalEl.textContent = '';
+    }
 
     document.getElementById('navInfo').textContent =
       `${idx + 1}/${draws.length}${viewIdx === -1 ? ' · ● ΖΩΝΤΑΝΑ (τελευταία)' : ''}`;
