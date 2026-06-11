@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧲 Μετά την Πιο Όμοια — KINO</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a14;color:#e8e8e8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+a{color:#64b5f6;text-decoration:none}
+header{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid #1c1c2e;flex-wrap:wrap}
+header h1{font-size:1.15rem;flex:1}
+.nav-link{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+.nav-link:hover{background:#2a2a4a}
+main{max-width:1100px;margin:0 auto;padding:14px}
+#statusBar{padding:8px 14px;font-size:.8rem;color:#999;border-bottom:1px solid #1c1c2e}
+.board-wrap{margin-bottom:24px}
+.board-title{font-size:.95rem;font-weight:700;margin-bottom:4px}
+.board-sub{font-size:.78rem;color:#999;margin-bottom:10px}
+.board-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+@media(max-width:600px){.board-grid{grid-template-columns:repeat(5,1fr)}}
+.board-cell{border-radius:7px;padding:10px 2px;text-align:center;font-size:.85rem;font-weight:700;background:#1e2535;border:2px solid #263040;color:#445;user-select:none}
+.board-cell.on{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
+.board-cell.bonus{background:#3a1e0d;border-color:#ff9800;color:#ffcc80}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧲 Μετά την Πιο Όμοια — Και οι 3 Μαζί</h1>
+  <a href="kino_predict.html" class="nav-link">← Πρόβλεψη</a>
+</header>
+
+<div id="statusBar">⏳ Φόρτωση ιστορικού…</div>
+
+<main id="boards"></main>
+
+<script>
+'use strict';
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const pad = n => String(n).padStart(2,'0');
+
+function ghHeaders() {
+  const t = localStorage.getItem('gh_token');
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+async function ghGet(path) {
+  const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+  try { const r = await fetch(raw, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
+  const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
+  try {
+    const r = await fetch(url, { headers: ghHeaders(), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!r.ok) return null;
+    const meta = await r.json();
+    if ((!meta.content || meta.content === '') && meta.download_url) {
+      const dr = await fetch(meta.download_url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!meta.content) return null;
+    return JSON.parse(atob(meta.content.replace(/\n/g, '')));
+  } catch(_) { return null; }
+}
+
+async function loadFullHistory() {
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}_${pad(d.getMonth() + 1)}`);
+  }
+  const draws = [];
+  for (const ym of months.reverse()) {
+    document.getElementById('statusBar').textContent = `⏳ Φόρτωση ιστορικού: ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (data?.draws) draws.push(...data.draws);
+  }
+  draws.sort((a, b) => a.id - b.id);
+  return draws;
+}
+
+function renderBoard(title, sub, draw) {
+  const set = new Set(draw.n);
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    let cls = 'board-cell';
+    if (set.has(n)) cls += ' on';
+    if (draw.b === n) cls += ' bonus';
+    cells.push(`<div class="${cls}">${n}</div>`);
+  }
+  return `<div class="board-wrap">
+    <div class="board-title">${title}</div>
+    <div class="board-sub">${sub}</div>
+    <div class="board-grid">${cells.join('')}</div>
+  </div>`;
+}
+
+(async () => {
+  const draws = await loadFullHistory();
+  document.getElementById('statusBar').textContent = `✓ ${draws.length.toLocaleString('el-GR')} κληρώσεις φορτώθηκαν`;
+
+  const last = draws[draws.length - 1];
+  if (!last) {
+    document.getElementById('boards').innerHTML = '<div style="color:#ef9a9a">Δεν βρέθηκαν δεδομένα.</div>';
+    return;
+  }
+
+  const lastSet = new Set(last.n);
+  let bestIdx = -1, bestOverlap = -1;
+  for (let i = draws.length - 2; i >= 0; i--) {
+    const overlap = draws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
+    if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
+  }
+  const similar = bestIdx >= 0 ? draws[bestIdx] : null;
+  const next = bestIdx >= 0 ? draws[bestIdx + 1] : null;
+
+  const boards = document.getElementById('boards');
+  boards.innerHTML =
+    renderBoard(`Τελευταία κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
+    (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί με την τελευταία — [${similar.n.join(', ')}]`, similar) : '') +
+    (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '');
+})();
+</script>
+</body>
+</html>
