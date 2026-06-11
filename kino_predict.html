@@ -40,6 +40,23 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .sel-cell.cell-cold .sel-n{color:#90caf9}
 .sel-cell.cell-cold .sel-d{color:#5c9bd4}
 
+/* ── Delay shift table ── */
+#dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
+#dsGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+@media(max-width:600px){#dsGrid{grid-template-columns:repeat(5,1fr)}}
+.ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none}
+.ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
+.ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
+.ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
+.ds-12 {background:#0d2240;border:2px solid #2c5a8a;color:#90caf9}
+.ds-35 {background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
+.ds-69 {background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
+.ds-10p{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
+#dsLegend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
+.ds-legend-item{display:flex;align-items:center;gap:5px}
+.ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
+
 /* ── Hot panel ── */
 #hotPanel{padding:8px 12px;background:#0a100a;border-radius:8px;border:1px solid #1a2a1a;font-size:.78rem;min-height:32px;margin-bottom:12px}
 .hp-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -171,6 +188,26 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn btn-analyze" id="analyzeBtn">🎯 Αυτόματη Πρόβλεψη</button>
     </div>
     <div id="resultsBox"></div>
+  </section>
+
+  <section id="delayShiftSec">
+    <h2>🕰 Χρονικό Ταξίδι Καθυστερήσεων</h2>
+    <div id="dsControls">
+      <button class="btn" id="dsBackDayBtn">⏮ -1 ημ. (00:00)</button>
+      <button class="btn" id="dsBackBtn">◀ Προηγούμενη</button>
+      <span id="dsInfo">—</span>
+      <button class="btn" id="dsFwdBtn">Επόμενη ▶</button>
+      <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
+      <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
+    </div>
+    <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="dsLegend">
+      <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+    </div>
   </section>
 
   <section>
@@ -492,6 +529,70 @@ const DRAWS_PER_DAY = 288;
 const FIRST_DRAW_OF_DAY_OFFSET = 1305886 % DRAWS_PER_DAY;
 function isFirstDrawOfDay(drawId) {
   return ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY === FIRST_DRAW_OF_DAY_OFFSET;
+}
+
+function timeOfDay(drawId) {
+  const slot = ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+  const mins = slot * 5;
+  return `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+}
+
+// ── Delay shift table ─────────────────────────────────────────────────────
+let dsDraws = null;
+let dsIdx = -1;
+
+function computeDelaysAtIndex(draws, idx) {
+  const delays = new Array(81).fill(null);
+  let remaining = 80;
+  for (let i = idx; i >= 0 && remaining > 0; i--) {
+    for (const n of draws[i].n) {
+      if (n >= 1 && n <= 80 && delays[n] === null) { delays[n] = idx - i; remaining--; }
+    }
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
+  return delays;
+}
+
+function delayBucketClass(d) {
+  if (d === 0) return 'ds-0';
+  if (d <= 2) return 'ds-12';
+  if (d <= 5) return 'ds-35';
+  if (d <= 9) return 'ds-69';
+  return 'ds-10p';
+}
+
+function renderDelayShift() {
+  const grid = document.getElementById('dsGrid');
+  const info = document.getElementById('dsInfo');
+  if (!dsDraws || dsIdx < 0) return;
+  const draw = dsDraws[dsIdx];
+  const delays = computeDelaysAtIndex(dsDraws, dsIdx);
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}"><span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+  }
+  grid.innerHTML = cells.join('');
+  const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
+  info.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} (${dsIdx + 1}/${dsDraws.length})`;
+}
+
+function dsStep(delta) {
+  if (!dsDraws) return;
+  dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
+  renderDelayShift();
+}
+
+function dsJumpToFirstOfDay(direction) {
+  if (!dsDraws) return;
+  for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); return; }
+  }
+}
+
+async function initDelayShift() {
+  dsDraws = await loadFullHistoryForSim(document.getElementById('dsGrid'));
+  dsIdx = dsDraws.length - 1;
+  renderDelayShift();
 }
 
 function computeHotStates() {
@@ -1847,6 +1948,14 @@ window.addEventListener('load', () => {
     }, { threshold: 0.1 });
     obs.observe(coOccSec);
   }
+
+  // Delay shift table
+  initDelayShift();
+  document.getElementById('dsBackBtn').addEventListener('click', () => dsStep(-1));
+  document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
+  document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
+  document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
+  document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderDelayShift(); } });
   // Click delegation for co-occ grid
   document.getElementById('coOccGrid').addEventListener('click', e => {
     const cell = e.target.closest('[data-n]');
