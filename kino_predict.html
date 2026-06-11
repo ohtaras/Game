@@ -532,7 +532,7 @@ function isFirstDrawOfDay(drawId) {
 }
 
 function timeOfDay(drawId) {
-  const slot = ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+  const slot = ((drawId - FIRST_DRAW_OF_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
   const mins = slot * 5;
   return `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
 }
