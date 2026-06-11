@@ -23,6 +23,10 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 .board-cell{border-radius:7px;padding:10px 2px;text-align:center;font-size:.85rem;font-weight:700;background:#1e2535;border:2px solid #263040;color:#445;user-select:none}
 .board-cell.on{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
 .board-cell.bonus{background:#3a1e0d;border-color:#ff9800;color:#ffcc80}
+#navRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px}
+#navRow button{padding:9px 16px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;background:#3949ab;color:#fff}
+#navRow button:disabled{background:#2a2a3a;color:#666;cursor:default}
+#navInfo{font-size:.78rem;color:#aaa}
 </style>
 </head>
 <body>
@@ -33,6 +37,13 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 </header>
 
 <div id="statusBar">⏳ Φόρτωση ιστορικού…</div>
+
+<div id="navRow">
+  <button id="navBackBtn">◀ Προηγούμενη</button>
+  <span id="navInfo">—</span>
+  <button id="navFwdBtn">Επόμενη ▶</button>
+  <button id="navLastBtn">Τελευταία ⏭</button>
+</div>
 
 <main>
   <div id="boards"></div>
@@ -123,11 +134,14 @@ function renderBoard(title, sub, draw) {
     return;
   }
 
+  let viewIdx = -1; // -1 = follow latest
+
   function render() {
-    const last = draws[draws.length - 1];
+    const idx = viewIdx === -1 ? draws.length - 1 : viewIdx;
+    const last = draws[idx];
     const lastSet = new Set(last.n);
     let bestIdx = -1, bestOverlap = -1;
-    for (let i = draws.length - 2; i >= 0; i--) {
+    for (let i = idx - 1; i >= 0; i--) {
       const overlap = draws[i].n.reduce((s, n) => s + (lastSet.has(n) ? 1 : 0), 0);
       if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
     }
@@ -136,9 +150,15 @@ function renderBoard(title, sub, draw) {
 
     const boards = document.getElementById('boards');
     boards.innerHTML =
-      renderBoard(`Τελευταία κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
-      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί με την τελευταία — [${similar.n.join(', ')}]`, similar) : '') +
+      renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
+      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar) : '') +
       (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '');
+
+    document.getElementById('navInfo').textContent =
+      `${idx + 1}/${draws.length}${viewIdx === -1 ? ' · ● ΖΩΝΤΑΝΑ (τελευταία)' : ''}`;
+    document.getElementById('navBackBtn').disabled = idx <= 0;
+    document.getElementById('navFwdBtn').disabled = idx >= draws.length - 1;
+    document.getElementById('navLastBtn').disabled = viewIdx === -1;
   }
 
   function setStatus() {
@@ -159,6 +179,20 @@ function renderBoard(title, sub, draw) {
       render();
     } catch(_) {}
   }
+
+  document.getElementById('navBackBtn').addEventListener('click', () => {
+    const idx = viewIdx === -1 ? draws.length - 1 : viewIdx;
+    if (idx > 0) { viewIdx = idx - 1; render(); }
+  });
+  document.getElementById('navFwdBtn').addEventListener('click', () => {
+    const idx = viewIdx === -1 ? draws.length - 1 : viewIdx;
+    if (idx < draws.length - 1) {
+      viewIdx = idx + 1;
+      if (viewIdx === draws.length - 1) viewIdx = -1;
+      render();
+    }
+  });
+  document.getElementById('navLastBtn').addEventListener('click', () => { viewIdx = -1; render(); });
 
   render();
   setStatus();
