@@ -387,6 +387,7 @@ let pollTimer   = null;
 let simAutoRun  = false;
 let simAutoN    = 9;
 let simAllDraws = null;
+let simAllDrawsFull = null;
 let simMachineAutoRun = false;
 let simMachineAutoN   = 9;
 let simMachineAutoK   = 1;
@@ -616,7 +617,7 @@ function dsJumpToFirstOfDay(direction) {
 }
 
 async function initDelayShift() {
-  dsDraws = await loadFullHistoryForSim(document.getElementById('dsGrid'));
+  dsDraws = await loadFullHistoryForSim(document.getElementById('dsGrid'), { ignoreTimeTravel: true });
   dsIdx = dsDraws.length - 1;
   renderDelayShift();
 }
@@ -1656,8 +1657,13 @@ async function runMachineSimBacktest(N, strategyId, K) {
   }, 50);
 }
 
-async function loadFullHistoryForSim(statusEl) {
-  if (simAllDraws) return simAllDraws;
+async function loadFullHistoryForSim(statusEl, opts = {}) {
+  const ignoreTimeTravel = !!opts.ignoreTimeTravel;
+  if (ignoreTimeTravel) {
+    if (simAllDrawsFull) return simAllDrawsFull;
+  } else if (simAllDraws) {
+    return simAllDraws;
+  }
   const box = statusEl || document.getElementById('simResults');
   const now = new Date();
   const months = [];
@@ -1673,8 +1679,9 @@ async function loadFullHistoryForSim(statusEl) {
     if (data?.draws) { draws.push(...data.draws); loaded++; }
   }
   draws.sort((a, b) => a.id - b.id);
+  simAllDrawsFull = draws;
   simAllDraws = timeTravelId ? draws.filter(d => d.id <= timeTravelId) : draws;
-  return simAllDraws;
+  return ignoreTimeTravel ? simAllDrawsFull : simAllDraws;
 }
 
 // ── Strategy scanner & timing calibration ───────────────────────────────────────
