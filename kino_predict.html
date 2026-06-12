@@ -666,6 +666,24 @@ async function initDelayShift() {
   renderDelayShift();
 }
 
+// Keep the (time-travel-independent) delay-shift tables current by re-reading
+// the latest saved draws from GitHub, regardless of whether the rest of the
+// page's live polling is paused by global time travel.
+async function refreshDsDraws() {
+  if (!dsDraws || !dsDraws.length) return;
+  const last = dsDraws[dsDraws.length - 1];
+  const dt = new Date();
+  const ym = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}`;
+  const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+  if (!data?.draws) return;
+  const existingIds = new Set(dsDraws.map(d => d.id));
+  const newOnes = data.draws.filter(d => !existingIds.has(d.id) && d.id > last.id).sort((a, b) => a.id - b.id);
+  if (!newOnes.length) return;
+  const wasAtLast = dsIdx === dsDraws.length - 1;
+  dsDraws.push(...newOnes);
+  if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
+}
+
 function computeHotStates() {
   const T = allDraws.length;
   if (T < HOT_W) return null;
@@ -2028,6 +2046,7 @@ window.addEventListener('load', () => {
 
   // Delay shift table
   initDelayShift();
+  setInterval(refreshDsDraws, 60000);
   document.getElementById('dsBackBtn').addEventListener('click', () => dsStep(-1));
   document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
   document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
