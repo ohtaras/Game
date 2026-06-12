@@ -23,6 +23,7 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 .board-cell{border-radius:7px;padding:10px 2px;text-align:center;font-size:.85rem;font-weight:700;background:#1e2535;border:2px solid #263040;color:#445;user-select:none}
 .board-cell.on{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
 .board-cell.bonus{background:#3a1e0d;border-color:#ff9800;color:#ffcc80}
+.board-cell .b-f{display:block;font-size:.55rem;opacity:.6}
 .board-cell .b-n{display:block;font-size:.85rem;font-weight:700}
 .board-cell .b-d{display:block;font-size:.62rem;margin-top:1px;opacity:.75}
 #navRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px}
@@ -116,16 +117,17 @@ async function loadFullHistory() {
   return draws;
 }
 
-function renderBoard(title, sub, draw, delays) {
+function renderBoard(title, sub, draw, delays, freqs) {
   const set = new Set(draw.n);
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     let cls = 'board-cell';
     if (set.has(n)) cls += ' on';
     if (draw.b === n) cls += ' bonus';
-    const inner = delays
-      ? `<span class="b-n">${n}</span><span class="b-d">${delays[n]}</span>`
-      : n;
+    let inner = n;
+    if (delays) {
+      inner = `${freqs ? `<span class="b-f">${freqs[n]}</span>` : ''}<span class="b-n">${n}</span><span class="b-d">${delays[n]}</span>`;
+    }
     cells.push(`<div class="${cls}">${inner}</div>`);
   }
   return `<div class="board-wrap">
@@ -145,6 +147,14 @@ function computeDelaysAtIndex(draws, idx) {
   }
   for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
   return delays;
+}
+
+function computeFrequenciesAtIndex(draws, idx) {
+  const freq = new Array(81).fill(0);
+  for (let i = 0; i <= idx; i++) {
+    for (const n of draws[i].n) freq[n]++;
+  }
+  return freq;
 }
 
 function findSimilarNext(draws, idx) {
@@ -194,13 +204,18 @@ function predictFromNext(last, similar, next) {
     const nextDelays = sn ? computeDelaysAtIndex(draws, sn.similarIdx + 1) : null;
     const actualNextDelays = actualNext ? computeDelaysAtIndex(draws, idx + 1) : null;
 
+    const lastFreqs = computeFrequenciesAtIndex(draws, idx);
+    const similarFreqs = sn ? computeFrequenciesAtIndex(draws, sn.similarIdx) : null;
+    const nextFreqs = sn ? computeFrequenciesAtIndex(draws, sn.similarIdx + 1) : null;
+    const actualNextFreqs = actualNext ? computeFrequenciesAtIndex(draws, idx + 1) : null;
+
     const boards = document.getElementById('boards');
     boards.innerHTML =
-      renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last, lastDelays) +
-      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar, similarDelays) : '') +
-      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next, nextDelays) : '') +
-      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }, lastDelays) : '') +
-      (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext, actualNextDelays) : '');
+      renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last, lastDelays, lastFreqs) +
+      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar, similarDelays, similarFreqs) : '') +
+      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next, nextDelays, nextFreqs) : '') +
+      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }, lastDelays, lastFreqs) : '') +
+      (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext, actualNextDelays, actualNextFreqs) : '');
 
     // Evaluation: compare the actual current draw with the 3-way "common numbers"
     // prediction that would have been made from the previous draw.
