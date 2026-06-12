@@ -43,8 +43,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 /* ── Delay shift table ── */
 #dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 #dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
-#dsGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
-@media(max-width:600px){#dsGrid{grid-template-columns:repeat(5,1fr)}}
+#dsGrid,#dsBonusGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+@media(max-width:600px){#dsGrid,#dsBonusGrid{grid-template-columns:repeat(5,1fr)}}
 .ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
@@ -53,7 +53,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-35 {background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
 .ds-69 {background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
 .ds-10p{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
-#dsLegend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
+#dsLegend,.ds-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
 .ds-legend-item{display:flex;align-items:center;gap:5px}
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 
@@ -204,6 +204,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
     <div id="dsLegend">
+      <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+    </div>
+
+    <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
+    <div id="dsBonusInfo" style="font-size:.78rem;color:#999;margin-bottom:6px">—</div>
+    <div id="dsBonusGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="dsBonusLegend" class="ds-legend">
       <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
@@ -593,9 +604,28 @@ function delayBucketClass(d) {
   return 'ds-10p';
 }
 
+function dayStartIndex(draws, idx) {
+  let start = idx;
+  while (start > 0 && !isFirstDrawOfDay(draws[start].id)) start--;
+  return start;
+}
+
+function computeBonusDelaysAtIndex(draws, idx) {
+  const start = dayStartIndex(draws, idx);
+  const delays = new Array(81).fill(null);
+  for (let i = idx; i >= start; i--) {
+    const b = draws[i].b;
+    if (b >= 1 && b <= 80 && delays[b] === null) delays[b] = idx - i;
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx - start + 1;
+  return delays;
+}
+
 function renderDelayShift() {
   const grid = document.getElementById('dsGrid');
   const info = document.getElementById('dsInfo');
+  const bonusGrid = document.getElementById('dsBonusGrid');
+  const bonusInfo = document.getElementById('dsBonusInfo');
   if (!dsDraws || dsIdx < 0) return;
   const draw = dsDraws[dsIdx];
   const delays = computeDelaysAtIndex(dsDraws, dsIdx);
@@ -606,6 +636,15 @@ function renderDelayShift() {
   grid.innerHTML = cells.join('');
   const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
   info.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} (${dsIdx + 1}/${dsDraws.length})`;
+
+  const bonusDelays = computeBonusDelaysAtIndex(dsDraws, dsIdx);
+  const bonusCells = [];
+  for (let n = 1; n <= 80; n++) {
+    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}"><span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
+  }
+  bonusGrid.innerHTML = bonusCells.join('');
+  const drawOfDay = dsIdx - dayStartIndex(dsDraws, dsIdx) + 1;
+  bonusInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — ${drawOfDay}η κλήρωση της ημέρας · 🎁 μπόνους: ${draw.b}`;
 }
 
 function dsStep(delta) {
