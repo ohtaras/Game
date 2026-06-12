@@ -498,6 +498,11 @@ async function checkForNewDraw() {
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     allDraws.push(newDraw);
     if (simAllDraws && simAllDraws[simAllDraws.length - 1]?.id !== newDraw.id) simAllDraws.push(newDraw);
+    if (simAllDrawsFull && simAllDrawsFull[simAllDrawsFull.length - 1]?.id !== newDraw.id) {
+      const wasAtLast = dsDraws === simAllDrawsFull && dsIdx === simAllDrawsFull.length - 1;
+      simAllDrawsFull.push(newDraw);
+      if (wasAtLast) { dsIdx = simAllDrawsFull.length - 1; renderDelayShift(); }
+    }
     lastKnownId = r.drawId;
     for (let n = 1; n <= 80; n++) { if (newDraw.n.includes(n)) delays[n] = 0; else delays[n]++; }
     hotStates = computeHotStates();
