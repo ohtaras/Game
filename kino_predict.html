@@ -430,8 +430,9 @@ function ghHeaders() {
   return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 }
 
-async function ghGet(path) {
-  const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+async function ghGet(path, opts = {}) {
+  const bust = opts.bust ? `?_=${Date.now()}` : '';
+  const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}${bust}`;
   try { const r = await fetch(raw, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
   const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
   try {
@@ -674,7 +675,7 @@ async function refreshDsDraws() {
   const last = dsDraws[dsDraws.length - 1];
   const dt = new Date();
   const ym = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}`;
-  const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+  const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
   if (!data?.draws) return;
   const existingIds = new Set(dsDraws.map(d => d.id));
   const newOnes = data.draws.filter(d => !existingIds.has(d.id) && d.id > last.id).sort((a, b) => a.id - b.id);
