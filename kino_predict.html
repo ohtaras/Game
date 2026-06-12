@@ -43,8 +43,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 /* ── Delay shift table ── */
 #dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 #dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
-#dsGrid,#dsBonusGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
-@media(max-width:600px){#dsGrid,#dsBonusGrid{grid-template-columns:repeat(5,1fr)}}
+#dsGrid,#dsBonusGrid,#dsFreqGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+@media(max-width:600px){#dsGrid,#dsBonusGrid,#dsFreqGrid{grid-template-columns:repeat(5,1fr)}}
 .ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
@@ -53,6 +53,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-35 {background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
 .ds-69 {background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
 .ds-10p{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
+.fr-0  {background:#1e2535;border:2px solid #3a4254;color:#aab}
+.fr-1  {background:#2a3a1a;border:2px solid #5a8a2c;color:#c5e1a5}
+.fr-2  {background:#3a4a14;border:2px solid #8aa81a;color:#dce775}
+.fr-3  {background:#4a3209;border:2px solid #d68a0c;color:#ffb74d}
+.fr-4p {background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
 #dsLegend,.ds-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
 .ds-legend-item{display:flex;align-items:center;gap:5px}
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
@@ -170,6 +175,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <h1>🔮 Πρόβλεψη</h1>
   <a href="kino_live.html" class="nav-link">← Live</a>
   <a href="kino_similar.html" class="nav-link">🧲 Μετά την Πιο Όμοια</a>
+  <a href="#freqShiftBlock" class="nav-link">🌡 Συχνότητα Χ Κληρώσεων</a>
   <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
 </header>
 
@@ -220,6 +226,23 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+    </div>
+
+    <h3 id="freqShiftBlock" style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🌡 Συχνότητα Αριθμών στις Τελευταίες Χ Κληρώσεις</h3>
+    <div id="dsFreqControls" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <label class="ctrl-label">Τελευταίες
+        <input type="number" id="dsFreqXInput" class="ctrl-input" value="6" min="1" max="100" style="width:60px">
+        κληρώσεις
+      </label>
+    </div>
+    <div id="dsFreqInfo" style="font-size:.78rem;color:#999;margin-bottom:6px">—</div>
+    <div id="dsFreqGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="dsFreqLegend" class="ds-legend">
+      <div class="ds-legend-item"><span class="ds-swatch fr-0"></span>καμία</div>
+      <div class="ds-legend-item"><span class="ds-swatch fr-1"></span>1 φορά</div>
+      <div class="ds-legend-item"><span class="ds-swatch fr-2"></span>2 φορές</div>
+      <div class="ds-legend-item"><span class="ds-swatch fr-3"></span>3 φορές</div>
+      <div class="ds-legend-item"><span class="ds-swatch fr-4p"></span>4+ φορές</div>
     </div>
   </section>
 
@@ -617,6 +640,23 @@ function computeBonusDelaysAtIndex(draws, idx) {
   return delays;
 }
 
+function computeFreqInLastX(draws, idx, X) {
+  const freq = new Array(81).fill(0);
+  const start = Math.max(0, idx - X + 1);
+  for (let i = start; i <= idx; i++) {
+    for (const n of draws[i].n) if (n >= 1 && n <= 80) freq[n]++;
+  }
+  return freq;
+}
+
+function freqBucketClass(c) {
+  if (c <= 0) return 'fr-0';
+  if (c === 1) return 'fr-1';
+  if (c === 2) return 'fr-2';
+  if (c === 3) return 'fr-3';
+  return 'fr-4p';
+}
+
 function renderDelayShift() {
   const grid = document.getElementById('dsGrid');
   const info = document.getElementById('dsInfo');
@@ -641,6 +681,18 @@ function renderDelayShift() {
   bonusGrid.innerHTML = bonusCells.join('');
   const drawOfDay = dsIdx - dayStartIndex(dsDraws, dsIdx) + 1;
   bonusInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — ${drawOfDay}η κλήρωση της ημέρας · 🎁 μπόνους: ${draw.b}`;
+
+  const freqGrid = document.getElementById('dsFreqGrid');
+  const freqInfo = document.getElementById('dsFreqInfo');
+  const X = Math.min(Math.max(parseInt(document.getElementById('dsFreqXInput').value) || 6, 1), 100);
+  const freqs = computeFreqInLastX(dsDraws, dsIdx, X);
+  const freqCells = [];
+  for (let n = 1; n <= 80; n++) {
+    freqCells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
+  }
+  freqGrid.innerHTML = freqCells.join('');
+  const usedX = Math.min(X, dsIdx + 1);
+  freqInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — εμφανίσεις στις τελευταίες ${usedX} κληρώσεις`;
 }
 
 function dsStep(delta) {
@@ -2054,6 +2106,7 @@ window.addEventListener('load', () => {
   document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
   document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
   document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderDelayShift(); } });
+  document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderDelayShift(); });
   // Click delegation for co-occ grid
   document.getElementById('coOccGrid').addEventListener('click', e => {
     const cell = e.target.closest('[data-n]');
