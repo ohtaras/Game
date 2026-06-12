@@ -117,6 +117,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <a href="kino_settings.html">Άνοιγμα ρυθμίσεων →</a>
 </div>
 
+<div id="ttBanner" style="display:none;background:#3a2a0d;border-bottom:1px solid #ff9800;color:#ffcc80;padding:8px 14px;font-size:.82rem"></div>
+
 <main>
   <!-- Current Draw -->
   <section id="drawSec">
@@ -854,6 +856,13 @@ function renderPerfectLog() {
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   refreshTokenState();
+
+  const ttId = localStorage.getItem('kino_timetravel_id');
+  if (ttId) {
+    const el = document.getElementById('ttBanner');
+    el.style.display = 'block';
+    el.innerHTML = `🕰 <strong>Χρονικό Ταξίδι ενεργό</strong> (κλήρωση #${ttId}) στις καρτέλες Πρόβλεψη / Μετά την Πιο Όμοια — εδώ η ζωντανή καταγραφή συνεχίζει κανονικά. <a href="kino_settings.html" style="color:#ffcc80;text-decoration:underline">Διαχείριση</a>`;
+  }
 
   document.getElementById('lookupBtn').addEventListener('click', lookupWord);
   document.getElementById('wordInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupWord(); });
