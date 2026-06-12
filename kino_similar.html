@@ -23,6 +23,8 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 .board-cell{border-radius:7px;padding:10px 2px;text-align:center;font-size:.85rem;font-weight:700;background:#1e2535;border:2px solid #263040;color:#445;user-select:none}
 .board-cell.on{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
 .board-cell.bonus{background:#3a1e0d;border-color:#ff9800;color:#ffcc80}
+.board-cell .b-n{display:block;font-size:.85rem;font-weight:700}
+.board-cell .b-d{display:block;font-size:.62rem;margin-top:1px;opacity:.75}
 #navRow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px}
 #navRow button{padding:9px 16px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;background:#3949ab;color:#fff}
 #navRow button:disabled{background:#2a2a3a;color:#666;cursor:default}
@@ -114,20 +116,35 @@ async function loadFullHistory() {
   return draws;
 }
 
-function renderBoard(title, sub, draw) {
+function renderBoard(title, sub, draw, delays) {
   const set = new Set(draw.n);
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     let cls = 'board-cell';
     if (set.has(n)) cls += ' on';
     if (draw.b === n) cls += ' bonus';
-    cells.push(`<div class="${cls}">${n}</div>`);
+    const inner = delays
+      ? `<span class="b-n">${n}</span><span class="b-d">${delays[n]}</span>`
+      : n;
+    cells.push(`<div class="${cls}">${inner}</div>`);
   }
   return `<div class="board-wrap">
     <div class="board-title">${title}</div>
     <div class="board-sub">${sub}</div>
     <div class="board-grid">${cells.join('')}</div>
   </div>`;
+}
+
+function computeDelaysAtIndex(draws, idx) {
+  const delays = new Array(81).fill(null);
+  let remaining = 80;
+  for (let i = idx; i >= 0 && remaining > 0; i--) {
+    for (const n of draws[i].n) {
+      if (n >= 1 && n <= 80 && delays[n] === null) { delays[n] = idx - i; remaining--; }
+    }
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
+  return delays;
 }
 
 function findSimilarNext(draws, idx) {
@@ -138,7 +155,7 @@ function findSimilarNext(draws, idx) {
     if (overlap > bestOverlap) { bestOverlap = overlap; bestIdx = i; }
   }
   if (bestIdx < 0 || bestIdx + 1 >= draws.length) return null;
-  return { similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
+  return { similarIdx: bestIdx, similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
 }
 
 function predictFromNext(last, similar, next) {
@@ -172,13 +189,18 @@ function predictFromNext(last, similar, next) {
       actualNextSub = `${predMatch}/${predicted.length} από την πρόβλεψη — ` + actualNextSub;
     }
 
+    const lastDelays = computeDelaysAtIndex(draws, idx);
+    const similarDelays = sn ? computeDelaysAtIndex(draws, sn.similarIdx) : null;
+    const nextDelays = sn ? computeDelaysAtIndex(draws, sn.similarIdx + 1) : null;
+    const actualNextDelays = actualNext ? computeDelaysAtIndex(draws, idx + 1) : null;
+
     const boards = document.getElementById('boards');
     boards.innerHTML =
-      renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
-      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar) : '') +
-      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '') +
-      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }) : '') +
-      (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext) : '');
+      renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last, lastDelays) +
+      (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar, similarDelays) : '') +
+      (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next, nextDelays) : '') +
+      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }, lastDelays) : '') +
+      (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext, actualNextDelays) : '');
 
     // Evaluation: compare the actual current draw with the 3-way "common numbers"
     // prediction that would have been made from the previous draw.
