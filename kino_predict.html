@@ -510,11 +510,6 @@ async function checkForNewDraw() {
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     allDraws.push(newDraw);
     if (simAllDraws && simAllDraws[simAllDraws.length - 1]?.id !== newDraw.id) simAllDraws.push(newDraw);
-    if (simAllDrawsFull && simAllDrawsFull[simAllDrawsFull.length - 1]?.id !== newDraw.id) {
-      const wasAtLast = dsDraws === simAllDrawsFull && dsIdx === simAllDrawsFull.length - 1;
-      simAllDrawsFull.push(newDraw);
-      if (wasAtLast) { dsIdx = simAllDrawsFull.length - 1; renderDelayShift(); }
-    }
     lastKnownId = r.drawId;
     for (let n = 1; n <= 80; n++) { if (newDraw.n.includes(n)) delays[n] = 0; else delays[n]++; }
     hotStates = computeHotStates();
@@ -665,30 +660,30 @@ async function initDelayShift() {
   dsDraws = await loadFullHistoryForSim(document.getElementById('dsGrid'), { ignoreTimeTravel: true });
   dsIdx = dsDraws.length - 1;
   renderDelayShift();
+  dsCheckForNewDraw();
 }
 
-// Keep the (time-travel-independent) delay-shift tables current by re-reading
-// the latest saved draws from GitHub, regardless of whether the rest of the
-// page's live polling is paused by global time travel.
-async function refreshDsDraws() {
-  if (!dsDraws || !dsDraws.length) return;
-  const last = dsDraws[dsDraws.length - 1];
-  const dt = new Date();
-  const ym = `${dt.getFullYear()}_${pad(dt.getMonth() + 1)}`;
-  const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
-  if (!data?.draws) return;
-  const existingIds = new Set(dsDraws.map(d => d.id));
-  const newOnes = data.draws.filter(d => !existingIds.has(d.id) && d.id > last.id).sort((a, b) => a.id - b.id);
-  if (!newOnes.length) return;
-  const wasAtLast = dsIdx === dsDraws.length - 1;
-  dsDraws.push(...newOnes);
-  if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
+// Keep the (time-travel-independent) delay-shift tables current the same way
+// the rest of the page does: poll OPAP directly for the latest draw, regardless
+// of whether the page's main live polling is paused by global time travel.
+async function dsCheckForNewDraw() {
+  try {
+    if (!dsDraws || !dsDraws.length) return;
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    const last = dsDraws[dsDraws.length - 1];
+    if (!r?.winningNumbers?.list?.length || r.drawId <= last.id) return;
+    const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
+    const wasAtLast = dsIdx === dsDraws.length - 1;
+    dsDraws.push(newDraw);
+    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
+  } catch(e) { console.error('dsCheckForNewDraw:', e); }
 }
 
 let dsRefreshTimer = null;
 function scheduleDsRefresh() {
   clearTimeout(dsRefreshTimer);
-  dsRefreshTimer = setTimeout(() => { refreshDsDraws(); scheduleDsRefresh(); }, msToNext() + 5000);
+  dsRefreshTimer = setTimeout(() => { dsCheckForNewDraw(); scheduleDsRefresh(); }, msToNext() + 5000);
 }
 
 function computeHotStates() {
