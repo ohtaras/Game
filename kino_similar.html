@@ -47,6 +47,7 @@ main{max-width:1900px;margin:0 auto;padding:14px}
   <span id="navInfo">—</span>
   <button id="navFwdBtn">Επόμενη ▶</button>
   <button id="navLastBtn">Τελευταία ⏭</button>
+  <label style="font-size:.78rem;color:#aaa">🔮 Χ αριθμοί: <input id="predXInput" type="number" min="1" max="80" value="20" style="width:56px;padding:4px 6px;border-radius:6px;border:1px solid #3a3a5a;background:#1e1e2e;color:#e8e8e8"></label>
 </div>
 
 <div id="evalBox"></div>
@@ -175,9 +176,23 @@ function findSimilarNext(draws, idx) {
   return { similarIdx: bestIdx, similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
 }
 
-function predictFromNext(last, similar, next) {
-  const setLast = new Set(last), setSimilar = new Set(similar);
-  return next.filter(n => !setLast.has(n) && !setSimilar.has(n));
+function predictByFrequency(freqArrays, x) {
+  const sums = [];
+  for (let n = 1; n <= 80; n++) {
+    sums.push({ n, sum: freqArrays.reduce((s, f) => s + f[n], 0) });
+  }
+  sums.sort((a, b) => b.sum - a.sum || a.n - b.n);
+  return sums.slice(0, x).map(s => s.n).sort((a, b) => a - b);
+}
+
+function predictAtIndex(draws, idx, x) {
+  const sn = findSimilarNext(draws, idx);
+  if (!sn) return { predicted: [], sn: null, lastFreqs: null, similarFreqs: null, nextFreqs: null };
+  const lastFreqs = computeFrequenciesAtIndex(draws, idx);
+  const similarFreqs = computeFrequenciesAtIndex(draws, sn.similarIdx);
+  const nextFreqs = computeFrequenciesAtIndex(draws, sn.similarIdx + 1);
+  const predicted = predictByFrequency([lastFreqs, similarFreqs, nextFreqs], x);
+  return { predicted, sn, lastFreqs, similarFreqs, nextFreqs };
 }
 
 (async () => {
@@ -191,13 +206,15 @@ function predictFromNext(last, similar, next) {
 
   function render() {
     const idx = viewIdx === -1 ? draws.length - 1 : viewIdx;
+    const X = Math.min(80, Math.max(1, parseInt(document.getElementById('predXInput').value, 10) || 20));
     const last = draws[idx];
-    const sn = findSimilarNext(draws, idx);
+    const pr = predictAtIndex(draws, idx, X);
+    const sn = pr.sn;
     const similar = sn?.similar || null;
     const next = sn?.next || null;
     const bestOverlap = sn?.overlap ?? 0;
+    const predicted = pr.predicted;
 
-    const predicted = (similar && next) ? predictFromNext(last.n, similar.n, next.n) : [];
     const actualNext = (idx + 1 < draws.length) ? draws[idx + 1] : null;
     let actualNextSub = actualNext ? `[${actualNext.n.join(', ')}]` : '';
     if (actualNext && predicted.length) {
@@ -211,9 +228,9 @@ function predictFromNext(last, similar, next) {
     const nextDelays = sn ? computeDelaysAtIndex(draws, sn.similarIdx + 1) : null;
     const actualNextDelays = actualNext ? computeDelaysAtIndex(draws, idx + 1) : null;
 
-    const lastFreqs = computeFrequenciesAtIndex(draws, idx);
-    const similarFreqs = sn ? computeFrequenciesAtIndex(draws, sn.similarIdx) : null;
-    const nextFreqs = sn ? computeFrequenciesAtIndex(draws, sn.similarIdx + 1) : null;
+    const lastFreqs = pr.lastFreqs;
+    const similarFreqs = pr.similarFreqs;
+    const nextFreqs = pr.nextFreqs;
     const actualNextFreqs = actualNext ? computeFrequenciesAtIndex(draws, idx + 1) : null;
 
     const boards = document.getElementById('boards');
@@ -221,7 +238,7 @@ function predictFromNext(last, similar, next) {
       renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last, lastDelays, lastFreqs) +
       (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar, similarDelays, similarFreqs) : '') +
       (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next, nextDelays, nextFreqs) : '') +
-      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }, lastDelays, lastFreqs) : '') +
+      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (Top ${X} συχνότητας στους 3 πίνακες)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }, lastDelays, lastFreqs) : '') +
       (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext, actualNextDelays, actualNextFreqs) : '');
 
     // Evaluation: compare the actual current draw with the 3-way "common numbers"
@@ -235,10 +252,10 @@ function predictFromNext(last, similar, next) {
         let html = `🎯 Αξιολόγηση: η πρόβλεψη για την #${last.id} (βάσει της προηγούμενης #${draws[idx-1].id}) ήταν η #${prevSn.next.id} —
           <strong>${matchCount}/20 κοινοί</strong> με την πραγματική #${last.id}`;
 
-        const prevPredicted = predictFromNext(draws[idx-1].n, prevSn.similar.n, prevSn.next.n);
+        const prevPredicted = predictAtIndex(draws, idx - 1, X).predicted;
         if (prevPredicted.length) {
           const predMatch = prevPredicted.filter(n => actualSet.has(n)).length;
-          html += `<br>🔮 Πρόβλεψη (όχι στην κλήρωση & όχι στην όμοια — [${prevPredicted.join(', ')}]) για την #${last.id}: <strong>${predMatch}/${prevPredicted.length} βγήκαν</strong>`;
+          html += `<br>🔮 Πρόβλεψη (Top ${X} συχνότητας — [${prevPredicted.join(', ')}]) για την #${last.id}: <strong>${predMatch}/${prevPredicted.length} βγήκαν</strong>`;
         }
         evalEl.innerHTML = html;
       } else {
@@ -287,6 +304,7 @@ function predictFromNext(last, similar, next) {
     }
   });
   document.getElementById('navLastBtn').addEventListener('click', () => { viewIdx = -1; render(); });
+  document.getElementById('predXInput').addEventListener('input', () => render());
 
   render();
   setStatus();
