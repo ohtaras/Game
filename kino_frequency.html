@@ -51,8 +51,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .pred-ball{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:#1e2535;border:2px solid #3a4254;font-size:.7rem;font-weight:700;color:#dde}
 .pred-ball.hit{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
 .pred-ball.miss{background:#1a0808;border-color:#5a2a2a;color:#998}
-.pred-draw{margin-top:6px;padding-top:6px;border-top:1px dashed #2a2a4a;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.pred-draw-id{font-size:.72rem;color:#888;min-width:78px}
 </style>
 </head>
 <body>
@@ -269,8 +267,8 @@ function evaluatePredictions() {
   let changed = false;
   const drawById = new Map(dsDraws.map(d => [d.id, d]));
   for (const p of predictions) {
-    if (p.evaluated) continue;
     const evalX = p.evalX || 1;
+    if (p.evaluated && (evalX === 1 || p.bestDrawId)) continue;
     const windowDraws = [];
     for (let i = 0; i < evalX; i++) {
       const draw = drawById.get(p.forDrawId + i);
@@ -278,8 +276,13 @@ function evaluatePredictions() {
       windowDraws.push(draw);
     }
     if (windowDraws.length !== evalX) continue;
-    p.hits = p.nums.filter(n => windowDraws.some(d => d.n.includes(n)));
-    p.perDraw = windowDraws.map(d => ({ id: d.id, hits: p.nums.filter(n => d.n.includes(n)) }));
+    let bestDraw = windowDraws[0], bestHits = p.nums.filter(n => bestDraw.n.includes(n));
+    for (const d of windowDraws.slice(1)) {
+      const h = p.nums.filter(n => d.n.includes(n));
+      if (h.length > bestHits.length) { bestDraw = d; bestHits = h; }
+    }
+    p.hits = bestHits;
+    p.bestDrawId = bestDraw.id;
     p.evaluated = true;
     changed = true;
   }
@@ -295,18 +298,13 @@ function renderPredictions() {
     const range = evalX > 1 ? `#${p.forDrawId}–#${p.forDrawId + evalX - 1}` : `#${p.forDrawId}`;
     let statusText = '⏳ Εκκρεμεί';
     let balls = p.nums.map(n => `<span class="pred-ball">${n}</span>`).join('');
-    let perDrawHtml = '';
     if (p.evaluated) {
-      statusText = `✓ ${p.hits.length}/${p.nums.length} σωστά`;
+      statusText = evalX > 1
+        ? `✓ Μέγιστο ${p.hits.length}/${p.nums.length} σωστά (κλήρωση #${p.bestDrawId})`
+        : `✓ ${p.hits.length}/${p.nums.length} σωστά`;
       balls = p.nums.map(n => `<span class="pred-ball ${p.hits.includes(n) ? 'hit' : 'miss'}">${n}</span>`).join('');
-      if (evalX > 1 && p.perDraw) {
-        perDrawHtml = p.perDraw.map(d => {
-          const drawBalls = p.nums.map(n => `<span class="pred-ball ${d.hits.includes(n) ? 'hit' : 'miss'}">${n}</span>`).join('');
-          return `<div class="pred-draw"><span class="pred-draw-id">#${d.id}: ${d.hits.length}/${p.nums.length}</span><div class="pred-balls">${drawBalls}</div></div>`;
-        }).join('');
-      }
     }
-    return `<div class="pred-item"><div class="pred-title">Πρόβλεψη για κλήρωση ${range} — ${statusText}</div><div class="pred-balls">${balls}</div>${perDrawHtml}</div>`;
+    return `<div class="pred-item"><div class="pred-title">Πρόβλεψη για κλήρωση ${range} — ${statusText}</div><div class="pred-balls">${balls}</div></div>`;
   }).join('');
 }
 
