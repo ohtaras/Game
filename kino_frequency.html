@@ -97,6 +97,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="addPredBtn">🎯 Αποθήκευση Πρόβλεψης (<span id="predSelCount">0</span>)</button>
       <button class="btn" id="clearPredBtn">🗑 Καθάρισμα Προβλέψεων</button>
       <label class="ctrl-label"><input type="checkbox" id="autoPredChk"> Αυτόματη αποθήκευση στο "Επόμενη"</label>
+      <label class="ctrl-label">Αξιολόγηση σε
+        <input type="number" id="predEvalXInput" class="ctrl-input" value="1" min="1" max="20" style="width:55px">
+        συνεχόμενες κληρώσεις
+      </label>
     </div>
     <div id="predList"></div>
   </section>
@@ -241,7 +245,8 @@ function toggleSelectNum(n) {
 function addPrediction() {
   if (!selectedNums.size || !dsDraws || dsIdx < 0) return;
   const forDrawId = dsDraws[dsIdx].id + 1;
-  predictions.push({ forDrawId, nums: [...selectedNums].sort((a,b) => a-b), evaluated: false, hits: [] });
+  const evalX = Math.min(Math.max(parseInt(document.getElementById('predEvalXInput').value) || 1, 1), 20);
+  predictions.push({ forDrawId, evalX, nums: [...selectedNums].sort((a,b) => a-b), evaluated: false, hits: [] });
   selectedNums.clear();
   savePredictions();
   renderFreqShift();
@@ -260,11 +265,18 @@ function clearPredictions() {
 function evaluatePredictions() {
   if (!dsDraws || !predictions.length) return;
   let changed = false;
+  const drawById = new Map(dsDraws.map(d => [d.id, d]));
   for (const p of predictions) {
     if (p.evaluated) continue;
-    const draw = dsDraws.find(d => d.id === p.forDrawId);
-    if (!draw) continue;
-    p.hits = p.nums.filter(n => draw.n.includes(n));
+    const evalX = p.evalX || 1;
+    const windowDraws = [];
+    for (let i = 0; i < evalX; i++) {
+      const draw = drawById.get(p.forDrawId + i);
+      if (!draw) { windowDraws.length = 0; break; }
+      windowDraws.push(draw);
+    }
+    if (windowDraws.length !== evalX) continue;
+    p.hits = p.nums.filter(n => windowDraws.some(d => d.n.includes(n)));
     p.evaluated = true;
     changed = true;
   }
@@ -276,13 +288,15 @@ function renderPredictions() {
   if (!predictions.length) { list.innerHTML = ''; return; }
   const sorted = [...predictions].sort((a, b) => b.forDrawId - a.forDrawId);
   list.innerHTML = sorted.map(p => {
+    const evalX = p.evalX || 1;
+    const range = evalX > 1 ? `#${p.forDrawId}–#${p.forDrawId + evalX - 1}` : `#${p.forDrawId}`;
     let statusText = '⏳ Εκκρεμεί';
     let balls = p.nums.map(n => `<span class="pred-ball">${n}</span>`).join('');
     if (p.evaluated) {
       statusText = `✓ ${p.hits.length}/${p.nums.length} σωστά`;
       balls = p.nums.map(n => `<span class="pred-ball ${p.hits.includes(n) ? 'hit' : 'miss'}">${n}</span>`).join('');
     }
-    return `<div class="pred-item"><div class="pred-title">Πρόβλεψη για κλήρωση #${p.forDrawId} — ${statusText}</div><div class="pred-balls">${balls}</div></div>`;
+    return `<div class="pred-item"><div class="pred-title">Πρόβλεψη για κλήρωση ${range} — ${statusText}</div><div class="pred-balls">${balls}</div></div>`;
   }).join('');
 }
 
