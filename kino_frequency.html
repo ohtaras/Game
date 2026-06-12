@@ -96,6 +96,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <span id="predHint">🎯 Κάνε κλικ στους αριθμούς για να τους επιλέξεις ως πρόβλεψη για την επόμενη κλήρωση</span>
       <button class="btn" id="addPredBtn">🎯 Αποθήκευση Πρόβλεψης (<span id="predSelCount">0</span>)</button>
       <button class="btn" id="clearPredBtn">🗑 Καθάρισμα Προβλέψεων</button>
+      <label class="ctrl-label"><input type="checkbox" id="autoPredChk"> Αυτόματη αποθήκευση στο "Επόμενη"</label>
     </div>
     <div id="predList"></div>
   </section>
@@ -287,6 +288,9 @@ function renderPredictions() {
 
 function dsStep(delta) {
   if (!dsDraws) return;
+  if (delta > 0 && selectedNums.size && document.getElementById('autoPredChk').checked) {
+    addPrediction();
+  }
   dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
   renderFreqShift();
   evaluatePredictions();
