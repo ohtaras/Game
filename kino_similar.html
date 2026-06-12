@@ -61,6 +61,11 @@ const REPO        = 'ohtaras/Game';
 const DATA_BRANCH = 'main';
 const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
 const pad = n => String(n).padStart(2,'0');
+const DRAWS_PER_DAY = 288;
+const FIRST_DRAW_OF_DAY_OFFSET = 1305886 % DRAWS_PER_DAY;
+function isFirstDrawOfDay(drawId) {
+  return ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY === FIRST_DRAW_OF_DAY_OFFSET;
+}
 
 async function apiFetch(url) {
   try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
@@ -151,7 +156,9 @@ function computeDelaysAtIndex(draws, idx) {
 
 function computeFrequenciesAtIndex(draws, idx) {
   const freq = new Array(81).fill(0);
-  for (let i = 0; i <= idx; i++) {
+  let start = idx;
+  while (start > 0 && !isFirstDrawOfDay(draws[start].id)) start--;
+  for (let i = start; i <= idx; i++) {
     for (const n of draws[i].n) freq[n]++;
   }
   return freq;
