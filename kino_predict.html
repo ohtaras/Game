@@ -174,6 +174,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 </header>
 
 <div id="statusBar">⏳ Φόρτωση δεδομένων…</div>
+<div id="ttBanner" style="display:none;background:#3a2a0d;border-bottom:1px solid #ff9800;color:#ffcc80;padding:8px 14px;font-size:.82rem"></div>
 
 <main>
   <section>
@@ -396,6 +397,21 @@ let globalApp      = null;   // Int32Array(81)
 let coOccSelectedN = null;
 let coOccBuilt     = false;
 
+// ── Time travel ───────────────────────────────────────────────────────────────
+const TT_KEY = 'kino_timetravel_id';
+function getTimeTravelId() {
+  const v = localStorage.getItem(TT_KEY);
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+const timeTravelId = getTimeTravelId();
+function renderTimeTravelBanner() {
+  const el = document.getElementById('ttBanner');
+  if (!timeTravelId) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = `🕰 <strong>Χρονικό Ταξίδι ενεργό</strong> — βλέπεις την εφαρμογή σαν να είναι μετά την κλήρωση #${timeTravelId}. <a href="kino_settings.html" style="color:#ffcc80;text-decoration:underline">Αλλαγή / Απενεργοποίηση</a>`;
+}
+
 // ── GitHub ─────────────────────────────────────────────────────────────────────
 function ghHeaders() {
   const t = localStorage.getItem('gh_token');
@@ -435,6 +451,8 @@ async function loadData() {
     if (data?.draws) { allDraws.push(...data.draws); loaded++; }
   }
   allDraws.sort((a, b) => a.id - b.id);
+  if (timeTravelId) allDraws = allDraws.filter(d => d.id <= timeTravelId);
+  renderTimeTravelBanner();
 
   const lastSeen = new Array(81).fill(-1);
   for (let i = 0; i < allDraws.length; i++)
@@ -449,17 +467,24 @@ async function loadData() {
   renderSelGrid();
   renderHotPanel();
   renderHistory();
-  checkForNewDraw();
-  schedulePoll();
+  if (!timeTravelId) {
+    checkForNewDraw();
+    schedulePoll();
+  }
   setInterval(updateStatus, 1000);
 }
 
 // ── Live polling ───────────────────────────────────────────────────────────────
 function updateStatus() {
+  const last = allDraws[allDraws.length - 1];
+  if (timeTravelId) {
+    document.getElementById('statusBar').textContent =
+      `✓ ${allDraws.length.toLocaleString('el-GR')} κληρώσεις · τελευταία #${last?.id || '—'} · 🕰 ΧΡΟΝΙΚΟ ΤΑΞΙΔΙ`;
+    return;
+  }
   const secs = Math.round(msToNext() / 1000);
   const mm = String(Math.floor(secs / 60)).padStart(2,'0');
   const ss = String(secs % 60).padStart(2,'0');
-  const last = allDraws[allDraws.length - 1];
   document.getElementById('statusBar').textContent =
     `✓ ${allDraws.length.toLocaleString('el-GR')} κληρώσεις · τελευταία #${last?.id || '—'} · ● ΖΩΝΤΑΝΑ · επόμενος έλεγχος: ${mm}:${ss}`;
 }
@@ -1648,7 +1673,7 @@ async function loadFullHistoryForSim(statusEl) {
     if (data?.draws) { draws.push(...data.draws); loaded++; }
   }
   draws.sort((a, b) => a.id - b.id);
-  simAllDraws = draws;
+  simAllDraws = timeTravelId ? draws.filter(d => d.id <= timeTravelId) : draws;
   return simAllDraws;
 }
 

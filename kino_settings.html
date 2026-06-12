@@ -80,6 +80,20 @@ button{padding:8px 18px;border:none;border-radius:8px;font-size:.85rem;font-weig
   </section>
 
   <section>
+    <h2>🕰 Χρονικό Ταξίδι</h2>
+    <label for="ttInput">Αριθμός κλήρωσης (ID) — η εφαρμογή θα "βλέπει" σαν να βρισκόμαστε ακριβώς μετά από αυτή την κλήρωση, σε όλες τις καρτέλες (Πρόβλεψη, Μετά την Πιο Όμοια)</label>
+    <input type="text" id="ttInput" placeholder="π.χ. 1306700" autocomplete="off" spellcheck="false" inputmode="numeric">
+    <div class="btn-row">
+      <button class="btn-save" onclick="saveTimeTravel()">💾 Ενεργοποίηση</button>
+      <button class="btn-clear" onclick="clearTimeTravel()">🗑 Επιστροφή στο Ζωντανό</button>
+    </div>
+    <div id="ttStatus"></div>
+    <div class="info-box" style="margin-top:12px">
+      <p>Όσο είναι ενεργό, η <strong>Πρόβλεψη</strong> και η <strong>Μετά την Πιο Όμοια</strong> κρύβουν όλες τις κληρώσεις με ID μεγαλύτερο από αυτό που έβαλες, και σταματούν να ελέγχουν για νέες κληρώσεις — σαν να γυρίσαμε πίσω στο χρόνο. Το <strong>Kino Live</strong> δεν επηρεάζεται (συνεχίζει κανονικά τη ζωντανή καταγραφή).</p>
+    </div>
+  </section>
+
+  <section>
     <h2>Πληροφορίες</h2>
     <div class="info-box">
       <p>Το GitHub token χρειάζεται για <strong>αποθήκευση κληρώσεων</strong> στο repository.</p>
@@ -195,8 +209,42 @@ async function checkClaude() {
   }
 }
 
+// ── Time travel ─────────────────────────────────────────────────
+const TT_KEY = 'kino_timetravel_id';
+
+function setTtStatus(msg, type) {
+  const el = document.getElementById('ttStatus');
+  el.textContent = msg;
+  el.className = type;
+}
+
+function saveTimeTravel() {
+  const val = document.getElementById('ttInput').value.trim();
+  const id = parseInt(val, 10);
+  if (!val || !Number.isFinite(id) || id <= 0) {
+    setTtStatus('⚠ Δώσε έγκυρο αριθμό κλήρωσης (ID)', 'err');
+    return;
+  }
+  localStorage.setItem(TT_KEY, String(id));
+  setTtStatus(`✓ Χρονικό ταξίδι ενεργό — η εφαρμογή "βλέπει" σαν να είναι μετά την κλήρωση #${id}`, 'ok');
+}
+
+function clearTimeTravel() {
+  localStorage.removeItem(TT_KEY);
+  document.getElementById('ttInput').value = '';
+  setTtStatus('✓ Επιστροφή στο ζωντανό — η εφαρμογή δείχνει την πραγματική τελευταία κλήρωση', 'info');
+}
+
 // Load saved keys on page open
 window.addEventListener('load', () => {
+  const tt = localStorage.getItem(TT_KEY);
+  if (tt) {
+    document.getElementById('ttInput').value = tt;
+    setTtStatus(`✓ Χρονικό ταξίδι ενεργό — η εφαρμογή "βλέπει" σαν να είναι μετά την κλήρωση #${tt}`, 'ok');
+  }
+  document.getElementById('ttInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveTimeTravel();
+  });
   const saved = localStorage.getItem('gh_token');
   if (saved) {
     document.getElementById('tokenInput').value = saved;

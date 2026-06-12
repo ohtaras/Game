@@ -41,6 +41,7 @@ main{max-width:1900px;margin:0 auto;padding:14px}
 </header>
 
 <div id="statusBar">⏳ Φόρτωση ιστορικού…</div>
+<div id="ttBanner" style="display:none;background:#3a2a0d;border-bottom:1px solid #ff9800;color:#ffcc80;padding:8px 14px;font-size:.82rem"></div>
 
 <div id="navRow">
   <button id="navBackBtn">◀ Προηγούμενη</button>
@@ -176,6 +177,19 @@ function findSimilarNext(draws, idx) {
   return { similarIdx: bestIdx, similar: draws[bestIdx], overlap: bestOverlap, next: draws[bestIdx + 1] };
 }
 
+const TT_KEY = 'kino_timetravel_id';
+function getTimeTravelId() {
+  const v = localStorage.getItem(TT_KEY);
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+function renderTimeTravelBanner(tt) {
+  const el = document.getElementById('ttBanner');
+  if (!tt) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.innerHTML = `🕰 <strong>Χρονικό Ταξίδι ενεργό</strong> — βλέπεις την εφαρμογή σαν να είναι μετά την κλήρωση #${tt}. <a href="kino_settings.html" style="color:#ffcc80;text-decoration:underline">Αλλαγή / Απενεργοποίηση</a>`;
+}
+
 function predictByFrequency(freqArrays, x) {
   const sums = [];
   for (let n = 1; n <= 80; n++) {
@@ -197,6 +211,11 @@ function predictAtIndex(draws, idx, x) {
 
 (async () => {
   let draws = await loadFullHistory();
+
+  const timeTravelId = getTimeTravelId();
+  renderTimeTravelBanner(timeTravelId);
+  if (timeTravelId) draws = draws.filter(d => d.id <= timeTravelId);
+
   if (!draws.length) {
     document.getElementById('boards').innerHTML = '<div style="color:#ef9a9a">Δεν βρέθηκαν δεδομένα.</div>';
     return;
@@ -266,7 +285,7 @@ function predictAtIndex(draws, idx, x) {
     }
 
     document.getElementById('navInfo').textContent =
-      `${idx + 1}/${draws.length}${viewIdx === -1 ? ' · ● ΖΩΝΤΑΝΑ (τελευταία)' : ''}`;
+      `${idx + 1}/${draws.length}${viewIdx === -1 ? (timeTravelId ? ' · 🕰 ΤΕΛΕΥΤΑΙΑ (χρονικό ταξίδι)' : ' · ● ΖΩΝΤΑΝΑ (τελευταία)') : ''}`;
     document.getElementById('navBackBtn').disabled = idx <= 0;
     document.getElementById('navFwdBtn').disabled = idx >= draws.length - 1;
     document.getElementById('navLastBtn').disabled = viewIdx === -1;
@@ -274,6 +293,11 @@ function predictAtIndex(draws, idx, x) {
 
   function setStatus() {
     const last = draws[draws.length - 1];
+    if (timeTravelId) {
+      document.getElementById('statusBar').textContent =
+        `✓ ${draws.length.toLocaleString('el-GR')} κληρώσεις · τελευταία #${last.id} · 🕰 ΧΡΟΝΙΚΟ ΤΑΞΙΔΙ`;
+      return;
+    }
     const sec = Math.round(msToNext() / 1000);
     const mm = pad(Math.floor(sec / 60)), ss = pad(sec % 60);
     document.getElementById('statusBar').textContent =
@@ -308,9 +332,11 @@ function predictAtIndex(draws, idx, x) {
 
   render();
   setStatus();
-  setInterval(setStatus, 1000);
-  setInterval(checkForNewDraw, msToNext() + 5000);
-  setInterval(checkForNewDraw, 30000);
+  if (!timeTravelId) {
+    setInterval(setStatus, 1000);
+    setInterval(checkForNewDraw, msToNext() + 5000);
+    setInterval(checkForNewDraw, 30000);
+  }
 })();
 </script>
 </body>
