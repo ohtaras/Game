@@ -684,6 +684,12 @@ async function refreshDsDraws() {
   if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
 }
 
+let dsRefreshTimer = null;
+function scheduleDsRefresh() {
+  clearTimeout(dsRefreshTimer);
+  dsRefreshTimer = setTimeout(() => { refreshDsDraws(); scheduleDsRefresh(); }, msToNext() + 5000);
+}
+
 function computeHotStates() {
   const T = allDraws.length;
   if (T < HOT_W) return null;
@@ -2046,7 +2052,7 @@ window.addEventListener('load', () => {
 
   // Delay shift table
   initDelayShift();
-  setInterval(refreshDsDraws, 60000);
+  scheduleDsRefresh();
   document.getElementById('dsBackBtn').addEventListener('click', () => dsStep(-1));
   document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
   document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
