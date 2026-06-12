@@ -164,13 +164,21 @@ function predictFromNext(last, similar, next) {
     const bestOverlap = sn?.overlap ?? 0;
 
     const predicted = (similar && next) ? predictFromNext(last.n, similar.n, next.n) : [];
+    const actualNext = (idx + 1 < draws.length) ? draws[idx + 1] : null;
+    let actualNextSub = actualNext ? `[${actualNext.n.join(', ')}]` : '';
+    if (actualNext && predicted.length) {
+      const actualNextSet = new Set(actualNext.n);
+      const predMatch = predicted.filter(n => actualNextSet.has(n)).length;
+      actualNextSub = `${predMatch}/${predicted.length} από την πρόβλεψη — ` + actualNextSub;
+    }
 
     const boards = document.getElementById('boards');
     boards.innerHTML =
       renderBoard(`Κλήρωση #${last.id}`, `[${last.n.join(', ')}]`, last) +
       (similar ? renderBoard(`Πιο όμοια κλήρωση #${similar.id}`, `${bestOverlap}/20 κοινοί αριθμοί — [${similar.n.join(', ')}]`, similar) : '') +
       (next ? renderBoard(`Επόμενη της πιο όμοιας #${next.id}`, `[${next.n.join(', ')}]`, next) : '') +
-      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }) : '');
+      (predicted.length ? renderBoard(`🔮 Πρόβλεψη για την επόμενη (όχι στην κλήρωση & όχι στην όμοια)`, `${predicted.length} αριθμοί — [${predicted.join(', ')}]`, { n: predicted, b: null }) : '') +
+      (actualNext ? renderBoard(`Πραγματική επόμενη κλήρωση #${actualNext.id}`, actualNextSub, actualNext) : '');
 
     // Evaluation: compare the actual current draw with the 3-way "common numbers"
     // prediction that would have been made from the previous draw.
