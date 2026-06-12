@@ -238,12 +238,13 @@ function toggleSelectNum(n) {
 }
 
 function addPrediction() {
-  if (!selectedNums.size || !dsDraws || !dsDraws.length) return;
-  const forDrawId = dsDraws[dsDraws.length - 1].id + 1;
+  if (!selectedNums.size || !dsDraws || dsIdx < 0) return;
+  const forDrawId = dsDraws[dsIdx].id + 1;
   predictions.push({ forDrawId, nums: [...selectedNums].sort((a,b) => a-b), evaluated: false, hits: [] });
   selectedNums.clear();
   savePredictions();
   renderFreqShift();
+  evaluatePredictions();
   renderPredictions();
 }
 
@@ -288,12 +289,13 @@ function dsStep(delta) {
   if (!dsDraws) return;
   dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
   renderFreqShift();
+  evaluatePredictions();
 }
 
 function dsJumpToFirstOfDay(direction) {
   if (!dsDraws) return;
   for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
-    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderFreqShift(); return; }
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderFreqShift(); evaluatePredictions(); return; }
   }
 }
 
