@@ -30,6 +30,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 @media(max-width:600px){#dsFreqGrid{grid-template-columns:repeat(5,1fr)}}
 .ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none;cursor:pointer}
 .ds-cell.selected{box-shadow:0 0 0 3px #ffd54f inset}
+.ds-cell.hidden{background:#000;border-color:#000}
+.ds-cell.hidden .ds-n,.ds-cell.hidden .ds-d{visibility:hidden}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
 .fr-0  {background:#1e2535;border:2px solid #3a4254;color:#aab}
@@ -79,6 +81,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="dsFreqControls">
       <label class="ctrl-label">Τελευταίες
         <input type="number" id="dsFreqXInput" class="ctrl-input" value="6" min="1" max="100" style="width:60px">
+        κληρώσεις
+      </label>
+      <label class="ctrl-label"><input type="checkbox" id="hideDelayChk"> Απόκρυψη αριθμών με καθυστέρηση ≥
+        <input type="number" id="hideDelayXInput" class="ctrl-input" value="10" min="1" max="300" style="width:60px">
         κληρώσεις
       </label>
     </div>
@@ -202,6 +208,18 @@ function computeFreqInLastX(draws, idx, X) {
   return freq;
 }
 
+function computeDelaysAtIndex(draws, idx) {
+  const delays = new Array(81).fill(null);
+  let remaining = 80;
+  for (let i = idx; i >= 0 && remaining > 0; i--) {
+    for (const n of draws[i].n) {
+      if (n >= 1 && n <= 80 && delays[n] === null) { delays[n] = idx - i; remaining--; }
+    }
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
+  return delays;
+}
+
 function freqBucketClass(c) {
   if (c <= 0) return 'fr-0';
   if (c === 1) return 'fr-1';
@@ -221,10 +239,14 @@ function renderFreqShift() {
   const freqInfo = document.getElementById('dsFreqInfo');
   const X = Math.min(Math.max(parseInt(document.getElementById('dsFreqXInput').value) || 6, 1), 100);
   const freqs = computeFreqInLastX(dsDraws, dsIdx, X);
+  const hideDelay = document.getElementById('hideDelayChk').checked;
+  const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
+  const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     const sel = selectedNums.has(n) ? ' selected' : '';
-    cells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}${sel}" data-n="${n}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
+    const hidden = delays && delays[n] >= hideThreshold ? ' hidden' : '';
+    cells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}${sel}${hidden}" data-n="${n}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
   }
   freqGrid.innerHTML = cells.join('');
   const usedX = Math.min(X, dsIdx + 1);
@@ -369,6 +391,8 @@ window.addEventListener('load', async () => {
   document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
   document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderFreqShift(); } });
   document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('dsFreqGrid').addEventListener('click', (e) => {
     const cell = e.target.closest('.ds-cell');
     if (!cell) return;
