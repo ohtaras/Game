@@ -43,6 +43,13 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-legend-item{display:flex;align-items:center;gap:5px}
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 
+/* ── Hot zones ── */
+#hotZoneGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:6px}
+@media(max-width:600px){#hotZoneGrid{grid-template-columns:repeat(5,1fr)}}
+.zone-cell{border-radius:7px;padding:14px 2px;text-align:center;transition:box-shadow .3s}
+.zone-cell.hottest{box-shadow:0 0 0 2px #fff inset}
+.zone-cell .z-flag{font-size:.6rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+
 /* ── Predictions ── */
 #predControls{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #predHint{font-size:.78rem;color:#999}
@@ -108,6 +115,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item"><span class="ds-swatch fr-3"></span>3 φορές</div>
       <div class="ds-legend-item"><span class="ds-swatch fr-4p"></span>4+ φορές</div>
     </div>
+
+    <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
+    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
+      Ο πίνακας χωρισμένος σε 20 γειτονικές περιοχές (2×2 αριθμοί η καθεμία). Κόκκινο = η πιο "ζεστή" περιοχή αυτή τη στιγμή (μικρότερη μέση καθυστέρηση).
+    </div>
+    <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
     <div id="predControls">
       <span id="predHint">🎯 Κάνε κλικ στους αριθμούς για να τους επιλέξεις ως πρόβλεψη για την επόμενη κλήρωση</span>
@@ -243,6 +256,33 @@ function freqBucketClass(c) {
   return 'fr-4p';
 }
 
+// ── Hot zones: 10x8 grid split into 20 adjacent 2x2 regions ────────────────
+function renderHotZones(delays) {
+  const grid = document.getElementById('hotZoneGrid');
+  const regions = [];
+  for (let rowBlock = 0; rowBlock < 4; rowBlock++) {
+    for (let colBlock = 0; colBlock < 5; colBlock++) {
+      let sum = 0, n = 0;
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 2; c++) {
+          const row = rowBlock * 2 + r, col = colBlock * 2 + c;
+          const num = row * 10 + col + 1;
+          sum += delays[num]; n++;
+        }
+      }
+      regions.push(sum / n);
+    }
+  }
+  const minA = Math.min(...regions), maxA = Math.max(...regions);
+  grid.innerHTML = regions.map(avg => {
+    const t = maxA === minA ? 0 : (maxA - avg) / (maxA - minA); // 1 = hottest
+    const hue = Math.round(120 * (1 - t));
+    const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
+    const isHottest = avg === minA;
+    return `<div class="zone-cell${isHottest ? ' hottest' : ''}" style="background:${bg}">${isHottest ? '<span class="z-flag">🔥</span>' : ''}</div>`;
+  }).join('');
+}
+
 function renderFreqShift() {
   if (!dsDraws || dsIdx < 0) return;
   const draw = dsDraws[dsIdx];
@@ -257,6 +297,7 @@ function renderFreqShift() {
   const hideDelay = document.getElementById('hideDelayChk').checked;
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
   const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
+  renderHotZones(delays || computeDelaysAtIndex(dsDraws, dsIdx));
   const hideFreq = document.getElementById('hideFreqChk').checked;
   const hideFreqThreshold = Math.min(Math.max(parseInt(document.getElementById('hideFreqXInput').value) || 0, 0), 50);
   const hideFreqMode = document.getElementById('hideFreqModeSel').value;
