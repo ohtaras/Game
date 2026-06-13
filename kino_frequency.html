@@ -87,9 +87,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <input type="number" id="hideDelayXInput" class="ctrl-input" value="10" min="1" max="300" style="width:60px">
         κληρώσεις
       </label>
-      <label class="ctrl-label"><input type="checkbox" id="hideTodayChk"> Απόκρυψη αριθμών με εμφανίσεις ΣΗΜΕΡΑ &gt;
-        <input type="number" id="hideTodayXInput" class="ctrl-input" value="3" min="0" max="50" style="width:60px">
-        φορές
+      <label class="ctrl-label"><input type="checkbox" id="hideFreqChk"> Απόκρυψη αριθμών με εμφανίσεις &lt;
+        <input type="number" id="hideFreqXInput" class="ctrl-input" value="1" min="0" max="50" style="width:55px">
+        φορές σε
+        <select id="hideFreqModeSel" class="ctrl-input">
+          <option value="today">ΣΗΜΕΡΑ (από 00:00)</option>
+          <option value="lastx">τελευταίες</option>
+        </select>
+        <input type="number" id="hideFreqLastXInput" class="ctrl-input" value="100" min="1" max="1000" style="width:70px">
+        κληρώσεις
       </label>
     </div>
     <div id="dsFreqInfo">—</div>
@@ -250,13 +256,22 @@ function renderFreqShift() {
   const hideDelay = document.getElementById('hideDelayChk').checked;
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
   const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
-  const hideToday = document.getElementById('hideTodayChk').checked;
-  const hideTodayThreshold = Math.min(Math.max(parseInt(document.getElementById('hideTodayXInput').value) || 0, 0), 50);
-  const todayFreqs = hideToday ? computeFreqToday(dsDraws, dsIdx) : null;
+  const hideFreq = document.getElementById('hideFreqChk').checked;
+  const hideFreqThreshold = Math.min(Math.max(parseInt(document.getElementById('hideFreqXInput').value) || 0, 0), 50);
+  const hideFreqMode = document.getElementById('hideFreqModeSel').value;
+  let hideFreqCounts = null;
+  if (hideFreq) {
+    if (hideFreqMode === 'today') {
+      hideFreqCounts = computeFreqToday(dsDraws, dsIdx);
+    } else {
+      const lastX = Math.min(Math.max(parseInt(document.getElementById('hideFreqLastXInput').value) || 100, 1), 1000);
+      hideFreqCounts = computeFreqInLastX(dsDraws, dsIdx, lastX);
+    }
+  }
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     const sel = selectedNums.has(n) ? ' selected' : '';
-    const hidden = (delays && delays[n] >= hideThreshold) || (todayFreqs && todayFreqs[n] > hideTodayThreshold) ? ' hidden' : '';
+    const hidden = (delays && delays[n] >= hideThreshold) || (hideFreqCounts && hideFreqCounts[n] < hideFreqThreshold) ? ' hidden' : '';
     cells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}${sel}${hidden}" data-n="${n}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
   }
   freqGrid.innerHTML = cells.join('');
@@ -404,8 +419,14 @@ window.addEventListener('load', async () => {
   document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideTodayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideTodayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideFreqChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideFreqLastXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideFreqModeSel').addEventListener('change', () => {
+    document.getElementById('hideFreqLastXInput').style.display = document.getElementById('hideFreqModeSel').value === 'lastx' ? '' : 'none';
+    if (dsDraws) renderFreqShift();
+  });
+  document.getElementById('hideFreqLastXInput').style.display = document.getElementById('hideFreqModeSel').value === 'lastx' ? '' : 'none';
   document.getElementById('dsFreqGrid').addEventListener('click', (e) => {
     const cell = e.target.closest('.ds-cell');
     if (!cell) return;
