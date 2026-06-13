@@ -54,6 +54,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 #saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
 
+/* ── Hot 4-tuples ── */
+#hot4Grid{display:flex;flex-direction:column;gap:6px}
+.tuple-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:#1e2235;border:1px solid #333;flex-wrap:wrap;transition:background .3s,border-color .3s,box-shadow .3s}
+.tuple-card.hot{background:#3a0d0d;border-color:#e53935;box-shadow:0 0 10px rgba(229,57,53,.5)}
+.tuple-card .t-nums{display:flex;gap:4px}
+.tuple-card .t-num{width:34px;height:34px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;background:#263238;color:#cfd8dc;border:1px solid #37474f}
+.tuple-card.hot .t-num{background:#5c1a1a;border-color:#e53935;color:#ffcdd2}
+.tuple-card .t-num .t-d{font-size:.55rem;opacity:.8}
+.tuple-card .t-meta{font-size:.78rem;color:#999;margin-left:auto}
+.tuple-card.hot .t-meta{color:#ff8a80;font-weight:700}
+
 /* ── Delay query ── */
 #delayQueryBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
@@ -137,6 +148,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="delaySec">
     <h2>Καθυστερήσεις (κληρώσεις απουσίας ανά αριθμό)</h2>
     <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
+  </section>
+
+  <!-- Hot 4-tuples -->
+  <section id="hot4Sec">
+    <h2>🔥 "Ζεστές" 4άδες (ιστορικά πιο συχνές)</h2>
+    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
+      Οι 20 τετράδες με τις περισσότερες κοινές εμφανίσεις σε 236.947 κληρώσεις (Ιαν 2024 – Μάιος 2026).
+      Κόκκινο = αυτή τη στιγμή όλοι οι αριθμοί της έχουν εμφανιστεί πρόσφατα (καθυστέρηση ≤ <span id="hot4ThreshLabel">3</span> κληρώσεις) — υποψήφια προς παιχνίδι.
+    </div>
+    <div id="hot4Grid"><span style="color:#666;font-size:.8rem">Φόρτωση...</span></div>
   </section>
 
   <!-- Delay range query -->
@@ -477,6 +498,50 @@ async function fetchDaySeq(dayStr, size=10) {
   return items;
 }
 
+// ── Hot 4-tuples ───────────────────────────────────────────────────────────
+// Top 20 4-number combos by total co-occurrences across 236.947 κληρώσεις
+// (Ιαν 2024 – Μάιος 2026). Αναμενόμενο τυχαίο ≈ 726 εμφανίσεις.
+const TOP4 = [
+  {n:[2,51,55,74],  c:864},
+  {n:[31,47,48,53], c:859},
+  {n:[16,44,53,78], c:850},
+  {n:[8,40,41,78],  c:850},
+  {n:[7,27,32,62],  c:849},
+  {n:[37,40,62,80], c:848},
+  {n:[31,40,63,77], c:847},
+  {n:[15,32,34,63], c:847},
+  {n:[44,52,71,74], c:846},
+  {n:[1,7,65,74],   c:846},
+  {n:[17,41,55,67], c:846},
+  {n:[23,25,74,76], c:845},
+  {n:[6,39,63,69],  c:845},
+  {n:[26,60,63,70], c:844},
+  {n:[5,20,35,62],  c:844},
+  {n:[1,27,31,56],  c:844},
+  {n:[17,38,53,80], c:843},
+  {n:[18,38,57,77], c:843},
+  {n:[35,37,50,63], c:843},
+  {n:[10,13,44,53], c:843}
+];
+const HOT4_THRESHOLD = 3;
+
+function renderHot4() {
+  const grid = document.getElementById('hot4Grid');
+  if (!delaysReady) return;
+  document.getElementById('hot4ThreshLabel').textContent = HOT4_THRESHOLD;
+  const cards = TOP4.map(t => {
+    const ds = t.n.map(n => delays[n]);
+    const maxD = Math.max(...ds);
+    const isHot = maxD <= HOT4_THRESHOLD;
+    const nums = t.n.map((n,i) => `<div class="t-num" title="${BASE_NUM_TO_CHAR[n]||''}">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
+    const meta = isHot
+      ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
+      : `εμφανίσεις: ${t.c} · μέγ. καθυστέρηση: ${maxD}`;
+    return `<div class="tuple-card${isHot?' hot':''}"><div class="t-nums">${nums}</div><div class="t-meta">${meta}</div></div>`;
+  }).join('');
+  grid.innerHTML = cards;
+}
+
 // ── Delay table rendering ──────────────────────────────────────────────────
 function renderDelayTable() {
   const grid = document.getElementById('delayGrid');
@@ -493,6 +558,7 @@ function renderDelayTable() {
     </div>`);
   }
   grid.innerHTML = cells.join('');
+  renderHot4();
 }
 
 // ── Claude API (browser-direct) ────────────────────────────────────────────
@@ -927,6 +993,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-06 05:54</div>
+<div id="buildStamp">v 2026-06-13 19:40</div>
 </body>
 </html>
