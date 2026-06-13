@@ -65,6 +65,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .tuple-card .t-meta{font-size:.78rem;color:#999;margin-left:auto}
 .tuple-card.hot .t-meta{color:#ff8a80;font-weight:700}
 
+/* ── Hot zones ── */
+#zoneGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.zone-card{border-radius:10px;padding:14px 8px;text-align:center;border:2px solid transparent;transition:transform .2s,box-shadow .3s}
+.zone-card.hottest{border-color:#fff;box-shadow:0 0 14px rgba(255,82,82,.7);transform:scale(1.04)}
+.zone-card .z-label{font-size:1rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.zone-card .z-avg{font-size:.72rem;color:rgba(255,255,255,.9);margin-top:4px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.zone-card .z-flag{font-size:.72rem;font-weight:800;color:#fff;margin-top:6px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+@media(max-width:600px){
+  #zoneGrid{grid-template-columns:repeat(2,1fr)}
+}
+
 /* ── Delay query ── */
 #delayQueryBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
@@ -148,6 +159,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="delaySec">
     <h2>Καθυστερήσεις (κληρώσεις απουσίας ανά αριθμό)</h2>
     <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
+  </section>
+
+  <!-- Hot zones -->
+  <section id="zoneSec">
+    <h2>🌡️ Ζεστές Περιοχές</h2>
+    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
+      Οι 80 αριθμοί χωρισμένοι σε 4 περιοχές των 20. Κόκκινο = η περιοχή με τη μικρότερη μέση καθυστέρηση αυτή τη στιγμή (πιο "ζεστή" — βγαίνει πιο συχνά τελευταία).
+    </div>
+    <div id="zoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση...</span></div>
   </section>
 
   <!-- Hot 4-tuples -->
@@ -542,6 +562,37 @@ function renderHot4() {
   grid.innerHTML = cards;
 }
 
+// ── Hot zones ──────────────────────────────────────────────────────────────
+const ZONES = [
+  {label:'1–20',  from:1,  to:20},
+  {label:'21–40', from:21, to:40},
+  {label:'41–60', from:41, to:60},
+  {label:'61–80', from:61, to:80}
+];
+
+function renderZones() {
+  const grid = document.getElementById('zoneGrid');
+  if (!delaysReady) return;
+  const stats = ZONES.map(z => {
+    let sum = 0, n = 0;
+    for (let i = z.from; i <= z.to; i++) { sum += delays[i]; n++; }
+    return {...z, avg: sum / n};
+  });
+  const avgs = stats.map(s => s.avg);
+  const minA = Math.min(...avgs), maxA = Math.max(...avgs);
+  grid.innerHTML = stats.map(s => {
+    const t = maxA === minA ? 0 : (maxA - s.avg) / (maxA - minA); // 1 = hottest
+    const hue = Math.round(120 * (1 - t));
+    const bg = `hsl(${hue},85%,${Math.round(45 - t*15)}%)`;
+    const isHottest = s.avg === minA;
+    return `<div class="zone-card${isHottest?' hottest':''}" style="background:${bg}">
+      <div class="z-label">${s.label}</div>
+      <div class="z-avg">μέση καθ.: ${s.avg.toFixed(1)}</div>
+      ${isHottest?'<div class="z-flag">🔥 ΖΕΣΤΗ ΠΕΡΙΟΧΗ</div>':''}
+    </div>`;
+  }).join('');
+}
+
 // ── Delay table rendering ──────────────────────────────────────────────────
 function renderDelayTable() {
   const grid = document.getElementById('delayGrid');
@@ -558,6 +609,7 @@ function renderDelayTable() {
     </div>`);
   }
   grid.innerHTML = cells.join('');
+  renderZones();
   renderHot4();
 }
 
@@ -993,6 +1045,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-13 19:40</div>
+<div id="buildStamp">v 2026-06-13 19:45</div>
 </body>
 </html>
