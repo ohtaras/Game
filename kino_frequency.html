@@ -50,6 +50,22 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .zone-cell.hottest{box-shadow:0 0 0 2px #fff inset}
 .zone-cell .z-flag{font-size:.6rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
+/* ── Hot 6-tuples ── */
+#hot6Grid{display:flex;flex-direction:column;gap:6px}
+.tuple-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:#1e2235;border:1px solid #333;flex-wrap:wrap;transition:background .3s,border-color .3s,box-shadow .3s}
+.tuple-card.hot{background:#3a0d0d;border-color:#e53935;box-shadow:0 0 10px rgba(229,57,53,.5)}
+.tuple-card .t-nums{display:flex;gap:4px}
+.tuple-card .t-num{width:34px;height:34px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;background:#263238;color:#cfd8dc;border:1px solid #37474f}
+.tuple-card.hot .t-num{background:#5c1a1a;border-color:#e53935;color:#ffcdd2}
+.tuple-card .t-num .t-d{font-size:.55rem;opacity:.8}
+.tuple-card .t-meta{font-size:.78rem;color:#999;margin-left:auto}
+.tuple-card.hot .t-meta{color:#ff8a80;font-weight:700}
+.tuple-card .t-eval{flex-basis:100%;font-size:.74rem;color:#80cbc4;margin-top:2px}
+.plog-empty{color:#555;font-size:.82rem;padding:8px 0}
+.plog-row{padding:8px 0;border-bottom:1px solid #2a2a3a;font-size:.82rem;line-height:1.7}
+.plog-row:last-child{border-bottom:none}
+.plog-nums{font-family:monospace;font-size:.78rem;color:#9fa8da;letter-spacing:.04em}
+
 /* ── Predictions ── */
 #predControls{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 #predHint{font-size:.78rem;color:#999}
@@ -121,6 +137,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       Ο πίνακας χωρισμένος σε 20 γειτονικές περιοχές (2×2 αριθμοί η καθεμία). Κόκκινο = η πιο "ζεστή" περιοχή αυτή τη στιγμή (μικρότερη μέση καθυστέρηση).
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
+
+    <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🔥 Ζεστές Εξάδες</h2>
+    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
+      Οι 30 εξάδες με τις περισσότερες κοινές εμφανίσεις σε 236.947 κληρώσεις (Ιαν 2024 – Μάιος 2026, αναμενόμενο τυχαίο ≈ 30.6).
+      Κόκκινο = αυτή τη στιγμή όλοι οι αριθμοί της έχουν εμφανιστεί πρόσφατα (καθυστέρηση ≤ <span id="hot6ThreshLabel">3</span> κληρώσεις) — υποψήφια προς παιχνίδι, και αξιολογείται αυτόματα στην επόμενη κλήρωση.
+    </div>
+    <div id="hot6Grid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:#ffd54f">🔥 Αξιολογήσεις Ζεστών Εξάδων</summary>
+      <div id="hot6Log" style="margin-top:10px"></div>
+    </details>
 
     <div id="predControls">
       <span id="predHint">🎯 Κάνε κλικ στους αριθμούς για να τους επιλέξεις ως πρόβλεψη για την επόμενη κλήρωση</span>
@@ -256,6 +283,111 @@ function freqBucketClass(c) {
   return 'fr-4p';
 }
 
+// ── Hot 6-tuples ─────────────────────────────────────────────────────────
+// Top 30 6-number combos by total co-occurrences across 236.947 κληρώσεις
+// (Ιαν 2024 – Μάιος 2026). Αναμενόμενο τυχαίο ≈ 30.6 εμφανίσεις.
+const TOP6 = [
+  {n:[11,13,15,39,53,80], c:67},
+  {n:[10,48,52,53,60,61], c:67},
+  {n:[2,36,48,54,59,78],  c:66},
+  {n:[23,35,41,52,56,72], c:66},
+  {n:[1,7,54,65,74,79],   c:65},
+  {n:[21,31,34,36,63,79], c:65},
+  {n:[8,16,31,41,65,78],  c:65},
+  {n:[5,41,51,58,74,77],  c:65},
+  {n:[15,32,34,63,74,75], c:65},
+  {n:[1,6,11,17,60,70],   c:65},
+  {n:[6,9,15,19,28,69],   c:65},
+  {n:[4,6,32,45,46,66],   c:65},
+  {n:[7,20,21,43,56,57],  c:65},
+  {n:[8,9,40,44,45,52],   c:65},
+  {n:[20,22,25,44,49,50], c:65},
+  {n:[5,10,16,31,39,45],  c:65},
+  {n:[28,61,66,70,76,80], c:64},
+  {n:[5,18,46,64,74,80],  c:64},
+  {n:[27,30,45,46,47,80], c:64},
+  {n:[16,34,68,73,76,79], c:64},
+  {n:[2,25,33,58,62,75],  c:64},
+  {n:[6,16,22,64,68,73],  c:64},
+  {n:[11,20,34,44,66,71], c:64},
+  {n:[7,8,18,38,50,68],   c:64},
+  {n:[1,4,16,60,63,67],   c:64},
+  {n:[26,33,36,45,53,65], c:64},
+  {n:[8,9,46,61,62,64],   c:64},
+  {n:[2,11,18,19,26,54],  c:64},
+  {n:[4,11,13,34,37,50],  c:63},
+  {n:[1,6,9,13,23,49],    c:63}
+];
+const HOT6_THRESHOLD = 3;
+let hot6Pending = new Map(); // tuple index -> {forDrawId}
+let hot6Results = new Map(); // tuple index -> result record
+
+function evaluateHot6(draw) {
+  for (const [idx, pending] of hot6Pending) {
+    if (pending.forDrawId === draw.id) {
+      const t = TOP6[idx];
+      const hits = t.n.filter(n => draw.n.includes(n)).length;
+      const rec = { idx, drawId: draw.id, hits, total: t.n.length, nums: [...t.n] };
+      hot6Results.set(idx, rec);
+      hot6Pending.delete(idx);
+      try {
+        const log = JSON.parse(localStorage.getItem('kino_hot6_log') || '[]');
+        log.push(rec);
+        localStorage.setItem('kino_hot6_log', JSON.stringify(log.slice(-30)));
+      } catch(_) {}
+      renderHot6Log();
+    }
+  }
+}
+
+function renderHot6Log() {
+  const el = document.getElementById('hot6Log');
+  if (!el) return;
+  let records = [];
+  try { records = JSON.parse(localStorage.getItem('kino_hot6_log') || '[]'); } catch(_) {}
+  if (!records.length) {
+    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αξιολογήσεις ακόμα.</div>';
+    return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => {
+    const label = r.hits === r.total
+      ? `<strong style="color:#ffd54f">🎯 ΠΕΤΥΧΕ ${r.hits}/${r.total}</strong>`
+      : `<span style="color:#80cbc4">${r.hits}/${r.total} σωστά</span>`;
+    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
+  }).join('');
+}
+
+function renderHot6() {
+  const grid = document.getElementById('hot6Grid');
+  if (!dsDraws || dsIdx < 0) return;
+  document.getElementById('hot6ThreshLabel').textContent = HOT6_THRESHOLD;
+  const isLive = dsIdx === dsDraws.length - 1;
+  const delays = computeDelaysAtIndex(dsDraws, dsIdx);
+  grid.innerHTML = TOP6.map((t, idx) => {
+    const ds = t.n.map(n => delays[n]);
+    const maxD = Math.max(...ds);
+    const isHot = maxD <= HOT6_THRESHOLD;
+    const nums = t.n.map((n,i) => `<div class="t-num">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
+    const meta = isHot
+      ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
+      : `εμφανίσεις: ${t.c} · μέγ. καθυστέρηση: ${maxD}`;
+
+    if (isLive && isHot) hot6Pending.set(idx, { forDrawId: dsDraws[dsIdx].id + 1 });
+
+    let evalHtml = '';
+    const result = hot6Results.get(idx);
+    if (result) {
+      evalHtml = result.hits === result.total
+        ? `<div class="t-eval">🎯 Κλήρωση #${result.drawId}: <strong style="color:#ffd54f">${result.hits}/${result.total} ΠΕΤΥΧΕ!</strong></div>`
+        : `<div class="t-eval">Κλήρωση #${result.drawId}: ${result.hits}/${result.total} σωστά</div>`;
+    } else if (hot6Pending.has(idx)) {
+      evalHtml = `<div class="t-eval">⏳ Αναμονή αξιολόγησης στην κλήρωση #${hot6Pending.get(idx).forDrawId}</div>`;
+    }
+
+    return `<div class="tuple-card${isHot?' hot':''}"><div class="t-nums">${nums}</div><div class="t-meta">${meta}</div>${evalHtml}</div>`;
+  }).join('');
+}
+
 // ── Hot zones: 10x8 grid split into 20 adjacent 2x2 regions ────────────────
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
@@ -298,6 +430,7 @@ function renderFreqShift() {
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
   const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
   renderHotZones(delays || computeDelaysAtIndex(dsDraws, dsIdx));
+  renderHot6();
   const hideFreq = document.getElementById('hideFreqChk').checked;
   const hideFreqThreshold = Math.min(Math.max(parseInt(document.getElementById('hideFreqXInput').value) || 0, 0), 50);
   const hideFreqMode = document.getElementById('hideFreqModeSel').value;
@@ -425,6 +558,7 @@ async function checkForNewDraw() {
     if (!r?.winningNumbers?.list?.length || r.drawId <= last.id) return;
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     const wasAtLast = dsIdx === dsDraws.length - 1;
+    evaluateHot6(newDraw);
     dsDraws.push(newDraw);
     if (wasAtLast) { dsIdx = dsDraws.length - 1; renderFreqShift(); }
     evaluatePredictions();
@@ -449,6 +583,7 @@ window.addEventListener('load', async () => {
   renderFreqShift();
   evaluatePredictions();
   renderPredictions();
+  renderHot6Log();
   updateStatus();
   checkForNewDraw();
   schedulePoll();
