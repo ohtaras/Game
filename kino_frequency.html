@@ -87,6 +87,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <input type="number" id="hideDelayXInput" class="ctrl-input" value="10" min="1" max="300" style="width:60px">
         κληρώσεις
       </label>
+      <label class="ctrl-label"><input type="checkbox" id="hideTodayChk"> Απόκρυψη αριθμών με εμφανίσεις ΣΗΜΕΡΑ &gt;
+        <input type="number" id="hideTodayXInput" class="ctrl-input" value="3" min="0" max="50" style="width:60px">
+        φορές
+      </label>
     </div>
     <div id="dsFreqInfo">—</div>
     <div id="dsFreqGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
@@ -208,6 +212,10 @@ function computeFreqInLastX(draws, idx, X) {
   return freq;
 }
 
+function computeFreqToday(draws, idx) {
+  return computeFreqInLastX(draws, idx, idx - dayStartIndex(draws, idx) + 1);
+}
+
 function computeDelaysAtIndex(draws, idx) {
   const delays = new Array(81).fill(null);
   let remaining = 80;
@@ -242,10 +250,13 @@ function renderFreqShift() {
   const hideDelay = document.getElementById('hideDelayChk').checked;
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
   const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
+  const hideToday = document.getElementById('hideTodayChk').checked;
+  const hideTodayThreshold = Math.min(Math.max(parseInt(document.getElementById('hideTodayXInput').value) || 0, 0), 50);
+  const todayFreqs = hideToday ? computeFreqToday(dsDraws, dsIdx) : null;
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     const sel = selectedNums.has(n) ? ' selected' : '';
-    const hidden = delays && delays[n] >= hideThreshold ? ' hidden' : '';
+    const hidden = (delays && delays[n] >= hideThreshold) || (todayFreqs && todayFreqs[n] > hideTodayThreshold) ? ' hidden' : '';
     cells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}${sel}${hidden}" data-n="${n}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
   }
   freqGrid.innerHTML = cells.join('');
@@ -393,6 +404,8 @@ window.addEventListener('load', async () => {
   document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideTodayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hideTodayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('dsFreqGrid').addEventListener('click', (e) => {
     const cell = e.target.closest('.ds-cell');
     if (!cell) return;
