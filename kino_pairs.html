@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kino Συχνότητα</title>
+<title>Kino Δυάδες</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
@@ -21,19 +21,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .btn{background:#26314a;border:1px solid #3a4a6a;color:#cfd8ff;border-radius:6px;padding:6px 10px;font-size:.78rem;cursor:pointer}
 .btn:hover{background:#33446a}
 
-/* ── Frequency shift table ── */
+/* ── Pair frequency table ── */
 #dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 #dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
-#dsFreqControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
-#dsFreqInfo{font-size:.78rem;color:#999;margin-bottom:6px}
-#dsFreqGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
-@media(max-width:600px){#dsFreqGrid{grid-template-columns:repeat(5,1fr)}}
-.ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none;cursor:pointer}
-.ds-cell.selected{box-shadow:0 0 0 3px #ffd54f inset}
-.ds-cell.hidden{background:#000;border-color:#000}
-.ds-cell.hidden .ds-n,.ds-cell.hidden .ds-d{visibility:hidden}
-.ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
-.ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
+#pairFreqControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+#pairFreqInfo{font-size:.78rem;color:#999;margin-bottom:6px}
+#pairGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:3px;margin-bottom:10px}
+.pair-cell{border-radius:5px;padding:4px 2px;text-align:center;user-select:none}
+.pair-cell.hidden{background:#000;border-color:#000}
+.pair-cell.hidden .pair-n,.pair-cell.hidden .pair-d{visibility:hidden}
+.pair-cell .pair-n{font-size:.62rem;font-weight:700;display:block}
+.pair-cell .pair-d{font-size:.55rem;display:block;margin-top:1px;opacity:.85}
 .fr-0  {background:#1e2535;border:2px solid #3a4254;color:#aab}
 .fr-1  {background:#2a3a1a;border:2px solid #5a8a2c;color:#c5e1a5}
 .fr-2  {background:#3a4a14;border:2px solid #8aa81a;color:#dce775}
@@ -42,27 +40,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
 .ds-legend-item{display:flex;align-items:center;gap:5px}
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
-
-/* ── Predictions ── */
-#predControls{margin-top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#predHint{font-size:.78rem;color:#999}
-#predList{margin-top:10px;display:flex;flex-direction:column;gap:8px}
-.pred-item{background:#0e0e1a;border:1px solid #2a2a4a;border-radius:8px;padding:8px 10px;font-size:.78rem;color:#aaa}
-.pred-item .pred-title{color:#cfd8ff}
-.pred-balls{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
-.pred-ball{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:#1e2535;border:2px solid #3a4254;font-size:.7rem;font-weight:700;color:#dde}
-.pred-ball.hit{background:#0d2b0d;border-color:#4caf50;color:#a5d6a7}
-.pred-ball.miss{background:#1a0808;border-color:#5a2a2a;color:#998}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🌡 Συχνότητα Χ Κληρώσεων</h1>
+  <h1>👯 Συχνότητα Δυάδων</h1>
   <a href="kino_predict.html" class="nav-link">🔮 Πρόβλεψη</a>
   <a href="kino_live.html" class="nav-link">← Live</a>
   <a href="kino_similar.html" class="nav-link">🧲 Μετά την Πιο Όμοια</a>
-  <a href="kino_pairs.html" class="nav-link">👯 Συχνότητα Δυάδων</a>
+  <a href="kino_frequency.html" class="nav-link">🌡 Συχνότητα Αριθμών</a>
   <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
 </header>
 
@@ -70,7 +57,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
 <main>
   <section>
-    <h2>🌡 Συχνότητα Αριθμών στις Τελευταίες Χ Κληρώσεις</h2>
+    <h2>👯 Συχνότητα Δυάδων στις Τελευταίες Χ Κληρώσεις</h2>
     <div id="dsControls">
       <button class="btn" id="dsBackDayBtn">⏮ -1 ημ. (00:00)</button>
       <button class="btn" id="dsBackBtn">◀ Προηγούμενη</button>
@@ -79,16 +66,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
       <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
     </div>
-    <div id="dsFreqControls">
+    <div id="pairFreqControls">
       <label class="ctrl-label">Τελευταίες
-        <input type="number" id="dsFreqXInput" class="ctrl-input" value="6" min="1" max="100" style="width:60px">
+        <input type="number" id="pairFreqXInput" class="ctrl-input" value="6" min="1" max="100" style="width:60px">
         κληρώσεις
       </label>
-      <label class="ctrl-label"><input type="checkbox" id="hideDelayChk"> Απόκρυψη αριθμών με καθυστέρηση ≥
+      <label class="ctrl-label"><input type="checkbox" id="hideDelayChk"> Απόκρυψη δυάδων με καθυστέρηση ≥
         <input type="number" id="hideDelayXInput" class="ctrl-input" value="10" min="1" max="300" style="width:60px">
         κληρώσεις
       </label>
-      <label class="ctrl-label"><input type="checkbox" id="hideFreqChk"> Απόκρυψη αριθμών με εμφανίσεις &lt;
+      <label class="ctrl-label"><input type="checkbox" id="hideFreqChk"> Απόκρυψη δυάδων με εμφανίσεις &lt;
         <input type="number" id="hideFreqXInput" class="ctrl-input" value="1" min="0" max="50" style="width:55px">
         φορές σε
         <select id="hideFreqModeSel" class="ctrl-input">
@@ -99,27 +86,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         κληρώσεις
       </label>
     </div>
-    <div id="dsFreqInfo">—</div>
-    <div id="dsFreqGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
-    <div id="dsFreqLegend" class="ds-legend">
+    <div id="pairFreqInfo">—</div>
+    <div id="pairGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="pairFreqLegend" class="ds-legend">
       <div class="ds-legend-item"><span class="ds-swatch fr-0"></span>καμία</div>
       <div class="ds-legend-item"><span class="ds-swatch fr-1"></span>1 φορά</div>
       <div class="ds-legend-item"><span class="ds-swatch fr-2"></span>2 φορές</div>
       <div class="ds-legend-item"><span class="ds-swatch fr-3"></span>3 φορές</div>
       <div class="ds-legend-item"><span class="ds-swatch fr-4p"></span>4+ φορές</div>
     </div>
-
-    <div id="predControls">
-      <span id="predHint">🎯 Κάνε κλικ στους αριθμούς για να τους επιλέξεις ως πρόβλεψη για την επόμενη κλήρωση</span>
-      <button class="btn" id="addPredBtn">🎯 Αποθήκευση Πρόβλεψης (<span id="predSelCount">0</span>)</button>
-      <button class="btn" id="clearPredBtn">🗑 Καθάρισμα Προβλέψεων</button>
-      <label class="ctrl-label"><input type="checkbox" id="autoPredChk"> Αυτόματη αποθήκευση στο "Επόμενη"</label>
-      <label class="ctrl-label">Αξιολόγηση σε
-        <input type="number" id="predEvalXInput" class="ctrl-input" value="1" min="1" max="20" style="width:55px">
-        συνεχόμενες κληρώσεις
-      </label>
-    </div>
-    <div id="predList"></div>
   </section>
 </main>
 
@@ -204,34 +179,40 @@ async function loadFullHistory(statusEl) {
   return draws;
 }
 
-// ── Frequency shift table ────────────────────────────────────────────────
+// ── Pair frequency table ─────────────────────────────────────────────────
 let dsDraws = null;
 let dsIdx = -1;
-let selectedNums = new Set();
-let predictions = JSON.parse(localStorage.getItem('kino_freq_predictions') || '[]');
 
-function computeFreqInLastX(draws, idx, X) {
-  const freq = new Array(81).fill(0);
+const PAIRS = [];
+for (let i = 1; i <= 80; i++) for (let j = i + 1; j <= 80; j++) PAIRS.push([i, j]);
+
+function computePairFreqInLastX(draws, idx, X) {
+  const counts = new Map();
   const start = Math.max(0, idx - X + 1);
   for (let i = start; i <= idx; i++) {
-    for (const n of draws[i].n) if (n >= 1 && n <= 80) freq[n]++;
-  }
-  return freq;
-}
-
-function computeFreqToday(draws, idx) {
-  return computeFreqInLastX(draws, idx, idx - dayStartIndex(draws, idx) + 1);
-}
-
-function computeDelaysAtIndex(draws, idx) {
-  const delays = new Array(81).fill(null);
-  let remaining = 80;
-  for (let i = idx; i >= 0 && remaining > 0; i--) {
-    for (const n of draws[i].n) {
-      if (n >= 1 && n <= 80 && delays[n] === null) { delays[n] = idx - i; remaining--; }
+    const nums = draws[i].n.filter(n => n >= 1 && n <= 80).slice().sort((a, b) => a - b);
+    for (let a = 0; a < nums.length; a++) {
+      for (let b = a + 1; b < nums.length; b++) {
+        const key = `${nums[a]}-${nums[b]}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
     }
   }
-  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
+  return counts;
+}
+
+function computePairDelaysAtIndex(draws, idx) {
+  const delays = new Map();
+  let remaining = PAIRS.length;
+  for (let i = idx; i >= 0 && remaining > 0; i--) {
+    const nums = draws[i].n.filter(n => n >= 1 && n <= 80).slice().sort((a, b) => a - b);
+    for (let a = 0; a < nums.length; a++) {
+      for (let b = a + 1; b < nums.length; b++) {
+        const key = `${nums[a]}-${nums[b]}`;
+        if (!delays.has(key)) { delays.set(key, idx - i); remaining--; }
+      }
+    }
+  }
   return delays;
 }
 
@@ -243,134 +224,59 @@ function freqBucketClass(c) {
   return 'fr-4p';
 }
 
-function renderFreqShift() {
+function renderPairFreq() {
   if (!dsDraws || dsIdx < 0) return;
   const draw = dsDraws[dsIdx];
   const info = document.getElementById('dsInfo');
   const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
   info.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} (${dsIdx + 1}/${dsDraws.length})`;
 
-  const freqGrid = document.getElementById('dsFreqGrid');
-  const freqInfo = document.getElementById('dsFreqInfo');
-  const X = Math.min(Math.max(parseInt(document.getElementById('dsFreqXInput').value) || 6, 1), 100);
-  const freqs = computeFreqInLastX(dsDraws, dsIdx, X);
+  const grid = document.getElementById('pairGrid');
+  const freqInfo = document.getElementById('pairFreqInfo');
+  const X = Math.min(Math.max(parseInt(document.getElementById('pairFreqXInput').value) || 6, 1), 100);
+  const freqs = computePairFreqInLastX(dsDraws, dsIdx, X);
+
   const hideDelay = document.getElementById('hideDelayChk').checked;
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
-  const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
+  const delays = hideDelay ? computePairDelaysAtIndex(dsDraws, dsIdx) : null;
+
   const hideFreq = document.getElementById('hideFreqChk').checked;
   const hideFreqThreshold = Math.min(Math.max(parseInt(document.getElementById('hideFreqXInput').value) || 0, 0), 50);
   const hideFreqMode = document.getElementById('hideFreqModeSel').value;
   let hideFreqCounts = null;
   if (hideFreq) {
     if (hideFreqMode === 'today') {
-      hideFreqCounts = computeFreqToday(dsDraws, dsIdx);
+      hideFreqCounts = computePairFreqInLastX(dsDraws, dsIdx, dsIdx - dayStartIndex(dsDraws, dsIdx) + 1);
     } else {
       const lastX = Math.min(Math.max(parseInt(document.getElementById('hideFreqLastXInput').value) || 100, 1), 1000);
-      hideFreqCounts = computeFreqInLastX(dsDraws, dsIdx, lastX);
+      hideFreqCounts = computePairFreqInLastX(dsDraws, dsIdx, lastX);
     }
   }
+
   const cells = [];
-  for (let n = 1; n <= 80; n++) {
-    const sel = selectedNums.has(n) ? ' selected' : '';
-    const hidden = (delays && delays[n] >= hideThreshold) || (hideFreqCounts && hideFreqCounts[n] < hideFreqThreshold) ? ' hidden' : '';
-    cells.push(`<div class="ds-cell ${freqBucketClass(freqs[n])}${sel}${hidden}" data-n="${n}"><span class="ds-n">${n}</span><span class="ds-d">${freqs[n]}</span></div>`);
+  for (const [i, j] of PAIRS) {
+    const key = `${i}-${j}`;
+    const c = freqs.get(key) || 0;
+    const delay = delays ? (delays.has(key) ? delays.get(key) : dsIdx + 1) : 0;
+    const hc = hideFreqCounts ? (hideFreqCounts.get(key) || 0) : 0;
+    const hidden = (delays && delay >= hideThreshold) || (hideFreqCounts && hc < hideFreqThreshold) ? ' hidden' : '';
+    cells.push(`<div class="pair-cell ${freqBucketClass(c)}${hidden}"><span class="pair-n">${i}-${j}</span><span class="pair-d">${c}</span></div>`);
   }
-  freqGrid.innerHTML = cells.join('');
+  grid.innerHTML = cells.join('');
   const usedX = Math.min(X, dsIdx + 1);
-  freqInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — εμφανίσεις στις τελευταίες ${usedX} κληρώσεις`;
-  document.getElementById('predSelCount').textContent = selectedNums.size;
-}
-
-// ── Predictions ──────────────────────────────────────────────────────────
-function savePredictions() {
-  localStorage.setItem('kino_freq_predictions', JSON.stringify(predictions));
-}
-
-function toggleSelectNum(n) {
-  if (selectedNums.has(n)) selectedNums.delete(n); else selectedNums.add(n);
-  renderFreqShift();
-}
-
-function addPrediction() {
-  if (!selectedNums.size || !dsDraws || dsIdx < 0) return;
-  const forDrawId = dsDraws[dsIdx].id + 1;
-  const evalX = Math.min(Math.max(parseInt(document.getElementById('predEvalXInput').value) || 1, 1), 20);
-  predictions.push({ forDrawId, evalX, nums: [...selectedNums].sort((a,b) => a-b), evaluated: false, hits: [] });
-  selectedNums.clear();
-  savePredictions();
-  renderFreqShift();
-  evaluatePredictions();
-  renderPredictions();
-}
-
-function clearPredictions() {
-  if (!predictions.length) return;
-  if (!confirm('Διαγραφή όλων των προβλέψεων;')) return;
-  predictions = [];
-  savePredictions();
-  renderPredictions();
-}
-
-function evaluatePredictions() {
-  if (!dsDraws || !predictions.length) return;
-  let changed = false;
-  const drawById = new Map(dsDraws.map(d => [d.id, d]));
-  for (const p of predictions) {
-    const evalX = p.evalX || 1;
-    if (p.evaluated && (evalX === 1 || p.bestDrawId)) continue;
-    const windowDraws = [];
-    for (let i = 0; i < evalX; i++) {
-      const draw = drawById.get(p.forDrawId + i);
-      if (!draw) { windowDraws.length = 0; break; }
-      windowDraws.push(draw);
-    }
-    if (windowDraws.length !== evalX) continue;
-    let bestDraw = windowDraws[0], bestHits = p.nums.filter(n => bestDraw.n.includes(n));
-    for (const d of windowDraws.slice(1)) {
-      const h = p.nums.filter(n => d.n.includes(n));
-      if (h.length > bestHits.length) { bestDraw = d; bestHits = h; }
-    }
-    p.hits = bestHits;
-    p.bestDrawId = bestDraw.id;
-    p.evaluated = true;
-    changed = true;
-  }
-  if (changed) { savePredictions(); renderPredictions(); }
-}
-
-function renderPredictions() {
-  const list = document.getElementById('predList');
-  if (!predictions.length) { list.innerHTML = ''; return; }
-  const sorted = [...predictions].sort((a, b) => b.forDrawId - a.forDrawId);
-  list.innerHTML = sorted.map(p => {
-    const evalX = p.evalX || 1;
-    const range = evalX > 1 ? `#${p.forDrawId}–#${p.forDrawId + evalX - 1}` : `#${p.forDrawId}`;
-    let statusText = '⏳ Εκκρεμεί';
-    let balls = p.nums.map(n => `<span class="pred-ball">${n}</span>`).join('');
-    if (p.evaluated) {
-      statusText = evalX > 1
-        ? `✓ Μέγιστο ${p.hits.length}/${p.nums.length} σωστά (κλήρωση #${p.bestDrawId})`
-        : `✓ ${p.hits.length}/${p.nums.length} σωστά`;
-      balls = p.nums.map(n => `<span class="pred-ball ${p.hits.includes(n) ? 'hit' : 'miss'}">${n}</span>`).join('');
-    }
-    return `<div class="pred-item"><div class="pred-title">Πρόβλεψη για κλήρωση ${range} — ${statusText}</div><div class="pred-balls">${balls}</div></div>`;
-  }).join('');
+  freqInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — εμφανίσεις δυάδων στις τελευταίες ${usedX} κληρώσεις`;
 }
 
 function dsStep(delta) {
   if (!dsDraws) return;
-  if (delta > 0 && selectedNums.size && document.getElementById('autoPredChk').checked) {
-    addPrediction();
-  }
   dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
-  renderFreqShift();
-  evaluatePredictions();
+  renderPairFreq();
 }
 
 function dsJumpToFirstOfDay(direction) {
   if (!dsDraws) return;
   for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
-    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderFreqShift(); evaluatePredictions(); return; }
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderPairFreq(); return; }
   }
 }
 
@@ -385,8 +291,7 @@ async function checkForNewDraw() {
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     const wasAtLast = dsIdx === dsDraws.length - 1;
     dsDraws.push(newDraw);
-    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderFreqShift(); }
-    evaluatePredictions();
+    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderPairFreq(); }
     updateStatus();
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
@@ -405,9 +310,7 @@ function updateStatus() {
 window.addEventListener('load', async () => {
   dsDraws = await loadFullHistory(document.getElementById('statusBar'));
   dsIdx = dsDraws.length - 1;
-  renderFreqShift();
-  evaluatePredictions();
-  renderPredictions();
+  renderPairFreq();
   updateStatus();
   checkForNewDraw();
   schedulePoll();
@@ -416,25 +319,18 @@ window.addEventListener('load', async () => {
   document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
   document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
   document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
-  document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderFreqShift(); } });
-  document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideFreqChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
-  document.getElementById('hideFreqLastXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderPairFreq(); } });
+  document.getElementById('pairFreqXInput').addEventListener('input', () => { if (dsDraws) renderPairFreq(); });
+  document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderPairFreq(); });
+  document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderPairFreq(); });
+  document.getElementById('hideFreqChk').addEventListener('change', () => { if (dsDraws) renderPairFreq(); });
+  document.getElementById('hideFreqXInput').addEventListener('input', () => { if (dsDraws) renderPairFreq(); });
+  document.getElementById('hideFreqLastXInput').addEventListener('input', () => { if (dsDraws) renderPairFreq(); });
   document.getElementById('hideFreqModeSel').addEventListener('change', () => {
     document.getElementById('hideFreqLastXInput').style.display = document.getElementById('hideFreqModeSel').value === 'lastx' ? '' : 'none';
-    if (dsDraws) renderFreqShift();
+    if (dsDraws) renderPairFreq();
   });
   document.getElementById('hideFreqLastXInput').style.display = document.getElementById('hideFreqModeSel').value === 'lastx' ? '' : 'none';
-  document.getElementById('dsFreqGrid').addEventListener('click', (e) => {
-    const cell = e.target.closest('.ds-cell');
-    if (!cell) return;
-    toggleSelectNum(parseInt(cell.dataset.n, 10));
-  });
-  document.getElementById('addPredBtn').addEventListener('click', addPrediction);
-  document.getElementById('clearPredBtn').addEventListener('click', clearPredictions);
 });
 </script>
 
