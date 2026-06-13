@@ -64,6 +64,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .tuple-card .t-num .t-d{font-size:.55rem;opacity:.8}
 .tuple-card .t-meta{font-size:.78rem;color:#999;margin-left:auto}
 .tuple-card.hot .t-meta{color:#ff8a80;font-weight:700}
+.tuple-card .t-eval{flex-basis:100%;font-size:.74rem;color:#80cbc4;margin-top:2px}
 
 /* ── Hot zones ── */
 #zoneGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -228,6 +229,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div id="perfectLog" style="margin-top:10px"></div>
     </details>
   </section>
+
+  <!-- Hot 4-tuple evaluation log -->
+  <section id="hot4LogSec">
+    <details>
+      <summary>🔥 Αξιολογήσεις Ζεστών 4άδων</summary>
+      <div id="hot4Log" style="margin-top:10px"></div>
+    </details>
+  </section>
 </main>
 
 <script>
@@ -343,6 +352,8 @@ let delaysReady      = false;
 let saveLock         = false;
 let liveBuffer       = new Map();
 let liveLastSavedCount = 0;
+let hot4Pending      = new Map(); // tuple index -> {forDrawId}
+let hot4Results      = new Map(); // tuple index -> {drawId, hits, nums}
 
 // ── Utilities ──────────────────────────────────────────────────────────────
 function ghHeaders() {
@@ -545,11 +556,46 @@ const TOP4 = [
 ];
 const HOT4_THRESHOLD = 3;
 
+function evaluateHot4(draw) {
+  for (const [idx, pending] of hot4Pending) {
+    if (pending.forDrawId === draw.id) {
+      const t = TOP4[idx];
+      const hits = t.n.filter(n => draw.nums.includes(n)).length;
+      const rec = { idx, drawId: draw.id, time: draw.time, hits, total: t.n.length, nums: [...t.n] };
+      hot4Results.set(idx, rec);
+      hot4Pending.delete(idx);
+      try {
+        const log = JSON.parse(localStorage.getItem('kino_hot4_log') || '[]');
+        log.push(rec);
+        localStorage.setItem('kino_hot4_log', JSON.stringify(log.slice(-30)));
+      } catch(_) {}
+      renderHot4Log();
+    }
+  }
+}
+
+function renderHot4Log() {
+  const el = document.getElementById('hot4Log');
+  if (!el) return;
+  let records = [];
+  try { records = JSON.parse(localStorage.getItem('kino_hot4_log') || '[]'); } catch(_) {}
+  if (!records.length) {
+    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αξιολογήσεις ακόμα.</div>';
+    return;
+  }
+  el.innerHTML = records.slice().reverse().map(r => {
+    const label = r.hits === r.total
+      ? `<strong style="color:#ffd54f">🎯 ΠΕΤΥΧΕ ${r.hits}/${r.total}</strong>`
+      : `<span style="color:#80cbc4">${r.hits}/${r.total} σωστά</span>`;
+    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId} ${r.time}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
+  }).join('');
+}
+
 function renderHot4() {
   const grid = document.getElementById('hot4Grid');
   if (!delaysReady) return;
   document.getElementById('hot4ThreshLabel').textContent = HOT4_THRESHOLD;
-  const cards = TOP4.map(t => {
+  const cards = TOP4.map((t, idx) => {
     const ds = t.n.map(n => delays[n]);
     const maxD = Math.max(...ds);
     const isHot = maxD <= HOT4_THRESHOLD;
@@ -557,7 +603,20 @@ function renderHot4() {
     const meta = isHot
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
       : `εμφανίσεις: ${t.c} · μέγ. καθυστέρηση: ${maxD}`;
-    return `<div class="tuple-card${isHot?' hot':''}"><div class="t-nums">${nums}</div><div class="t-meta">${meta}</div></div>`;
+
+    if (isHot) hot4Pending.set(idx, { forDrawId: lastDrawId + 1 });
+
+    let evalHtml = '';
+    const result = hot4Results.get(idx);
+    if (result) {
+      evalHtml = result.hits === result.total
+        ? `<div class="t-eval">🎯 Κλήρωση #${result.drawId}: <strong style="color:#ffd54f">${result.hits}/${result.total} ΠΕΤΥΧΕ!</strong></div>`
+        : `<div class="t-eval">Κλήρωση #${result.drawId}: ${result.hits}/${result.total} σωστά</div>`;
+    } else if (hot4Pending.has(idx)) {
+      evalHtml = `<div class="t-eval">⏳ Αναμονή αξιολόγησης στην κλήρωση #${hot4Pending.get(idx).forDrawId}</div>`;
+    }
+
+    return `<div class="tuple-card${isHot?' hot':''}"><div class="t-nums">${nums}</div><div class="t-meta">${meta}</div>${evalHtml}</div>`;
   }).join('');
   grid.innerHTML = cards;
 }
@@ -858,6 +917,7 @@ async function fetchLiveNow() {
 
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums, draw.id, draw.time);
+      evaluateHot4(draw);
       renderDraw(draw);
       shuffleMapping();
       lastDrawId = draw.id;
@@ -996,6 +1056,7 @@ window.addEventListener('load', () => {
   document.getElementById('delayGrid').innerHTML = ph;
 
   renderPerfectLog();
+  renderHot4Log();
 
   loadHistoricalDelays().catch(e=>console.error('delay error',e))
     .then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
@@ -1045,6 +1106,6 @@ window.addEventListener('load', () => {
   });
 });
 </script>
-<div id="buildStamp">v 2026-06-13 19:45</div>
+<div id="buildStamp">v 2026-06-13 21:15</div>
 </body>
 </html>
