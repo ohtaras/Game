@@ -362,8 +362,10 @@ function renderHot6() {
   const grid = document.getElementById('hot6Grid');
   if (!dsDraws || dsIdx < 0) return;
   document.getElementById('hot6ThreshLabel').textContent = HOT6_THRESHOLD;
-  const isLive = dsIdx === dsDraws.length - 1;
-  const delays = computeDelaysAtIndex(dsDraws, dsIdx);
+  const liveIdx = dsDraws.length - 1;
+  const isLive = dsIdx === liveIdx;
+  // always based on the latest draw, regardless of which draw is being browsed
+  const delays = computeDelaysAtIndex(dsDraws, liveIdx);
   grid.innerHTML = TOP6.map((t, idx) => {
     const ds = t.n.map(n => delays[n]);
     const maxD = Math.max(...ds);
@@ -373,7 +375,7 @@ function renderHot6() {
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
       : `εμφανίσεις: ${t.c} · τρέχουσα καθυστέρηση: ${maxD}`;
 
-    if (isLive && isHot) hot6Pending.set(idx, { forDrawId: dsDraws[dsIdx].id + 1 });
+    if (isLive && isHot) hot6Pending.set(idx, { forDrawId: dsDraws[liveIdx].id + 1 });
 
     let evalHtml = '';
     const result = hot6Results.get(idx);
