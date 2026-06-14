@@ -602,7 +602,7 @@ function renderHot4() {
     const nums = t.n.map((n,i) => `<div class="t-num" title="${BASE_NUM_TO_CHAR[n]||''}">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
     const meta = isHot
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
-      : `εμφανίσεις: ${t.c} · μέγ. καθυστέρηση: ${maxD}`;
+      : `εμφανίσεις: ${t.c} · τρέχουσα καθυστέρηση: ${maxD}`;
 
     if (isHot) hot4Pending.set(idx, { forDrawId: lastDrawId + 1 });
 
