@@ -466,6 +466,7 @@ async function loadHistoricalDelays() {
     lastSeen[n] = hist[n];
   }
   drawCounter = total;
+  hot4ComboDelay = computeHot4ComboDelays(allDraws);
 
   delaysReady = true;
   renderDelayTable();
@@ -555,6 +556,32 @@ const TOP4 = [
   {n:[10,13,44,53], c:843}
 ];
 const HOT4_THRESHOLD = 3;
+let hot4ComboDelay = []; // tuple index -> draws since all 4 numbers last appeared together
+
+// scan back from the latest loaded draw to find, for each combo, how many draws ago
+// all 4 of its numbers last appeared together in the same draw
+function computeHot4ComboDelays(draws) {
+  const liveIdx = draws.length - 1;
+  const delays = new Array(TOP4.length).fill(null);
+  let remaining = TOP4.length;
+  for (let i = liveIdx; i >= 0 && remaining > 0; i--) {
+    const set = new Set(draws[i].n);
+    for (let idx = 0; idx < TOP4.length; idx++) {
+      if (delays[idx] !== null) continue;
+      if (TOP4[idx].n.every(n => set.has(n))) { delays[idx] = liveIdx - i; remaining--; }
+    }
+  }
+  for (let idx = 0; idx < TOP4.length; idx++) if (delays[idx] === null) delays[idx] = liveIdx + 1;
+  return delays;
+}
+
+// incrementally update combo delays when a new draw arrives
+function updateHot4ComboDelays(nums) {
+  const set = new Set(nums);
+  for (let idx = 0; idx < TOP4.length; idx++) {
+    hot4ComboDelay[idx] = TOP4[idx].n.every(n => set.has(n)) ? 0 : (hot4ComboDelay[idx] ?? 0) + 1;
+  }
+}
 
 function evaluateHot4(draw) {
   for (const [idx, pending] of hot4Pending) {
@@ -600,9 +627,10 @@ function renderHot4() {
     const maxD = Math.max(...ds);
     const isHot = maxD <= HOT4_THRESHOLD;
     const nums = t.n.map((n,i) => `<div class="t-num" title="${BASE_NUM_TO_CHAR[n]||''}">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
+    const comboDelay = hot4ComboDelay[idx];
     const meta = isHot
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
-      : `εμφανίσεις ιστορικά: ${t.c} φορές`;
+      : `καθυστερεί ${comboDelay} κληρώσεις · εμφανίσεις ιστορικά: ${t.c} φορές`;
 
     if (isHot) hot4Pending.set(idx, { forDrawId: lastDrawId + 1 });
 
@@ -918,6 +946,7 @@ async function fetchLiveNow() {
     if (draw.id !== lastDrawId) {
       evaluateProphecy(draw.nums, draw.id, draw.time);
       evaluateHot4(draw);
+      if (delaysReady) updateHot4ComboDelays(draw.nums);
       renderDraw(draw);
       shuffleMapping();
       lastDrawId = draw.id;
