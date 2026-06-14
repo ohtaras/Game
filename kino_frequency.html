@@ -101,11 +101,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="dsFreqControls">
       <label class="ctrl-label">Τελευταίες
-        <input type="number" id="dsFreqXInput" class="ctrl-input" value="6" min="1" max="100" style="width:60px">
+        <input type="number" id="dsFreqXInput" class="ctrl-input" value="8" min="1" max="100" style="width:60px">
         κληρώσεις
       </label>
-      <label class="ctrl-label"><input type="checkbox" id="hideDelayChk"> Απόκρυψη αριθμών με καθυστέρηση ≥
-        <input type="number" id="hideDelayXInput" class="ctrl-input" value="10" min="1" max="300" style="width:60px">
+      <label class="ctrl-label"><input type="checkbox" id="hideDelayChk" checked> Απόκρυψη αριθμών με καθυστέρηση ≥
+        <input type="number" id="hideDelayXInput" class="ctrl-input" value="3" min="1" max="300" style="width:60px">
         κληρώσεις
       </label>
       <label class="ctrl-label"><input type="checkbox" id="hideFreqChk"> Απόκρυψη αριθμών με εμφανίσεις &lt;
@@ -134,7 +134,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς, μαύρο φόντο) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (αυτή με τις περισσότερες εμφανίσεις στις τελευταίες κληρώσεις) και σχηματίζεται ένας "κομήτης": έντονο κόκκινο στον πυρήνα της, με την ουρά/περίγραμμά του να σβήνει προς το πορτοκαλί και μετά μαύρο — το σχήμα του κομήτη αλλάζει κάθε φορά ανάλογα με το πού βρίσκεται η ζεστή λωρίδα (οριζόντια, κάθετα ή διαγώνια).
     </div>
     <label class="ctrl-label" style="margin-bottom:8px;display:inline-block">Ανάλυση τελευταίων
-      <input type="number" id="hotZoneXInput" class="ctrl-input" value="30" min="4" max="1000" style="width:60px">
+      <input type="number" id="hotZoneXInput" class="ctrl-input" value="4" min="4" max="1000" style="width:60px">
       κληρώσεων
     </label>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
