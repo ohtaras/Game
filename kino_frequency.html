@@ -44,9 +44,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 
 /* ── Hot zones ── */
-#hotZoneGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:6px;background:#000;padding:6px;border-radius:8px}
-@media(max-width:600px){#hotZoneGrid{grid-template-columns:repeat(5,1fr)}}
-.zone-cell{border-radius:7px;aspect-ratio:1/1}
+#hotZoneGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:6px;background:#000;padding:6px;border-radius:8px;aspect-ratio:1/1;max-width:420px;margin-left:auto;margin-right:auto}
+.zone-cell{border-radius:7px;aspect-ratio:4/5}
 
 /* ── Hot 6-tuples ── */
 #hot6Grid{display:flex;flex-direction:column;gap:6px}
@@ -421,7 +420,6 @@ const HOTZONE_LINES = (() => {
   }
   return lines;
 })();
-const HOTZONE_MAX_DIST = Math.hypot(HOTZONE_ROWS - 1, HOTZONE_COLS - 1);
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
   const ds = [];
