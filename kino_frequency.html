@@ -134,7 +134,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) χωρισμένος σε 5 γειτονικές περιοχές των 16 αριθμών η καθεμία. Κόκκινο = η πιο "ζεστή" περιοχή αυτή τη στιγμή (μικρότερη μέση καθυστέρηση).
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — κάθε κελί χρωματίζεται ανάλογα με την καθυστέρηση του δικού του αριθμού. Κόκκινο 🔥 = αριθμός με καθυστέρηση ≤ 3 κληρώσεις. Οι "ζεστές περιοχές" σχηματίζονται φυσικά εκεί όπου συσσωρεύονται κόκκινα κελιά.
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
@@ -388,28 +388,21 @@ function renderHot6() {
   }).join('');
 }
 
-// ── Hot zones: 10x8 grid split into 5 adjacent 16-number regions ───────────
-const HOTZONE_REGION_SIZE = 16; // 5 regions x 16 numbers = 80
+// ── Hot zones: 10x8 grid heatmap, per-number color by current delay ────────
+const HOTZONE_CELL_THRESHOLD = 3; // delay <= this → "hot" cell
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
-  const regionAvgs = [];
-  for (let i = 0; i < 80 / HOTZONE_REGION_SIZE; i++) {
-    let sum = 0;
-    for (let n = i * HOTZONE_REGION_SIZE + 1; n <= (i + 1) * HOTZONE_REGION_SIZE; n++) sum += delays[n];
-    regionAvgs.push(sum / HOTZONE_REGION_SIZE);
-  }
-  const minA = Math.min(...regionAvgs), maxA = Math.max(...regionAvgs);
-  const hottestRegion = regionAvgs.indexOf(minA);
+  const ds = [];
+  for (let n = 1; n <= 80; n++) ds.push(delays[n]);
+  const minD = Math.min(...ds), maxD = Math.max(...ds);
   const cells = [];
   for (let n = 1; n <= 80; n++) {
-    const region = Math.floor((n - 1) / HOTZONE_REGION_SIZE);
-    const avg = regionAvgs[region];
-    const t = maxA === minA ? 0 : (maxA - avg) / (maxA - minA); // 1 = hottest
+    const d = delays[n];
+    const t = maxD === minD ? 0 : (maxD - d) / (maxD - minD); // 1 = hottest
     const hue = Math.round(120 * (1 - t));
     const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
-    const isHottest = region === hottestRegion;
-    const showFlag = isHottest && n === region * HOTZONE_REGION_SIZE + 1;
-    cells.push(`<div class="zone-cell${isHottest ? ' hottest' : ''}" style="background:${bg}">${showFlag ? '<span class="z-flag">🔥</span>' : ''}</div>`);
+    const isHot = d <= HOTZONE_CELL_THRESHOLD;
+    cells.push(`<div class="zone-cell${isHot ? ' hottest' : ''}" style="background:${bg}">${isHot ? '<span class="z-flag">🔥</span>' : ''}</div>`);
   }
   grid.innerHTML = cells.join('');
 }
