@@ -44,11 +44,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 
 /* ── Hot zones ── */
-#hotZoneGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:6px}
+#hotZoneGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:6px;background:#000;padding:6px;border-radius:8px}
 @media(max-width:600px){#hotZoneGrid{grid-template-columns:repeat(5,1fr)}}
-.zone-cell{border-radius:7px;padding:10px 2px;text-align:center;transition:box-shadow .3s}
-.zone-cell.hottest{box-shadow:0 0 0 2px #fff inset}
-.zone-cell .z-flag{font-size:.6rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.zone-cell{border-radius:7px;padding:10px 2px;text-align:center}
 
 /* ── Hot 6-tuples ── */
 #hot6Grid{display:flex;flex-direction:column;gap:6px}
@@ -134,7 +132,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (η μικρότερη μέση καθυστέρηση) και φωτίζεται κόκκινη 🔥, ενώ το χρώμα σβήνει προς το πράσινο όσο απομακρυνόμαστε από αυτή — σαν κύμα που διασχίζει τον πίνακα οριζόντια, κάθετα ή διαγώνια.
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς, μαύρο φόντο) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (η μικρότερη μέση καθυστέρηση) και σχηματίζεται ένας "κομήτης": έντονο κόκκινο στον πυρήνα της, με την ουρά/περίγραμμά του να σβήνει προς το πορτοκαλί και μετά μαύρο — το σχήμα του κομήτη αλλάζει κάθε φορά ανάλογα με το πού βρίσκεται η ζεστή λωρίδα (οριζόντια, κάθετα ή διαγώνια).
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
@@ -435,9 +433,8 @@ function renderHotZones(delays) {
     const avg = line.reduce((s, i) => s + ds[i], 0) / line.length;
     if (avg < bestAvg) { bestAvg = avg; bestLine = line; }
   }
-  const hotSet = new Set(bestLine);
-
-  // gradient: distance from each cell to the nearest cell on the hot line
+  // comet effect: bright red on the hot line, fading to orange then black further away
+  const FADE_RADIUS = 2.5;
   const cells = [];
   for (let i = 0; i < 80; i++) {
     const row = Math.floor(i / HOTZONE_COLS), col = i % HOTZONE_COLS;
@@ -447,11 +444,10 @@ function renderHotZones(delays) {
       const d = Math.hypot(row - jr, col - jc);
       if (d < minDist) minDist = d;
     }
-    const t = 1 - minDist / HOTZONE_MAX_DIST; // 1 = on the hot line, 0 = furthest away
-    const hue = Math.round(120 * (1 - t));
-    const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
-    const isHot = hotSet.has(i);
-    cells.push(`<div class="zone-cell${isHot ? ' hottest' : ''}" style="background:${bg}">${isHot ? '<span class="z-flag">🔥</span>' : ''}</div>`);
+    const t = Math.max(0, 1 - minDist / FADE_RADIUS); // 1 = on the comet's core, 0 = black background
+    const hue = Math.round(30 * (1 - t));
+    const bg = t === 0 ? '#000' : `hsl(${hue},100%,${Math.round(50 * t)}%)`;
+    cells.push(`<div class="zone-cell" style="background:${bg}"></div>`);
   }
   grid.innerHTML = cells.join('');
 }
