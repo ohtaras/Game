@@ -322,6 +322,32 @@ const TOP6 = [
 const HOT6_THRESHOLD = 3;
 let hot6Pending = new Map(); // tuple index -> {forDrawId}
 let hot6Results = new Map(); // tuple index -> result record
+let hot6ComboDelay = []; // tuple index -> draws since all 6 numbers last appeared together
+
+// scan back from the latest draw to find, for each combo, how many draws ago
+// all 6 of its numbers last appeared together in the same draw
+function computeHot6ComboDelays(draws) {
+  const liveIdx = draws.length - 1;
+  const delays = new Array(TOP6.length).fill(null);
+  let remaining = TOP6.length;
+  for (let i = liveIdx; i >= 0 && remaining > 0; i--) {
+    const set = new Set(draws[i].n);
+    for (let idx = 0; idx < TOP6.length; idx++) {
+      if (delays[idx] !== null) continue;
+      if (TOP6[idx].n.every(n => set.has(n))) { delays[idx] = liveIdx - i; remaining--; }
+    }
+  }
+  for (let idx = 0; idx < TOP6.length; idx++) if (delays[idx] === null) delays[idx] = liveIdx + 1;
+  return delays;
+}
+
+// incrementally update combo delays when a new draw arrives
+function updateHot6ComboDelays(newDraw) {
+  const set = new Set(newDraw.n);
+  for (let idx = 0; idx < TOP6.length; idx++) {
+    hot6ComboDelay[idx] = TOP6[idx].n.every(n => set.has(n)) ? 0 : (hot6ComboDelay[idx] ?? 0) + 1;
+  }
+}
 
 function evaluateHot6(draw) {
   for (const [idx, pending] of hot6Pending) {
@@ -371,9 +397,10 @@ function renderHot6() {
     const maxD = Math.max(...ds);
     const isHot = maxD <= HOT6_THRESHOLD;
     const nums = t.n.map((n,i) => `<div class="t-num">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
+    const comboDelay = hot6ComboDelay[idx];
     const meta = isHot
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
-      : `εμφανίσεις ιστορικά: ${t.c} φορές`;
+      : `καθυστερεί ${comboDelay} κληρώσεις · εμφανίσεις ιστορικά: ${t.c} φορές`;
 
     if (isLive && isHot) hot6Pending.set(idx, { forDrawId: dsDraws[liveIdx].id + 1 });
 
@@ -601,6 +628,7 @@ async function checkForNewDraw() {
     const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
     const wasAtLast = dsIdx === dsDraws.length - 1;
     evaluateHot6(newDraw);
+    updateHot6ComboDelays(newDraw);
     dsDraws.push(newDraw);
     if (wasAtLast) { dsIdx = dsDraws.length - 1; renderFreqShift(); }
     evaluatePredictions();
@@ -622,6 +650,7 @@ function updateStatus() {
 window.addEventListener('load', async () => {
   dsDraws = await loadFullHistory(document.getElementById('statusBar'));
   dsIdx = dsDraws.length - 1;
+  hot6ComboDelay = computeHot6ComboDelays(dsDraws);
   renderFreqShift();
   evaluatePredictions();
   renderPredictions();
