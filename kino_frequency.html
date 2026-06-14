@@ -134,7 +134,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — η καθυστέρηση κάθε κελιού εξομαλύνεται με τους γείτονές του, ώστε η θερμότητα να σχηματίζει ένα συνεχόμενο "κύμα" (οριζόντιο, κάθετο ή διαγώνιο, ανάλογα με τα δεδομένα) αντί για ομοιόμορφο grid. Κόκκινο 🔥 = αριθμός με καθυστέρηση ≤ 3 κληρώσεις.
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (η μικρότερη μέση καθυστέρηση) και φωτίζεται κόκκινη 🔥, ενώ το χρώμα σβήνει προς το πράσινο όσο απομακρυνόμαστε από αυτή — σαν κύμα που διασχίζει τον πίνακα οριζόντια, κάθετα ή διαγώνια.
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
@@ -388,33 +388,69 @@ function renderHot6() {
   }).join('');
 }
 
-// ── Hot zones: 10x8 grid heatmap, smoothed into a "wave" ────────────────────
-const HOTZONE_CELL_THRESHOLD = 3; // delay <= this → "hot" cell
+// ── Hot zones: 10x8 grid heatmap — a hot row/column/diagonal "line" creates a gradient wave ─
 const HOTZONE_COLS = 10, HOTZONE_ROWS = 8;
+// build candidate lines: rows, columns and both diagonal directions (length >= 4)
+const HOTZONE_LINES = (() => {
+  const lines = [];
+  for (let r = 0; r < HOTZONE_ROWS; r++) {
+    const cells = [];
+    for (let c = 0; c < HOTZONE_COLS; c++) cells.push(r * HOTZONE_COLS + c);
+    lines.push(cells);
+  }
+  for (let c = 0; c < HOTZONE_COLS; c++) {
+    const cells = [];
+    for (let r = 0; r < HOTZONE_ROWS; r++) cells.push(r * HOTZONE_COLS + c);
+    lines.push(cells);
+  }
+  // diagonal ↘ (r - c constant)
+  for (let off = -(HOTZONE_ROWS - 1); off <= HOTZONE_COLS - 1; off++) {
+    const cells = [];
+    for (let r = 0; r < HOTZONE_ROWS; r++) {
+      const c = r - off;
+      if (c >= 0 && c < HOTZONE_COLS) cells.push(r * HOTZONE_COLS + c);
+    }
+    if (cells.length >= 4) lines.push(cells);
+  }
+  // diagonal ↙ (r + c constant)
+  for (let off = 0; off <= (HOTZONE_ROWS - 1) + (HOTZONE_COLS - 1); off++) {
+    const cells = [];
+    for (let r = 0; r < HOTZONE_ROWS; r++) {
+      const c = off - r;
+      if (c >= 0 && c < HOTZONE_COLS) cells.push(r * HOTZONE_COLS + c);
+    }
+    if (cells.length >= 4) lines.push(cells);
+  }
+  return lines;
+})();
+const HOTZONE_MAX_DIST = Math.hypot(HOTZONE_ROWS - 1, HOTZONE_COLS - 1);
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
   const ds = [];
   for (let n = 1; n <= 80; n++) ds.push(delays[n]);
-  // 3x3 box-blur so the heat forms a smooth wave instead of scattered cells
-  const smooth = new Array(80);
-  for (let i = 0; i < 80; i++) {
-    const row = Math.floor(i / HOTZONE_COLS), col = i % HOTZONE_COLS;
-    let sum = 0, cnt = 0;
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        const r = row + dr, c = col + dc;
-        if (r >= 0 && r < HOTZONE_ROWS && c >= 0 && c < HOTZONE_COLS) { sum += ds[r * HOTZONE_COLS + c]; cnt++; }
-      }
-    }
-    smooth[i] = sum / cnt;
+
+  // pick the line with the lowest average delay → that's the "hot" wave
+  let bestLine = HOTZONE_LINES[0], bestAvg = Infinity;
+  for (const line of HOTZONE_LINES) {
+    const avg = line.reduce((s, i) => s + ds[i], 0) / line.length;
+    if (avg < bestAvg) { bestAvg = avg; bestLine = line; }
   }
-  const minS = Math.min(...smooth), maxS = Math.max(...smooth);
+  const hotSet = new Set(bestLine);
+
+  // gradient: distance from each cell to the nearest cell on the hot line
   const cells = [];
   for (let i = 0; i < 80; i++) {
-    const t = maxS === minS ? 0 : (maxS - smooth[i]) / (maxS - minS); // 1 = hottest
+    const row = Math.floor(i / HOTZONE_COLS), col = i % HOTZONE_COLS;
+    let minDist = Infinity;
+    for (const j of bestLine) {
+      const jr = Math.floor(j / HOTZONE_COLS), jc = j % HOTZONE_COLS;
+      const d = Math.hypot(row - jr, col - jc);
+      if (d < minDist) minDist = d;
+    }
+    const t = 1 - minDist / HOTZONE_MAX_DIST; // 1 = on the hot line, 0 = furthest away
     const hue = Math.round(120 * (1 - t));
     const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
-    const isHot = ds[i] <= HOTZONE_CELL_THRESHOLD;
+    const isHot = hotSet.has(i);
     cells.push(`<div class="zone-cell${isHot ? ' hottest' : ''}" style="background:${bg}">${isHot ? '<span class="z-flag">🔥</span>' : ''}</div>`);
   }
   grid.innerHTML = cells.join('');
