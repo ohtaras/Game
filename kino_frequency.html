@@ -371,7 +371,7 @@ function renderHot6() {
     const nums = t.n.map((n,i) => `<div class="t-num">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
     const meta = isHot
       ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
-      : `εμφανίσεις: ${t.c} · μέγ. καθυστέρηση: ${maxD}`;
+      : `εμφανίσεις: ${t.c} · τρέχουσα καθυστέρηση: ${maxD}`;
 
     if (isLive && isHot) hot6Pending.set(idx, { forDrawId: dsDraws[dsIdx].id + 1 });
 
