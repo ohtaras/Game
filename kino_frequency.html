@@ -44,9 +44,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 
 /* ── Hot zones ── */
-#hotZoneGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:6px}
+#hotZoneGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:6px}
 @media(max-width:600px){#hotZoneGrid{grid-template-columns:repeat(5,1fr)}}
-.zone-cell{border-radius:7px;padding:14px 2px;text-align:center;transition:box-shadow .3s}
+.zone-cell{border-radius:7px;padding:10px 2px;text-align:center;transition:box-shadow .3s}
 .zone-cell.hottest{box-shadow:0 0 0 2px #fff inset}
 .zone-cell .z-flag{font-size:.6rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
@@ -134,7 +134,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας χωρισμένος σε 20 γειτονικές περιοχές (2×2 αριθμοί η καθεμία). Κόκκινο = η πιο "ζεστή" περιοχή αυτή τη στιγμή (μικρότερη μέση καθυστέρηση).
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) χωρισμένος σε 5 γειτονικές περιοχές των 16 αριθμών η καθεμία. Κόκκινο = η πιο "ζεστή" περιοχή αυτή τη στιγμή (μικρότερη μέση καθυστέρηση).
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
@@ -388,31 +388,30 @@ function renderHot6() {
   }).join('');
 }
 
-// ── Hot zones: 10x8 grid split into 20 adjacent 2x2 regions ────────────────
+// ── Hot zones: 10x8 grid split into 5 adjacent 16-number regions ───────────
+const HOTZONE_REGION_SIZE = 16; // 5 regions x 16 numbers = 80
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
-  const regions = [];
-  for (let rowBlock = 0; rowBlock < 4; rowBlock++) {
-    for (let colBlock = 0; colBlock < 5; colBlock++) {
-      let sum = 0, n = 0;
-      for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 2; c++) {
-          const row = rowBlock * 2 + r, col = colBlock * 2 + c;
-          const num = row * 10 + col + 1;
-          sum += delays[num]; n++;
-        }
-      }
-      regions.push(sum / n);
-    }
+  const regionAvgs = [];
+  for (let i = 0; i < 80 / HOTZONE_REGION_SIZE; i++) {
+    let sum = 0;
+    for (let n = i * HOTZONE_REGION_SIZE + 1; n <= (i + 1) * HOTZONE_REGION_SIZE; n++) sum += delays[n];
+    regionAvgs.push(sum / HOTZONE_REGION_SIZE);
   }
-  const minA = Math.min(...regions), maxA = Math.max(...regions);
-  grid.innerHTML = regions.map(avg => {
+  const minA = Math.min(...regionAvgs), maxA = Math.max(...regionAvgs);
+  const hottestRegion = regionAvgs.indexOf(minA);
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    const region = Math.floor((n - 1) / HOTZONE_REGION_SIZE);
+    const avg = regionAvgs[region];
     const t = maxA === minA ? 0 : (maxA - avg) / (maxA - minA); // 1 = hottest
     const hue = Math.round(120 * (1 - t));
     const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
-    const isHottest = avg === minA;
-    return `<div class="zone-cell${isHottest ? ' hottest' : ''}" style="background:${bg}">${isHottest ? '<span class="z-flag">🔥</span>' : ''}</div>`;
-  }).join('');
+    const isHottest = region === hottestRegion;
+    const showFlag = isHottest && n === region * HOTZONE_REGION_SIZE + 1;
+    cells.push(`<div class="zone-cell${isHottest ? ' hottest' : ''}" style="background:${bg}">${showFlag ? '<span class="z-flag">🔥</span>' : ''}</div>`);
+  }
+  grid.innerHTML = cells.join('');
 }
 
 function renderFreqShift() {
