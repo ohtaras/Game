@@ -131,8 +131,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς, μαύρο φόντο) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (η μικρότερη μέση καθυστέρηση) και σχηματίζεται ένας "κομήτης": έντονο κόκκινο στον πυρήνα της, με την ουρά/περίγραμμά του να σβήνει προς το πορτοκαλί και μετά μαύρο — το σχήμα του κομήτη αλλάζει κάθε φορά ανάλογα με το πού βρίσκεται η ζεστή λωρίδα (οριζόντια, κάθετα ή διαγώνια).
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς, μαύρο φόντο) — βρίσκεται η πιο "ζεστή" γραμμή, στήλη ή διαγώνια λωρίδα (αυτή με τις περισσότερες εμφανίσεις στις τελευταίες κληρώσεις) και σχηματίζεται ένας "κομήτης": έντονο κόκκινο στον πυρήνα της, με την ουρά/περίγραμμά του να σβήνει προς το πορτοκαλί και μετά μαύρο — το σχήμα του κομήτη αλλάζει κάθε φορά ανάλογα με το πού βρίσκεται η ζεστή λωρίδα (οριζόντια, κάθετα ή διαγώνια).
     </div>
+    <label class="ctrl-label" style="margin-bottom:8px;display:inline-block">Ανάλυση τελευταίων
+      <input type="number" id="hotZoneXInput" class="ctrl-input" value="30" min="4" max="1000" style="width:60px">
+      κληρώσεων
+    </label>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🔥 Ζεστές Εξάδες</h2>
@@ -420,16 +424,16 @@ const HOTZONE_LINES = (() => {
   }
   return lines;
 })();
-function renderHotZones(delays) {
+function renderHotZones(freqs) {
   const grid = document.getElementById('hotZoneGrid');
   const ds = [];
-  for (let n = 1; n <= 80; n++) ds.push(delays[n]);
+  for (let n = 1; n <= 80; n++) ds.push(freqs[n]);
 
-  // pick the line with the lowest average delay → that's the "hot" wave
-  let bestLine = HOTZONE_LINES[0], bestAvg = Infinity;
+  // pick the line with the highest average frequency in the analysis window → that's the "hot" wave
+  let bestLine = HOTZONE_LINES[0], bestAvg = -Infinity;
   for (const line of HOTZONE_LINES) {
     const avg = line.reduce((s, i) => s + ds[i], 0) / line.length;
-    if (avg < bestAvg) { bestAvg = avg; bestLine = line; }
+    if (avg > bestAvg) { bestAvg = avg; bestLine = line; }
   }
   // comet effect: bright red on the hot line, fading to orange then black further away
   const FADE_RADIUS = 2.5;
@@ -464,7 +468,8 @@ function renderFreqShift() {
   const hideDelay = document.getElementById('hideDelayChk').checked;
   const hideThreshold = Math.min(Math.max(parseInt(document.getElementById('hideDelayXInput').value) || 10, 1), 300);
   const delays = hideDelay ? computeDelaysAtIndex(dsDraws, dsIdx) : null;
-  renderHotZones(delays || computeDelaysAtIndex(dsDraws, dsIdx));
+  const hotZoneX = Math.min(Math.max(parseInt(document.getElementById('hotZoneXInput').value) || 30, 4), 1000);
+  renderHotZones(computeFreqInLastX(dsDraws, dsIdx, hotZoneX));
   renderHot6();
   const hideFreq = document.getElementById('hideFreqChk').checked;
   const hideFreqThreshold = Math.min(Math.max(parseInt(document.getElementById('hideFreqXInput').value) || 0, 0), 50);
@@ -629,6 +634,7 @@ window.addEventListener('load', async () => {
   document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
   document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderFreqShift(); } });
   document.getElementById('dsFreqXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
+  document.getElementById('hotZoneXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideDelayXInput').addEventListener('input', () => { if (dsDraws) renderFreqShift(); });
   document.getElementById('hideFreqChk').addEventListener('change', () => { if (dsDraws) renderFreqShift(); });
