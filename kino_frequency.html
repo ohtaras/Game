@@ -134,7 +134,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
     <h2 style="font-size:.9rem;font-weight:600;color:#7986cb;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.06em">🌡️ Ζεστές Περιοχές</h2>
     <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — κάθε κελί χρωματίζεται ανάλογα με την καθυστέρηση του δικού του αριθμού. Κόκκινο 🔥 = αριθμός με καθυστέρηση ≤ 3 κληρώσεις. Οι "ζεστές περιοχές" σχηματίζονται φυσικά εκεί όπου συσσωρεύονται κόκκινα κελιά.
+      Ο πίνακας (ίδιο σχήμα 10×8 με τον κανονικό πίνακα, χωρίς αριθμούς) — η καθυστέρηση κάθε κελιού εξομαλύνεται με τους γείτονές του, ώστε η θερμότητα να σχηματίζει ένα συνεχόμενο "κύμα" (οριζόντιο, κάθετο ή διαγώνιο, ανάλογα με τα δεδομένα) αντί για ομοιόμορφο grid. Κόκκινο 🔥 = αριθμός με καθυστέρηση ≤ 3 κληρώσεις.
     </div>
     <div id="hotZoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
 
@@ -388,20 +388,33 @@ function renderHot6() {
   }).join('');
 }
 
-// ── Hot zones: 10x8 grid heatmap, per-number color by current delay ────────
+// ── Hot zones: 10x8 grid heatmap, smoothed into a "wave" ────────────────────
 const HOTZONE_CELL_THRESHOLD = 3; // delay <= this → "hot" cell
+const HOTZONE_COLS = 10, HOTZONE_ROWS = 8;
 function renderHotZones(delays) {
   const grid = document.getElementById('hotZoneGrid');
   const ds = [];
   for (let n = 1; n <= 80; n++) ds.push(delays[n]);
-  const minD = Math.min(...ds), maxD = Math.max(...ds);
+  // 3x3 box-blur so the heat forms a smooth wave instead of scattered cells
+  const smooth = new Array(80);
+  for (let i = 0; i < 80; i++) {
+    const row = Math.floor(i / HOTZONE_COLS), col = i % HOTZONE_COLS;
+    let sum = 0, cnt = 0;
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const r = row + dr, c = col + dc;
+        if (r >= 0 && r < HOTZONE_ROWS && c >= 0 && c < HOTZONE_COLS) { sum += ds[r * HOTZONE_COLS + c]; cnt++; }
+      }
+    }
+    smooth[i] = sum / cnt;
+  }
+  const minS = Math.min(...smooth), maxS = Math.max(...smooth);
   const cells = [];
-  for (let n = 1; n <= 80; n++) {
-    const d = delays[n];
-    const t = maxD === minD ? 0 : (maxD - d) / (maxD - minD); // 1 = hottest
+  for (let i = 0; i < 80; i++) {
+    const t = maxS === minS ? 0 : (maxS - smooth[i]) / (maxS - minS); // 1 = hottest
     const hue = Math.round(120 * (1 - t));
     const bg = `hsl(${hue},85%,${Math.round(45 - t * 15)}%)`;
-    const isHot = d <= HOTZONE_CELL_THRESHOLD;
+    const isHot = ds[i] <= HOTZONE_CELL_THRESHOLD;
     cells.push(`<div class="zone-cell${isHot ? ' hottest' : ''}" style="background:${bg}">${isHot ? '<span class="z-flag">🔥</span>' : ''}</div>`);
   }
   grid.innerHTML = cells.join('');
