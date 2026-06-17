@@ -1237,14 +1237,20 @@ function renderCoOccGridInto(gridEl, lockedArr, coOcc, app, sigma) {
   gridEl.innerHTML = cells.join('');
 }
 
+function drawIdToDateStr(id) {
+  const anchorId = lastKnownId || (allDraws.length ? allDraws[allDraws.length - 1].id : id);
+  const ms = Date.now() - (anchorId - id) * 5 * 60000;
+  return new Date(ms).toLocaleString('el-GR', { timeZone: 'Europe/Athens', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 function buildComboEvalHtml(lockedArr, fullDraws, windowDraws) {
   if (lockedArr.length < 1 || !fullDraws) return '';
   const k = lockedArr.length;
   const sorted = [...lockedArr].sort((a, b) => a - b);
-  let totalFull = 0;
+  let totalFull = 0, lastMatchId = null;
   for (const d of fullDraws) {
     const set = new Set(d.n);
-    if (sorted.every(n => set.has(n))) totalFull++;
+    if (sorted.every(n => set.has(n))) { totalFull++; lastMatchId = d.id; }
   }
   const hist = new Array(k + 1).fill(0);
   for (const d of windowDraws) {
@@ -1257,10 +1263,14 @@ function buildComboEvalHtml(lockedArr, fullDraws, windowDraws) {
   for (let i = k; i >= 0; i--) {
     rows.push(`<div>${i}/${k}: <strong style="color:${i === k ? '#a5d6a7' : '#c5cae9'}">${hist[i]}</strong> φορ${hist[i] === 1 ? 'ά' : 'ές'}</div>`);
   }
+  const lastSeenLine = lastMatchId !== null
+    ? `<div style="font-size:.78rem;color:#999;margin-bottom:6px">Τελευταία φορά που βγήκε ο πλήρης συνδυασμός: κλήρωση <strong style="color:#e1bee7">#${lastMatchId}</strong> · <strong style="color:#e1bee7">${drawIdToDateStr(lastMatchId)}</strong></div>`
+    : '';
   return `
     <div style="margin-top:10px;padding:10px 12px;background:#0a0a18;border:1px solid #2a2a4a;border-radius:8px">
       <div style="color:#ffd54f;font-weight:700;margin-bottom:6px">📋 Αξιολόγηση συνδυασμού: ${sorted.join(', ')} (${k} αριθμοί)</div>
       <div style="font-size:.78rem;color:#999;margin-bottom:6px">Πλήρης συνδυασμός (${k}/${k}) έχει βγει <strong style="color:#e1bee7">${totalFull.toLocaleString('el-GR')}</strong> φορ${totalFull === 1 ? 'ά' : 'ές'} σε όλο το δείγμα (${fullDraws.length.toLocaleString('el-GR')} κληρώσεις).</div>
+      ${lastSeenLine}
       <div style="font-size:.78rem;color:#999;margin-bottom:4px">Στις τελευταίες ${windowDraws.length.toLocaleString('el-GR')} κληρώσεις:</div>
       <div style="font-size:.78rem;line-height:1.6">${rows.join('')}</div>
     </div>`;
