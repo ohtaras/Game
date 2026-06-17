@@ -149,19 +149,20 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 @media(max-width:600px){#selGrid{grid-template-columns:repeat(8,1fr)}.res-ball{min-width:50px;padding:7px 8px}}
 
 /* ── Co-occurrence ── */
-#coOccStatus{font-size:.8rem;color:#80cbc4;padding:6px 0;margin-bottom:8px}
-#coOccGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:12px}
+#coOccStatus,#coOccRecentStatus{font-size:.8rem;color:#80cbc4;padding:6px 0;margin-bottom:8px}
+.co-occ-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:12px}
 .co-cell{border-radius:6px;padding:5px 2px;text-align:center;font-size:.68rem;font-weight:700;cursor:pointer;transition:all .12s;background:#1e2535;border:2px solid #263040;color:#556;user-select:none}
 .co-cell:hover{border-color:#5c6bc0}
 .co-selected{background:#1a1a3a!important;border-color:#9c27b0!important;color:#e1bee7!important}
+.co-locked{background:#2a2200!important;border-color:#ffb300!important;color:#ffe082!important}
 .co-p1{background:#0d2b0d;border-color:#2e7d32;color:#a5d6a7}
 .co-p2{background:#0a3a0a;border-color:#388e3c;color:#c8e6c9}
 .co-p3{background:#07490a;border-color:#43a047;color:#e8f5e9}
 .co-n1{background:#1a0808;border-color:#b71c1c;color:#ef9a9a}
 .co-n2{background:#2a0808;border-color:#c62828;color:#ffcdd2}
 .co-n3{background:#3a0808;border-color:#d32f2f;color:#ffebee}
-#coOccInfo{padding:8px 12px;background:#08080f;border:1px solid #1a1a30;border-radius:8px;font-size:.78rem;line-height:1.8;min-height:32px}
-@media(max-width:600px){#coOccGrid{grid-template-columns:repeat(8,1fr)}}
+#coOccInfo,#coOccRecentInfo{padding:8px 12px;background:#08080f;border:1px solid #1a1a30;border-radius:8px;font-size:.78rem;line-height:1.8;min-height:32px}
+@media(max-width:600px){.co-occ-grid{grid-template-columns:repeat(8,1fr)}}
 </style>
 </head>
 <body>
@@ -319,17 +320,17 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="coOccSec">
     <h2>🔗 Ανάλυση Συν-εμφάνισης</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
-      Πόσο συχνά κάθε αριθμός εμφανίζεται <em>μαζί</em> με κάθε άλλο. Κάνε κλικ σε έναν αριθμό για να δεις τους «φίλους» και τους «αντιπάλους» του σε 36 μήνες κληρώσεων. Βάση: 19/79 ≈ 24.1% (αναμενόμενη πιθανότητα συν-εμφάνισης).
+      Πόσο συχνά κάθε αριθμός εμφανίζεται <em>μαζί</em> με κάθε άλλο. Κάνε κλικ σε έναν αριθμό για να δεις τους «φίλους» και τους «αντιπάλους» του σε 36 μήνες κληρώσεων. Κάνε κλικ σε δεύτερο, τρίτο κ.λπ. αριθμό — οι προηγούμενοι παραμένουν 🔒 κλειδωμένοι στο πλέγμα, αλλά τα στοιχεία πάντα δείχνουν τον τελευταίο που πάτησες (ξανακλικ σε κλειδωμένο τον ξεκλειδώνει). Βάση: 19/79 ≈ 24.1% (αναμενόμενη πιθανότητα συν-εμφάνισης).
     </div>
     <div id="coOccStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
-    <div id="coOccGrid"></div>
+    <div id="coOccGrid" class="co-occ-grid"></div>
     <div id="coOccInfo"></div>
   </section>
 
   <section id="coOccRecentSec">
     <h2>🔗 Ανάλυση Συν-εμφάνισης (Πρόσφατο Παράθυρο)</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
-      Ίδια ανάλυση «φίλων» και «αντιπάλων», αλλά υπολογισμένη μόνο πάνω στις <strong>τελευταίες Χ κληρώσεις</strong> — για να δεις ποιοι συνδυασμοί είναι ζεστοί <em>αυτή τη στιγμή</em>, όχι σε όλο το ιστορικό.
+      Ίδια ανάλυση «φίλων» και «αντιπάλων» με 🔒 κλείδωμα πολλαπλών αριθμών, αλλά υπολογισμένη μόνο πάνω στις <strong>τελευταίες Χ κληρώσεις</strong> — για να δεις ποιοι συνδυασμοί είναι ζεστοί <em>αυτή τη στιγμή</em>, όχι σε όλο το ιστορικό.
     </div>
     <div style="margin-bottom:10px">
       <label class="ctrl-label">Ανάλυση τελευταίων
@@ -338,7 +339,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       </label>
     </div>
     <div id="coOccRecentStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
-    <div id="coOccRecentGrid"></div>
+    <div id="coOccRecentGrid" class="co-occ-grid"></div>
     <div id="coOccRecentInfo"></div>
   </section>
 
@@ -423,8 +424,18 @@ let simMachineStrategy = 'accel';
 let machinePool = new Set(Array.from({length:80}, (_,k) => k+1));
 let globalCoOcc    = null;   // Int32Array(81*81)
 let globalApp      = null;   // Int32Array(81)
-let coOccSelectedN = null;
+let coOccLocked    = [];     // numbers clicked, in click order; last one is "active" (shown in info panel)
 let coOccBuilt     = false;
+
+function toggleLocked(lockedArr, n) {
+  const idx = lockedArr.indexOf(n);
+  if (idx === -1) lockedArr.push(n);
+  else lockedArr.splice(idx, 1);
+  return lockedArr;
+}
+function activeOf(lockedArr) {
+  return lockedArr.length ? lockedArr[lockedArr.length - 1] : null;
+}
 
 // ── Time travel ───────────────────────────────────────────────────────────────
 const TT_KEY = 'kino_timetravel_id';
@@ -561,9 +572,9 @@ async function checkForNewDraw() {
           globalCoOcc[nb * 81 + na]++;
         }
       }
-      if (coOccSelectedN !== null) {
-        renderCoOccGrid(coOccSelectedN);
-        updateCoOccInfo(coOccSelectedN);
+      if (coOccLocked.length) {
+        renderCoOccGrid(coOccLocked);
+        updateCoOccInfo(coOccLocked);
       }
     }
   } catch(e) { console.error('checkForNewDraw:', e); }
@@ -1187,17 +1198,21 @@ function coOccClass(dev, sigma) {
   return '';
 }
 
-function renderCoOccGridInto(gridEl, selectedN, coOcc, app, sigma) {
+function renderCoOccGridInto(gridEl, lockedArr, coOcc, app, sigma) {
   if (!gridEl) return;
+  const active = activeOf(lockedArr);
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     let cls = 'co-cell', title = String(n);
-    if (selectedN !== null && selectedN === n) {
+    if (active !== null && active === n) {
       cls += ' co-selected';
-    } else if (selectedN !== null && coOcc && app) {
-      const a = app[selectedN];
+    } else if (lockedArr.includes(n)) {
+      cls += ' co-locked';
+      title = `${n} (κλειδωμένος)`;
+    } else if (active !== null && coOcc && app) {
+      const a = app[active];
       if (a > 0) {
-        const rate = coOcc[selectedN * 81 + n] / a;
+        const rate = coOcc[active * 81 + n] / a;
         const dev = rate - CO_BASELINE;
         const cc = coOccClass(dev, sigma);
         if (cc) cls += ' ' + cc;
@@ -1209,34 +1224,40 @@ function renderCoOccGridInto(gridEl, selectedN, coOcc, app, sigma) {
   gridEl.innerHTML = cells.join('');
 }
 
-function buildCoOccInfoHtml(selectedN, coOcc, app) {
-  if (selectedN === null || !coOcc || !app) {
-    return '<span style="color:#444">Κάνε κλικ σε έναν αριθμό για λεπτομέρειες.</span>';
+function buildCoOccInfoHtml(lockedArr, coOcc, app) {
+  const active = activeOf(lockedArr);
+  if (active === null || !coOcc || !app) {
+    return '<span style="color:#444">Κάνε κλικ σε αριθμούς για λεπτομέρειες (κάθε επόμενο κλικ κλειδώνει τον προηγούμενο και δείχνει τη δική του εμφάνιση).</span>';
   }
-  const a = app[selectedN];
+  const a = app[active];
   if (!a) return '<span style="color:#444">Δεν υπάρχουν δεδομένα.</span>';
   const others = [];
   for (let n = 1; n <= 80; n++) {
-    if (n === selectedN) continue;
-    const rate = coOcc[selectedN * 81 + n] / a;
+    if (n === active) continue;
+    const rate = coOcc[active * 81 + n] / a;
     others.push({ n, dev: rate - CO_BASELINE, rate });
   }
   others.sort((x, y) => y.dev - x.dev);
   const top5 = others.slice(0, 5);
   const bot5 = others.slice(-5).reverse();
   const fmt = x => `<strong style="color:#c5cae9">${x.n}</strong> <span style="color:#555">${(x.rate*100).toFixed(1)}%</span>`;
-  return `<strong style="color:#9c27b0">#${selectedN}</strong> — εμφανίστηκε ${a.toLocaleString('el-GR')} φορές · βάση ${(CO_BASELINE*100).toFixed(2)}%<br>` +
+  const lockedOthers = lockedArr.filter(n => n !== active);
+  const lockedLine = lockedOthers.length
+    ? `<span style="color:#ffb300">🔒 Κλειδωμένοι:</span> ${lockedOthers.join(', ')}<br>`
+    : '';
+  return lockedLine +
+    `<strong style="color:#9c27b0">#${active}</strong> — εμφανίστηκε ${a.toLocaleString('el-GR')} φορές · βάση ${(CO_BASELINE*100).toFixed(2)}%<br>` +
     `<span style="color:#a5d6a7">🤝 Φίλοι:</span> ${top5.map(fmt).join(' · ')}<br>` +
     `<span style="color:#ef9a9a">🚫 Αντίπαλοι:</span> ${bot5.map(fmt).join(' · ')}`;
 }
 
-function renderCoOccGrid(selectedN) {
-  renderCoOccGridInto(document.getElementById('coOccGrid'), selectedN, globalCoOcc, globalApp, CO_SIGMA);
+function renderCoOccGrid(lockedArr) {
+  renderCoOccGridInto(document.getElementById('coOccGrid'), lockedArr, globalCoOcc, globalApp, CO_SIGMA);
 }
 
-function updateCoOccInfo(selectedN) {
+function updateCoOccInfo(lockedArr) {
   const info = document.getElementById('coOccInfo');
-  if (info) info.innerHTML = buildCoOccInfoHtml(selectedN, globalCoOcc, globalApp);
+  if (info) info.innerHTML = buildCoOccInfoHtml(lockedArr, globalCoOcc, globalApp);
 }
 
 async function initCoOccSection() {
@@ -1249,14 +1270,14 @@ async function initCoOccSection() {
   await new Promise(r => setTimeout(r, 50));
   buildCoOcc(draws);
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
-  renderCoOccGrid(coOccSelectedN);
-  updateCoOccInfo(coOccSelectedN);
+  renderCoOccGrid(coOccLocked);
+  updateCoOccInfo(coOccLocked);
 }
 
 // ── Co-occurrence matrix (recent window) ────────────────────────────────────────
 let globalCoOccRecent = null;   // Int32Array(81*81), built from last N draws
 let globalAppRecent   = null;   // Int32Array(81)
-let coOccRecentSelectedN = null;
+let coOccRecentLocked = [];
 let coOccRecentBuilt     = false;
 let coOccRecentAllDraws  = null;
 
@@ -1285,18 +1306,19 @@ function buildCoOccRecent(draws, windowSize) {
   return recent.length;
 }
 
-function renderCoOccRecentGrid(selectedN) {
+function renderCoOccRecentGrid(lockedArr) {
   if (!globalAppRecent) {
-    renderCoOccGridInto(document.getElementById('coOccRecentGrid'), selectedN, null, null, 1);
+    renderCoOccGridInto(document.getElementById('coOccRecentGrid'), lockedArr, null, null, 1);
     return;
   }
-  const sigma = selectedN !== null ? recentSigmaFor(globalAppRecent[selectedN]) : 1;
-  renderCoOccGridInto(document.getElementById('coOccRecentGrid'), selectedN, globalCoOccRecent, globalAppRecent, sigma);
+  const active = activeOf(lockedArr);
+  const sigma = active !== null ? recentSigmaFor(globalAppRecent[active]) : 1;
+  renderCoOccGridInto(document.getElementById('coOccRecentGrid'), lockedArr, globalCoOccRecent, globalAppRecent, sigma);
 }
 
-function updateCoOccRecentInfo(selectedN) {
+function updateCoOccRecentInfo(lockedArr) {
   const info = document.getElementById('coOccRecentInfo');
-  if (info) info.innerHTML = buildCoOccInfoHtml(selectedN, globalCoOccRecent, globalAppRecent);
+  if (info) info.innerHTML = buildCoOccInfoHtml(lockedArr, globalCoOccRecent, globalAppRecent);
 }
 
 function getCoOccRecentWindow() {
@@ -1314,8 +1336,8 @@ async function refreshCoOccRecent() {
   const windowSize = getCoOccRecentWindow();
   const used = buildCoOccRecent(coOccRecentAllDraws, windowSize);
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · τελευταίες ${used.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
-  renderCoOccRecentGrid(coOccRecentSelectedN);
-  updateCoOccRecentInfo(coOccRecentSelectedN);
+  renderCoOccRecentGrid(coOccRecentLocked);
+  updateCoOccRecentInfo(coOccRecentLocked);
 }
 
 async function initCoOccRecentSection() {
@@ -2163,17 +2185,17 @@ window.addEventListener('load', () => {
     const cell = e.target.closest('[data-n]');
     if (!cell || !globalCoOcc) return;
     const n = parseInt(cell.dataset.n, 10);
-    coOccSelectedN = (coOccSelectedN === n) ? null : n;
-    renderCoOccGrid(coOccSelectedN);
-    updateCoOccInfo(coOccSelectedN);
+    toggleLocked(coOccLocked, n);
+    renderCoOccGrid(coOccLocked);
+    updateCoOccInfo(coOccLocked);
   });
   document.getElementById('coOccRecentGrid').addEventListener('click', e => {
     const cell = e.target.closest('[data-n]');
     if (!cell || !globalCoOccRecent) return;
     const n = parseInt(cell.dataset.n, 10);
-    coOccRecentSelectedN = (coOccRecentSelectedN === n) ? null : n;
-    renderCoOccRecentGrid(coOccRecentSelectedN);
-    updateCoOccRecentInfo(coOccRecentSelectedN);
+    toggleLocked(coOccRecentLocked, n);
+    renderCoOccRecentGrid(coOccRecentLocked);
+    updateCoOccRecentInfo(coOccRecentLocked);
   });
 
   loadData();
