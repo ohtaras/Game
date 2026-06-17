@@ -326,6 +326,22 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="coOccInfo"></div>
   </section>
 
+  <section id="coOccRecentSec">
+    <h2>🔗 Ανάλυση Συν-εμφάνισης (Πρόσφατο Παράθυρο)</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Ίδια ανάλυση «φίλων» και «αντιπάλων», αλλά υπολογισμένη μόνο πάνω στις <strong>τελευταίες Χ κληρώσεις</strong> — για να δεις ποιοι συνδυασμοί είναι ζεστοί <em>αυτή τη στιγμή</em>, όχι σε όλο το ιστορικό.
+    </div>
+    <div style="margin-bottom:10px">
+      <label class="ctrl-label">Ανάλυση τελευταίων
+        <input type="number" id="coOccRecentNInput" class="ctrl-input" value="10" min="2" max="5000">
+        κληρώσεων
+      </label>
+    </div>
+    <div id="coOccRecentStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
+    <div id="coOccRecentGrid"></div>
+    <div id="coOccRecentInfo"></div>
+  </section>
+
   <section id="predLogSec">
     <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
     <div id="predLog">
@@ -1160,8 +1176,8 @@ function buildCoOcc(draws) {
   }
 }
 
-function coOccClass(dev) {
-  const s = dev / CO_SIGMA;
+function coOccClass(dev, sigma) {
+  const s = dev / sigma;
   if (s >=  2) return 'co-p3';
   if (s >=  1) return 'co-p2';
   if (s >= 0.5) return 'co-p1';
@@ -1171,52 +1187,56 @@ function coOccClass(dev) {
   return '';
 }
 
-function renderCoOccGrid(selectedN) {
-  const grid = document.getElementById('coOccGrid');
-  if (!grid) return;
+function renderCoOccGridInto(gridEl, selectedN, coOcc, app, sigma) {
+  if (!gridEl) return;
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     let cls = 'co-cell', title = String(n);
     if (selectedN !== null && selectedN === n) {
       cls += ' co-selected';
-    } else if (selectedN !== null && globalCoOcc && globalApp) {
-      const app = globalApp[selectedN];
-      if (app > 0) {
-        const rate = globalCoOcc[selectedN * 81 + n] / app;
+    } else if (selectedN !== null && coOcc && app) {
+      const a = app[selectedN];
+      if (a > 0) {
+        const rate = coOcc[selectedN * 81 + n] / a;
         const dev = rate - CO_BASELINE;
-        const cc = coOccClass(dev);
+        const cc = coOccClass(dev, sigma);
         if (cc) cls += ' ' + cc;
-        title = `${n}: ${(rate*100).toFixed(2)}% (${dev>=0?'+':''}${(dev/CO_SIGMA).toFixed(1)}σ)`;
+        title = `${n}: ${(rate*100).toFixed(2)}% (${dev>=0?'+':''}${(dev/sigma).toFixed(1)}σ)`;
       }
     }
     cells.push(`<div class="${cls}" data-n="${n}" title="${title}">${n}</div>`);
   }
-  grid.innerHTML = cells.join('');
+  gridEl.innerHTML = cells.join('');
+}
+
+function buildCoOccInfoHtml(selectedN, coOcc, app) {
+  if (selectedN === null || !coOcc || !app) {
+    return '<span style="color:#444">Κάνε κλικ σε έναν αριθμό για λεπτομέρειες.</span>';
+  }
+  const a = app[selectedN];
+  if (!a) return '<span style="color:#444">Δεν υπάρχουν δεδομένα.</span>';
+  const others = [];
+  for (let n = 1; n <= 80; n++) {
+    if (n === selectedN) continue;
+    const rate = coOcc[selectedN * 81 + n] / a;
+    others.push({ n, dev: rate - CO_BASELINE, rate });
+  }
+  others.sort((x, y) => y.dev - x.dev);
+  const top5 = others.slice(0, 5);
+  const bot5 = others.slice(-5).reverse();
+  const fmt = x => `<strong style="color:#c5cae9">${x.n}</strong> <span style="color:#555">${(x.rate*100).toFixed(1)}%</span>`;
+  return `<strong style="color:#9c27b0">#${selectedN}</strong> — εμφανίστηκε ${a.toLocaleString('el-GR')} φορές · βάση ${(CO_BASELINE*100).toFixed(2)}%<br>` +
+    `<span style="color:#a5d6a7">🤝 Φίλοι:</span> ${top5.map(fmt).join(' · ')}<br>` +
+    `<span style="color:#ef9a9a">🚫 Αντίπαλοι:</span> ${bot5.map(fmt).join(' · ')}`;
+}
+
+function renderCoOccGrid(selectedN) {
+  renderCoOccGridInto(document.getElementById('coOccGrid'), selectedN, globalCoOcc, globalApp, CO_SIGMA);
 }
 
 function updateCoOccInfo(selectedN) {
   const info = document.getElementById('coOccInfo');
-  if (!info) return;
-  if (selectedN === null || !globalCoOcc || !globalApp) {
-    info.innerHTML = '<span style="color:#444">Κάνε κλικ σε έναν αριθμό για λεπτομέρειες.</span>';
-    return;
-  }
-  const app = globalApp[selectedN];
-  if (!app) { info.innerHTML = '<span style="color:#444">Δεν υπάρχουν δεδομένα.</span>'; return; }
-  const others = [];
-  for (let n = 1; n <= 80; n++) {
-    if (n === selectedN) continue;
-    const rate = globalCoOcc[selectedN * 81 + n] / app;
-    others.push({ n, dev: rate - CO_BASELINE, rate });
-  }
-  others.sort((a, b) => b.dev - a.dev);
-  const top5 = others.slice(0, 5);
-  const bot5 = others.slice(-5).reverse();
-  const fmt = x => `<strong style="color:#c5cae9">${x.n}</strong> <span style="color:#555">${(x.rate*100).toFixed(1)}%</span>`;
-  info.innerHTML =
-    `<strong style="color:#9c27b0">#${selectedN}</strong> — εμφανίστηκε ${app.toLocaleString('el-GR')} φορές · βάση ${(CO_BASELINE*100).toFixed(2)}%<br>` +
-    `<span style="color:#a5d6a7">🤝 Φίλοι:</span> ${top5.map(fmt).join(' · ')}<br>` +
-    `<span style="color:#ef9a9a">🚫 Αντίπαλοι:</span> ${bot5.map(fmt).join(' · ')}`;
+  if (info) info.innerHTML = buildCoOccInfoHtml(selectedN, globalCoOcc, globalApp);
 }
 
 async function initCoOccSection() {
@@ -1231,6 +1251,77 @@ async function initCoOccSection() {
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
   renderCoOccGrid(coOccSelectedN);
   updateCoOccInfo(coOccSelectedN);
+}
+
+// ── Co-occurrence matrix (recent window) ────────────────────────────────────────
+let globalCoOccRecent = null;   // Int32Array(81*81), built from last N draws
+let globalAppRecent   = null;   // Int32Array(81)
+let coOccRecentSelectedN = null;
+let coOccRecentBuilt     = false;
+let coOccRecentAllDraws  = null;
+
+function recentSigmaFor(app) {
+  // Binomial standard error of the co-occurrence rate, scaled for small windows.
+  const sigma = Math.sqrt(CO_BASELINE * (1 - CO_BASELINE) / Math.max(app, 1));
+  return Math.max(sigma, 1e-6);
+}
+
+function buildCoOccRecent(draws, windowSize) {
+  const recent = draws.slice(-windowSize);
+  globalCoOccRecent = new Int32Array(81 * 81);
+  globalAppRecent   = new Int32Array(81);
+  for (const draw of recent) {
+    const nums = draw.n, L = nums.length;
+    for (let k = 0; k < L; k++) globalAppRecent[nums[k]]++;
+    for (let a = 0; a < L; a++) {
+      const na = nums[a], rowA = na * 81;
+      for (let b = a + 1; b < L; b++) {
+        const nb = nums[b];
+        globalCoOccRecent[rowA + nb]++;
+        globalCoOccRecent[nb * 81 + na]++;
+      }
+    }
+  }
+  return recent.length;
+}
+
+function renderCoOccRecentGrid(selectedN) {
+  if (!globalAppRecent) {
+    renderCoOccGridInto(document.getElementById('coOccRecentGrid'), selectedN, null, null, 1);
+    return;
+  }
+  const sigma = selectedN !== null ? recentSigmaFor(globalAppRecent[selectedN]) : 1;
+  renderCoOccGridInto(document.getElementById('coOccRecentGrid'), selectedN, globalCoOccRecent, globalAppRecent, sigma);
+}
+
+function updateCoOccRecentInfo(selectedN) {
+  const info = document.getElementById('coOccRecentInfo');
+  if (info) info.innerHTML = buildCoOccInfoHtml(selectedN, globalCoOccRecent, globalAppRecent);
+}
+
+function getCoOccRecentWindow() {
+  const input = document.getElementById('coOccRecentNInput');
+  const v = parseInt(input?.value, 10);
+  return Number.isFinite(v) && v >= 2 ? v : 10;
+}
+
+async function refreshCoOccRecent() {
+  const statusEl = document.getElementById('coOccRecentStatus');
+  if (!coOccRecentAllDraws) {
+    if (statusEl) statusEl.textContent = '⏳ Φόρτωση πλήρους ιστορικού…';
+    coOccRecentAllDraws = await loadFullHistoryForSim(statusEl);
+  }
+  const windowSize = getCoOccRecentWindow();
+  const used = buildCoOccRecent(coOccRecentAllDraws, windowSize);
+  if (statusEl) statusEl.textContent = `✓ Έτοιμος · τελευταίες ${used.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
+  renderCoOccRecentGrid(coOccRecentSelectedN);
+  updateCoOccRecentInfo(coOccRecentSelectedN);
+}
+
+async function initCoOccRecentSection() {
+  if (coOccRecentBuilt) return;
+  coOccRecentBuilt = true;
+  await refreshCoOccRecent();
 }
 
 function simulateMachineStrategy(N, draws, strategyId, pool, K = 1) {
@@ -2047,6 +2138,18 @@ window.addEventListener('load', () => {
     obs.observe(coOccSec);
   }
 
+  // Lazy load recent-window co-occ section
+  const coOccRecentSec = document.getElementById('coOccRecentSec');
+  if (coOccRecentSec && 'IntersectionObserver' in window) {
+    const obs2 = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) { obs2.unobserve(coOccRecentSec); initCoOccRecentSection(); }
+    }, { threshold: 0.1 });
+    obs2.observe(coOccRecentSec);
+  }
+  document.getElementById('coOccRecentNInput').addEventListener('change', () => {
+    if (coOccRecentBuilt) refreshCoOccRecent();
+  });
+
   // Delay shift table
   initDelayShift();
   scheduleDsRefresh();
@@ -2063,6 +2166,14 @@ window.addEventListener('load', () => {
     coOccSelectedN = (coOccSelectedN === n) ? null : n;
     renderCoOccGrid(coOccSelectedN);
     updateCoOccInfo(coOccSelectedN);
+  });
+  document.getElementById('coOccRecentGrid').addEventListener('click', e => {
+    const cell = e.target.closest('[data-n]');
+    if (!cell || !globalCoOccRecent) return;
+    const n = parseInt(cell.dataset.n, 10);
+    coOccRecentSelectedN = (coOccRecentSelectedN === n) ? null : n;
+    renderCoOccRecentGrid(coOccRecentSelectedN);
+    updateCoOccRecentInfo(coOccRecentSelectedN);
   });
 
   loadData();
