@@ -325,6 +325,13 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="coOccStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
     <div id="coOccGrid" class="co-occ-grid"></div>
     <div id="coOccInfo"></div>
+    <div style="margin:10px 0">
+      <label class="ctrl-label">Ανάλυση συνδυασμού στις τελευταίες
+        <input type="number" id="coOccEvalWindowInput" class="ctrl-input" value="10" min="1" max="5000">
+        κληρώσεις
+      </label>
+    </div>
+    <div id="coOccEval"></div>
   </section>
 
   <section id="coOccRecentSec">
@@ -341,6 +348,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="coOccRecentStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
     <div id="coOccRecentGrid" class="co-occ-grid"></div>
     <div id="coOccRecentInfo"></div>
+    <div id="coOccRecentEval"></div>
   </section>
 
   <section id="predLogSec">
@@ -426,6 +434,7 @@ let globalCoOcc    = null;   // Int32Array(81*81)
 let globalApp      = null;   // Int32Array(81)
 let coOccLocked    = [];     // numbers clicked, in click order; last one is "active" (shown in info panel)
 let coOccBuilt     = false;
+let coOccAllDraws  = null;
 
 function toggleLocked(lockedArr, n) {
   const idx = lockedArr.indexOf(n);
@@ -576,7 +585,9 @@ async function checkForNewDraw() {
         renderCoOccGrid(coOccLocked);
         updateCoOccInfo(coOccLocked);
       }
+      updateCoOccEval(coOccLocked);
     }
+    if (coOccRecentBuilt) refreshCoOccRecent();
   } catch(e) { console.error('checkForNewDraw:', e); }
 }
 
@@ -1224,6 +1235,35 @@ function renderCoOccGridInto(gridEl, lockedArr, coOcc, app, sigma) {
   gridEl.innerHTML = cells.join('');
 }
 
+function buildComboEvalHtml(lockedArr, fullDraws, windowDraws) {
+  if (lockedArr.length < 1 || !fullDraws) return '';
+  const k = lockedArr.length;
+  const sorted = [...lockedArr].sort((a, b) => a - b);
+  let totalFull = 0;
+  for (const d of fullDraws) {
+    const set = new Set(d.n);
+    if (sorted.every(n => set.has(n))) totalFull++;
+  }
+  const hist = new Array(k + 1).fill(0);
+  for (const d of windowDraws) {
+    const set = new Set(d.n);
+    let cnt = 0;
+    for (const n of sorted) if (set.has(n)) cnt++;
+    hist[cnt]++;
+  }
+  const rows = [];
+  for (let i = k; i >= 0; i--) {
+    rows.push(`<div>${i}/${k}: <strong style="color:${i === k ? '#a5d6a7' : '#c5cae9'}">${hist[i]}</strong> φορ${hist[i] === 1 ? 'ά' : 'ές'}</div>`);
+  }
+  return `
+    <div style="margin-top:10px;padding:10px 12px;background:#0a0a18;border:1px solid #2a2a4a;border-radius:8px">
+      <div style="color:#ffd54f;font-weight:700;margin-bottom:6px">📋 Αξιολόγηση συνδυασμού: ${sorted.join(', ')} (${k} αριθμοί)</div>
+      <div style="font-size:.78rem;color:#999;margin-bottom:6px">Πλήρης συνδυασμός (${k}/${k}) έχει βγει <strong style="color:#e1bee7">${totalFull.toLocaleString('el-GR')}</strong> φορ${totalFull === 1 ? 'ά' : 'ές'} σε όλο το δείγμα (${fullDraws.length.toLocaleString('el-GR')} κληρώσεις).</div>
+      <div style="font-size:.78rem;color:#999;margin-bottom:4px">Στις τελευταίες ${windowDraws.length.toLocaleString('el-GR')} κληρώσεις:</div>
+      <div style="font-size:.78rem;line-height:1.6">${rows.join('')}</div>
+    </div>`;
+}
+
 function buildCoOccInfoHtml(lockedArr, coOcc, app) {
   const active = activeOf(lockedArr);
   if (active === null || !coOcc || !app) {
@@ -1260,18 +1300,34 @@ function updateCoOccInfo(lockedArr) {
   if (info) info.innerHTML = buildCoOccInfoHtml(lockedArr, globalCoOcc, globalApp);
 }
 
+function getCoOccEvalWindow() {
+  const input = document.getElementById('coOccEvalWindowInput');
+  const v = parseInt(input?.value, 10);
+  return Number.isFinite(v) && v >= 1 ? v : 10;
+}
+
+function updateCoOccEval(lockedArr) {
+  const box = document.getElementById('coOccEval');
+  if (!box) return;
+  if (!coOccAllDraws || !lockedArr.length) { box.innerHTML = ''; return; }
+  const windowDraws = coOccAllDraws.slice(-getCoOccEvalWindow());
+  box.innerHTML = buildComboEvalHtml(lockedArr, coOccAllDraws, windowDraws);
+}
+
 async function initCoOccSection() {
   if (coOccBuilt) return;
   coOccBuilt = true;
   const statusEl = document.getElementById('coOccStatus');
   if (statusEl) statusEl.textContent = '⏳ Φόρτωση πλήρους ιστορικού…';
   const draws = await loadFullHistoryForSim(statusEl);
+  coOccAllDraws = draws;
   if (statusEl) statusEl.textContent = '⚙️ Κατασκευή μήτρας συν-εμφάνισης…';
   await new Promise(r => setTimeout(r, 50));
   buildCoOcc(draws);
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
   renderCoOccGrid(coOccLocked);
   updateCoOccInfo(coOccLocked);
+  updateCoOccEval(coOccLocked);
 }
 
 // ── Co-occurrence matrix (recent window) ────────────────────────────────────────
@@ -1321,6 +1377,14 @@ function updateCoOccRecentInfo(lockedArr) {
   if (info) info.innerHTML = buildCoOccInfoHtml(lockedArr, globalCoOccRecent, globalAppRecent);
 }
 
+function updateCoOccRecentEval(lockedArr) {
+  const box = document.getElementById('coOccRecentEval');
+  if (!box) return;
+  if (!coOccRecentAllDraws || !lockedArr.length) { box.innerHTML = ''; return; }
+  const windowDraws = coOccRecentAllDraws.slice(-getCoOccRecentWindow());
+  box.innerHTML = buildComboEvalHtml(lockedArr, coOccRecentAllDraws, windowDraws);
+}
+
 function getCoOccRecentWindow() {
   const input = document.getElementById('coOccRecentNInput');
   const v = parseInt(input?.value, 10);
@@ -1338,6 +1402,7 @@ async function refreshCoOccRecent() {
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · τελευταίες ${used.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
   renderCoOccRecentGrid(coOccRecentLocked);
   updateCoOccRecentInfo(coOccRecentLocked);
+  updateCoOccRecentEval(coOccRecentLocked);
 }
 
 async function initCoOccRecentSection() {
@@ -2188,7 +2253,9 @@ window.addEventListener('load', () => {
     toggleLocked(coOccLocked, n);
     renderCoOccGrid(coOccLocked);
     updateCoOccInfo(coOccLocked);
+    updateCoOccEval(coOccLocked);
   });
+  document.getElementById('coOccEvalWindowInput').addEventListener('change', () => updateCoOccEval(coOccLocked));
   document.getElementById('coOccRecentGrid').addEventListener('click', e => {
     const cell = e.target.closest('[data-n]');
     if (!cell || !globalCoOccRecent) return;
@@ -2196,6 +2263,7 @@ window.addEventListener('load', () => {
     toggleLocked(coOccRecentLocked, n);
     renderCoOccRecentGrid(coOccRecentLocked);
     updateCoOccRecentInfo(coOccRecentLocked);
+    updateCoOccRecentEval(coOccRecentLocked);
   });
 
   loadData();
