@@ -1453,8 +1453,29 @@ function coOccRecentStep(delta) {
   refreshCoOccRecent();
 }
 
+// Re-fetches the current month's history file (bypassing in-memory and CDN caches) and
+// merges it in place, so simAllDraws/simAllDrawsFull/coOccRecentAllDraws (same array
+// reference) all pick up newly-published draws. We refresh from this file rather than
+// pushing a single draw from the live OPAP endpoint, because that endpoint only returns
+// the single latest draw: pushing it directly can leave a gap between it and whatever was
+// last loaded from the (periodically updated) history file, which breaks index-based
+// step-back navigation.
+async function refreshLatestMonthInPlace() {
+  if (!simAllDrawsFull) return;
+  const now = new Date();
+  const ym = `${now.getFullYear()}_${pad(now.getMonth() + 1)}`;
+  const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
+  if (!data?.draws?.length) return;
+  const freshMinId = Math.min(...data.draws.map(d => d.id));
+  const merged = simAllDrawsFull.filter(d => d.id < freshMinId)
+    .concat(data.draws)
+    .sort((a, b) => a.id - b.id);
+  simAllDrawsFull.length = 0;
+  simAllDrawsFull.push(...merged);
+}
+
 async function coOccRecentGoLive() {
-  await checkForNewDraw(); // fetch latest draw now, instead of waiting for the next scheduled poll
+  await refreshLatestMonthInPlace();
   coOccRecentAsOfIdx = -1;
   refreshCoOccRecent();
 }
