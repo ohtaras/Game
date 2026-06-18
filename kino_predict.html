@@ -1462,18 +1462,24 @@ function coOccRecentStep(delta) {
 // step-back navigation.
 async function refreshLatestMonthInPlace() {
   if (!simAllDrawsFull) return;
+  await checkForNewDraw(); // make sure allDraws (fed directly from the OPAP live endpoint) is current
   const now = new Date();
   const ym = `${now.getFullYear()}_${pad(now.getMonth() + 1)}`;
   const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
-  if (!data?.draws?.length) return;
-  // Union, not replace: entries already in memory but not yet in the file (e.g. a draw
-  // the background live poll already appended) must be kept, or "Live" would regress.
-  const fileIds = new Set(data.draws.map(d => d.id));
-  const merged = simAllDrawsFull.filter(d => !fileIds.has(d.id))
-    .concat(data.draws)
-    .sort((a, b) => a.id - b.id);
-  simAllDrawsFull.length = 0;
-  simAllDrawsFull.push(...merged);
+  if (data?.draws?.length) {
+    // Union, not replace: entries already in memory but not yet in the file (e.g. a draw
+    // the background live poll already appended) must be kept, or "Live" would regress.
+    const fileIds = new Set(data.draws.map(d => d.id));
+    const merged = simAllDrawsFull.filter(d => !fileIds.has(d.id)).concat(data.draws);
+    simAllDrawsFull.length = 0;
+    simAllDrawsFull.push(...merged);
+  }
+  // The persisted history file is only refreshed every ~10min by a scheduled job and can
+  // lag behind the true live draw; allDraws is kept current by the OPAP poll above, so pull
+  // in anything it has that the file doesn't.
+  const knownIds = new Set(simAllDrawsFull.map(d => d.id));
+  for (const d of allDraws) if (!knownIds.has(d.id)) simAllDrawsFull.push(d);
+  simAllDrawsFull.sort((a, b) => a.id - b.id);
 }
 
 async function coOccRecentGoLive() {
