@@ -1991,6 +1991,11 @@ async function loadFullHistoryForSim(statusEl, opts = {}) {
     if (data?.draws) { draws.push(...data.draws); loaded++; }
   }
   draws.sort((a, b) => a.id - b.id);
+  // allDraws is kept live incrementally (one draw at a time, gap-free) by the page's own
+  // polling ever since load; the history files here are only refreshed periodically by a
+  // scheduled job and can lag behind. Catch up immediately instead of regressing.
+  const lastFileId = draws[draws.length - 1]?.id ?? -1;
+  for (const d of allDraws) if (d.id > lastFileId) draws.push(d);
   simAllDrawsFull = draws;
   simAllDraws = timeTravelId ? draws.filter(d => d.id <= timeTravelId) : draws;
   return ignoreTimeTravel ? simAllDrawsFull : simAllDraws;
