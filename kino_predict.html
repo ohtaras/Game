@@ -1453,37 +1453,23 @@ function coOccRecentStep(delta) {
   refreshCoOccRecent();
 }
 
-// Re-fetches the current month's history file (bypassing in-memory and CDN caches) and
-// merges it in place, so simAllDraws/simAllDrawsFull/coOccRecentAllDraws (same array
-// reference) all pick up newly-published draws. We refresh from this file rather than
-// pushing a single draw from the live OPAP endpoint, because that endpoint only returns
-// the single latest draw: pushing it directly can leave a gap between it and whatever was
-// last loaded from the (periodically updated) history file, which breaks index-based
-// step-back navigation.
-async function refreshLatestMonthInPlace() {
-  if (!simAllDrawsFull) return;
-  await checkForNewDraw(); // make sure allDraws (fed directly from the OPAP live endpoint) is current
-  const now = new Date();
-  const ym = `${now.getFullYear()}_${pad(now.getMonth() + 1)}`;
-  const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
-  if (data?.draws?.length) {
-    // Union, not replace: entries already in memory but not yet in the file (e.g. a draw
-    // the background live poll already appended) must be kept, or "Live" would regress.
-    const fileIds = new Set(data.draws.map(d => d.id));
-    const merged = simAllDrawsFull.filter(d => !fileIds.has(d.id)).concat(data.draws);
-    simAllDrawsFull.length = 0;
-    simAllDrawsFull.push(...merged);
-  }
-  // The persisted history file is only refreshed every ~10min by a scheduled job and can
-  // lag behind the true live draw; allDraws is kept current by the OPAP poll above, so pull
-  // in anything it has that the file doesn't.
-  const knownIds = new Set(simAllDrawsFull.map(d => d.id));
-  for (const d of allDraws) if (!knownIds.has(d.id)) simAllDrawsFull.push(d);
-  simAllDrawsFull.sort((a, b) => a.id - b.id);
+// Same pattern as dsCheckForNewDraw: poll OPAP directly for the latest draw and push it
+// onto the loaded array if it's new, instead of relying on the periodically-updated
+// history file (which can lag behind).
+async function coOccRecentCheckForNewDraw() {
+  if (!coOccRecentAllDraws || !coOccRecentAllDraws.length) return;
+  try {
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    const last = coOccRecentAllDraws[coOccRecentAllDraws.length - 1];
+    if (!r?.winningNumbers?.list?.length || r.drawId <= last.id) return;
+    const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
+    coOccRecentAllDraws.push(newDraw);
+  } catch (e) { console.error('coOccRecentCheckForNewDraw:', e); }
 }
 
 async function coOccRecentGoLive() {
-  await refreshLatestMonthInPlace();
+  await coOccRecentCheckForNewDraw();
   coOccRecentAsOfIdx = -1;
   refreshCoOccRecent();
 }
