@@ -1466,8 +1466,10 @@ async function refreshLatestMonthInPlace() {
   const ym = `${now.getFullYear()}_${pad(now.getMonth() + 1)}`;
   const data = await ghGet(`data/raw/kino_raw_${ym}.json`, { bust: true });
   if (!data?.draws?.length) return;
-  const freshMinId = Math.min(...data.draws.map(d => d.id));
-  const merged = simAllDrawsFull.filter(d => d.id < freshMinId)
+  // Union, not replace: entries already in memory but not yet in the file (e.g. a draw
+  // the background live poll already appended) must be kept, or "Live" would regress.
+  const fileIds = new Set(data.draws.map(d => d.id));
+  const merged = simAllDrawsFull.filter(d => !fileIds.has(d.id))
     .concat(data.draws)
     .sort((a, b) => a.id - b.id);
   simAllDrawsFull.length = 0;
