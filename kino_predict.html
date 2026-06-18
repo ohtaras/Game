@@ -338,13 +338,19 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   <section id="coOccRecentSec">
     <h2>🔗 Ανάλυση Συν-εμφάνισης (Πρόσφατο Παράθυρο)</h2>
     <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
-      Ίδια ανάλυση «φίλων» και «αντιπάλων» με 🔒 κλείδωμα πολλαπλών αριθμών, αλλά υπολογισμένη μόνο πάνω στις <strong>τελευταίες Χ κληρώσεις</strong> — για να δεις ποιοι συνδυασμοί είναι ζεστοί <em>αυτή τη στιγμή</em>, όχι σε όλο το ιστορικό.
+      Ίδια ανάλυση «φίλων» και «αντιπάλων» με 🔒 κλείδωμα πολλαπλών αριθμών, αλλά υπολογισμένη μόνο πάνω στις <strong>τελευταίες Χ κληρώσεις</strong> — για να δεις ποιοι συνδυασμοί είναι ζεστοί <em>αυτή τη στιγμή</em>, όχι σε όλο το ιστορικό. Με τα βελάκια πλοήγησης μπορείς να μετακινηθείς σε προηγούμενο σημείο στο χρόνο και να δεις πώς ήταν το παράθυρο τότε.
     </div>
     <div style="margin-bottom:10px">
       <label class="ctrl-label">Ανάλυση τελευταίων
         <input type="number" id="coOccRecentNInput" class="ctrl-input" value="10" min="2" max="5000">
         κληρώσεων
       </label>
+    </div>
+    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button class="btn" id="coOccRecentBackBtn">◀ Προηγούμενη</button>
+      <button class="btn" id="coOccRecentFwdBtn">Επόμενη ▶</button>
+      <button class="btn" id="coOccRecentLiveBtn">Ζωντανό ⏭⏭</button>
+      <span id="coOccRecentAsOfInfo" style="font-size:.78rem;color:#999"></span>
     </div>
     <div id="coOccRecentStatus">⌛ Μετακινήσου εδώ για αυτόματη φόρτωση…</div>
     <div style="margin-bottom:8px"><button class="btn" id="coOccRecentResetBtn">🗑 Ρίσετ Επιλογών</button></div>
@@ -1348,6 +1354,7 @@ let globalAppRecent   = null;   // Int32Array(81)
 let coOccRecentLocked = [];
 let coOccRecentBuilt     = false;
 let coOccRecentAllDraws  = null;
+let coOccRecentAsOfIdx   = -1; // -1 = live (always the most recent draw); else a fixed index into coOccRecentAllDraws
 
 function recentSigmaFor(app) {
   // Binomial standard error of the co-occurrence rate, scaled for small windows.
@@ -1355,8 +1362,17 @@ function recentSigmaFor(app) {
   return Math.max(sigma, 1e-6);
 }
 
-function buildCoOccRecent(draws, windowSize) {
-  const recent = draws.slice(-windowSize);
+function coOccRecentEndIdx() {
+  if (!coOccRecentAllDraws || !coOccRecentAllDraws.length) return -1;
+  return coOccRecentAsOfIdx >= 0
+    ? Math.min(coOccRecentAsOfIdx, coOccRecentAllDraws.length - 1)
+    : coOccRecentAllDraws.length - 1;
+}
+
+function buildCoOccRecent(draws, windowSize, endIdx) {
+  const e = endIdx == null ? draws.length - 1 : endIdx;
+  const start = Math.max(0, e - windowSize + 1);
+  const recent = draws.slice(start, e + 1);
   globalCoOccRecent = new Int32Array(81 * 81);
   globalAppRecent   = new Int32Array(81);
   for (const draw of recent) {
@@ -1393,8 +1409,10 @@ function updateCoOccRecentEval(lockedArr) {
   const box = document.getElementById('coOccRecentEval');
   if (!box) return;
   if (!coOccRecentAllDraws || !lockedArr.length) { box.innerHTML = ''; return; }
-  const windowDraws = coOccRecentAllDraws.slice(-getCoOccRecentWindow());
-  box.innerHTML = buildComboEvalHtml(lockedArr, coOccRecentAllDraws, windowDraws);
+  const endIdx = coOccRecentEndIdx();
+  const fullDraws = coOccRecentAllDraws.slice(0, endIdx + 1);
+  const windowDraws = fullDraws.slice(-getCoOccRecentWindow());
+  box.innerHTML = buildComboEvalHtml(lockedArr, fullDraws, windowDraws);
 }
 
 function getCoOccRecentWindow() {
@@ -1405,16 +1423,39 @@ function getCoOccRecentWindow() {
 
 async function refreshCoOccRecent() {
   const statusEl = document.getElementById('coOccRecentStatus');
+  const asOfEl = document.getElementById('coOccRecentAsOfInfo');
   if (!coOccRecentAllDraws) {
     if (statusEl) statusEl.textContent = '⏳ Φόρτωση πλήρους ιστορικού…';
     coOccRecentAllDraws = await loadFullHistoryForSim(statusEl);
   }
   const windowSize = getCoOccRecentWindow();
-  const used = buildCoOccRecent(coOccRecentAllDraws, windowSize);
+  const endIdx = coOccRecentEndIdx();
+  const used = buildCoOccRecent(coOccRecentAllDraws, windowSize, endIdx);
+  const isLive = coOccRecentAsOfIdx < 0 || endIdx === coOccRecentAllDraws.length - 1;
   if (statusEl) statusEl.textContent = `✓ Έτοιμος · τελευταίες ${used.toLocaleString('el-GR')} κληρώσεις αναλύθηκαν`;
+  if (asOfEl) {
+    const draw = coOccRecentAllDraws[endIdx];
+    asOfEl.innerHTML = draw
+      ? (isLive
+          ? `<span style="color:#a5d6a7">● Ζωντανό</span> · #${draw.id} (${endIdx + 1}/${coOccRecentAllDraws.length})`
+          : `<span style="color:#ffb300">⏪ Στιγμιότυπο</span> · #${draw.id} · ${drawIdToDateStr(draw.id)} (${endIdx + 1}/${coOccRecentAllDraws.length})`)
+      : '';
+  }
   renderCoOccRecentGrid(coOccRecentLocked);
   updateCoOccRecentInfo(coOccRecentLocked);
   updateCoOccRecentEval(coOccRecentLocked);
+}
+
+function coOccRecentStep(delta) {
+  if (!coOccRecentAllDraws || !coOccRecentAllDraws.length) return;
+  const cur = coOccRecentEndIdx();
+  coOccRecentAsOfIdx = Math.min(Math.max(cur + delta, 0), coOccRecentAllDraws.length - 1);
+  refreshCoOccRecent();
+}
+
+function coOccRecentGoLive() {
+  coOccRecentAsOfIdx = -1;
+  refreshCoOccRecent();
 }
 
 async function initCoOccRecentSection() {
@@ -2248,6 +2289,9 @@ window.addEventListener('load', () => {
   document.getElementById('coOccRecentNInput').addEventListener('change', () => {
     if (coOccRecentBuilt) refreshCoOccRecent();
   });
+  document.getElementById('coOccRecentBackBtn').addEventListener('click', () => coOccRecentStep(-1));
+  document.getElementById('coOccRecentFwdBtn').addEventListener('click', () => coOccRecentStep(1));
+  document.getElementById('coOccRecentLiveBtn').addEventListener('click', () => coOccRecentGoLive());
 
   // Delay shift table
   initDelayShift();
