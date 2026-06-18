@@ -1453,7 +1453,8 @@ function coOccRecentStep(delta) {
   refreshCoOccRecent();
 }
 
-function coOccRecentGoLive() {
+async function coOccRecentGoLive() {
+  await checkForNewDraw(); // fetch latest draw now, instead of waiting for the next scheduled poll
   coOccRecentAsOfIdx = -1;
   refreshCoOccRecent();
 }
