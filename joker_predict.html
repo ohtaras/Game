@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Τζόκερ Πρόβλεψη</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
+.nav-link{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+.nav-link:hover{background:#2a2a4a}
+#statusBar{background:#0e0e1a;padding:8px 16px;font-size:.78rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:32px}
+main{max-width:1000px;margin:0 auto;padding:14px}
+section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+p.hint{font-size:.78rem;color:#888;margin-bottom:10px;line-height:1.5}
+
+#lastDrawBox{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;align-items:center}
+.j-ball{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#0d200d;border:2px solid #388e3c;font-size:.86rem;font-weight:700;color:#a5d6a7}
+.j-ball.joker{background:#2a0d20;border-color:#ad1457;color:#f48fb1}
+.j-meta{font-size:.78rem;color:#888;margin-top:8px}
+
+.stat-row{display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:#aaa;margin-bottom:6px}
+.stat-row b{color:#dde}
+
+table.hit-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px}
+table.hit-table th,table.hit-table td{padding:6px 8px;text-align:left;border-bottom:1px solid #2a2a3a}
+table.hit-table th{color:#7986cb;font-weight:600}
+
+.hist-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #20202e;font-size:.78rem}
+.hist-meta{color:#888;min-width:140px}
+.hist-balls{display:flex;gap:4px}
+.hist-ball{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#1a2a1a;border:1px solid #355;font-size:.62rem;font-weight:700;color:#bcd}
+.hist-ball.joker{background:#2a0d20;border-color:#ad1457;color:#f48fb1}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🃏 Τζόκερ Πρόβλεψη</h1>
+  <a href="kino_predict.html" class="nav-link">← Kino</a>
+  <a href="kino_live.html" class="nav-link">Kino Live</a>
+  <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
+</header>
+
+<div id="statusBar">⏳ Φόρτωση δεδομένων…</div>
+
+<main>
+  <section>
+    <h2>Τελευταία Κλήρωση</h2>
+    <div id="lastDrawBox"><span style="color:#555;font-size:.82rem">Φόρτωση…</span></div>
+    <div id="lastDrawMeta" class="j-meta"></div>
+  </section>
+
+  <section>
+    <h2>Σταθερή Πρόβλεψη (backtested)</h2>
+    <p class="hint">
+      Παίρνουμε τις πρώτες 1.000 (ή όσες υπάρχουν) κληρώσεις σαν δείγμα και ψάχνουμε τον
+      σταθερό συνδυασμό 5 αριθμών (+ Τζόκερ) που να έχει πετύχει τις περισσότερες φορές
+      πλήρες 5/5 (με ή χωρίς Τζόκερ) μέσα σε αυτό το δείγμα. Ο συνδυασμός είναι σταθερός —
+      δεν αλλάζει ποτέ μετά τον υπολογισμό του. Σημείωση: επειδή υπάρχουν 1.221.759 πιθανοί
+      συνδυασμοί 5 αριθμών, είναι στατιστικά αναμενόμενο το πλήρες 5/5 να συμβαίνει 0 ή 1
+      φορά ακόμα και για τον καλύτερο σταθερό συνδυασμό — δείχνουμε γι' αυτό και τα μερικά
+      ταιριάσματα (4/5, 3/5 κ.λπ.) για πιο ουσιαστική εικόνα.
+    </p>
+    <div id="fixedPick"></div>
+    <div id="hitBreakdown"></div>
+  </section>
+
+  <section>
+    <h2>Πρόσφατες Κληρώσεις</h2>
+    <div id="historyList"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const SAMPLE_SIZE = 1000;
+
+async function ghGet(path) {
+  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+  try { const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
+  return null;
+}
+
+function overlap(a, b) {
+  const setB = new Set(b);
+  let c = 0;
+  for (const n of a) if (setB.has(n)) c++;
+  return c;
+}
+
+// The only combos that can ever score >0 on an exact 5/5 match are combos that literally
+// occurred in the sample — maximizing "expected overlap" over all 1,221,759 possible combos
+// is a different (and separable, trivial) problem, but doesn't answer "most 5/5 hits".
+function findBestFixedPick(sample) {
+  let best = null;
+  for (const candidate of sample) {
+    let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0;
+    for (const draw of sample) {
+      const ov = overlap(candidate.n, draw.n);
+      const jokerHit = candidate.b === draw.b;
+      if (ov === 5) { m5++; if (jokerHit) m5j++; }
+      else if (ov === 4) { m4++; if (jokerHit) m4j++; }
+      else if (ov === 3) { m3++; if (jokerHit) m3j++; }
+      else if (ov === 2 && jokerHit) m2j++;
+    }
+    const score = [m5, m4, m3, m4j + m5j]; // lexicographic: full match first, then partials
+    if (!best || score[0] > best.score[0] ||
+        (score[0] === best.score[0] && score[1] > best.score[1]) ||
+        (score[0] === best.score[0] && score[1] === best.score[1] && score[2] > best.score[2])) {
+      best = { n: candidate.n, b: candidate.b, fromDrawId: candidate.id, m5, m5j, m4, m4j, m3, m3j, m2j, score };
+    }
+  }
+  return best;
+}
+
+function mostFrequentJoker(sample) {
+  const counts = new Array(21).fill(0);
+  for (const d of sample) counts[d.b]++;
+  let best = 1;
+  for (let n = 2; n <= 20; n++) if (counts[n] > counts[best]) best = n;
+  return best;
+}
+
+function renderBall(n, joker) {
+  return `<span class="j-ball${joker ? ' joker' : ''}">${n}</span>`;
+}
+
+function renderLastDraw(draws) {
+  const box = document.getElementById('lastDrawBox');
+  const meta = document.getElementById('lastDrawMeta');
+  if (!draws.length) { box.innerHTML = '<span style="color:#c66">Δεν βρέθηκαν κληρώσεις.</span>'; return; }
+  const last = draws[draws.length - 1];
+  box.innerHTML = last.n.map(n => renderBall(n, false)).join('') + renderBall(last.b, true);
+  meta.textContent = `#${last.id} · σύνολο ${draws.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
+}
+
+function renderFixedPick(best, sampleSize) {
+  const box = document.getElementById('fixedPick');
+  box.innerHTML = best.n.map(n => renderBall(n, false)).join('') + renderBall(best.b, true)
+    + `<div class="j-meta">Βασισμένο στην κλήρωση #${best.fromDrawId} του δείγματος.</div>`;
+  const rows = [
+    ['5/5 + Τζόκερ', best.m5j],
+    ['5/5 (χωρίς Τζόκερ απαραίτητα)', best.m5],
+    ['4/5 + Τζόκερ', best.m4j],
+    ['4/5', best.m4],
+    ['3/5 + Τζόκερ', best.m3j],
+    ['3/5', best.m3],
+    ['2/5 + Τζόκερ', best.m2j],
+  ];
+  document.getElementById('hitBreakdown').innerHTML = `
+    <table class="hit-table">
+      <tr><th>Αποτέλεσμα</th><th>Φορές μέσα σε ${sampleSize.toLocaleString('el-GR')} κληρώσεις</th></tr>
+      ${rows.map(([label, n]) => `<tr><td>${label}</td><td><b>${n}</b></td></tr>`).join('')}
+    </table>`;
+}
+
+function renderHistory(draws) {
+  const recent = draws.slice(-30).reverse();
+  document.getElementById('historyList').innerHTML = recent.map(d => `
+    <div class="hist-row">
+      <div class="hist-meta"><b>#${d.id}</b></div>
+      <div class="hist-balls">${d.n.map(n => `<span class="hist-ball">${n}</span>`).join('')}<span class="hist-ball joker">${d.b}</span></div>
+    </div>`).join('');
+}
+
+async function init() {
+  const status = document.getElementById('statusBar');
+  status.textContent = '⏳ Φόρτωση ιστορικού Τζόκερ…';
+  const data = await ghGet('data/raw/joker_raw.json');
+  const draws = (data?.draws || []).slice().sort((a, b) => a.id - b.id);
+  if (!draws.length) {
+    status.textContent = '⚠ Δεν υπάρχουν ακόμα αποθηκευμένες κληρώσεις Τζόκερ — περίμενε το πρώτο αυτόματο fetch ή τρέξε χειροκίνητα το workflow "Fetch Joker draws" (με --full) στο GitHub Actions.';
+    renderLastDraw(draws);
+    return;
+  }
+  renderLastDraw(draws);
+  const sample = draws.slice(0, SAMPLE_SIZE);
+  status.textContent = `⚙️ Υπολογισμός σταθερής πρόβλεψης πάνω σε ${sample.length.toLocaleString('el-GR')} κληρώσεις…`;
+  await new Promise(r => setTimeout(r, 30));
+  const best = findBestFixedPick(sample);
+  best.b = mostFrequentJoker(sample);
+  renderFixedPick(best, sample.length);
+  renderHistory(draws);
+  status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
+}
+
+init();
+</script>
+</body>
+</html>

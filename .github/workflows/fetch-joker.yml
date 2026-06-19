@@ -1,0 +1,48 @@
+name: Fetch Joker draws
+
+on:
+  schedule:
+    # Joker draws Tue/Thu/Sun ~23:00 Athens time (UTC+2 winter / UTC+3 summer).
+    # Run every 15min through the evening on those days to ride out GitHub's
+    # well-known scheduled-workflow delays and cover both UTC offsets.
+    - cron: '0,15,30,45 18-23 * * 0,2,4'
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Run a full historical backfill instead of an incremental fetch'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-joker
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: node scripts/fetch-joker.mjs ${{ inputs.full && '--full' || '' }}
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "joker-bot"
+          git config user.email "joker-bot@users.noreply.github.com"
+          git add data/raw/joker_raw.json data/joker_meta.json
+          if git diff --cached --quiet; then
+            echo "No new draws."
+          else
+            git commit -m "Auto-fetch Joker draws"
+            git pull --rebase origin main
+            git push
+          fi
