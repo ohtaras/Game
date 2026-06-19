@@ -146,17 +146,10 @@ function toRecord(item) {
 }
 
 async function fetchYearRange(fromStr, toStr, onProgress) {
-  let items = [], page = 0;
-  while (true) {
-    const url = `${OPAP_BASE}/draw-date/${fromStr}/${toStr}?page=${page}&size=20`;
-    const raw = await apiFetch(url);
-    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
-    items = items.concat(pg);
-    if (onProgress) onProgress(items.length);
-    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 20) break;
-    page++;
-    if (page > 1000) break;
-  }
+  const url = `${OPAP_BASE}/draw-date/${fromStr}/${toStr}`;
+  const raw = await apiFetch(url);
+  const items = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+  if (onProgress) onProgress(items.length);
   return items;
 }
 
