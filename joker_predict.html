@@ -30,6 +30,12 @@ table.hit-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:1
 table.hit-table th,table.hit-table td{padding:6px 8px;text-align:left;border-bottom:1px solid #2a2a3a}
 table.hit-table th{color:#7986cb;font-weight:600}
 
+#statLog{max-height:420px;overflow-y:auto;margin-top:10px;border:1px solid #2a2a3a;border-radius:8px}
+table.log-table{width:100%;border-collapse:collapse;font-size:.74rem}
+table.log-table th,table.log-table td{padding:5px 8px;text-align:left;border-bottom:1px solid #20202e;white-space:nowrap}
+table.log-table th{color:#7986cb;font-weight:600;position:sticky;top:0;background:#1a1a2e}
+table.log-table td.hit{color:#a5d6a7;font-weight:700}
+
 .hist-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #20202e;font-size:.78rem}
 .hist-meta{color:#888;min-width:140px}
 .hist-balls{display:flex;gap:4px}
@@ -68,18 +74,18 @@ table.hit-table th{color:#7986cb;font-weight:600}
   </section>
 
   <section>
-    <h2>Σταθερή Πρόβλεψη (backtested)</h2>
+    <h2>Στατιστική Πρόβλεψη (προσαρμοζόμενη)</h2>
     <p class="hint">
-      Παίρνουμε τις πρώτες 1.000 (ή όσες υπάρχουν) κληρώσεις σαν δείγμα και ψάχνουμε τον
-      σταθερό συνδυασμό 5 αριθμών (+ Τζόκερ) που να έχει πετύχει τις περισσότερες φορές
-      πλήρες 5/5 (με ή χωρίς Τζόκερ) μέσα σε αυτό το δείγμα. Ο συνδυασμός είναι σταθερός —
-      δεν αλλάζει ποτέ μετά τον υπολογισμό του. Σημείωση: επειδή υπάρχουν 1.221.759 πιθανοί
-      συνδυασμοί 5 αριθμών, είναι στατιστικά αναμενόμενο το πλήρες 5/5 να συμβαίνει 0 ή 1
-      φορά ακόμα και για τον καλύτερο σταθερό συνδυασμό — δείχνουμε γι' αυτό και τα μερικά
-      ταιριάσματα (4/5, 3/5 κ.λπ.) για πιο ουσιαστική εικόνα.
+      Οι πρώτες 1.000 κληρώσεις (ή όσες υπάρχουν) χρησιμεύουν σαν αρχικά στατιστικά
+      συχνότητας. Από την κλήρωση #1001 και μετά, η πρόβλεψη ΔΕΝ είναι σταθερή — σε κάθε
+      κλήρωση παίζουμε τους 5 πιο συχνούς αριθμούς (+ πιο συχνό Τζόκερ) μέχρι εκείνη τη
+      στιγμή, μετά ενημερώνουμε τα στατιστικά με το πραγματικό αποτέλεσμα και προχωράμε στην
+      επόμενη. Από κάτω φαίνεται τι θα είχαμε κερδίσει αναλυτικά αν παίζαμε έτσι από την
+      #1001 μέχρι σήμερα, και η τρέχουσα πρόβλεψη για την επόμενη κλήρωση.
     </p>
-    <div id="fixedPick"></div>
+    <div id="nextPick"></div>
     <div id="hitBreakdown"></div>
+    <div id="statLog"></div>
   </section>
 
   <section>
@@ -206,37 +212,62 @@ function overlap(a, b) {
   return c;
 }
 
-// The only combos that can ever score >0 on an exact 5/5 match are combos that literally
-// occurred in the sample — maximizing "expected overlap" over all 1,221,759 possible combos
-// is a different (and separable, trivial) problem, but doesn't answer "most 5/5 hits".
-function findBestFixedPick(sample) {
-  let best = null;
-  for (const candidate of sample) {
-    let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0;
-    for (const draw of sample) {
-      const ov = overlap(candidate.n, draw.n);
-      const jokerHit = candidate.b === draw.b;
-      if (ov === 5) { m5++; if (jokerHit) m5j++; }
-      else if (ov === 4) { m4++; if (jokerHit) m4j++; }
-      else if (ov === 3) { m3++; if (jokerHit) m3j++; }
-      else if (ov === 2 && jokerHit) m2j++;
-    }
-    const score = [m5, m4, m3, m4j + m5j]; // lexicographic: full match first, then partials
-    if (!best || score[0] > best.score[0] ||
-        (score[0] === best.score[0] && score[1] > best.score[1]) ||
-        (score[0] === best.score[0] && score[1] === best.score[1] && score[2] > best.score[2])) {
-      best = { n: candidate.n, b: candidate.b, fromDrawId: candidate.id, m5, m5j, m4, m4j, m3, m3j, m2j, score };
-    }
-  }
+function emptyCounts() {
+  return { n: new Array(46).fill(0), b: new Array(21).fill(0) };
+}
+
+function applyDrawToCounts(counts, draw) {
+  for (const n of draw.n) counts.n[n]++;
+  counts.b[draw.b]++;
+}
+
+function topNumbers(counts, k) {
+  const ranked = [];
+  for (let n = 1; n <= 45; n++) ranked.push([n, counts.n[n]]);
+  ranked.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  return ranked.slice(0, k).map(x => x[0]).sort((a, b) => a - b);
+}
+
+function topJoker(counts) {
+  let best = 1;
+  for (let n = 2; n <= 20; n++) if (counts.b[n] > counts.b[best]) best = n;
   return best;
 }
 
-function mostFrequentJoker(sample) {
-  const counts = new Array(21).fill(0);
-  for (const d of sample) counts[d.b]++;
-  let best = 1;
-  for (let n = 2; n <= 20; n++) if (counts[n] > counts[best]) best = n;
-  return best;
+// Adaptive strategy: the first SAMPLE_SIZE draws seed frequency stats. From there on, each
+// draw is "played" using the top-5 numbers (+ top Joker) by frequency *as known at that
+// point* — then the actual result updates the stats before moving to the next draw. The
+// pick therefore changes over time instead of staying fixed.
+function runAdaptiveBacktest(draws) {
+  const counts = emptyCounts();
+  const seedCount = Math.min(SAMPLE_SIZE, draws.length);
+  for (let i = 0; i < seedCount; i++) applyDrawToCounts(counts, draws[i]);
+
+  const log = [];
+  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0;
+  for (let i = seedCount; i < draws.length; i++) {
+    const draw = draws[i];
+    const pickN = topNumbers(counts, 5);
+    const pickB = topJoker(counts);
+    const ov = overlap(pickN, draw.n);
+    const jokerHit = pickB === draw.b;
+    let label = '—';
+    if (ov === 5) { m5++; if (jokerHit) m5j++; label = jokerHit ? '5/5 + Τζ' : '5/5'; }
+    else if (ov === 4) { m4++; if (jokerHit) m4j++; label = jokerHit ? '4/5 + Τζ' : '4/5'; }
+    else if (ov === 3) { m3++; if (jokerHit) m3j++; label = jokerHit ? '3/5 + Τζ' : '3/5'; }
+    else if (ov === 2 && jokerHit) { m2j++; label = '2/5 + Τζ'; }
+    log.push({ id: draw.id, pickN, pickB, n: draw.n, b: draw.b, ov, jokerHit, label });
+    applyDrawToCounts(counts, draw);
+  }
+
+  return {
+    nextPickN: topNumbers(counts, 5),
+    nextPickB: topJoker(counts),
+    seedCount,
+    simulatedCount: draws.length - seedCount,
+    summary: { m5, m5j, m4, m4j, m3, m3j, m2j },
+    log,
+  };
 }
 
 function renderBall(n, joker) {
@@ -252,23 +283,37 @@ function renderLastDraw(draws) {
   meta.textContent = `#${last.id} · σύνολο ${draws.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
 }
 
-function renderFixedPick(best, sampleSize) {
-  const box = document.getElementById('fixedPick');
-  box.innerHTML = best.n.map(n => renderBall(n, false)).join('') + renderBall(best.b, true)
-    + `<div class="j-meta">Βασισμένο στην κλήρωση #${best.fromDrawId} του δείγματος.</div>`;
+function renderAdaptiveBacktest(result) {
+  const box = document.getElementById('nextPick');
+  box.innerHTML = result.nextPickN.map(n => renderBall(n, false)).join('') + renderBall(result.nextPickB, true)
+    + `<div class="j-meta">Πρόβλεψη για την επόμενη κλήρωση — βασισμένη σε στατιστικά συχνότητας όλων των ${(result.seedCount + result.simulatedCount).toLocaleString('el-GR')} κληρώσεων μέχρι τώρα.</div>`;
+
+  const s = result.summary;
   const rows = [
-    ['5/5 + Τζόκερ', best.m5j],
-    ['5/5 (χωρίς Τζόκερ απαραίτητα)', best.m5],
-    ['4/5 + Τζόκερ', best.m4j],
-    ['4/5', best.m4],
-    ['3/5 + Τζόκερ', best.m3j],
-    ['3/5', best.m3],
-    ['2/5 + Τζόκερ', best.m2j],
+    ['5/5 + Τζόκερ', s.m5j],
+    ['5/5 (χωρίς Τζόκερ απαραίτητα)', s.m5],
+    ['4/5 + Τζόκερ', s.m4j],
+    ['4/5', s.m4],
+    ['3/5 + Τζόκερ', s.m3j],
+    ['3/5', s.m3],
+    ['2/5 + Τζόκερ', s.m2j],
   ];
   document.getElementById('hitBreakdown').innerHTML = `
     <table class="hit-table">
-      <tr><th>Αποτέλεσμα</th><th>Φορές μέσα σε ${sampleSize.toLocaleString('el-GR')} κληρώσεις</th></tr>
+      <tr><th>Αποτέλεσμα</th><th>Φορές αν παίζαμε από την #1001 (${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις)</th></tr>
       ${rows.map(([label, n]) => `<tr><td>${label}</td><td><b>${n}</b></td></tr>`).join('')}
+    </table>`;
+
+  document.getElementById('statLog').innerHTML = `
+    <table class="log-table">
+      <tr><th>#</th><th>Παίξαμε</th><th>Βγήκαν</th><th>Ταίριασμα</th></tr>
+      ${result.log.slice().reverse().map(row => `
+        <tr>
+          <td>${row.id}</td>
+          <td>${row.pickN.join('-')} + (${row.pickB})</td>
+          <td>${row.n.join('-')} + (${row.b})</td>
+          <td${row.label !== '—' ? ' class="hit"' : ''}>${row.label}</td>
+        </tr>`).join('')}
     </table>`;
 }
 
@@ -292,12 +337,10 @@ async function init() {
     return;
   }
   renderLastDraw(draws);
-  const sample = draws.slice(0, SAMPLE_SIZE);
-  status.textContent = `⚙️ Υπολογισμός σταθερής πρόβλεψης πάνω σε ${sample.length.toLocaleString('el-GR')} κληρώσεις…`;
+  status.textContent = `⚙️ Υπολογισμός στατιστικής πρόβλεψης πάνω σε ${draws.length.toLocaleString('el-GR')} κληρώσεις…`;
   await new Promise(r => setTimeout(r, 30));
-  const best = findBestFixedPick(sample);
-  best.b = mostFrequentJoker(sample);
-  renderFixedPick(best, sample.length);
+  const result = runAdaptiveBacktest(draws);
+  renderAdaptiveBacktest(result);
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
 }
