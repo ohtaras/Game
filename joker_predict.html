@@ -70,9 +70,7 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
       <a href="kino_settings.html">⚙ Ρυθμίσεις</a>).
     </p>
     <button id="backfillBtn" style="background:#283593;color:#e0e0ff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;cursor:pointer">⬇ Πλήρης λήψη ιστορικού</button>
-    <button id="debugBtn" style="background:#444;color:#e0e0ff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;cursor:pointer;margin-left:8px">🔍 Έλεγχος δομής API</button>
     <div id="backfillStatus" class="j-meta"></div>
-    <pre id="debugOutput" style="display:none;white-space:pre-wrap;font-size:.7rem;background:#0a0a14;padding:10px;border-radius:8px;margin-top:8px;max-height:300px;overflow:auto"></pre>
   </section>
 
   <section>
@@ -236,19 +234,6 @@ async function runFullBackfill() {
 }
 
 document.getElementById('backfillBtn').addEventListener('click', runFullBackfill);
-
-document.getElementById('debugBtn').addEventListener('click', async () => {
-  const out = document.getElementById('debugOutput');
-  out.style.display = 'block';
-  out.textContent = 'Φόρτωση…';
-  try {
-    const latestId = await getLatestDrawId();
-    const raw = await apiFetch(`${OPAP_BASE}/draw-id/${latestId}/${latestId}`);
-    out.textContent = JSON.stringify(raw, null, 2);
-  } catch (e) {
-    out.textContent = '⚠ Σφάλμα: ' + e.message;
-  }
-});
 
 function overlap(a, b) {
   const setB = new Set(b);
