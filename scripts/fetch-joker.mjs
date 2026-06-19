@@ -5,53 +5,19 @@
 // Run modes:
 //   node scripts/fetch-joker.mjs            -> incremental: fetch only the latest draw
 //   node scripts/fetch-joker.mjs --full      -> full backfill: paginate the entire history
-// The OPAP product ID for Joker isn't documented publicly, so it's auto-discovered once
-// (by probing candidate IDs against the known Joker draw shape: 5 numbers 1-45 + 1 bonus
-// 1-20) and cached in data/joker_meta.json.
 
 import fs from 'fs';
 import path from 'path';
 
 const DATA_DIR = path.join(process.cwd(), 'data', 'raw');
-const META_FILE = path.join(process.cwd(), 'data', 'joker_meta.json');
 const DATA_FILE = path.join(DATA_DIR, 'joker_raw.json');
-const CANDIDATE_PRODUCT_IDS = [1101, 1102, 1103, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115];
-
-function isJokerShape(item) {
-  const list = item?.winningNumbers?.list;
-  const bonus = item?.winningNumbers?.bonus;
-  return Array.isArray(list) && list.length === 5 && list.every(n => n >= 1 && n <= 45)
-    && Array.isArray(bonus) && bonus.length === 1 && bonus[0] >= 1 && bonus[0] <= 20;
-}
-
-async function probeProductId(id) {
-  try {
-    const res = await fetch(`https://api.opap.gr/draws/v3.0/${id}/last-result-and-active`, { headers: { Accept: 'application/json' } });
-    if (!res.ok) return false;
-    const raw = await res.json();
-    return isJokerShape(raw?.last);
-  } catch { return false; }
-}
-
-async function resolveProductId() {
-  if (fs.existsSync(META_FILE)) {
-    const meta = JSON.parse(fs.readFileSync(META_FILE, 'utf8'));
-    if (meta?.productId) return meta.productId;
-  }
-  for (const id of CANDIDATE_PRODUCT_IDS) {
-    if (await probeProductId(id)) {
-      fs.mkdirSync(path.dirname(META_FILE), { recursive: true });
-      fs.writeFileSync(META_FILE, JSON.stringify({ productId: id }));
-      console.log(`Discovered Joker product ID: ${id}`);
-      return id;
-    }
-  }
-  throw new Error('Could not discover the Joker OPAP product ID among candidates ' + CANDIDATE_PRODUCT_IDS.join(','));
-}
+const JOKER_PRODUCT_ID = 5104;
 
 function toRecord(item) {
-  if (!isJokerShape(item)) return null;
-  return { id: item.drawId, n: [...item.winningNumbers.list].sort((a, b) => a - b), b: item.winningNumbers.bonus[0] };
+  const list = item?.winningNumbers?.list;
+  const bonus = item?.winningNumbers?.bonus;
+  if (!Array.isArray(list) || list.length !== 5 || !Array.isArray(bonus) || bonus.length !== 1) return null;
+  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
 async function fetchRange(base, fromStr, toStr, size = 100) {
@@ -112,8 +78,7 @@ async function runIncremental(base) {
 }
 
 async function main() {
-  const productId = await resolveProductId();
-  const base = `https://api.opap.gr/draws/v3.0/${productId}`;
+  const base = `https://api.opap.gr/draws/v3.0/${JOKER_PRODUCT_ID}`;
   if (process.argv.includes('--full')) await runFull(base);
   else await runIncremental(base);
 }

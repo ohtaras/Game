@@ -38,7 +38,7 @@ jobs:
         run: |
           git config user.name "joker-bot"
           git config user.email "joker-bot@users.noreply.github.com"
-          git add data/raw/joker_raw.json data/joker_meta.json
+          git add data/raw/joker_raw.json
           if git diff --cached --quiet; then
             echo "No new draws."
           else
