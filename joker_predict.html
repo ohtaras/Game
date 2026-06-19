@@ -74,14 +74,14 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </section>
 
   <section>
-    <h2>Στατιστική Πρόβλεψη (προσαρμοζόμενη)</h2>
+    <h2>Στατιστική Πρόβλεψη (μετατόπιση κλήρωσης)</h2>
     <p class="hint">
-      Οι πρώτες 1.000 κληρώσεις (ή όσες υπάρχουν) χρησιμεύουν σαν αρχικά στατιστικά
-      συχνότητας. Από την κλήρωση #1001 και μετά, η πρόβλεψη ΔΕΝ είναι σταθερή — σε κάθε
-      κλήρωση παίζουμε τους 5 πιο συχνούς αριθμούς (+ πιο συχνό Τζόκερ) μέχρι εκείνη τη
-      στιγμή, μετά ενημερώνουμε τα στατιστικά με το πραγματικό αποτέλεσμα και προχωράμε στην
-      επόμενη. Από κάτω φαίνεται τι θα είχαμε κερδίσει αναλυτικά αν παίζαμε έτσι από την
-      #1001 μέχρι σήμερα, και η τρέχουσα πρόβλεψη για την επόμενη κλήρωση.
+      Οι πρώτες 1.000 κληρώσεις (ή όσες υπάρχουν) παραλείπονται σαν περίοδος προθέρμανσης.
+      Από την κλήρωση #1001 και μετά, η πρόβλεψη ΔΕΝ είναι σταθερή — σε κάθε κλήρωση παίζουμε
+      τους αριθμούς της προηγούμενης κλήρωσης μετατοπισμένους κατά +1 (αν ένας αριθμός είναι
+      45 πάμε κυκλικά στο 1 — το ίδιο και για τον Τζόκερ, 20→1), και προχωράμε στην επόμενη με
+      βάση το πραγματικό αποτέλεσμα. Από κάτω φαίνεται τι θα είχαμε κερδίσει αναλυτικά αν
+      παίζαμε έτσι από την #1001 μέχρι σήμερα, και η τρέχουσα πρόβλεψη για την επόμενη κλήρωση.
     </p>
     <div id="nextPick"></div>
     <h3>Συγκεντρωτικά αποτελέσματα</h3>
@@ -214,43 +214,29 @@ function overlap(a, b) {
   return c;
 }
 
-function emptyCounts() {
-  return { n: new Array(46).fill(0), b: new Array(21).fill(0) };
+function shiftCyclic(n, max) {
+  return n === max ? 1 : n + 1;
 }
 
-function applyDrawToCounts(counts, draw) {
-  for (const n of draw.n) counts.n[n]++;
-  counts.b[draw.b]++;
+// Prediction = the previous draw's numbers, each shifted +1 (wrapping 45→1 for the main
+// numbers, 20→1 for the Joker).
+function shiftPick(draw) {
+  return { n: draw.n.map(n => shiftCyclic(n, 45)).sort((a, b) => a - b), b: shiftCyclic(draw.b, 20) };
 }
 
-function topNumbers(counts, k) {
-  const ranked = [];
-  for (let n = 1; n <= 45; n++) ranked.push([n, counts.n[n]]);
-  ranked.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  return ranked.slice(0, k).map(x => x[0]).sort((a, b) => a - b);
-}
-
-function topJoker(counts) {
-  let best = 1;
-  for (let n = 2; n <= 20; n++) if (counts.b[n] > counts.b[best]) best = n;
-  return best;
-}
-
-// Adaptive strategy: the first SAMPLE_SIZE draws seed frequency stats. From there on, each
-// draw is "played" using the top-5 numbers (+ top Joker) by frequency *as known at that
-// point* — then the actual result updates the stats before moving to the next draw. The
-// pick therefore changes over time instead of staying fixed.
+// Strategy: the first SAMPLE_SIZE draws (or all of them, if fewer) are skipped as a warm-up
+// period. From draw #SAMPLE_SIZE+1 on, each draw is "played" using a shift-by-one of the
+// immediately preceding draw's numbers — so the pick changes every time based on what was
+// actually drawn last.
 function runAdaptiveBacktest(draws) {
-  const counts = emptyCounts();
   const seedCount = Math.min(SAMPLE_SIZE, draws.length);
-  for (let i = 0; i < seedCount; i++) applyDrawToCounts(counts, draws[i]);
 
   const log = [];
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
   for (let i = seedCount; i < draws.length; i++) {
     const draw = draws[i];
-    const pickN = topNumbers(counts, 5);
-    const pickB = topJoker(counts);
+    const pick = shiftPick(draws[i - 1]);
+    const pickN = pick.n, pickB = pick.b;
     const ov = overlap(pickN, draw.n);
     const jokerHit = pickB === draw.b;
     let label = '—';
@@ -260,7 +246,6 @@ function runAdaptiveBacktest(draws) {
     else if (ov === 2) { if (jokerHit) { m2j++; label = '2/5 + Τζ'; } else { m2++; label = '2/5'; } }
     else if (ov === 1 && jokerHit) { m1j++; label = '1/5 + Τζ'; }
     log.push({ id: draw.id, pickN, pickB, n: draw.n, b: draw.b, ov, jokerHit, label });
-    applyDrawToCounts(counts, draw);
   }
 
   // Fixed OPAP Joker prize amounts (5+1 is the variable jackpot, excluded from the cash total).
@@ -271,9 +256,11 @@ function runAdaptiveBacktest(draws) {
   const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
     + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
 
+  const nextPick = shiftPick(draws[draws.length - 1]);
   return {
-    nextPickN: topNumbers(counts, 5),
-    nextPickB: topJoker(counts),
+    nextPickN: nextPick.n,
+    nextPickB: nextPick.b,
+    lastDrawId: draws[draws.length - 1].id,
     seedCount,
     simulatedCount: draws.length - seedCount,
     summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j },
@@ -298,7 +285,7 @@ function renderLastDraw(draws) {
 function renderAdaptiveBacktest(result) {
   const box = document.getElementById('nextPick');
   box.innerHTML = result.nextPickN.map(n => renderBall(n, false)).join('') + renderBall(result.nextPickB, true)
-    + `<div class="j-meta">Πρόβλεψη για την επόμενη κλήρωση — βασισμένη σε στατιστικά συχνότητας όλων των ${(result.seedCount + result.simulatedCount).toLocaleString('el-GR')} κληρώσεων μέχρι τώρα.</div>`;
+    + `<div class="j-meta">Πρόβλεψη για την επόμενη κλήρωση — μετατόπιση +1 (κυκλικά) των αριθμών της τελευταίας κλήρωσης #${result.lastDrawId}.</div>`;
 
   const s = result.summary;
   const eur = v => v.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
