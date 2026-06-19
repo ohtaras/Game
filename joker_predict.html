@@ -84,7 +84,9 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
       #1001 μέχρι σήμερα, και η τρέχουσα πρόβλεψη για την επόμενη κλήρωση.
     </p>
     <div id="nextPick"></div>
+    <h3>Συγκεντρωτικά αποτελέσματα</h3>
     <div id="hitBreakdown"></div>
+    <h3>Αναλυτικό ιστορικό επιτυχιών</h3>
     <div id="statLog"></div>
   </section>
 
@@ -244,7 +246,7 @@ function runAdaptiveBacktest(draws) {
   for (let i = 0; i < seedCount; i++) applyDrawToCounts(counts, draws[i]);
 
   const log = [];
-  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m1j = 0;
+  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
   for (let i = seedCount; i < draws.length; i++) {
     const draw = draws[i];
     const pickN = topNumbers(counts, 5);
@@ -255,18 +257,27 @@ function runAdaptiveBacktest(draws) {
     if (ov === 5) { m5++; if (jokerHit) m5j++; label = jokerHit ? '5/5 + Τζ' : '5/5'; }
     else if (ov === 4) { m4++; if (jokerHit) m4j++; label = jokerHit ? '4/5 + Τζ' : '4/5'; }
     else if (ov === 3) { m3++; if (jokerHit) m3j++; label = jokerHit ? '3/5 + Τζ' : '3/5'; }
-    else if (ov === 2 && jokerHit) { m2j++; label = '2/5 + Τζ'; }
+    else if (ov === 2) { if (jokerHit) { m2j++; label = '2/5 + Τζ'; } else { m2++; label = '2/5'; } }
     else if (ov === 1 && jokerHit) { m1j++; label = '1/5 + Τζ'; }
     log.push({ id: draw.id, pickN, pickB, n: draw.n, b: draw.b, ov, jokerHit, label });
     applyDrawToCounts(counts, draw);
   }
+
+  // Fixed OPAP Joker prize amounts (5+1 is the variable jackpot, excluded from the cash total).
+  // m5/m4/m3 each include their "+ Τζόκερ" subset (m5j/m4j/m3j), so subtract it for the
+  // "without Joker" prize tier — 5+1 itself (jackpot) is excluded from the cash total.
+  const m5only = m5 - m5j, m4only = m4 - m4j, m3only = m3 - m3j;
+  const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
+  const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
+    + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
 
   return {
     nextPickN: topNumbers(counts, 5),
     nextPickB: topJoker(counts),
     seedCount,
     simulatedCount: draws.length - seedCount,
-    summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m1j },
+    summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j },
+    cashWon,
     log,
   };
 }
@@ -290,20 +301,24 @@ function renderAdaptiveBacktest(result) {
     + `<div class="j-meta">Πρόβλεψη για την επόμενη κλήρωση — βασισμένη σε στατιστικά συχνότητας όλων των ${(result.seedCount + result.simulatedCount).toLocaleString('el-GR')} κληρώσεων μέχρι τώρα.</div>`;
 
   const s = result.summary;
+  const eur = v => v.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+  // [label, count, fixed prize per hit (null = variable jackpot, excluded from the total)]
   const rows = [
-    ['5/5 + Τζόκερ', s.m5j],
-    ['5/5 (χωρίς Τζόκερ απαραίτητα)', s.m5],
-    ['4/5 + Τζόκερ', s.m4j],
-    ['4/5', s.m4],
-    ['3/5 + Τζόκερ', s.m3j],
-    ['3/5', s.m3],
-    ['2/5 + Τζόκερ', s.m2j],
-    ['1/5 + Τζόκερ', s.m1j],
+    ['5 + 1 (ΤΖΑΚΠΟΤ)', s.m5j, null],
+    ['5', s.m5 - s.m5j, 100000],
+    ['4 + 1', s.m4j, 2500],
+    ['4', s.m4 - s.m4j, 50],
+    ['3 + 1', s.m3j, 50],
+    ['3', s.m3 - s.m3j, 2],
+    ['2 + 1', s.m2j, 2],
+    ['1 + 1', s.m1j, 1.5],
+    ['2', s.m2, 1],
   ];
   document.getElementById('hitBreakdown').innerHTML = `
     <table class="hit-table">
-      <tr><th>Αποτέλεσμα</th><th>Φορές αν παίζαμε από την #1001 (${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις)</th></tr>
-      ${rows.map(([label, n]) => `<tr><td>${label}</td><td><b>${n}</b></td></tr>`).join('')}
+      <tr><th>Αποτέλεσμα</th><th>Φορές (από #1001, ${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις)</th><th>Βραβείο/φορά</th><th>Σύνολο</th></tr>
+      ${rows.map(([label, n, prize]) => `<tr><td>${label}</td><td><b>${n}</b></td><td>${prize === null ? 'ΤΖΑΚΠΟΤ' : eur(prize)}</td><td>${prize === null ? '—' : eur(n * prize)}</td></tr>`).join('')}
+      <tr><td colspan="3"><b>Σύνολο μετρητών (χωρίς τζακπότ)</b></td><td><b>${eur(result.cashWon)}</b></td></tr>
     </table>`;
 
   const hits = result.log.filter(row => row.label !== '—');
@@ -317,7 +332,7 @@ function renderAdaptiveBacktest(result) {
           <td>${row.n.join('-')} + (${row.b})</td>
           <td class="hit">${row.label}</td>
         </tr>`).join('')}
-    </table>` : `<div class="j-meta" style="padding:8px">Καμία επιτυχία (3/5 ή παραπάνω, ή 2/5+Τζόκερ) μέσα στις ${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις.</div>`;
+    </table>` : `<div class="j-meta" style="padding:8px">Καμία επιτυχία μέσα στις ${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις.</div>`;
 }
 
 function renderHistory(draws) {
