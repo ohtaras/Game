@@ -13,15 +13,16 @@ const DATA_DIR = path.join(process.cwd(), 'data', 'raw');
 const DATA_FILE = path.join(DATA_DIR, 'joker_raw.json');
 const JOKER_PRODUCT_ID = 5104;
 
+// item.drawTime is a Unix epoch in milliseconds. Converted in the Europe/Athens timezone
+// so the calendar date matches what was actually on the OPAP ticket that evening.
 function extractDate(item) {
-  const candidates = [item?.drawDate, item?.date, item?.drawTime, item?.lastUpdated, item?.resultDate];
-  for (const c of candidates) {
-    if (typeof c === 'string') {
-      const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    }
-  }
-  return null;
+  if (typeof item?.drawTime !== 'number') return null;
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Athens', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date(item.drawTime));
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value;
+  const d = parts.find(p => p.type === 'day').value;
+  return `${y}-${m}-${d}`;
 }
 
 function toRecord(item) {
