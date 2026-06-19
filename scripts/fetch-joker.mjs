@@ -20,23 +20,14 @@ function toRecord(item) {
   return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
-async function fetchRange(base, fromStr, toStr, size = 20) {
-  let items = [], page = 0;
-  while (true) {
-    const url = `${base}/draw-date/${fromStr}/${toStr}?page=${page}&size=${size}`;
-    let raw;
-    try {
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!res.ok) break;
-      raw = await res.json();
-    } catch (e) { console.error('fetch failed', fromStr, toStr, page, e.message); break; }
-    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
-    items = items.concat(pg);
-    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < size) break;
-    page++;
-    if (page > 1000) break;
-  }
-  return items;
+async function fetchRange(base, fromStr, toStr) {
+  const url = `${base}/draw-date/${fromStr}/${toStr}`;
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) { console.error('fetch failed', fromStr, toStr, 'HTTP ' + res.status); return []; }
+    const raw = await res.json();
+    return Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+  } catch (e) { console.error('fetch failed', fromStr, toStr, e.message); return []; }
 }
 
 // A single 1997-to-today date range trips OPAP's API with HTTP 400 (range too wide),
