@@ -145,18 +145,33 @@ function toRecord(item) {
   return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
-async function fetchAllDraws(onProgress) {
-  const fromStr = '1997-01-01', toStr = new Date().toISOString().slice(0, 10);
+async function fetchYearRange(fromStr, toStr, onProgress) {
   let items = [], page = 0;
   while (true) {
-    const url = `${OPAP_BASE}/draw-date/${fromStr}/${toStr}?page=${page}&size=100`;
+    const url = `${OPAP_BASE}/draw-date/${fromStr}/${toStr}?page=${page}&size=20`;
     const raw = await apiFetch(url);
     const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
     items = items.concat(pg);
     if (onProgress) onProgress(items.length);
-    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 100) break;
+    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 20) break;
     page++;
-    if (page > 500) break;
+    if (page > 1000) break;
+  }
+  return items;
+}
+
+// A single 1997-to-today date range trips OPAP's API with HTTP 400 (range too wide),
+// so the backfill walks year by year instead.
+async function fetchAllDraws(onProgress) {
+  const startYear = 1997, endYear = new Date().getFullYear();
+  let items = [], total = 0;
+  for (let y = startYear; y <= endYear; y++) {
+    const fromStr = `${y}-01-01`;
+    const toStr = y === endYear ? new Date().toISOString().slice(0, 10) : `${y}-12-31`;
+    const yearItems = await fetchYearRange(fromStr, toStr, n => { if (onProgress) onProgress(total + n, y); });
+    items = items.concat(yearItems);
+    total = items.length;
+    if (onProgress) onProgress(total, y);
   }
   return items.map(toRecord).filter(Boolean);
 }
@@ -171,7 +186,7 @@ async function runFullBackfill() {
   btn.disabled = true;
   try {
     box.textContent = '⏳ Λήψη κληρώσεων από OPAP…';
-    const fresh = await fetchAllDraws(n => { box.textContent = `⏳ Λήψη κληρώσεων από OPAP… (${n.toLocaleString('el-GR')} μέχρι τώρα)`; });
+    const fresh = await fetchAllDraws((n, y) => { box.textContent = `⏳ Λήψη κληρώσεων από OPAP… έτος ${y} (${n.toLocaleString('el-GR')} μέχρι τώρα)`; });
     box.textContent = `⏳ Συγχώνευση με υπάρχοντα δεδομένα…`;
     const existingData = await ghGet(DATA_PATH);
     const existing = existingData?.draws || [];
