@@ -30,17 +30,28 @@ async function fetchRange(base, fromStr, toStr) {
   } catch (e) { console.error('fetch failed', fromStr, toStr, e.message); return []; }
 }
 
-// A single 1997-to-today date range trips OPAP's API with HTTP 400 (range too wide),
-// so the backfill walks year by year instead.
-async function fetchAllYears(base) {
-  const startYear = 1997, endYear = new Date().getFullYear();
+// Even a 1-year draw-date range trips OPAP's API with HTTP 400, so the backfill instead
+// queries one specific draw date at a time — Joker only draws Tue(2)/Thu(4)/Sun(0), so we
+// only need to hit those dates, not every single day.
+function jokerDrawDates(fromStr, toStr) {
+  const dates = [];
+  const day = new Date(fromStr + 'T00:00:00Z');
+  const end = new Date(toStr + 'T00:00:00Z');
+  while (day <= end) {
+    const dow = day.getUTCDay();
+    if (dow === 0 || dow === 2 || dow === 4) dates.push(day.toISOString().slice(0, 10));
+    day.setUTCDate(day.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+async function fetchAllDays(base) {
+  const dates = jokerDrawDates('1997-01-01', new Date().toISOString().slice(0, 10));
   let items = [];
-  for (let y = startYear; y <= endYear; y++) {
-    const fromStr = `${y}-01-01`;
-    const toStr = y === endYear ? new Date().toISOString().slice(0, 10) : `${y}-12-31`;
-    const yearItems = await fetchRange(base, fromStr, toStr);
-    items = items.concat(yearItems);
-    console.log(`  ${y}: +${yearItems.length} (${items.length} total so far)`);
+  for (let i = 0; i < dates.length; i++) {
+    const dayItems = await fetchRange(base, dates[i], dates[i]);
+    items = items.concat(dayItems);
+    if ((i + 1) % 100 === 0 || i === dates.length - 1) console.log(`  ${dates[i]}: ${i + 1}/${dates.length} dates checked, ${items.length} draws found so far`);
   }
   return items;
 }
@@ -60,7 +71,7 @@ function saveDraws(draws) {
 
 async function runFull(base) {
   const existing = loadExisting();
-  const items = await fetchAllYears(base);
+  const items = await fetchAllDays(base);
   const fresh = items.map(toRecord).filter(Boolean);
   const merged = [...existing.filter(d => !fresh.some(f => f.id === d.id)), ...fresh];
   const total = saveDraws(merged);
