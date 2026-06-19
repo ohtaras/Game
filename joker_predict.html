@@ -161,15 +161,17 @@ async function ghPut(path, obj, message) {
   throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες');
 }
 
+// item.drawTime is a Unix epoch in milliseconds (e.g. 1781809200000 -> 2026-06-18,
+// 19:00 UTC = 22:00 Athens). Converted in the Europe/Athens timezone so the calendar
+// date matches what was actually on the OPAP ticket that evening.
 function extractDate(item) {
-  const candidates = [item?.drawDate, item?.date, item?.drawTime, item?.lastUpdated, item?.resultDate];
-  for (const c of candidates) {
-    if (typeof c === 'string') {
-      const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    }
-  }
-  return null;
+  if (typeof item?.drawTime !== 'number') return null;
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Athens', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date(item.drawTime));
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value;
+  const d = parts.find(p => p.type === 'day').value;
+  return `${y}-${m}-${d}`;
 }
 
 function toRecord(item) {
