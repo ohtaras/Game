@@ -56,6 +56,18 @@ table.hit-table th{color:#7986cb;font-weight:600}
   </section>
 
   <section>
+    <h2>Λήψη Ιστορικού</h2>
+    <p class="hint">
+      Κατεβάζει όλες τις κληρώσεις του Τζόκερ απευθείας από το OPAP μέσα από τη σελίδα
+      (χωρίς να χρειάζεται να πας στο GitHub Actions) και τις αποθηκεύει στο
+      <code>data/raw/joker_raw.json</code>. Χρειάζεται GitHub token (ρύθμισέ το στις
+      <a href="kino_settings.html">⚙ Ρυθμίσεις</a>).
+    </p>
+    <button id="backfillBtn" style="background:#283593;color:#e0e0ff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;cursor:pointer">⬇ Πλήρης λήψη ιστορικού</button>
+    <div id="backfillStatus" class="j-meta"></div>
+  </section>
+
+  <section>
     <h2>Σταθερή Πρόβλεψη (backtested)</h2>
     <p class="hint">
       Παίρνουμε τις πρώτες 1.000 (ή όσες υπάρχουν) κληρώσεις σαν δείγμα και ψάχνουμε τον
@@ -81,12 +93,92 @@ table.hit-table th{color:#7986cb;font-weight:600}
 const REPO        = 'ohtaras/Game';
 const DATA_BRANCH = 'main';
 const SAMPLE_SIZE = 1000;
+const OPAP_BASE    = 'https://api.opap.gr/draws/v3.0/5104';
+const DATA_PATH    = 'data/raw/joker_raw.json';
+
+function ghHeaders() {
+  const t = localStorage.getItem('gh_token');
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+async function apiFetch(url) {
+  try { const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) }); if (r.ok) return r.json(); } catch(_) {}
+  try { const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), { signal: AbortSignal.timeout(16000) }); if (r.ok) return r.json(); } catch(_) {}
+  const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return JSON.parse((await r.json()).contents);
+}
 
 async function ghGet(path) {
   const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
   try { const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
   return null;
 }
+
+async function ghPut(path, obj, message) {
+  const h = ghHeaders(), url = `https://api.github.com/repos/${REPO}/contents/${path}`;
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let sha;
+    const chk = await fetch(url + '?ref=' + encodeURIComponent(DATA_BRANCH), { headers: h, cache: 'no-store' });
+    if (chk.ok) { const ex = await chk.json(); sha = ex.sha; }
+    const r = await fetch(url, { method: 'PUT', headers: h, body: JSON.stringify({ message, content: b64, branch: DATA_BRANCH, ...(sha ? { sha } : {}) }), signal: AbortSignal.timeout(60000) });
+    if (r.ok) return;
+    if (r.status === 409) { await new Promise(res => setTimeout(res, 1200)); continue; }
+    throw new Error('GitHub API ' + r.status);
+  }
+  throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες');
+}
+
+function toRecord(item) {
+  const list = item?.winningNumbers?.list, bonus = item?.winningNumbers?.bonus;
+  if (!Array.isArray(list) || list.length !== 5 || !Array.isArray(bonus) || bonus.length !== 1) return null;
+  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
+}
+
+async function fetchAllDraws(onProgress) {
+  const fromStr = '1997-01-01', toStr = new Date().toISOString().slice(0, 10);
+  let items = [], page = 0;
+  while (true) {
+    const url = `${OPAP_BASE}/draw-date/${fromStr}/${toStr}?page=${page}&size=100`;
+    const raw = await apiFetch(url);
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg);
+    if (onProgress) onProgress(items.length);
+    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 100) break;
+    page++;
+    if (page > 500) break;
+  }
+  return items.map(toRecord).filter(Boolean);
+}
+
+async function runFullBackfill() {
+  const btn = document.getElementById('backfillBtn');
+  const box = document.getElementById('backfillStatus');
+  if (!localStorage.getItem('gh_token')) {
+    box.innerHTML = '⚠ Δεν έχεις βάλει GitHub token — πήγαινε στις <a href="kino_settings.html">⚙ Ρυθμίσεις</a>.';
+    return;
+  }
+  btn.disabled = true;
+  try {
+    box.textContent = '⏳ Λήψη κληρώσεων από OPAP…';
+    const fresh = await fetchAllDraws(n => { box.textContent = `⏳ Λήψη κληρώσεων από OPAP… (${n.toLocaleString('el-GR')} μέχρι τώρα)`; });
+    box.textContent = `⏳ Συγχώνευση με υπάρχοντα δεδομένα…`;
+    const existingData = await ghGet(DATA_PATH);
+    const existing = existingData?.draws || [];
+    const merged = [...existing.filter(d => !fresh.some(f => f.id === d.id)), ...fresh].sort((a, b) => a.id - b.id);
+    box.textContent = `⏳ Αποθήκευση ${merged.length.toLocaleString('el-GR')} κληρώσεων στο GitHub…`;
+    await ghPut(DATA_PATH, { draws: merged }, `Full backfill: ${merged.length} Joker draws`);
+    box.textContent = `✓ Αποθηκεύτηκαν ${merged.length.toLocaleString('el-GR')} κληρώσεις.`;
+    await init();
+  } catch (e) {
+    box.textContent = '⚠ Σφάλμα: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('backfillBtn').addEventListener('click', runFullBackfill);
 
 function overlap(a, b) {
   const setB = new Set(b);
