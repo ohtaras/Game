@@ -91,6 +91,18 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </section>
 
   <section>
+    <h2>Παίζοντας την ημερομηνία της ίδιας κλήρωσης</h2>
+    <p class="hint">
+      Για κάθε κλήρωση φτιάχνουμε 5 αριθμούς + Τζόκερ από την ΙΔΙΑ ημερομηνία της κλήρωσης
+      (μέρα, μήνας, έτος, μέρα+μήνας, μέρα×μήνας) και ελέγχουμε αν ταιριάζουν με τους
+      πραγματικούς αριθμούς που βγήκαν εκείνη τη μέρα. Χρειάζεται οι αποθηκευμένες κληρώσεις
+      να έχουν πραγματική ημερομηνία — αν δεν έχουν ακόμα, πάτησε ξανά το "🔄 Ολική επανάληψη"
+      στην κορυφή της σελίδας.
+    </p>
+    <div id="dateBacktest"></div>
+  </section>
+
+  <section>
     <h2>Πρόσφατες Κληρώσεις</h2>
     <div id="historyList"></div>
   </section>
@@ -147,10 +159,22 @@ async function ghPut(path, obj, message) {
   throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες');
 }
 
+function extractDate(item) {
+  const candidates = [item?.drawDate, item?.date, item?.drawTime, item?.lastUpdated, item?.resultDate];
+  for (const c of candidates) {
+    if (typeof c === 'string') {
+      const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    }
+  }
+  return null;
+}
+
 function toRecord(item) {
   const list = item?.winningNumbers?.list, bonus = item?.winningNumbers?.bonus;
   if (!Array.isArray(list) || list.length !== 5 || !Array.isArray(bonus) || bonus.length !== 1) return null;
-  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
+  const dt = extractDate(item);
+  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0], ...(dt ? { dt } : {}) };
 }
 
 async function getLatestDrawId() {
@@ -174,29 +198,31 @@ async function runFullBackfill() {
     box.textContent = '⏳ Εύρεση τελευταίου drawId…';
     const latestId = await getLatestDrawId();
     const existingData = await ghGet(DATA_PATH);
-    const merged = existingData?.draws || [];
-    const seenIds = new Set(merged.map(d => d.id));
-    let sinceSave = 0, misses = 0;
+    const byId = new Map((existingData?.draws || []).map(d => [d.id, d]));
+    let sinceSave = 0, misses = 0, datesFilled = 0;
     for (let id = 1; id <= latestId; id++) {
-      box.textContent = `⏳ Έλεγχος drawId ${id}/${latestId} · ${merged.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
+      box.textContent = `⏳ Έλεγχος drawId ${id}/${latestId} · ${byId.size.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
       let raw;
       try { raw = await apiFetch(`${OPAP_BASE}/draw-id/${id}/${id}`); } catch (e) { misses++; continue; }
       const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
       for (const item of pg) {
         const rec = toRecord(item);
-        if (rec && !seenIds.has(rec.id)) { merged.push(rec); seenIds.add(rec.id); sinceSave++; }
+        if (!rec) continue;
+        const existing = byId.get(rec.id);
+        if (!existing) { byId.set(rec.id, rec); sinceSave++; }
+        else if (rec.dt && !existing.dt) { existing.dt = rec.dt; datesFilled++; sinceSave++; }
       }
       if (sinceSave >= 250) {
-        merged.sort((a, b) => a.id - b.id);
+        const merged = [...byId.values()].sort((a, b) => a.id - b.id);
         await ghPut(DATA_PATH, { draws: merged }, `Backfill progress: ${merged.length} Joker draws`);
         sinceSave = 0;
       }
       await new Promise(r => setTimeout(r, 60));
     }
-    merged.sort((a, b) => a.id - b.id);
+    const merged = [...byId.values()].sort((a, b) => a.id - b.id);
     box.textContent = `⏳ Αποθήκευση ${merged.length.toLocaleString('el-GR')} κληρώσεων στο GitHub…`;
     await ghPut(DATA_PATH, { draws: merged }, `Full backfill: ${merged.length} Joker draws`);
-    box.textContent = `✓ Αποθηκεύτηκαν ${merged.length.toLocaleString('el-GR')} κληρώσεις (${misses.toLocaleString('el-GR')} ανύπαρκτα ids).`;
+    box.textContent = `✓ Αποθηκεύτηκαν ${merged.length.toLocaleString('el-GR')} κληρώσεις (${misses.toLocaleString('el-GR')} ανύπαρκτα ids, ${datesFilled.toLocaleString('el-GR')} ημερομηνίες συμπληρώθηκαν).`;
     await init();
   } catch (e) {
     box.textContent = '⚠ Σφάλμα: ' + e.message;
@@ -212,6 +238,75 @@ function overlap(a, b) {
   let c = 0;
   for (const n of a) if (setB.has(n)) c++;
   return c;
+}
+
+// Builds a 5-number + Joker pick out of a calendar date (day/month/two-digit year), the way
+// someone playing "today's date" would: day, month, year-suffix, day+month, day×month —
+// deduplicated into distinct numbers 1-45.
+function datePick(dt) {
+  const [y, m, d] = dt.split('-').map(Number);
+  const ys = y % 100;
+  const raw = [d, m, (ys % 45) + 1, ((d + m) % 45) + 1, ((d * m) % 45) + 1];
+  const set = new Set();
+  for (const v of raw) { let x = v; while (set.has(x)) x = (x % 45) + 1; set.add(x); }
+  return { n: [...set].sort((a, b) => a - b), b: ((d + m + ys) % 20) + 1 };
+}
+
+// "Play the draw's own date" strategy: for every draw that has a known calendar date, build
+// the pick from THAT draw's date and check it against THAT SAME draw's actual numbers. No
+// training/history needed — it's a deterministic function of the date, tested over every
+// draw we have a date for.
+function runDateBacktest(draws) {
+  const dated = draws.filter(d => d.dt);
+  const log = [];
+  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
+  for (const draw of dated) {
+    const pick = datePick(draw.dt);
+    const ov = overlap(pick.n, draw.n);
+    const jokerHit = pick.b === draw.b;
+    let label = '—';
+    if (ov === 5) { m5++; if (jokerHit) m5j++; label = jokerHit ? '5/5 + Τζ' : '5/5'; }
+    else if (ov === 4) { m4++; if (jokerHit) m4j++; label = jokerHit ? '4/5 + Τζ' : '4/5'; }
+    else if (ov === 3) { m3++; if (jokerHit) m3j++; label = jokerHit ? '3/5 + Τζ' : '3/5'; }
+    else if (ov === 2) { if (jokerHit) { m2j++; label = '2/5 + Τζ'; } else { m2++; label = '2/5'; } }
+    else if (ov === 1 && jokerHit) { m1j++; label = '1/5 + Τζ'; }
+    log.push({ id: draw.id, dt: draw.dt, pickN: pick.n, pickB: pick.b, n: draw.n, b: draw.b, ov, jokerHit, label });
+  }
+  const m5only = m5 - m5j, m4only = m4 - m4j, m3only = m3 - m3j;
+  const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
+  const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
+    + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
+  return { datedCount: dated.length, totalCount: draws.length, summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j }, cashWon, log };
+}
+
+function renderDateBacktest(result) {
+  const box = document.getElementById('dateBacktest');
+  if (!result.datedCount) {
+    box.innerHTML = `<div class="j-meta" style="padding:8px">Δεν έχουμε ακόμα αποθηκευμένη την ημερομηνία καμίας κλήρωσης — πάτησε ξανά το "🔄 Ολική επανάληψη" στην κορυφή της σελίδας για να συμπληρωθούν.</div>`;
+    return;
+  }
+  const s = result.summary;
+  const eur = v => v.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+  const rows = [
+    ['5 + 1 (ΤΖΑΚΠΟΤ)', s.m5j, null],
+    ['5', s.m5 - s.m5j, 100000],
+    ['4 + 1', s.m4j, 2500],
+    ['4', s.m4 - s.m4j, 50],
+    ['3 + 1', s.m3j, 50],
+    ['3', s.m3 - s.m3j, 2],
+    ['2 + 1', s.m2j, 2],
+    ['1 + 1', s.m1j, 1.5],
+    ['2', s.m2, 1],
+  ];
+  box.innerHTML = `
+    <p class="j-meta" style="padding:0 0 8px">Γνωστή ημερομηνία για ${result.datedCount.toLocaleString('el-GR')} από ${result.totalCount.toLocaleString('el-GR')} κληρώσεις.</p>
+    <table class="hit-table">
+      <tr><th>Αποτέλεσμα</th><th>Φορές</th><th>Βραβείο/φορά</th><th>Σύνολο</th></tr>
+      ${rows.map(([label, n, prize]) => `<tr><td>${label}</td><td><b>${n}</b></td><td>${prize === null ? 'ΤΖΑΚΠΟΤ' : eur(prize)}</td><td>${prize === null ? '—' : eur(n * prize)}</td></tr>`).join('')}
+      <tr><td colspan="3"><b>Σύνολο μετρητών (χωρίς τζακπότ)</b></td><td><b>${eur(result.cashWon)}</b></td></tr>
+      <tr><td colspan="3"><b>Κόστος (1€ × κληρώσεις με γνωστή ημερομηνία)</b></td><td><b>${eur(result.datedCount)}</b></td></tr>
+      <tr><td colspan="3"><b>Καθαρό</b></td><td><b>${eur(result.cashWon - result.datedCount)}</b></td></tr>
+    </table>`;
 }
 
 function shiftCyclic(n, max) {
@@ -387,6 +482,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
+  renderDateBacktest(runDateBacktest(draws));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
 }
