@@ -20,38 +20,34 @@ function toRecord(item) {
   return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
-async function fetchRange(base, fromStr, toStr) {
-  const url = `${base}/draw-date/${fromStr}/${toStr}`;
+async function fetchDrawId(base, id) {
+  const url = `${base}/draw-id/${id}/${id}`;
   try {
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) { console.error('fetch failed', fromStr, toStr, 'HTTP ' + res.status); return []; }
+    if (!res.ok) return [];
     const raw = await res.json();
     return Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
-  } catch (e) { console.error('fetch failed', fromStr, toStr, e.message); return []; }
+  } catch (e) { return []; }
 }
 
-// Even a 1-year draw-date range trips OPAP's API with HTTP 400, so the backfill instead
-// queries one specific draw date at a time — Joker only draws Tue(2)/Thu(4)/Sun(0), so we
-// only need to hit those dates, not every single day.
-function jokerDrawDates(fromStr, toStr) {
-  const dates = [];
-  const day = new Date(fromStr + 'T00:00:00Z');
-  const end = new Date(toStr + 'T00:00:00Z');
-  while (day <= end) {
-    const dow = day.getUTCDay();
-    if (dow === 0 || dow === 2 || dow === 4) dates.push(day.toISOString().slice(0, 10));
-    day.setUTCDate(day.getUTCDate() + 1);
-  }
-  return dates;
+async function getLatestDrawId(base) {
+  const res = await fetch(`${base}/last-result-and-active`, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const raw = await res.json();
+  const id = raw?.last?.drawId || raw?.active?.drawId;
+  if (!id) throw new Error('Could not determine latest Joker draw ID.');
+  return id;
 }
 
-async function fetchAllDays(base) {
-  const dates = jokerDrawDates('1997-01-01', new Date().toISOString().slice(0, 10));
+// draw-date ranges (even a single day) return HTTP 400 for this game ID. Querying by
+// draw-id/{id}/{id} one number at a time works instead — scan every id up to the latest.
+async function fetchAllByDrawId(base) {
+  const latestId = await getLatestDrawId(base);
   let items = [];
-  for (let i = 0; i < dates.length; i++) {
-    const dayItems = await fetchRange(base, dates[i], dates[i]);
-    items = items.concat(dayItems);
-    if ((i + 1) % 100 === 0 || i === dates.length - 1) console.log(`  ${dates[i]}: ${i + 1}/${dates.length} dates checked, ${items.length} draws found so far`);
+  for (let id = 1; id <= latestId; id++) {
+    const idItems = await fetchDrawId(base, id);
+    items = items.concat(idItems);
+    if (id % 200 === 0 || id === latestId) console.log(`  drawId ${id}/${latestId}, ${items.length} draws found so far`);
   }
   return items;
 }
@@ -71,7 +67,7 @@ function saveDraws(draws) {
 
 async function runFull(base) {
   const existing = loadExisting();
-  const items = await fetchAllDays(base);
+  const items = await fetchAllByDrawId(base);
   const fresh = items.map(toRecord).filter(Boolean);
   const merged = [...existing.filter(d => !fresh.some(f => f.id === d.id)), ...fresh];
   const total = saveDraws(merged);

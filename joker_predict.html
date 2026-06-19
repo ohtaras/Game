@@ -145,21 +145,15 @@ function toRecord(item) {
   return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
-// Even a 1-year draw-date range trips OPAP's API with HTTP 400, so the backfill instead
-// queries one specific draw date at a time — Joker only draws Tue(2)/Thu(4)/Sun(0), so we
-// only need to hit those dates, not every single day.
-function jokerDrawDates(fromStr, toStr) {
-  const dates = [];
-  const day = new Date(fromStr + 'T00:00:00Z');
-  const end = new Date(toStr + 'T00:00:00Z');
-  while (day <= end) {
-    const dow = day.getUTCDay();
-    if (dow === 0 || dow === 2 || dow === 4) dates.push(day.toISOString().slice(0, 10));
-    day.setUTCDate(day.getUTCDate() + 1);
-  }
-  return dates;
+async function getLatestDrawId() {
+  const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+  const id = raw?.last?.drawId || raw?.active?.drawId;
+  if (!id) throw new Error('Δεν βρέθηκε το τρέχον drawId.');
+  return id;
 }
 
+// draw-date ranges (even a single day) return HTTP 400 for this game ID. Querying by
+// draw-id/{id}/{id} one number at a time works instead — scan every id up to the latest.
 async function runFullBackfill() {
   const btn = document.getElementById('backfillBtn');
   const box = document.getElementById('backfillStatus');
@@ -169,16 +163,16 @@ async function runFullBackfill() {
   }
   btn.disabled = true;
   try {
+    box.textContent = '⏳ Εύρεση τελευταίου drawId…';
+    const latestId = await getLatestDrawId();
     const existingData = await ghGet(DATA_PATH);
     const merged = existingData?.draws || [];
     const seenIds = new Set(merged.map(d => d.id));
-    const dates = jokerDrawDates('1997-01-01', new Date().toISOString().slice(0, 10));
-    let sinceSave = 0;
-    for (let i = 0; i < dates.length; i++) {
-      const day = dates[i];
-      box.textContent = `⏳ Έλεγχος ${day} (${i + 1}/${dates.length}) · ${merged.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
+    let sinceSave = 0, misses = 0;
+    for (let id = 1; id <= latestId; id++) {
+      box.textContent = `⏳ Έλεγχος drawId ${id}/${latestId} · ${merged.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
       let raw;
-      try { raw = await apiFetch(`${OPAP_BASE}/draw-date/${day}/${day}`); } catch (e) { continue; }
+      try { raw = await apiFetch(`${OPAP_BASE}/draw-id/${id}/${id}`); } catch (e) { misses++; continue; }
       const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
       for (const item of pg) {
         const rec = toRecord(item);
@@ -194,7 +188,7 @@ async function runFullBackfill() {
     merged.sort((a, b) => a.id - b.id);
     box.textContent = `⏳ Αποθήκευση ${merged.length.toLocaleString('el-GR')} κληρώσεων στο GitHub…`;
     await ghPut(DATA_PATH, { draws: merged }, `Full backfill: ${merged.length} Joker draws`);
-    box.textContent = `✓ Αποθηκεύτηκαν ${merged.length.toLocaleString('el-GR')} κληρώσεις.`;
+    box.textContent = `✓ Αποθηκεύτηκαν ${merged.length.toLocaleString('el-GR')} κληρώσεις (${misses.toLocaleString('el-GR')} ανύπαρκτα ids).`;
     await init();
   } catch (e) {
     box.textContent = '⚠ Σφάλμα: ' + e.message;
