@@ -344,11 +344,52 @@ function renderHistory(draws) {
     </div>`).join('');
 }
 
+// On every page load, check OPAP for any draws newer than what's stored and fetch them
+// (one drawId at a time, same approach as the full backfill). If a GitHub token is present
+// the gap-filled draws are persisted back to data/raw/joker_raw.json; otherwise the freshly
+// fetched draws are still used for this session's stats, just not saved.
+async function autoFillGaps(draws, status) {
+  let latestId;
+  try { latestId = await getLatestDrawId(); } catch (e) { return draws; }
+  const maxStored = draws.length ? draws[draws.length - 1].id : 0;
+  if (latestId <= maxStored) return draws;
+
+  const merged = draws.slice();
+  const seenIds = new Set(merged.map(d => d.id));
+  let fetchedAny = false;
+  for (let id = maxStored + 1; id <= latestId; id++) {
+    status.textContent = `⏳ Έλεγχος για νέες κληρώσεις… ${id}/${latestId}`;
+    let raw;
+    try { raw = await apiFetch(`${OPAP_BASE}/draw-id/${id}/${id}`); } catch (e) { continue; }
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    for (const item of pg) {
+      const rec = toRecord(item);
+      if (rec && !seenIds.has(rec.id)) { merged.push(rec); seenIds.add(rec.id); fetchedAny = true; }
+    }
+  }
+  if (!fetchedAny) return draws;
+  merged.sort((a, b) => a.id - b.id);
+
+  if (localStorage.getItem('gh_token')) {
+    try {
+      status.textContent = `⏳ Αποθήκευση ${merged.length.toLocaleString('el-GR')} κληρώσεων στο GitHub…`;
+      await ghPut(DATA_PATH, { draws: merged }, `Auto gap-fill: ${merged.length} Joker draws`);
+    } catch (e) {
+      status.textContent = '⚠ Βρέθηκαν νέες κληρώσεις αλλά αποτυχία αποθήκευσης: ' + e.message;
+    }
+  }
+  return merged;
+}
+
 async function init() {
   const status = document.getElementById('statusBar');
   status.textContent = '⏳ Φόρτωση ιστορικού Τζόκερ…';
   const data = await ghGet('data/raw/joker_raw.json');
-  const draws = (data?.draws || []).slice().sort((a, b) => a.id - b.id);
+  let draws = (data?.draws || []).slice().sort((a, b) => a.id - b.id);
+
+  status.textContent = '⏳ Έλεγχος για νέες κληρώσεις…';
+  draws = await autoFillGaps(draws, status);
+
   if (!draws.length) {
     status.textContent = '⚠ Δεν υπάρχουν ακόμα αποθηκευμένες κληρώσεις Τζόκερ — περίμενε το πρώτο αυτόματο fetch ή τρέξε χειροκίνητα το workflow "Fetch Joker draws" (με --full) στο GitHub Actions.';
     renderLastDraw(draws);
