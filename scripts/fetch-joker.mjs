@@ -20,7 +20,7 @@ function toRecord(item) {
   return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
 }
 
-async function fetchRange(base, fromStr, toStr, size = 100) {
+async function fetchRange(base, fromStr, toStr, size = 20) {
   let items = [], page = 0;
   while (true) {
     const url = `${base}/draw-date/${fromStr}/${toStr}?page=${page}&size=${size}`;
@@ -34,7 +34,22 @@ async function fetchRange(base, fromStr, toStr, size = 100) {
     items = items.concat(pg);
     if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < size) break;
     page++;
-    if (page > 500) break;
+    if (page > 1000) break;
+  }
+  return items;
+}
+
+// A single 1997-to-today date range trips OPAP's API with HTTP 400 (range too wide),
+// so the backfill walks year by year instead.
+async function fetchAllYears(base) {
+  const startYear = 1997, endYear = new Date().getFullYear();
+  let items = [];
+  for (let y = startYear; y <= endYear; y++) {
+    const fromStr = `${y}-01-01`;
+    const toStr = y === endYear ? new Date().toISOString().slice(0, 10) : `${y}-12-31`;
+    const yearItems = await fetchRange(base, fromStr, toStr);
+    items = items.concat(yearItems);
+    console.log(`  ${y}: +${yearItems.length} (${items.length} total so far)`);
   }
   return items;
 }
@@ -54,9 +69,7 @@ function saveDraws(draws) {
 
 async function runFull(base) {
   const existing = loadExisting();
-  // Joker has existed since 1997; OPAP's modern draw IDs only need a wide range — the API
-  // paginates by draw, not by literal date density, so one wide query is enough.
-  const items = await fetchRange(base, '1997-01-01', new Date().toISOString().slice(0, 10));
+  const items = await fetchAllYears(base);
   const fresh = items.map(toRecord).filter(Boolean);
   const merged = [...existing.filter(d => !fresh.some(f => f.id === d.id)), ...fresh];
   const total = saveDraws(merged);
