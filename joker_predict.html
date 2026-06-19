@@ -244,7 +244,7 @@ function runAdaptiveBacktest(draws) {
   for (let i = 0; i < seedCount; i++) applyDrawToCounts(counts, draws[i]);
 
   const log = [];
-  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0;
+  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m1j = 0;
   for (let i = seedCount; i < draws.length; i++) {
     const draw = draws[i];
     const pickN = topNumbers(counts, 5);
@@ -256,6 +256,7 @@ function runAdaptiveBacktest(draws) {
     else if (ov === 4) { m4++; if (jokerHit) m4j++; label = jokerHit ? '4/5 + Τζ' : '4/5'; }
     else if (ov === 3) { m3++; if (jokerHit) m3j++; label = jokerHit ? '3/5 + Τζ' : '3/5'; }
     else if (ov === 2 && jokerHit) { m2j++; label = '2/5 + Τζ'; }
+    else if (ov === 1 && jokerHit) { m1j++; label = '1/5 + Τζ'; }
     log.push({ id: draw.id, pickN, pickB, n: draw.n, b: draw.b, ov, jokerHit, label });
     applyDrawToCounts(counts, draw);
   }
@@ -265,7 +266,7 @@ function runAdaptiveBacktest(draws) {
     nextPickB: topJoker(counts),
     seedCount,
     simulatedCount: draws.length - seedCount,
-    summary: { m5, m5j, m4, m4j, m3, m3j, m2j },
+    summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m1j },
     log,
   };
 }
@@ -297,6 +298,7 @@ function renderAdaptiveBacktest(result) {
     ['3/5 + Τζόκερ', s.m3j],
     ['3/5', s.m3],
     ['2/5 + Τζόκερ', s.m2j],
+    ['1/5 + Τζόκερ', s.m1j],
   ];
   document.getElementById('hitBreakdown').innerHTML = `
     <table class="hit-table">
