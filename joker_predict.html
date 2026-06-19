@@ -304,17 +304,18 @@ function renderAdaptiveBacktest(result) {
       ${rows.map(([label, n]) => `<tr><td>${label}</td><td><b>${n}</b></td></tr>`).join('')}
     </table>`;
 
-  document.getElementById('statLog').innerHTML = `
+  const hits = result.log.filter(row => row.label !== '—');
+  document.getElementById('statLog').innerHTML = hits.length ? `
     <table class="log-table">
       <tr><th>#</th><th>Παίξαμε</th><th>Βγήκαν</th><th>Ταίριασμα</th></tr>
-      ${result.log.slice().reverse().map(row => `
+      ${hits.slice().reverse().map(row => `
         <tr>
           <td>${row.id}</td>
           <td>${row.pickN.join('-')} + (${row.pickB})</td>
           <td>${row.n.join('-')} + (${row.b})</td>
-          <td${row.label !== '—' ? ' class="hit"' : ''}>${row.label}</td>
+          <td class="hit">${row.label}</td>
         </tr>`).join('')}
-    </table>`;
+    </table>` : `<div class="j-meta" style="padding:8px">Καμία επιτυχία (3/5 ή παραπάνω, ή 2/5+Τζόκερ) μέσα στις ${result.simulatedCount.toLocaleString('el-GR')} κληρώσεις.</div>`;
 }
 
 function renderHistory(draws) {
