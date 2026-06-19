@@ -13,11 +13,23 @@ const DATA_DIR = path.join(process.cwd(), 'data', 'raw');
 const DATA_FILE = path.join(DATA_DIR, 'joker_raw.json');
 const JOKER_PRODUCT_ID = 5104;
 
+function extractDate(item) {
+  const candidates = [item?.drawDate, item?.date, item?.drawTime, item?.lastUpdated, item?.resultDate];
+  for (const c of candidates) {
+    if (typeof c === 'string') {
+      const m = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    }
+  }
+  return null;
+}
+
 function toRecord(item) {
   const list = item?.winningNumbers?.list;
   const bonus = item?.winningNumbers?.bonus;
   if (!Array.isArray(list) || list.length !== 5 || !Array.isArray(bonus) || bonus.length !== 1) return null;
-  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0] };
+  const dt = extractDate(item);
+  return { id: item.drawId, n: [...list].sort((a, b) => a - b), b: bonus[0], ...(dt ? { dt } : {}) };
 }
 
 async function fetchDrawId(base, id) {
@@ -67,12 +79,18 @@ function saveDraws(draws) {
 
 async function runFull(base) {
   const existing = loadExisting();
+  const byId = new Map(existing.map(d => [d.id, d]));
   const items = await fetchAllByDrawId(base);
-  const fresh = items.map(toRecord).filter(Boolean);
-  const merged = [...existing.filter(d => !fresh.some(f => f.id === d.id)), ...fresh];
-  const total = saveDraws(merged);
-  const newCount = merged.length - existing.length;
-  console.log(`Full backfill: ${items.length} fetched, ${newCount} new, ${total} total.`);
+  let newCount = 0, datesFilled = 0;
+  for (const item of items) {
+    const rec = toRecord(item);
+    if (!rec) continue;
+    const prior = byId.get(rec.id);
+    if (!prior) { byId.set(rec.id, rec); newCount++; }
+    else if (rec.dt && !prior.dt) { prior.dt = rec.dt; datesFilled++; }
+  }
+  const total = saveDraws([...byId.values()]);
+  console.log(`Full backfill: ${items.length} fetched, ${newCount} new, ${datesFilled} dates filled, ${total} total.`);
 }
 
 async function runIncremental(base) {
