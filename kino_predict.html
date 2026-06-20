@@ -50,6 +50,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-cell.ds-soldier-top{box-shadow:0 0 0 2px #ff9100 inset,0 0 8px #ff9100}
 .ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#39ff14;letter-spacing:-1px;text-shadow:0 0 4px #39ff14}
 .ds-cell.ds-soldier-top .ds-star{color:#ff9100;text-shadow:0 0 4px #ff9100}
+#delayShiftSec.ds-dim-others .ds-cell:not(.ds-soldier):not(.ds-soldier-top){opacity:.12;filter:grayscale(1)}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
 .ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
@@ -224,6 +225,7 @@ table.hit-table th{color:#7986cb;font-weight:600}
       <button class="btn" id="dsFwdBtn">Επόμενη ▶</button>
       <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
       <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
+      <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
     </div>
     <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
     <div id="dsLegend">
@@ -667,6 +669,13 @@ function computeDelaysAtIndex(draws, idx) {
 // Αριθμοί που εμφανίζονται με συχνότητα πιο κοντά στο θεωρητικό 25% ("στρατιώτες")
 const SOLDIER_NUMBERS_TOP = new Set([56, 70, 2, 51, 15, 57, 35, 11, 6, 8]);
 const SOLDIER_NUMBERS_NEXT = new Set([76, 61, 7, 59, 72, 20, 28, 49, 39, 66, 77, 29, 9, 55, 58, 64, 24, 32, 52, 68]);
+
+function toggleDimOthers() {
+  const sec = document.getElementById('delayShiftSec');
+  const btn = document.getElementById('dsDimBtn');
+  const on = sec.classList.toggle('ds-dim-others');
+  btn.textContent = on ? '🔆 Επανάφερε όλους' : '🔅 Σκοτείνιασε τους υπόλοιπους';
+}
 
 function soldierMark(n) {
   if (SOLDIER_NUMBERS_TOP.has(n)) return { cls: ' ds-soldier ds-soldier-top', star: '<span class="ds-star">★★</span>' };
