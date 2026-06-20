@@ -313,7 +313,7 @@ function dsLockSelection() {
   document.getElementById('delayShiftSec').classList.remove('ds-manual-dim');
   renderDelayShift();
   updateDsLockBtn();
-  evaluateDelayPendingPredictions();
+  renderDelayPredLog();
 }
 
 let dsToastTimer = null;
@@ -364,13 +364,13 @@ function dsStep(delta) {
   if (!dsDraws) return;
   dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
   renderDelayShift();
-  evaluateDelayPendingPredictions();
+  renderDelayPredLog();
 }
 
 function dsJumpToFirstOfDay(direction) {
   if (!dsDraws) return;
   for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
-    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); evaluateDelayPendingPredictions(); return; }
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); renderDelayPredLog(); return; }
   }
 }
 
@@ -421,7 +421,7 @@ async function dsCheckForNewDraw() {
     dsDraws.push(newDraw);
     hotStates = computeHotStates(dsDraws);
     if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
-    evaluateDelayPendingPredictions();
+    renderDelayPredLog();
     updateStatus();
   } catch(e) { console.error('dsCheckForNewDraw:', e); }
 }
@@ -445,77 +445,67 @@ function resetDelayPredLog() {
 function saveDelayPrediction(predictedArr, afterDrawId) {
   if (!predictedArr.length) return;
   const log = getDelayPredLog();
-  log.push({ ts: Date.now(), afterDrawId, predicted: predictedArr, method: 'delay-shift',
-    evaluatedDrawId: null, hits: null, hitNums: null });
+  log.push({ ts: Date.now(), afterDrawId, predicted: predictedArr, method: 'delay-shift' });
   setDelayPredLog(log);
   renderDelayPredLog();
-}
-
-// Σύνολο αριθμών αξιολογείται μαζί σαν μία πρόβλεψη, έναντι της πιο πρόσφατης κλήρωσης
-// που έχω φτάσει μέσα στο πλήρες dsDraws (τρέχουσα θέση dsIdx) — όχι μόνο της αμέσως
-// επόμενης μετά το afterDrawId. Ισχύει είτε η επόμενη κλήρωση είναι ήδη γνωστή
-// (περιήγηση ιστορικά προς τα πίσω) είτε έρχεται ζωντανά.
-function evaluateDelayPendingPredictions() {
-  if (!dsDraws) return;
-  const log = getDelayPredLog();
-  const idxById = new Map();
-  dsDraws.forEach((d, i) => idxById.set(d.id, i));
-  let changed = false;
-  for (const pred of log) {
-    if (pred.evaluatedDrawId !== null) continue;
-    const i = idxById.get(pred.afterDrawId);
-    if (i === undefined) continue;
-    const evalIdx = Math.max(i + 1, dsIdx);
-    if (evalIdx <= i || evalIdx >= dsDraws.length) continue;
-    const evalDraw = dsDraws[evalIdx];
-    pred.hitNums = pred.predicted.filter(n => evalDraw.n.includes(n));
-    pred.hits = pred.hitNums.length;
-    pred.evaluatedDrawId = evalDraw.id;
-    changed = true;
-  }
-  if (changed) { setDelayPredLog(log); renderDelayPredLog(); }
 }
 
 function fmtTs(ts) {
   return new Date(ts).toLocaleString('el-GR', { timeZone:'Europe/Athens', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
+// Αναλυτική αξιολόγηση: για κάθε καταχωρημένη πρόβλεψη, δείχνει το αποτέλεσμα σε ΚΑΘΕ
+// κλήρωση από την αμέσως επόμενη μετά το σημείο καταχώρησης μέχρι και την τελευταία
+// διαθέσιμη κλήρωση στο πλήρες dsDraws (όχι μόνο μία συγκεντρωτική αξιολόγηση).
 function renderDelayPredLog() {
   const el = document.getElementById('delayPredLog');
-  if (!el) return;
+  if (!el || !dsDraws) return;
   const log = getDelayPredLog().slice().reverse();
   if (!log.length) { el.innerHTML = '<div style="color:#555;font-size:.82rem">Κάνε διπλό κλικ σε έναν αριθμό για να ξεκινήσει η καταγραφή.</div>'; return; }
 
-  const evaluated = log.filter(p => p.evaluatedDrawId !== null);
-  let calibHtml = '';
-  if (evaluated.length >= 3) {
-    const totalPred = evaluated.reduce((s,p) => s+p.predicted.length, 0);
-    const totalHits = evaluated.reduce((s,p) => s+(p.hits||0), 0);
-    const avgHit = (totalHits/totalPred*100).toFixed(1);
-    const edge = (totalHits/totalPred*100 - 25).toFixed(1);
-    calibHtml = `<div class="calib-box">🔧 <strong>Βαθμονόμηση ενεργή</strong> — ${evaluated.length} αξιολογημένες<br>
-      Hit-rate: <strong>${avgHit}%</strong> (βάση 25% · ${parseFloat(edge)>=0?'+':''}${edge}%)</div>`;
-  }
+  const idxById = new Map();
+  dsDraws.forEach((d, i) => idxById.set(d.id, i));
+
+  let totalSlots = 0, totalHits = 0, totalChecks = 0;
 
   const rows = log.slice(0, 25).map(pred => {
-    if (pred.evaluatedDrawId === null) {
+    const i = idxById.get(pred.afterDrawId);
+    const total = pred.predicted.length;
+    const futureDraws = (i === undefined) ? [] : dsDraws.slice(i + 1);
+    if (!futureDraws.length) {
       return `<div class="pl-row pl-pending">
         <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId}</div>
         <div style="color:#666;font-size:.78rem;margin-bottom:4px">⏳ Αναμονή επόμενης κλήρωσης…</div>
         <div class="pl-nums">${pred.predicted.map(n=>`<span class="pl-pending-n">${n}</span>`).join('')}</div>
       </div>`;
     }
-    const total = pred.predicted.length, hits = pred.hits;
-    const isGood = hits >= Math.ceil(total * 0.4);
-    const cls = hits===0 ? 'pl-row' : isGood ? 'pl-row pl-good' : 'pl-row pl-ok';
-    const badgeCls = hits===0 ? 'miss' : isGood ? 'good' : 'ok';
-    const badgeTxt = hits===0 ? `✗ 0/${total}` : `${hits}/${total} (${(hits/total*100).toFixed(0)}%)`;
+    let sumHits = 0;
+    const drawRows = futureDraws.map(d => {
+      const hitNums = pred.predicted.filter(n => d.n.includes(n));
+      sumHits += hitNums.length;
+      totalChecks++; totalSlots += total; totalHits += hitNums.length;
+      const badgeCls = hitNums.length === 0 ? 'miss' : hitNums.length >= Math.ceil(total * 0.4) ? 'good' : 'ok';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-top:1px solid #18241a;flex-wrap:wrap">
+        <span style="color:#556;font-size:.7rem;min-width:110px">#${d.id} · ~${timeOfDay(d.id)}</span>
+        <span class="eval-badge ${badgeCls}" style="margin:0">${hitNums.length}/${total}</span>
+        <span class="pl-nums" style="margin:0">${pred.predicted.map(n=>`<span class="${hitNums.includes(n)?'pl-hit':'pl-miss-n'}">${n}</span>`).join('')}</span>
+      </div>`;
+    }).join('');
+    const avgPct = (sumHits / (futureDraws.length * total) * 100).toFixed(0);
+    const cls = sumHits === 0 ? 'pl-row' : 'pl-row pl-good';
     return `<div class="${cls}">
-      <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId} · αξ.#${pred.evaluatedDrawId}</div>
-      <span class="eval-badge ${badgeCls}">${badgeTxt}</span>
-      <div class="pl-nums" style="margin-top:6px">${pred.predicted.map(n=>`<span class="${pred.hitNums?.includes(n)?'pl-hit':'pl-miss-n'}">${n}</span>`).join('')}</div>
+      <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId} · ${futureDraws.length} κληρώσεις μέχρι σήμερα · σύνολο ${sumHits}/${futureDraws.length*total} (${avgPct}%)</div>
+      ${drawRows}
     </div>`;
   }).join('');
+
+  let calibHtml = '';
+  if (totalChecks >= 3) {
+    const avgHit = (totalHits/totalSlots*100).toFixed(1);
+    const edge = (totalHits/totalSlots*100 - 25).toFixed(1);
+    calibHtml = `<div class="calib-box">🔧 <strong>Βαθμονόμηση ενεργή</strong> — ${totalChecks} αξιολογημένες κληρώσεις<br>
+      Hit-rate: <strong>${avgHit}%</strong> (βάση 25% · ${parseFloat(edge)>=0?'+':''}${edge}%)</div>`;
+  }
 
   el.innerHTML = calibHtml + rows;
 }
@@ -534,7 +524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   dsIdx = dsDraws.length - 1;
   hotStates = computeHotStates(dsDraws);
   renderDelayShift();
-  evaluateDelayPendingPredictions();
+  renderDelayPredLog();
   updateStatus();
   setInterval(updateStatus, 1000);
   scheduleDsRefresh();
