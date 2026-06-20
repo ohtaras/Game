@@ -47,6 +47,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
 .btn{padding:9px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s;background:#3949ab;color:#fff}
 .btn:hover{background:#3f51b5}
+.btn.active{background:#ffb300;color:#1a1300}
+.btn.active:hover{background:#ffc107}
 
 /* ── Prediction log ── */
 .pl-row{padding:9px 12px;background:#0a1510;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.9;border-left:3px solid #333}
@@ -92,6 +94,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
       <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
       <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
+      <button class="btn" id="dsNoDimBtn" onclick="toggleNoDimSelect()">💡 Χωρίς σκοτείνιασμα κατά την επιλογή</button>
       <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
     </div>
     <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
@@ -266,10 +269,18 @@ function toggleDimOthers() {
   btn.textContent = on ? '🔆 Επανάφερε όλους' : '🔅 Σκοτείνιασε τους υπόλοιπους';
 }
 
+let dsNoDimSelect = false;
+function toggleNoDimSelect() {
+  dsNoDimSelect = !dsNoDimSelect;
+  document.getElementById('dsNoDimBtn').classList.toggle('active', dsNoDimSelect);
+  if (dsNoDimSelect) document.getElementById('delayShiftSec').classList.remove('ds-manual-dim');
+  else document.getElementById('delayShiftSec').classList.toggle('ds-manual-dim', dsSelectedNums.size > 0);
+}
+
 function dsToggleSelect(n) {
   if (dsSelectedNums.has(n)) dsSelectedNums.delete(n);
   else dsSelectedNums.add(n);
-  document.getElementById('delayShiftSec').classList.toggle('ds-manual-dim', dsSelectedNums.size > 0);
+  if (!dsNoDimSelect) document.getElementById('delayShiftSec').classList.toggle('ds-manual-dim', dsSelectedNums.size > 0);
   renderDelayShift();
   updateDsLockBtn();
 }
