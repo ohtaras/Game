@@ -206,7 +206,8 @@ table.hit-table th{color:#7986cb;font-weight:600}
       προηγούμενα δεδομένα). Θεωρητική πιθανότητα χτυπήματος ανά κλήρωση: 20/80 = 25%.
       Θεωρητική πιθανότητα 10 συνεχόμενων χτυπημάτων στη σειρά: 0,25¹⁰ ≈ 1 στις 1.048.576.
     </div>
-    <button class="btn btn-analyze" id="streakGoalBtn">▶ Εκτέλεση σε όλο το ιστορικό</button>
+    <div id="streakGoalLive" class="calib-box">⏳ Φόρτωση…</div>
+    <button class="btn btn-analyze" id="streakGoalBtn">▶ Εκτέλεση backtest σε όλο το ιστορικό</button>
     <div id="streakGoalResults" style="margin-top:12px"></div>
   </section>
 
@@ -541,6 +542,7 @@ async function loadData() {
   renderSelGrid();
   renderHotPanel();
   renderHistory();
+  renderStreakGoalLive();
   if (!timeTravelId) {
     checkForNewDraw();
     schedulePoll();
@@ -584,6 +586,7 @@ async function checkForNewDraw() {
     renderSelGrid();
     renderHotPanel();
     renderHistory();
+    renderStreakGoalLive();
     if (resultNums.size) {
       const topN = Math.min(Math.max(parseInt(document.getElementById('topNInput').value) || 8, 1), 20);
       const results = analyzeAuto(topN);
@@ -2179,8 +2182,25 @@ function simulateStreakGoal(draws) {
     }
     for (const v of draw.n) lastSeen[v] = i;
   }
+  // The pick for the NEXT (not-yet-drawn) draw, using the same logic, based on the delays
+  // as they stand right after the last draw we have.
+  let nextPick = 1, nextBestDelay = -1;
+  for (let v = 1; v <= 80; v++) {
+    const delay = (draws.length - 1) - lastSeen[v];
+    if (delay > nextBestDelay) { nextBestDelay = delay; nextPick = v; }
+  }
   // Current live streak = whatever's still running at the very end of the loaded history.
-  return { plays, hits, bestStreak, reached10, currentStreak: streak, streakLog };
+  return { plays, hits, bestStreak, reached10, currentStreak: streak, streakLog, nextPick, nextDelay: nextBestDelay };
+}
+
+function renderStreakGoalLive() {
+  const box = document.getElementById('streakGoalLive');
+  if (!box || allDraws.length < 2) return;
+  const r = simulateStreakGoal(allDraws);
+  box.innerHTML = `🎯 <strong>Πρόταση για την επόμενη κλήρωση: αριθμός ${r.nextPick}</strong> ` +
+    `(καθυστέρηση ${r.nextDelay.toLocaleString('el-GR')} κληρώσεις)<br>` +
+    `🔥 Τρέχον σερί (στο φορτωμένο ιστορικό 6 μηνών): <strong>${r.currentStreak}</strong>` +
+    (r.currentStreak >= 10 ? ' — 🎉 ΣΤΟΧΟΣ ΕΠΙΤΕΥΧΘΗΚΕ!' : ` (απομένουν ${10 - r.currentStreak} για τον στόχο)`);
 }
 
 function renderStreakGoalResults(result) {
