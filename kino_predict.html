@@ -51,7 +51,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#39ff14;letter-spacing:-1px;text-shadow:0 0 4px #39ff14}
 .ds-cell.ds-soldier-top .ds-star{color:#ff9100;text-shadow:0 0 4px #ff9100}
 #delayShiftSec.ds-dim-others .ds-cell:not(.ds-soldier):not(.ds-soldier-top){opacity:.12;filter:grayscale(1)}
-.ds-cell .ds-flame{position:absolute;bottom:1px;left:2px;font-size:.62rem;line-height:1}
+.ds-cell.ds-onfire .ds-n{position:relative;z-index:1;color:#fff;text-shadow:0 0 3px #000,0 0 6px #000}
+.ds-cell.ds-onfire::before{content:'🔥';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.7rem;line-height:1;opacity:.95;z-index:0;filter:drop-shadow(0 0 4px #ff5722)}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
 .ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
@@ -237,7 +238,7 @@ table.hit-table th{color:#7986cb;font-weight:600}
       <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
       <div class="ds-legend-item">★★ Top 10 «στρατιώτες» (πιο κοντά στο 25%)</div>
       <div class="ds-legend-item">★ Επόμενοι 20 «στρατιώτες»</div>
-      <div class="ds-legend-item">🔥 Καυτός στρατιώτης (hot τώρα)</div>
+      <div class="ds-legend-item">🔥 Ο αριθμός μέσα στη φλόγα = καυτός στρατιώτης (hot τώρα)</div>
     </div>
 
     <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
@@ -681,9 +682,9 @@ function toggleDimOthers() {
 
 function soldierMark(n) {
   const isSoldier = SOLDIER_NUMBERS_TOP.has(n) || SOLDIER_NUMBERS_NEXT.has(n);
-  const flame = isSoldier && hotStates?.[n]?.isHot ? '<span class="ds-flame">🔥</span>' : '';
-  if (SOLDIER_NUMBERS_TOP.has(n)) return { cls: ' ds-soldier ds-soldier-top', star: '<span class="ds-star">★★</span>' + flame };
-  if (SOLDIER_NUMBERS_NEXT.has(n)) return { cls: ' ds-soldier', star: '<span class="ds-star">★</span>' + flame };
+  const flameCls = isSoldier && hotStates?.[n]?.isHot ? ' ds-onfire' : '';
+  if (SOLDIER_NUMBERS_TOP.has(n)) return { cls: ' ds-soldier ds-soldier-top' + flameCls, star: '<span class="ds-star">★★</span>' };
+  if (SOLDIER_NUMBERS_NEXT.has(n)) return { cls: ' ds-soldier' + flameCls, star: '<span class="ds-star">★</span>' };
   return { cls: '', star: '' };
 }
 
