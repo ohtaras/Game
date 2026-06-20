@@ -2161,6 +2161,7 @@ function simulateStreakGoal(draws) {
   for (const v of draws[0].n) lastSeen[v] = 0;
 
   let streak = 0, bestStreak = 0, reached10 = 0, hits = 0, plays = 0;
+  let missStreak = 0, bestMissStreak = 0, bestMissEndId = null;
   const streakLog = []; // {endId, length} for every streak that ends (broken by a miss)
   for (let i = 1; i < draws.length; i++) {
     let pickNum = 1, bestDelay = -1;
@@ -2176,9 +2177,12 @@ function simulateStreakGoal(draws) {
       streak++;
       if (streak > bestStreak) bestStreak = streak;
       if (streak === 10) reached10++;
+      missStreak = 0;
     } else {
       if (streak > 0) streakLog.push({ endId: draws[i - 1].id, length: streak });
       streak = 0;
+      missStreak++;
+      if (missStreak > bestMissStreak) { bestMissStreak = missStreak; bestMissEndId = draw.id; }
     }
     for (const v of draw.n) lastSeen[v] = i;
   }
@@ -2190,7 +2194,10 @@ function simulateStreakGoal(draws) {
     if (delay > nextBestDelay) { nextBestDelay = delay; nextPick = v; }
   }
   // Current live streak = whatever's still running at the very end of the loaded history.
-  return { plays, hits, bestStreak, reached10, currentStreak: streak, streakLog, nextPick, nextDelay: nextBestDelay };
+  return {
+    plays, hits, bestStreak, reached10, currentStreak: streak, streakLog,
+    nextPick, nextDelay: nextBestDelay, bestMissStreak, bestMissEndId,
+  };
 }
 
 function renderStreakGoalLive() {
@@ -2225,6 +2232,8 @@ function renderStreakGoalResults(result) {
       Χτυπήματα: ${result.hits.toLocaleString('el-GR')} (${pct}%, θεωρητικό 25%).
       Καλύτερο σερί ποτέ: <b>${result.bestStreak}</b>.
       Φορές που φτάσαμε σερί ακριβώς 10: <b>${result.reached10}</b>.
+      Μεγαλύτερο σερί χωρίς ΚΑΝΕΝΑ χτύπημα: <b>${result.bestMissStreak}</b> συνεχόμενες κληρώσεις
+      (τελειώνει στην κλήρωση #${result.bestMissEndId}).
     </p>
     <table class="hit-table">
       <tr><th>Μήκος σερί</th><th>Φορές που συνέβη</th></tr>
