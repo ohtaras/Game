@@ -111,7 +111,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item">🔒 Καταχώρηση Πρόβλεψης = κλείδωμα όλου του επιλεγμένου συνόλου μαζί για αξιολόγηση στην επόμενη κλήρωση</div>
     </div>
 
-    <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
+    <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb;cursor:pointer" id="dsBonusToggle" onclick="toggleBonusSection()">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα) <span id="dsBonusToggleArrow">▾</span></h3>
+    <div id="dsBonusWrap">
     <div id="dsBonusInfo" style="font-size:.78rem;color:#999;margin-bottom:6px">—</div>
     <div id="dsBonusGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
     <div id="dsBonusLegend" class="ds-legend">
@@ -120,6 +121,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+    </div>
     </div>
   </section>
 
@@ -260,6 +262,14 @@ function computeBonusDelaysAtIndex(draws, idx) {
   }
   for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx - start + 1;
   return delays;
+}
+
+function toggleBonusSection() {
+  const wrap = document.getElementById('dsBonusWrap');
+  const arrow = document.getElementById('dsBonusToggleArrow');
+  const hidden = wrap.style.display === 'none';
+  wrap.style.display = hidden ? '' : 'none';
+  arrow.textContent = hidden ? '▾' : '▸';
 }
 
 function toggleDimOthers() {
@@ -441,9 +451,10 @@ function saveDelayPrediction(predictedArr, afterDrawId) {
   renderDelayPredLog();
 }
 
-// Σύνολο αριθμών αξιολογείται μαζί σαν μία πρόβλεψη, έναντι της κλήρωσης που ακολουθεί
-// αμέσως μετά το afterDrawId μέσα στο πλήρες dsDraws — ισχύει είτε η επόμενη κλήρωση
-// είναι ήδη γνωστή (περιήγηση ιστορικά προς τα πίσω) είτε έρχεται ζωντανά.
+// Σύνολο αριθμών αξιολογείται μαζί σαν μία πρόβλεψη, έναντι της πιο πρόσφατης κλήρωσης
+// που έχω φτάσει μέσα στο πλήρες dsDraws (τρέχουσα θέση dsIdx) — όχι μόνο της αμέσως
+// επόμενης μετά το afterDrawId. Ισχύει είτε η επόμενη κλήρωση είναι ήδη γνωστή
+// (περιήγηση ιστορικά προς τα πίσω) είτε έρχεται ζωντανά.
 function evaluateDelayPendingPredictions() {
   if (!dsDraws) return;
   const log = getDelayPredLog();
@@ -454,11 +465,12 @@ function evaluateDelayPendingPredictions() {
     if (pred.evaluatedDrawId !== null) continue;
     const i = idxById.get(pred.afterDrawId);
     if (i === undefined) continue;
-    const nextDraw = dsDraws[i + 1];
-    if (!nextDraw) continue;
-    pred.hitNums = pred.predicted.filter(n => nextDraw.n.includes(n));
+    const evalIdx = Math.max(i + 1, dsIdx);
+    if (evalIdx <= i || evalIdx >= dsDraws.length) continue;
+    const evalDraw = dsDraws[evalIdx];
+    pred.hitNums = pred.predicted.filter(n => evalDraw.n.includes(n));
     pred.hits = pred.hitNums.length;
-    pred.evaluatedDrawId = nextDraw.id;
+    pred.evaluatedDrawId = evalDraw.id;
     changed = true;
   }
   if (changed) { setDelayPredLog(log); renderDelayPredLog(); }
