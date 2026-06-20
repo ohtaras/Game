@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kino — Χρονικό Ταξίδι Καθυστερήσεων</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
+.nav-link{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+.nav-link:hover{background:#2a2a4a}
+#statusBar{background:#0e0e1a;padding:8px 16px;font-size:.78rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:32px}
+main{max-width:1100px;margin:0 auto;padding:14px}
+section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ── Delay shift table ── */
+#dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
+#dsGrid,#dsBonusGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+@media(max-width:600px){#dsGrid,#dsBonusGrid{grid-template-columns:repeat(5,1fr)}}
+.ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none;position:relative;cursor:pointer}
+.ds-cell.ds-soldier{box-shadow:0 0 0 2px #39ff14 inset,0 0 8px #39ff14}
+.ds-cell.ds-soldier-top{box-shadow:0 0 0 2px #ff9100 inset,0 0 8px #ff9100}
+.ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#39ff14;letter-spacing:-1px;text-shadow:0 0 4px #39ff14}
+.ds-cell.ds-soldier-top .ds-star{color:#ff9100;text-shadow:0 0 4px #ff9100}
+#delayShiftSec.ds-dim-others .ds-cell:not(.ds-soldier):not(.ds-soldier-top){opacity:.12;filter:grayscale(1)}
+#delayShiftSec.ds-manual-dim .ds-cell:not(.ds-selected){opacity:.12;filter:grayscale(1)}
+.ds-cell.ds-selected{outline:2px solid #fff;outline-offset:1px}
+.ds-cell.ds-onfire .ds-n{position:relative;z-index:1;color:#fff;text-shadow:0 0 3px #000,0 0 6px #000}
+.ds-cell.ds-onfire .ds-d{position:absolute;right:2px;bottom:1px;z-index:1;background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px}
+.ds-cell.ds-onfire::before{content:'🔥';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.7rem;line-height:1;opacity:.95;z-index:0;filter:drop-shadow(0 0 4px #ff5722)}
+.ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
+.ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
+#dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.82rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
+#dsToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
+.ds-12 {background:#0d2240;border:2px solid #2c5a8a;color:#90caf9}
+.ds-35 {background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
+.ds-69 {background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
+.ds-10p{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
+#dsLegend,.ds-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
+.ds-legend-item{display:flex;align-items:center;gap:5px}
+.ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
+.btn{padding:9px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s;background:#3949ab;color:#fff}
+.btn:hover{background:#3f51b5}
+
+/* ── Prediction log ── */
+.pl-row{padding:9px 12px;background:#0a1510;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.9;border-left:3px solid #333}
+.pl-row.pl-good{border-left-color:#4caf50}
+.pl-row.pl-ok{border-left-color:#ffd54f}
+.pl-row.pl-pending{border-left-color:#3a3a5a}
+.pl-meta{color:#4a5a4a;font-size:.68rem;margin-bottom:3px}
+.pl-nums{font-family:monospace;font-size:.74rem;letter-spacing:.05em;line-height:2}
+.pl-hit{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a3a1a;border:1.5px solid #4caf50;color:#a5d6a7;font-weight:700;margin:1px}
+.pl-miss-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#111;border:1.5px solid #2a2a2a;color:#333;font-weight:700;margin:1px}
+.pl-pending-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a1a2a;border:1.5px solid #3a3a5a;color:#666;font-weight:700;margin:1px}
+.calib-box{background:#0a1510;border:1px solid #2a4a2a;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.78rem;line-height:1.8;color:#80cbc4}
+.calib-box strong{color:#a5d6a7}
+.eval-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;margin-top:8px}
+.eval-badge.good{background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50}
+.eval-badge.ok{background:#2a2a00;color:#ffd54f;border:1px solid #ffd54f}
+.eval-badge.miss{background:#1a1a1a;color:#666;border:1px solid #333}
+#buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#333;pointer-events:none;z-index:99}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🕰 Χρονικό Ταξίδι Καθυστερήσεων</h1>
+  <a href="kino_predict.html" class="nav-link">← Πρόβλεψη</a>
+  <a href="kino_live.html" class="nav-link">● Live</a>
+  <a href="kino_similar.html" class="nav-link">🧲 Μετά την Πιο Όμοια</a>
+  <a href="kino_frequency.html" class="nav-link">🌡 Συχνότητα Χ Κληρώσεων</a>
+  <a href="joker_predict.html" class="nav-link">🃏 Τζόκερ</a>
+  <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
+</header>
+
+<div id="statusBar">⏳ Φόρτωση ιστορικού…</div>
+
+<main>
+  <section id="delayShiftSec">
+    <h2>🕰 Χρονικό Ταξίδι Καθυστερήσεων</h2>
+    <div id="dsControls">
+      <button class="btn" id="dsBackDayBtn">⏮ -1 ημ. (00:00)</button>
+      <button class="btn" id="dsBackBtn">◀ Προηγούμενη</button>
+      <span id="dsInfo">—</span>
+      <button class="btn" id="dsFwdBtn">Επόμενη ▶</button>
+      <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
+      <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
+      <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
+    </div>
+    <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="dsLegend">
+      <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+      <div class="ds-legend-item">★★ Top 10 «στρατιώτες» (πιο κοντά στο 25%)</div>
+      <div class="ds-legend-item">★ Επόμενοι 20 «στρατιώτες»</div>
+      <div class="ds-legend-item">🔥 Ο αριθμός μέσα στη φλόγα = καυτός στρατιώτης (hot τώρα)</div>
+      <div class="ds-legend-item">👆 Πάτα σε αριθμό για να σκοτεινιάσουν οι υπόλοιποι (ξανά για κλείδωμα πρόβλεψης)</div>
+    </div>
+
+    <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
+    <div id="dsBonusInfo" style="font-size:.78rem;color:#999;margin-bottom:6px">—</div>
+    <div id="dsBonusGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
+    <div id="dsBonusLegend" class="ds-legend">
+      <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+    </div>
+  </section>
+
+  <section id="delayPredLogSec">
+    <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
+    <div id="delayPredLog">
+      <div style="color:#555;font-size:.82rem">Κάνε διπλό κλικ σε έναν αριθμό για να ξεκινήσει η καταγραφή.</div>
+    </div>
+  </section>
+</main>
+
+<div id="buildStamp">v 2026-06-20</div>
+
+<script>
+'use strict';
+
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
+const pad = n => String(n).padStart(2,'0');
+
+async function apiFetch(url) {
+  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
+  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)}); if(r.ok)return r.json(); } catch(_) {}
+  const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return JSON.parse((await r.json()).contents);
+}
+
+function ghHeaders() {
+  const t = localStorage.getItem('gh_token');
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+async function ghGet(path, opts = {}) {
+  const bust = opts.bust ? `?_=${Date.now()}` : '';
+  const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}${bust}`;
+  try { const r = await fetch(raw, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
+  const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
+  try {
+    const r = await fetch(url, { headers: ghHeaders(), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!r.ok) return null;
+    const meta = await r.json();
+    if ((!meta.content || meta.content === '') && meta.download_url) {
+      const dr = await fetch(meta.download_url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!meta.content) return null;
+    return JSON.parse(atob(meta.content.replace(/\n/g, '')));
+  } catch(_) { return null; }
+}
+
+function msToNext() {
+  const now=new Date(), m=now.getMinutes(), s=now.getSeconds()+now.getMilliseconds()/1000;
+  const cur5=Math.floor(m/5)*5;
+  let diff=(cur5+5)*60+15-(m*60+s);
+  if(diff<=0) diff+=300;
+  return diff*1000;
+}
+
+const DRAWS_PER_DAY = 288;
+const FIRST_DRAW_OF_DAY_OFFSET = 1305886 % DRAWS_PER_DAY;
+function isFirstDrawOfDay(drawId) {
+  return ((drawId % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY === FIRST_DRAW_OF_DAY_OFFSET;
+}
+function timeOfDay(drawId) {
+  const slot = ((drawId - FIRST_DRAW_OF_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+  const mins = slot * 5;
+  return `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+}
+
+const HOT_W = 30, HOT_THR = 0.37, COLD_THR = 0.20;
+
+function computeHotStates(draws) {
+  const T = draws.length;
+  if (T < HOT_W) return null;
+  const result = {};
+  for (let n = 1; n <= 80; n++) {
+    let cnt = 0;
+    for (let i = T - HOT_W; i < T; i++) if (draws[i].n.includes(n)) cnt++;
+    const freq = cnt / HOT_W;
+    result[n] = { isHot: freq >= HOT_THR, isCold: freq <= COLD_THR };
+  }
+  return result;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let dsDraws = null;
+let dsIdx = -1;
+let hotStates = null;
+const dsSelectedNums = new Set();
+
+// Αριθμοί που εμφανίζονται με συχνότητα πιο κοντά στο θεωρητικό 25% ("στρατιώτες")
+const SOLDIER_NUMBERS_TOP = new Set([56, 70, 2, 51, 15, 57, 35, 11, 6, 8]);
+const SOLDIER_NUMBERS_NEXT = new Set([76, 61, 7, 59, 72, 20, 28, 49, 39, 66, 77, 29, 9, 55, 58, 64, 24, 32, 52, 68]);
+
+function soldierMark(n) {
+  const isSoldier = SOLDIER_NUMBERS_TOP.has(n) || SOLDIER_NUMBERS_NEXT.has(n);
+  const flameCls = isSoldier && hotStates?.[n]?.isHot ? ' ds-onfire' : '';
+  if (SOLDIER_NUMBERS_TOP.has(n)) return { cls: ' ds-soldier ds-soldier-top' + flameCls, star: '<span class="ds-star">★★</span>' };
+  if (SOLDIER_NUMBERS_NEXT.has(n)) return { cls: ' ds-soldier' + flameCls, star: '<span class="ds-star">★</span>' };
+  return { cls: '', star: '' };
+}
+
+function delayBucketClass(d) {
+  if (d === 0) return 'ds-0';
+  if (d <= 2) return 'ds-12';
+  if (d <= 5) return 'ds-35';
+  if (d <= 9) return 'ds-69';
+  return 'ds-10p';
+}
+
+function computeDelaysAtIndex(draws, idx) {
+  const delays = new Array(81).fill(null);
+  let remaining = 80;
+  for (let i = idx; i >= 0 && remaining > 0; i--) {
+    for (const n of draws[i].n) {
+      if (n >= 1 && n <= 80 && delays[n] === null) { delays[n] = idx - i; remaining--; }
+    }
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx + 1;
+  return delays;
+}
+
+function dayStartIndex(draws, idx) {
+  let start = idx;
+  while (start > 0 && !isFirstDrawOfDay(draws[start].id)) start--;
+  return start;
+}
+
+function computeBonusDelaysAtIndex(draws, idx) {
+  const start = dayStartIndex(draws, idx);
+  const delays = new Array(81).fill(null);
+  for (let i = idx; i >= start; i--) {
+    const b = draws[i].b;
+    if (b >= 1 && b <= 80 && delays[b] === null) delays[b] = idx - i;
+  }
+  for (let n = 1; n <= 80; n++) if (delays[n] === null) delays[n] = idx - start + 1;
+  return delays;
+}
+
+function toggleDimOthers() {
+  const sec = document.getElementById('delayShiftSec');
+  const btn = document.getElementById('dsDimBtn');
+  const on = sec.classList.toggle('ds-dim-others');
+  btn.textContent = on ? '🔆 Επανάφερε όλους' : '🔅 Σκοτείνιασε τους υπόλοιπους';
+}
+
+function dsToggleSelect(n) {
+  if (dsSelectedNums.has(n)) {
+    // δεύτερο κλικ στον ίδιο αριθμό: κλείδωμα για αξιολόγηση στην επόμενη κλήρωση,
+    // και επαναφορά του πάνελ όπως ήταν πριν το πρώτο κλικ.
+    dsSelectedNums.clear();
+    document.getElementById('delayShiftSec').classList.remove('ds-manual-dim');
+    saveDelayPrediction([n]);
+    dsToast(`✓ Ο αριθμός ${n} καταχωρήθηκε για αξιολόγηση στην επόμενη κλήρωση`);
+    renderDelayShift();
+    return;
+  }
+  dsSelectedNums.add(n);
+  document.getElementById('delayShiftSec').classList.toggle('ds-manual-dim', dsSelectedNums.size > 0);
+  renderDelayShift();
+}
+
+let dsToastTimer = null;
+function dsToast(msg) {
+  let el = document.getElementById('dsToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'dsToast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(dsToastTimer);
+  dsToastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function renderDelayShift() {
+  const grid = document.getElementById('dsGrid');
+  const info = document.getElementById('dsInfo');
+  const bonusGrid = document.getElementById('dsBonusGrid');
+  const bonusInfo = document.getElementById('dsBonusInfo');
+  if (!dsDraws || dsIdx < 0) return;
+  const draw = dsDraws[dsIdx];
+  const delays = computeDelaysAtIndex(dsDraws, dsIdx);
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    const sm = soldierMark(n);
+    const sel = dsSelectedNums.has(n) ? ' ds-selected' : '';
+    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}${sm.cls}${sel}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+  }
+  grid.innerHTML = cells.join('');
+  const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
+  info.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} (${dsIdx + 1}/${dsDraws.length})`;
+
+  const bonusDelays = computeBonusDelaysAtIndex(dsDraws, dsIdx);
+  const bonusCells = [];
+  for (let n = 1; n <= 80; n++) {
+    const sm = soldierMark(n);
+    const sel = dsSelectedNums.has(n) ? ' ds-selected' : '';
+    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}${sm.cls}${sel}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
+  }
+  bonusGrid.innerHTML = bonusCells.join('');
+  const drawOfDay = dsIdx - dayStartIndex(dsDraws, dsIdx) + 1;
+  bonusInfo.textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — ${drawOfDay}η κλήρωση της ημέρας · 🎁 μπόνους: ${draw.b}`;
+}
+
+function dsStep(delta) {
+  if (!dsDraws) return;
+  dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
+  renderDelayShift();
+}
+
+function dsJumpToFirstOfDay(direction) {
+  if (!dsDraws) return;
+  for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); return; }
+  }
+}
+
+function updateStatus() {
+  if (!dsDraws) return;
+  const last = dsDraws[dsDraws.length - 1];
+  const secs = Math.round(msToNext() / 1000);
+  const mm = String(Math.floor(secs / 60)).padStart(2,'0');
+  const ss = String(secs % 60).padStart(2,'0');
+  document.getElementById('statusBar').textContent =
+    `✓ ${dsDraws.length.toLocaleString('el-GR')} κληρώσεις · τελευταία #${last?.id || '—'} · ● ΖΩΝΤΑΝΑ · επόμενος έλεγχος: ${mm}:${ss}`;
+}
+
+async function loadDelayHistory() {
+  const months = [];
+  const now = new Date();
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}_${pad(d.getMonth() + 1)}`);
+  }
+  const draws = [];
+  const grid = document.getElementById('dsGrid');
+  for (const ym of months.reverse()) {
+    grid.innerHTML = `<span style="color:#666;font-size:.8rem">⏳ Φόρτωση ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)</span>`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (data?.draws) draws.push(...data.draws);
+  }
+  draws.sort((a, b) => a.id - b.id);
+  try {
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    if (r?.winningNumbers?.list?.length && r.drawId > (draws[draws.length - 1]?.id ?? -1)) {
+      draws.push({ id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null });
+    }
+  } catch(_) {}
+  return draws;
+}
+
+async function dsCheckForNewDraw() {
+  try {
+    if (!dsDraws || !dsDraws.length) return;
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    const last = dsDraws[dsDraws.length - 1];
+    if (!r?.winningNumbers?.list?.length || r.drawId <= last.id) return;
+    const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0] || null };
+    const wasAtLast = dsIdx === dsDraws.length - 1;
+    dsDraws.push(newDraw);
+    hotStates = computeHotStates(dsDraws);
+    evaluateDelayPendingPredictions(newDraw);
+    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
+    updateStatus();
+  } catch(e) { console.error('dsCheckForNewDraw:', e); }
+}
+
+let dsRefreshTimer = null;
+function scheduleDsRefresh() {
+  clearTimeout(dsRefreshTimer);
+  dsRefreshTimer = setTimeout(() => { dsCheckForNewDraw(); scheduleDsRefresh(); }, msToNext() + 5000);
+}
+
+// ── Prediction log & calibration (independent από kino_pred_log) ───────────────
+function getDelayPredLog() { try { return JSON.parse(localStorage.getItem('kino_delay_pred_log') || '[]'); } catch(_) { return []; } }
+function setDelayPredLog(log) { try { localStorage.setItem('kino_delay_pred_log', JSON.stringify(log.slice(-60))); } catch(_) {} }
+
+function saveDelayPrediction(predictedArr) {
+  if (!predictedArr.length || !dsDraws) return;
+  const lastDraw = dsDraws[dsDraws.length - 1];
+  const log = getDelayPredLog();
+  log.push({ ts: Date.now(), afterDrawId: lastDraw?.id || 0, predicted: predictedArr, method: 'delay-shift',
+    evaluatedDrawId: null, hits: null, hitNums: null });
+  setDelayPredLog(log);
+  renderDelayPredLog();
+}
+
+function evaluateDelayPendingPredictions(draw) {
+  const log = getDelayPredLog();
+  let changed = false;
+  for (const pred of log) {
+    if (pred.evaluatedDrawId !== null || pred.afterDrawId >= draw.id) continue;
+    pred.hitNums = pred.predicted.filter(n => draw.n.includes(n));
+    pred.hits = pred.hitNums.length;
+    pred.evaluatedDrawId = draw.id;
+    changed = true;
+  }
+  if (changed) { setDelayPredLog(log); renderDelayPredLog(); }
+}
+
+function fmtTs(ts) {
+  return new Date(ts).toLocaleString('el-GR', { timeZone:'Europe/Athens', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderDelayPredLog() {
+  const el = document.getElementById('delayPredLog');
+  if (!el) return;
+  const log = getDelayPredLog().slice().reverse();
+  if (!log.length) { el.innerHTML = '<div style="color:#555;font-size:.82rem">Κάνε διπλό κλικ σε έναν αριθμό για να ξεκινήσει η καταγραφή.</div>'; return; }
+
+  const evaluated = log.filter(p => p.evaluatedDrawId !== null);
+  let calibHtml = '';
+  if (evaluated.length >= 3) {
+    const totalPred = evaluated.reduce((s,p) => s+p.predicted.length, 0);
+    const totalHits = evaluated.reduce((s,p) => s+(p.hits||0), 0);
+    const avgHit = (totalHits/totalPred*100).toFixed(1);
+    const edge = (totalHits/totalPred*100 - 25).toFixed(1);
+    calibHtml = `<div class="calib-box">🔧 <strong>Βαθμονόμηση ενεργή</strong> — ${evaluated.length} αξιολογημένες<br>
+      Hit-rate: <strong>${avgHit}%</strong> (βάση 25% · ${parseFloat(edge)>=0?'+':''}${edge}%)</div>`;
+  }
+
+  const rows = log.slice(0, 25).map(pred => {
+    if (pred.evaluatedDrawId === null) {
+      return `<div class="pl-row pl-pending">
+        <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId}</div>
+        <div style="color:#666;font-size:.78rem;margin-bottom:4px">⏳ Αναμονή επόμενης κλήρωσης…</div>
+        <div class="pl-nums">${pred.predicted.map(n=>`<span class="pl-pending-n">${n}</span>`).join('')}</div>
+      </div>`;
+    }
+    const total = pred.predicted.length, hits = pred.hits;
+    const isGood = hits >= Math.ceil(total * 0.4);
+    const cls = hits===0 ? 'pl-row' : isGood ? 'pl-row pl-good' : 'pl-row pl-ok';
+    const badgeCls = hits===0 ? 'miss' : isGood ? 'good' : 'ok';
+    const badgeTxt = hits===0 ? `✗ 0/${total}` : `${hits}/${total} (${(hits/total*100).toFixed(0)}%)`;
+    return `<div class="${cls}">
+      <div class="pl-meta">${fmtTs(pred.ts)} · μετά κλ.#${pred.afterDrawId} · αξ.#${pred.evaluatedDrawId}</div>
+      <span class="eval-badge ${badgeCls}">${badgeTxt}</span>
+      <div class="pl-nums" style="margin-top:6px">${pred.predicted.map(n=>`<span class="${pred.hitNums?.includes(n)?'pl-hit':'pl-miss-n'}">${n}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = calibHtml + rows;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('dsBackBtn').addEventListener('click', () => dsStep(-1));
+  document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
+  document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(-1));
+  document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToFirstOfDay(1));
+  document.getElementById('dsLastBtn').addEventListener('click', () => { if (dsDraws) { dsIdx = dsDraws.length - 1; renderDelayShift(); } });
+
+  renderDelayPredLog();
+
+  dsDraws = await loadDelayHistory();
+  dsIdx = dsDraws.length - 1;
+  hotStates = computeHotStates(dsDraws);
+  renderDelayShift();
+  updateStatus();
+  setInterval(updateStatus, 1000);
+  scheduleDsRefresh();
+});
+</script>
+</body>
+</html>
