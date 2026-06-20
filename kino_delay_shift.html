@@ -92,6 +92,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsFwdDayBtn">+1 ημ. (00:00) ⏭</button>
       <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
       <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
+      <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
     </div>
     <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
     <div id="dsLegend">
@@ -103,7 +104,8 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item">★★ Top 10 «στρατιώτες» (πιο κοντά στο 25%)</div>
       <div class="ds-legend-item">★ Επόμενοι 20 «στρατιώτες»</div>
       <div class="ds-legend-item">🔥 Ο αριθμός μέσα στη φλόγα = καυτός στρατιώτης (hot τώρα)</div>
-      <div class="ds-legend-item">👆 Πάτα σε αριθμό για να σκοτεινιάσουν οι υπόλοιποι (ξανά για κλείδωμα πρόβλεψης)</div>
+      <div class="ds-legend-item">👆 Πάτα σε αριθμούς για να τους επιλέξεις σαν σύνολο (σκοτεινιάζουν οι υπόλοιποι)</div>
+      <div class="ds-legend-item">🔒 Καταχώρηση Πρόβλεψης = κλείδωμα όλου του επιλεγμένου συνόλου μαζί για αξιολόγηση στην επόμενη κλήρωση</div>
     </div>
 
     <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
@@ -264,19 +266,32 @@ function toggleDimOthers() {
 }
 
 function dsToggleSelect(n) {
-  if (dsSelectedNums.has(n)) {
-    // δεύτερο κλικ στον ίδιο αριθμό: κλείδωμα για αξιολόγηση στην επόμενη κλήρωση,
-    // και επαναφορά του πάνελ όπως ήταν πριν το πρώτο κλικ.
-    dsSelectedNums.clear();
-    document.getElementById('delayShiftSec').classList.remove('ds-manual-dim');
-    saveDelayPrediction([n]);
-    dsToast(`✓ Ο αριθμός ${n} καταχωρήθηκε για αξιολόγηση στην επόμενη κλήρωση`);
-    renderDelayShift();
-    return;
-  }
-  dsSelectedNums.add(n);
+  if (dsSelectedNums.has(n)) dsSelectedNums.delete(n);
+  else dsSelectedNums.add(n);
   document.getElementById('delayShiftSec').classList.toggle('ds-manual-dim', dsSelectedNums.size > 0);
   renderDelayShift();
+  updateDsLockBtn();
+}
+
+function updateDsLockBtn() {
+  const btn = document.getElementById('dsLockBtn');
+  if (!btn) return;
+  const n = dsSelectedNums.size;
+  btn.disabled = n === 0;
+  btn.textContent = n ? `🔒 Καταχώρηση Πρόβλεψης (${n})` : '🔒 Καταχώρηση Πρόβλεψης';
+}
+
+function dsLockSelection() {
+  if (!dsSelectedNums.size || !dsDraws || dsIdx < 0) return;
+  const arr = Array.from(dsSelectedNums).sort((a,b) => a-b);
+  const afterDraw = dsDraws[dsIdx];
+  saveDelayPrediction(arr, afterDraw.id);
+  dsToast(`✓ Καταχωρήθηκαν ${arr.length} αριθμοί (${arr.join(', ')}) σαν ένα σύνολο για αξιολόγηση στην επόμενη κλήρωση`);
+  dsSelectedNums.clear();
+  document.getElementById('delayShiftSec').classList.remove('ds-manual-dim');
+  renderDelayShift();
+  updateDsLockBtn();
+  evaluateDelayPendingPredictions();
 }
 
 let dsToastTimer = null;
@@ -327,12 +342,13 @@ function dsStep(delta) {
   if (!dsDraws) return;
   dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
   renderDelayShift();
+  evaluateDelayPendingPredictions();
 }
 
 function dsJumpToFirstOfDay(direction) {
   if (!dsDraws) return;
   for (let i = dsIdx + direction; i >= 0 && i < dsDraws.length; i += direction) {
-    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); return; }
+    if (isFirstDrawOfDay(dsDraws[i].id)) { dsIdx = i; renderDelayShift(); evaluateDelayPendingPredictions(); return; }
   }
 }
 
@@ -382,8 +398,8 @@ async function dsCheckForNewDraw() {
     const wasAtLast = dsIdx === dsDraws.length - 1;
     dsDraws.push(newDraw);
     hotStates = computeHotStates(dsDraws);
-    evaluateDelayPendingPredictions(newDraw);
     if (wasAtLast) { dsIdx = dsDraws.length - 1; renderDelayShift(); }
+    evaluateDelayPendingPredictions();
     updateStatus();
   } catch(e) { console.error('dsCheckForNewDraw:', e); }
 }
@@ -398,24 +414,33 @@ function scheduleDsRefresh() {
 function getDelayPredLog() { try { return JSON.parse(localStorage.getItem('kino_delay_pred_log') || '[]'); } catch(_) { return []; } }
 function setDelayPredLog(log) { try { localStorage.setItem('kino_delay_pred_log', JSON.stringify(log.slice(-60))); } catch(_) {} }
 
-function saveDelayPrediction(predictedArr) {
-  if (!predictedArr.length || !dsDraws) return;
-  const lastDraw = dsDraws[dsDraws.length - 1];
+function saveDelayPrediction(predictedArr, afterDrawId) {
+  if (!predictedArr.length) return;
   const log = getDelayPredLog();
-  log.push({ ts: Date.now(), afterDrawId: lastDraw?.id || 0, predicted: predictedArr, method: 'delay-shift',
+  log.push({ ts: Date.now(), afterDrawId, predicted: predictedArr, method: 'delay-shift',
     evaluatedDrawId: null, hits: null, hitNums: null });
   setDelayPredLog(log);
   renderDelayPredLog();
 }
 
-function evaluateDelayPendingPredictions(draw) {
+// Σύνολο αριθμών αξιολογείται μαζί σαν μία πρόβλεψη, έναντι της κλήρωσης που ακολουθεί
+// αμέσως μετά το afterDrawId μέσα στο πλήρες dsDraws — ισχύει είτε η επόμενη κλήρωση
+// είναι ήδη γνωστή (περιήγηση ιστορικά προς τα πίσω) είτε έρχεται ζωντανά.
+function evaluateDelayPendingPredictions() {
+  if (!dsDraws) return;
   const log = getDelayPredLog();
+  const idxById = new Map();
+  dsDraws.forEach((d, i) => idxById.set(d.id, i));
   let changed = false;
   for (const pred of log) {
-    if (pred.evaluatedDrawId !== null || pred.afterDrawId >= draw.id) continue;
-    pred.hitNums = pred.predicted.filter(n => draw.n.includes(n));
+    if (pred.evaluatedDrawId !== null) continue;
+    const i = idxById.get(pred.afterDrawId);
+    if (i === undefined) continue;
+    const nextDraw = dsDraws[i + 1];
+    if (!nextDraw) continue;
+    pred.hitNums = pred.predicted.filter(n => nextDraw.n.includes(n));
     pred.hits = pred.hitNums.length;
-    pred.evaluatedDrawId = draw.id;
+    pred.evaluatedDrawId = nextDraw.id;
     changed = true;
   }
   if (changed) { setDelayPredLog(log); renderDelayPredLog(); }
@@ -479,6 +504,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   dsIdx = dsDraws.length - 1;
   hotStates = computeHotStates(dsDraws);
   renderDelayShift();
+  evaluateDelayPendingPredictions();
   updateStatus();
   setInterval(updateStatus, 1000);
   scheduleDsRefresh();
