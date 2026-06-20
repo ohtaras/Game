@@ -91,28 +91,14 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </section>
 
   <section>
-    <h2>Αλυσίδα Markov (ποιος αριθμός "οδηγεί" σε ποιον)</h2>
+    <h2>Διαστήματα της προηγούμενης κλήρωσης</h2>
     <p class="hint">
-      Μαθαίνουμε από τις πρώτες χιλιάδες κληρώσεις πόσο συχνά κάθε αριθμός Α "ακολουθείται"
-      από κάθε αριθμό Β στην επόμενη κλήρωση (πίνακας μεταβάσεων 45×45), και μετά παίζουμε
-      σε κάθε επόμενη κλήρωση τους 5 αριθμούς με τη μεγαλύτερη βαθμολογία σύμφωνα με την
-      ΠΡΑΓΜΑΤΙΚΗ προηγούμενη κλήρωση (χωρίς διαρροή δεδομένων από το μέλλον). Πιο σύνθετο
-      μοντέλο από απλή συχνότητα, αλλά εξίσου ανώφελο — δείτε τα αποτελέσματα.
+      Παίρνουμε τον ΠΡΩΤΟ (μικρότερο) αριθμό της προηγούμενης κλήρωσης σαν σημείο αναφοράς,
+      κοιτάμε τα 4 διαστήματα ανάμεσα στους 5 αριθμούς της (πόσο απέχει ο καθένας από τον
+      προηγούμενό του), και τα εφαρμόζουμε γύρω από το ίδιο σημείο αναφοράς — δύο διαστήματα
+      προς τα πίσω, δύο προς τα μπρος — για να φτιάξουμε την καινούργια πεντάδα.
     </p>
-    <div id="markovBacktest"></div>
-  </section>
-
-  <section>
-    <h2>Νευρωνικό δίκτυο (online μάθηση από τη 2η κλήρωση)</h2>
-    <p class="hint">
-      Ένα μικρό feed-forward νευρωνικό δίκτυο (65 είσοδοι → 32 κρυφοί νευρώνες → 65 έξοδοι),
-      γραμμένο εξ ολοκλήρου σε JavaScript χωρίς βιβλιοθήκη. Δεν έχει ξεχωριστή φάση
-      "εκπαίδευσης" — μαθαίνει συνεχώς, κλήρωση προς κλήρωση, ξεκινώντας από τη 2η κλήρωση:
-      σε κάθε βήμα προβλέπει με βάση τα ΤΡΕΧΟΝΤΑ βάρη του (που έχουν μάθει μόνο από το
-      παρελθόν), ελέγχει την πρόβλεψη, και μετά ενημερώνει τα βάρη του με βάση το πραγματικό
-      αποτέλεσμα (backpropagation). Δεν υπάρχει διαρροή δεδομένων από το μέλλον σε καμία στιγμή.
-    </p>
-    <div id="nnBacktest"></div>
+    <div id="gapBacktest"></div>
   </section>
 
   <section>
@@ -255,184 +241,46 @@ function overlap(a, b) {
   return c;
 }
 
-// Learns a 45x45 transition table (and a 20x20 Joker transition table) from the training
-// window only: M[a][b] = how many times number b appeared in the draw immediately AFTER a
-// draw containing number a. Built once from draws[0..trainTo-1], never touched again.
-function buildTransitions(draws, trainTo) {
-  const M = Array.from({ length: 46 }, () => new Array(46).fill(0));
-  const JM = Array.from({ length: 21 }, () => new Array(21).fill(0));
-  for (let i = 1; i < trainTo; i++) {
-    const prev = draws[i - 1], cur = draws[i];
-    for (const a of prev.n) for (const b of cur.n) M[a][b]++;
-    JM[prev.b][cur.b]++;
-  }
-  return { M, JM };
-}
-
-// Pick the 5 numbers with the highest learned transition score given the REAL previous draw,
-// and the Joker value most often seen following the previous draw's Joker.
-function markovPick(prevDraw, M, JM) {
-  const scores = [];
-  for (let j = 1; j <= 45; j++) {
-    let s = 0; for (const a of prevDraw.n) s += M[a][j];
-    scores.push([j, s]);
-  }
-  scores.sort((a, b) => b[1] - a[1]);
-  const n = scores.slice(0, 5).map(x => x[0]).sort((a, b) => a - b);
-  let bestB = 1, bestScore = -1;
-  for (let j = 1; j <= 20; j++) if (JM[prevDraw.b][j] > bestScore) { bestScore = JM[prevDraw.b][j]; bestB = j; }
-  return { n, b: bestB };
-}
-
-// Walk-forward test: the transition table is trained ONLY on draws[0..SAMPLE_SIZE-1]. Every
-// draw from SAMPLE_SIZE onward is "played" using the table applied to the REAL previous draw
-// (never a predicted one), so there is no leakage of future information into the model.
-function runMarkovBacktest(draws) {
-  const trainTo = Math.min(SAMPLE_SIZE, draws.length - 1);
-  if (trainTo < 2) return { trainedOn: 0, testedOn: 0, summary: null, cashWon: 0, log: [] };
-  const { M, JM } = buildTransitions(draws, trainTo);
-  const log = [];
-  let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
-  for (let i = trainTo; i < draws.length; i++) {
-    const prevDraw = draws[i - 1];
-    const draw = draws[i];
-    const pick = markovPick(prevDraw, M, JM);
-    const ov = overlap(pick.n, draw.n);
-    const jokerHit = pick.b === draw.b;
-    let label = '—';
-    if (ov === 5) { m5++; if (jokerHit) m5j++; label = jokerHit ? '5/5 + Τζ' : '5/5'; }
-    else if (ov === 4) { m4++; if (jokerHit) m4j++; label = jokerHit ? '4/5 + Τζ' : '4/5'; }
-    else if (ov === 3) { m3++; if (jokerHit) m3j++; label = jokerHit ? '3/5 + Τζ' : '3/5'; }
-    else if (ov === 2) { if (jokerHit) { m2j++; label = '2/5 + Τζ'; } else { m2++; label = '2/5'; } }
-    else if (ov === 1 && jokerHit) { m1j++; label = '1/5 + Τζ'; }
-    log.push({ id: draw.id, dt: draw.dt, pickN: pick.n, pickB: pick.b, n: draw.n, b: draw.b, ov, jokerHit, label });
-  }
-  const m5only = m5 - m5j, m4only = m4 - m4j, m3only = m3 - m3j;
-  const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
-  const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
-    + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
-  return { trainedOn: trainTo, testedOn: draws.length - trainTo, summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j }, cashWon, log };
-}
-
-function renderMarkovBacktest(result) {
-  const box = document.getElementById('markovBacktest');
-  if (!result.summary) {
-    box.innerHTML = `<div class="j-meta" style="padding:8px">Χρειάζονται τουλάχιστον λίγες κληρώσεις παραπάνω για να εκπαιδευτεί το μοντέλο.</div>`;
-    return;
-  }
-  const s = result.summary;
-  const eur = v => v.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
-  const rows = [
-    ['5 + 1 (ΤΖΑΚΠΟΤ)', s.m5j, null],
-    ['5', s.m5 - s.m5j, 100000],
-    ['4 + 1', s.m4j, 2500],
-    ['4', s.m4 - s.m4j, 50],
-    ['3 + 1', s.m3j, 50],
-    ['3', s.m3 - s.m3j, 2],
-    ['2 + 1', s.m2j, 2],
-    ['1 + 1', s.m1j, 1.5],
-    ['2', s.m2, 1],
-  ];
-  box.innerHTML = `
-    <p class="j-meta" style="padding:0 0 8px">Εκπαιδεύτηκε στις πρώτες ${result.trainedOn.toLocaleString('el-GR')} κληρώσεις, δοκιμάστηκε out-of-sample στις επόμενες ${result.testedOn.toLocaleString('el-GR')}.</p>
-    <table class="hit-table">
-      <tr><th>Αποτέλεσμα</th><th>Φορές</th><th>Βραβείο/φορά</th><th>Σύνολο</th></tr>
-      ${rows.map(([label, n, prize]) => `<tr><td>${label}</td><td><b>${n}</b></td><td>${prize === null ? 'ΤΖΑΚΠΟΤ' : eur(prize)}</td><td>${prize === null ? '—' : eur(n * prize)}</td></tr>`).join('')}
-      <tr><td colspan="3"><b>Σύνολο μετρητών (χωρίς τζακπότ)</b></td><td><b>${eur(result.cashWon)}</b></td></tr>
-      <tr><td colspan="3"><b>Κόστος (1€ × κληρώσεις test)</b></td><td><b>${eur(result.testedOn)}</b></td></tr>
-      <tr><td colspan="3"><b>Καθαρό</b></td><td><b>${eur(result.cashWon - result.testedOn)}</b></td></tr>
-    </table>`;
-}
-
-// --- Tiny feed-forward neural network, trained online with no library. ---
-// Input (65): one-hot of the previous draw's 5 main numbers (1..45) + one-hot of its Joker (1..20).
-// Hidden (32): tanh units. Output (65): sigmoid units = P(number j appears next) / P(joker=k next).
-// There is no separate "training window" — learning starts at the very first transition
-// (draw #1 -> draw #2) and continues every single draw: predict first (using only what the
-// network has learned so far), THEN backpropagate on the real outcome. No future leakage.
-const NN_IN = 65, NN_H = 32, NN_OUT = 65, NN_LR = 0.05;
-function nnRandInit(rows, cols, scale) {
-  const m = [];
-  for (let i = 0; i < rows; i++) { const row = new Float64Array(cols); for (let j = 0; j < cols; j++) row[j] = (Math.random() * 2 - 1) * scale; m.push(row); }
-  return m;
-}
-function nnEncodeInput(draw) {
-  const x = new Float64Array(NN_IN);
-  for (const n of draw.n) x[n - 1] = 1;
-  x[45 + (draw.b - 1)] = 1;
+// Wraps a value into 1..45 (cyclically) and, if it collides with a number already chosen,
+// keeps stepping forward by 1 (wrapping past 45) until a free slot is found.
+function wrapInto45(v, taken) {
+  let x = ((v - 1) % 45 + 45) % 45 + 1;
+  while (taken.has(x)) x = x === 45 ? 1 : x + 1;
   return x;
 }
-function nnEncodeTarget(draw) {
-  const y = new Float64Array(NN_OUT);
-  for (const n of draw.n) y[n - 1] = 1;
-  y[45 + (draw.b - 1)] = 1;
-  return y;
-}
-function nnSigmoid(v) { return 1 / (1 + Math.exp(-v)); }
-function nnForward(net, x) {
-  const { W1, b1, W2, b2 } = net;
-  const a1 = new Float64Array(NN_H);
-  for (let i = 0; i < NN_H; i++) {
-    let s = b1[i]; const row = W1[i];
-    for (let j = 0; j < NN_IN; j++) s += row[j] * x[j];
-    a1[i] = Math.tanh(s);
-  }
-  const a2 = new Float64Array(NN_OUT);
-  for (let i = 0; i < NN_OUT; i++) {
-    let s = b2[i]; const row = W2[i];
-    for (let j = 0; j < NN_H; j++) s += row[j] * a1[j];
-    a2[i] = nnSigmoid(s);
-  }
-  return { a1, a2 };
-}
-function nnTrainStep(net, x, y) {
-  const { W1, b1, W2, b2 } = net;
-  const { a1, a2 } = nnForward(net, x);
-  const dz2 = new Float64Array(NN_OUT);
-  for (let i = 0; i < NN_OUT; i++) dz2[i] = a2[i] - y[i];
-  const da1 = new Float64Array(NN_H);
-  for (let i = 0; i < NN_OUT; i++) { const row = W2[i], d = dz2[i]; for (let j = 0; j < NN_H; j++) da1[j] += row[j] * d; }
-  for (let i = 0; i < NN_OUT; i++) {
-    const row = W2[i], d = dz2[i];
-    for (let j = 0; j < NN_H; j++) row[j] -= NN_LR * d * a1[j];
-    b2[i] -= NN_LR * d;
-  }
-  const dz1 = new Float64Array(NN_H);
-  for (let i = 0; i < NN_H; i++) dz1[i] = da1[i] * (1 - a1[i] * a1[i]);
-  for (let i = 0; i < NN_H; i++) {
-    const row = W1[i], d = dz1[i];
-    for (let j = 0; j < NN_IN; j++) row[j] -= NN_LR * d * x[j];
-    b1[i] -= NN_LR * d;
-  }
-}
-function nnPickFromOutput(a2) {
-  const mainScores = [];
-  for (let j = 0; j < 45; j++) mainScores.push([j + 1, a2[j]]);
-  mainScores.sort((p, q) => q[1] - p[1]);
-  const n = mainScores.slice(0, 5).map(p => p[0]).sort((a, b) => a - b);
-  let bestB = 1, bestScore = -1;
-  for (let k = 0; k < 20; k++) if (a2[45 + k] > bestScore) { bestScore = a2[45 + k]; bestB = k + 1; }
-  return { n, b: bestB };
+
+// Anchor = the smallest number of the previous draw. We measure the 4 gaps between its 5
+// sorted numbers, then rebuild a new pentad around the SAME anchor: 2 gaps applied backward,
+// 2 gaps applied forward. The Joker is shifted by the total gap distance, wrapped into 1..20.
+function gapPick(prevDraw) {
+  const sorted = [...prevDraw.n].sort((a, b) => a - b);
+  const anchor = sorted[0];
+  const d1 = sorted[1] - sorted[0], d2 = sorted[2] - sorted[1], d3 = sorted[3] - sorted[2], d4 = sorted[4] - sorted[3];
+  const rawValues = [anchor - d1 - d2, anchor - d1, anchor, anchor + d3, anchor + d3 + d4];
+  const taken = new Set();
+  for (const v of rawValues) taken.add(wrapInto45(v, taken));
+  const n = [...taken].sort((a, b) => a - b);
+  const gapSum = d1 + d2 + d3 + d4;
+  const b = ((prevDraw.b - 1 + gapSum) % 20) + 1;
+  return { n, b };
 }
 
-function runNeuralBacktest(draws) {
-  if (draws.length < 2) return { plays: 0, summary: null, cashWon: 0 };
-  const net = { W1: nnRandInit(NN_H, NN_IN, 0.3), b1: new Float64Array(NN_H), W2: nnRandInit(NN_OUT, NN_H, 0.3), b2: new Float64Array(NN_OUT) };
+// Walk-forward: for every draw from #2 onward, build the pick from the REAL previous draw's
+// gaps and check it against that draw's actual numbers. Pure function of the previous draw,
+// no training window needed.
+function runGapBacktest(draws) {
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0, plays = 0;
   for (let i = 1; i < draws.length; i++) {
-    const x = nnEncodeInput(draws[i - 1]);
-    const { a2 } = nnForward(net, x);
-    const pick = nnPickFromOutput(a2);
+    const pick = gapPick(draws[i - 1]);
+    const draw = draws[i];
     plays++;
-    const ov = overlap(pick.n, draws[i].n);
-    const jokerHit = pick.b === draws[i].b;
+    const ov = overlap(pick.n, draw.n);
+    const jokerHit = pick.b === draw.b;
     if (ov === 5) { m5++; if (jokerHit) m5j++; }
     else if (ov === 4) { m4++; if (jokerHit) m4j++; }
     else if (ov === 3) { m3++; if (jokerHit) m3j++; }
     else if (ov === 2) { if (jokerHit) m2j++; else m2++; }
     else if (ov === 1 && jokerHit) m1j++;
-    // Learn from this draw's real outcome only AFTER having made (and scored) the prediction.
-    nnTrainStep(net, x, nnEncodeTarget(draws[i]));
   }
   const m5only = m5 - m5j, m4only = m4 - m4j, m3only = m3 - m3j;
   const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
@@ -441,8 +289,8 @@ function runNeuralBacktest(draws) {
   return { plays, summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j }, cashWon };
 }
 
-function renderNeuralBacktest(result) {
-  const box = document.getElementById('nnBacktest');
+function renderGapBacktest(result) {
+  const box = document.getElementById('gapBacktest');
   if (!result.summary) {
     box.innerHTML = `<div class="j-meta" style="padding:8px">Χρειάζονται τουλάχιστον 2 κληρώσεις.</div>`;
     return;
@@ -461,7 +309,7 @@ function renderNeuralBacktest(result) {
     ['2', s.m2, 1],
   ];
   box.innerHTML = `
-    <p class="j-meta" style="padding:0 0 8px">Μαθαίνει συνεχώς από τη 2η κλήρωση μέχρι την τελευταία, σύνολο ${result.plays.toLocaleString('el-GR')} προβλέψεις.</p>
+    <p class="j-meta" style="padding:0 0 8px">Εφαρμόστηκε σε ${result.plays.toLocaleString('el-GR')} κληρώσεις (από τη 2η μέχρι την τελευταία).</p>
     <table class="hit-table">
       <tr><th>Αποτέλεσμα</th><th>Φορές</th><th>Βραβείο/φορά</th><th>Σύνολο</th></tr>
       ${rows.map(([label, n, prize]) => `<tr><td>${label}</td><td><b>${n}</b></td><td>${prize === null ? 'ΤΖΑΚΠΟΤ' : eur(prize)}</td><td>${prize === null ? '—' : eur(n * prize)}</td></tr>`).join('')}
@@ -644,8 +492,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
-  renderMarkovBacktest(runMarkovBacktest(draws));
-  renderNeuralBacktest(runNeuralBacktest(draws));
+  renderGapBacktest(runGapBacktest(draws));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
 }
