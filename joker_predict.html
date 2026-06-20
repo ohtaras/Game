@@ -93,10 +93,11 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   <section>
     <h2>Διαστήματα της προηγούμενης κλήρωσης</h2>
     <p class="hint">
-      Παίρνουμε τον ΠΡΩΤΟ (μικρότερο) αριθμό της προηγούμενης κλήρωσης σαν σημείο αναφοράς,
-      κοιτάμε τα 4 διαστήματα ανάμεσα στους 5 αριθμούς της (πόσο απέχει ο καθένας από τον
-      προηγούμενό του), και τα εφαρμόζουμε γύρω από το ίδιο σημείο αναφοράς — δύο διαστήματα
-      προς τα πίσω, δύο προς τα μπρος — για να φτιάξουμε την καινούργια πεντάδα.
+      Από τους 5 αριθμούς της προηγούμενης κλήρωσης, σημείο αναφοράς δεν είναι πλέον ο
+      μικρότερος, αλλά αυτός με τη μεγαλύτερη ΙΣΤΟΡΙΚΗ συχνότητα εμφάνισης μέχρι εκείνη τη
+      στιγμή (ο πιο "στατιστικά καλός" από τους πέντε). Κοιτάμε τα 4 διαστήματα ανάμεσα στους
+      5 αριθμούς της προηγούμενης κλήρωσης και τα εφαρμόζουμε γύρω από αυτό το σημείο αναφοράς
+      — δύο διαστήματα προς τα πίσω, δύο προς τα μπρος — για να φτιάξουμε την καινούργια πεντάδα.
     </p>
     <div id="gapBacktest"></div>
   </section>
@@ -249,12 +250,15 @@ function wrapInto45(v, taken) {
   return x;
 }
 
-// Anchor = the smallest number of the previous draw. We measure the 4 gaps between its 5
-// sorted numbers, then rebuild a new pentad around the SAME anchor: 2 gaps applied backward,
-// 2 gaps applied forward. The Joker is shifted by the total gap distance, wrapped into 1..20.
-function gapPick(prevDraw) {
+// Anchor = the number among the previous draw's 5 that has historically appeared most often
+// SO FAR (per the running frequency table, which only ever reflects draws strictly up to and
+// including the previous draw — no future leakage). We measure the 4 gaps between the previous
+// draw's 5 sorted numbers, then rebuild a new pentad around that anchor: 2 gaps applied
+// backward, 2 gaps applied forward. The Joker is shifted by the total gap distance.
+function gapPick(prevDraw, freq) {
   const sorted = [...prevDraw.n].sort((a, b) => a - b);
-  const anchor = sorted[0];
+  let anchor = sorted[0], bestFreq = freq[sorted[0]];
+  for (const v of sorted) if (freq[v] > bestFreq) { bestFreq = freq[v]; anchor = v; }
   const d1 = sorted[1] - sorted[0], d2 = sorted[2] - sorted[1], d3 = sorted[3] - sorted[2], d4 = sorted[4] - sorted[3];
   const rawValues = [anchor - d1 - d2, anchor - d1, anchor, anchor + d3, anchor + d3 + d4];
   const taken = new Set();
@@ -266,12 +270,15 @@ function gapPick(prevDraw) {
 }
 
 // Walk-forward: for every draw from #2 onward, build the pick from the REAL previous draw's
-// gaps and check it against that draw's actual numbers. Pure function of the previous draw,
-// no training window needed.
+// gaps (anchored on its historically-most-frequent number so far) and check it against that
+// draw's actual numbers. The frequency table is updated after each draw, so it always reflects
+// only the past.
 function runGapBacktest(draws) {
+  const freq = new Array(46).fill(0);
+  for (const v of draws[0].n) freq[v]++;
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0, plays = 0;
   for (let i = 1; i < draws.length; i++) {
-    const pick = gapPick(draws[i - 1]);
+    const pick = gapPick(draws[i - 1], freq);
     const draw = draws[i];
     plays++;
     const ov = overlap(pick.n, draw.n);
@@ -281,6 +288,7 @@ function runGapBacktest(draws) {
     else if (ov === 3) { m3++; if (jokerHit) m3j++; }
     else if (ov === 2) { if (jokerHit) m2j++; else m2++; }
     else if (ov === 1 && jokerHit) m1j++;
+    for (const v of draw.n) freq[v]++;
   }
   const m5only = m5 - m5j, m4only = m4 - m4j, m3only = m3 - m3j;
   const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
