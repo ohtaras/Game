@@ -46,8 +46,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #dsGrid,#dsBonusGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
 @media(max-width:600px){#dsGrid,#dsBonusGrid{grid-template-columns:repeat(5,1fr)}}
 .ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none;position:relative}
-.ds-cell.ds-soldier{box-shadow:0 0 0 2px #ffd54f inset}
-.ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#ffd54f}
+.ds-cell.ds-soldier{box-shadow:0 0 0 2px #4caf50 inset}
+.ds-cell.ds-soldier-top{box-shadow:0 0 0 2px #ff8f00 inset}
+.ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#4caf50;letter-spacing:-1px}
+.ds-cell.ds-soldier-top .ds-star{color:#ff8f00}
 .ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
 .ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
 .ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
@@ -230,7 +232,8 @@ table.hit-table th{color:#7986cb;font-weight:600}
       <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
-      <div class="ds-legend-item">★ «Στρατιώτες» (πιο κοντά στο θεωρητικό 25%)</div>
+      <div class="ds-legend-item">★★ Top 10 «στρατιώτες» (πιο κοντά στο 25%)</div>
+      <div class="ds-legend-item">★ Επόμενοι 20 «στρατιώτες»</div>
     </div>
 
     <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb">🎁 Καθυστέρηση ως Κοινό Μπόνους (κληρώσεις μέσα στην ημέρα)</h3>
@@ -662,7 +665,14 @@ function computeDelaysAtIndex(draws, idx) {
 }
 
 // Αριθμοί που εμφανίζονται με συχνότητα πιο κοντά στο θεωρητικό 25% ("στρατιώτες")
-const SOLDIER_NUMBERS = new Set([56, 70, 2, 51, 15, 57, 35, 11, 6, 8]);
+const SOLDIER_NUMBERS_TOP = new Set([56, 70, 2, 51, 15, 57, 35, 11, 6, 8]);
+const SOLDIER_NUMBERS_NEXT = new Set([76, 61, 7, 59, 72, 20, 28, 49, 39, 66, 77, 29, 9, 55, 58, 64, 24, 32, 52, 68]);
+
+function soldierMark(n) {
+  if (SOLDIER_NUMBERS_TOP.has(n)) return { cls: ' ds-soldier ds-soldier-top', star: '<span class="ds-star">★★</span>' };
+  if (SOLDIER_NUMBERS_NEXT.has(n)) return { cls: ' ds-soldier', star: '<span class="ds-star">★</span>' };
+  return { cls: '', star: '' };
+}
 
 function delayBucketClass(d) {
   if (d === 0) return 'ds-0';
@@ -699,8 +709,8 @@ function renderDelayShift() {
   const delays = computeDelaysAtIndex(dsDraws, dsIdx);
   const cells = [];
   for (let n = 1; n <= 80; n++) {
-    const soldier = SOLDIER_NUMBERS.has(n);
-    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}${soldier ? ' ds-soldier' : ''}">${soldier ? '<span class="ds-star">★</span>' : ''}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+    const sm = soldierMark(n);
+    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}${sm.cls}">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
   }
   grid.innerHTML = cells.join('');
   const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
@@ -709,8 +719,8 @@ function renderDelayShift() {
   const bonusDelays = computeBonusDelaysAtIndex(dsDraws, dsIdx);
   const bonusCells = [];
   for (let n = 1; n <= 80; n++) {
-    const soldier = SOLDIER_NUMBERS.has(n);
-    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}${soldier ? ' ds-soldier' : ''}">${soldier ? '<span class="ds-star">★</span>' : ''}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
+    const sm = soldierMark(n);
+    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}${sm.cls}">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
   }
   bonusGrid.innerHTML = bonusCells.join('');
   const drawOfDay = dsIdx - dayStartIndex(dsDraws, dsIdx) + 1;
