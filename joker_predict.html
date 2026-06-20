@@ -115,12 +115,15 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
       Ο παρακάτω αλγόριθμος συνθέτει σε μία ντετερμινιστική «μαγική συνταγή» τα εξής στοιχεία
       της στιγμής της κλήρωσης: <b>ζώδιο</b> &amp; <b>στοιχείο</b> (Φωτιά/Γη/Αέρας/Νερό) βάσει
       ημέρας του έτους, <b>πλανήτη</b> &amp; <b>αλχημικό μέταλλο</b> της ημέρας της εβδομάδας,
-      <b>σεληνιακή φάση</b> (συνοδικός υπολογισμός), ακριβές <b>έτος/μήνα/ημέρα/ώρα/λεπτό/δευτερόλεπτο</b>,
-      συμβολική εποχιακή <b>θερμοκρασία</b> (ή πραγματική, ζωντανή θερμοκρασία Αθήνας για τη
-      σημερινή πρόβλεψη), και την αριθμητική αξία (<b>ισοψηφία</b>) ενός ξορκιού. Όλα μαζί
-      γίνονται seed σε μια ψευδοτυχαία γεννήτρια που παράγει τους 5 αριθμούς + Τζόκερ — στατιστικά
-      ισοδύναμο με καθαρή τύχη, απλά «ντυμένο» μυστικιστικά. Από κάτω φαίνεται τι θα είχαμε
-      κερδίσει αν παίζαμε έτσι από την #1001 μέχρι σήμερα, και η σημερινή «μαγική» πρόβλεψη.
+      <b>σεληνιακή φάση</b> (συνοδικός υπολογισμός), ακριβές <b>έτος/μήνα/ημέρα/ώρα/λεπτό/δευτερόλεπτο</b>
+      και συμβολική εποχιακή <b>θερμοκρασία</b> Αθήνας, και την αριθμητική αξία (<b>ισοψηφία</b>)
+      ενός ξορκιού. Όλα μαζί γίνονται seed σε μια ψευδοτυχαία γεννήτρια που παράγει τους 5
+      αριθμούς + Τζόκερ — στατιστικά ισοδύναμο με καθαρή τύχη, απλά «ντυμένο» μυστικιστικά.
+      Η πρόβλεψη είναι «κλειδωμένη» πάνω στην ακριβή ημερομηνία/ώρα της επόμενης κλήρωσης
+      (Κυριακή/Τρίτη/Πέμπτη, 21:00) — όχι στη στιγμή που ανοίγεις τη σελίδα — οπότε δίνει
+      πάντα τους ίδιους αριθμούς, όπου και να την ανοίξεις, μέχρι να γίνει αυτή η κλήρωση.
+      Από κάτω φαίνεται τι θα είχαμε κερδίσει αν παίζαμε έτσι από την #1001 μέχρι σήμερα, και
+      η «μαγική» πρόβλεψη για την επόμενη κλήρωση.
     </p>
     <div id="nextPick"></div>
     <h3>Συγκεντρωτικά αποτελέσματα</h3>
@@ -484,17 +487,14 @@ function runAdaptiveBacktest(draws) {
   };
 }
 
-// Ζωντανή θερμοκρασία Αθήνας (Open-Meteo, χωρίς API key) για τη σημερινή "μαγική" πρόβλεψη.
-// Αν αποτύχει το αίτημα, γυρίζει null — ο mysticPick() τότε χρησιμοποιεί την εποχιακή προσέγγιση.
-async function getLiveAthensTemp() {
-  try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.98&longitude=23.73&current_weather=true');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.current_weather?.temperature ?? null;
-  } catch {
-    return null;
-  }
+// Επόμενη κλήρωση Τζόκερ: Κυριακή, Τρίτη ή Πέμπτη, ώρα 21:00 — σταθερό "fix point" στο
+// οποίο δένονται όλα τα συστατικά της συνταγής, ώστε η πρόβλεψη να ΜΗΝ αλλάζει σε κάθε
+// refresh· να δίνει πάντα τους ίδιους αριθμούς όσο δεν έχει γίνει ακόμα αυτή η κλήρωση.
+function nextJokerDrawDate(from) {
+  const DRAW_DOWS = [0, 2, 4]; // Κυριακή, Τρίτη, Πέμπτη
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 21, 0, 0, 0);
+  while (!DRAW_DOWS.includes(d.getDay()) || d <= from) d.setDate(d.getDate() + 1);
+  return d;
 }
 
 function renderBall(n, joker) {
@@ -510,19 +510,18 @@ function renderLastDraw(draws) {
   meta.textContent = `#${last.id} · σύνολο ${draws.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
 }
 
-function renderNextPick(pick, hasLiveTemp) {
+function renderNextPick(pick, drawDate) {
   const box = document.getElementById('nextPick');
   const r = pick.recipe;
-  const now = new Date();
   box.innerHTML = pick.n.map(n => renderBall(n, false)).join('') + renderBall(pick.b, true) + `
     <div class="j-meta" style="margin-top:8px">
-      🔮 Η σημερινή «μαγική συνταγή» (${now.toLocaleString('el-GR')}):
-    </div>
+      🔮 «Μαγική συνταγή» για την επόμενη κλήρωση (${drawDate.toLocaleString('el-GR')}) — σταθερή, δεν
+      αλλάζει με ανανέωση της σελίδας, μέχρι να γίνει αυτή η κλήρωση:</div>
     <div class="j-meta">
       ♈ Ζώδιο: <b>${r.zodiac}</b> (στοιχείο <b>${r.element}</b>) ·
       🪐 Πλανήτης ημέρας: <b>${r.planet}</b> (μέταλλο <b>${r.metal}</b>) ·
       🌙 Σεληνιακή φάση: <b>${r.moonPhase}</b><br>
-      🌡️ Θερμοκρασία Αθήνας: <b>${r.temp.toFixed(1)}°C</b>${hasLiveTemp ? ' (ζωντανή)' : ' (εποχιακή εκτίμηση)'} ·
+      🌡️ Εποχιακή θερμοκρασία Αθήνας: <b>${r.temp.toFixed(1)}°C</b> ·
       📜 Αξία ξορκιού (ισοψηφία): <b>${r.spellValue}</b> ·
       📅 Ημέρα του έτους: <b>${r.doy}</b>
     </div>`;
@@ -629,8 +628,8 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
-  const liveTemp = await getLiveAthensTemp();
-  renderNextPick(mysticPick(new Date(), liveTemp), liveTemp != null);
+  const nextDraw = nextJokerDrawDate(new Date());
+  renderNextPick(mysticPick(nextDraw), nextDraw);
   renderBacktest('bt-random', runBacktest(draws, randomPick));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
