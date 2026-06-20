@@ -108,14 +108,19 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </details>
 
   <details class="section" open>
-    <summary><h2>Στατιστική Πρόβλεψη (μετατόπιση κλήρωσης)</h2></summary>
+    <summary><h2>🔮 Μυστικιστική Πρόβλεψη (Αστρονομία, Αλχημεία &amp; Ξόρκια)</h2></summary>
     <p class="hint">
-      Οι πρώτες 1.000 κληρώσεις (ή όσες υπάρχουν) παραλείπονται σαν περίοδος προθέρμανσης.
-      Από την κλήρωση #1001 και μετά, η πρόβλεψη ΔΕΝ είναι σταθερή — σε κάθε κλήρωση παίζουμε
-      τους αριθμούς της προηγούμενης κλήρωσης μετατοπισμένους κατά +1 (αν ένας αριθμός είναι
-      45 πάμε κυκλικά στο 1 — το ίδιο και για τον Τζόκερ, 20→1), και προχωράμε στην επόμενη με
-      βάση το πραγματικό αποτέλεσμα. Από κάτω φαίνεται τι θα είχαμε κερδίσει αναλυτικά αν
-      παίζαμε έτσι από την #1001 μέχρι σήμερα, και η τρέχουσα πρόβλεψη για την επόμενη κλήρωση.
+      ⚠️ Καθαρά για διασκέδαση — ο Τζόκερ είναι αμιγώς τυχαίο παιχνίδι, καμία αστρονομική,
+      αλχημική ή μαγική μέθοδος δεν μπορεί στην πραγματικότητα να προβλέψει το αποτέλεσμα.
+      Ο παρακάτω αλγόριθμος συνθέτει σε μία ντετερμινιστική «μαγική συνταγή» τα εξής στοιχεία
+      της στιγμής της κλήρωσης: <b>ζώδιο</b> &amp; <b>στοιχείο</b> (Φωτιά/Γη/Αέρας/Νερό) βάσει
+      ημέρας του έτους, <b>πλανήτη</b> &amp; <b>αλχημικό μέταλλο</b> της ημέρας της εβδομάδας,
+      <b>σεληνιακή φάση</b> (συνοδικός υπολογισμός), ακριβές <b>έτος/μήνα/ημέρα/ώρα/λεπτό/δευτερόλεπτο</b>,
+      συμβολική εποχιακή <b>θερμοκρασία</b> (ή πραγματική, ζωντανή θερμοκρασία Αθήνας για τη
+      σημερινή πρόβλεψη), και την αριθμητική αξία (<b>ισοψηφία</b>) ενός ξορκιού. Όλα μαζί
+      γίνονται seed σε μια ψευδοτυχαία γεννήτρια που παράγει τους 5 αριθμούς + Τζόκερ — στατιστικά
+      ισοδύναμο με καθαρή τύχη, απλά «ντυμένο» μυστικιστικά. Από κάτω φαίνεται τι θα είχαμε
+      κερδίσει αν παίζαμε έτσι από την #1001 μέχρι σήμερα, και η σημερινή «μαγική» πρόβλεψη.
     </p>
     <div id="nextPick"></div>
     <h3>Συγκεντρωτικά αποτελέσματα</h3>
@@ -339,20 +344,109 @@ function randomPick() {
   return { n, b };
 }
 
-function shiftCyclic(n, max) {
-  return n === max ? 1 : n + 1;
+// ============================================================
+// 🔮 Μυστικιστική πρόβλεψη — Αστρονομία, Αλχημεία, Χρόνος & Ξόρκια
+// ΑΥΣΤΗΡΑ ΓΙΑ ΠΛΑΚΑ: όλα τα παρακάτω "συστατικά" απλά τροφοδοτούν seed σε μια
+// ψευδοτυχαία γεννήτρια· δεν υπάρχει καμία πραγματική σχέση με το αποτέλεσμα του Τζόκερ.
+// ============================================================
+
+// Ζώδια με τη σειρά εμφάνισης μέσα στο έτος, και η ημέρα-του-έτους (DOY, μη δίσεκτο) που
+// ξεκινάει το καθένα.
+const ZODIAC_SIGNS = ['Υδροχόος', 'Ιχθύες', 'Κριός', 'Ταύρος', 'Δίδυμοι', 'Καρκίνος', 'Λέων', 'Παρθένος', 'Ζυγός', 'Σκορπιός', 'Τοξότης', 'Αιγόκερως'];
+const ZODIAC_START_DOY = [20, 50, 80, 111, 142, 173, 204, 235, 267, 297, 327, 356];
+function zodiacIndexFromDOY(doy) {
+  let idx = ZODIAC_SIGNS.length - 1; // πριν τις 20 Ιαν είμαστε ακόμα στον Αιγόκερω
+  for (let i = 0; i < ZODIAC_START_DOY.length; i++) if (doy >= ZODIAC_START_DOY[i]) idx = i;
+  return idx;
+}
+const ELEMENTS = ['Αέρας', 'Νερό', 'Φωτιά', 'Γη']; // κλασικός κύκλος των 4 στοιχείων ανά ζώδιο
+const PLANETS = ['Ήλιος', 'Σελήνη', 'Άρης', 'Ερμής', 'Δίας', 'Αφροδίτη', 'Κρόνος']; // πλανήτης ημέρας (0=Κυριακή)
+const METALS = ['Χρυσός', 'Άργυρος', 'Σίδηρος', 'Υδράργυρος', 'Κασσίτερος', 'Χαλκός', 'Μόλυβδος']; // αντίστοιχο αλχημικό μέταλλο
+const MOON_PHASES = ['Νέα Σελήνη', 'Αυξανόμενη Μηνίσκος', 'Πρώτο Τέταρτο', 'Αυξανόμενη Αμφίκυρτη', 'Πανσέληνος', 'Φθίνουσα Αμφίκυρτη', 'Τελευταίο Τέταρτο', 'Φθίνουσα Μηνίσκος'];
+
+// Ισοψηφία (αρχαία ελληνική αριθμητική αξία γραμμάτων) ενός "ξορκιού"
+const GEMATRIA = { α: 1, β: 2, γ: 3, δ: 4, ε: 5, ζ: 7, η: 8, θ: 9, ι: 10, κ: 20, λ: 30, μ: 40, ν: 50, ξ: 60, ο: 70, π: 80, ρ: 100, σ: 200, τ: 300, υ: 400, φ: 500, χ: 600, ψ: 700, ω: 800 };
+const SPELL = 'αστερεσ και στοιχεια αποκαλυψτε τον αριθμο';
+function gematriaSum(text) {
+  let sum = 0;
+  for (const ch of text.toLowerCase()) sum += GEMATRIA[ch] || 0;
+  return sum;
+}
+const SPELL_VALUE = gematriaSum(SPELL);
+
+function dayOfYear(date) {
+  return Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
 }
 
-// Prediction = the previous draw's numbers, each shifted +1 (wrapping 45→1 for the main
-// numbers, 20→1 for the Joker).
-function shiftPick(draw) {
-  return { n: draw.n.map(n => shiftCyclic(n, 45)).sort((a, b) => a - b), b: shiftCyclic(draw.b, 20) };
+// Σεληνιακή φάση (0..1, 0=Νέα Σελήνη, 0.5=Πανσέληνος) — απλή συνοδική προσέγγιση
+function moonPhase(date) {
+  const synodicMonth = 29.530588853;
+  const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14);
+  const days = (date.getTime() - knownNewMoon) / 86400000;
+  return (((days % synodicMonth) + synodicMonth) % synodicMonth) / synodicMonth;
+}
+
+// Συμβολική εποχιακή "θερμοκρασία" (καμπύλη ημισφαιρίου τύπου Αθήνας) — χρησιμοποιείται για
+// ιστορικές κληρώσεις όπου δεν έχουμε αποθηκευμένα πραγματικά μετεωρολογικά δεδομένα.
+function seasonalTemp(doy) {
+  return 18 + 10 * Math.sin(2 * Math.PI * (doy - 80) / 365.25);
+}
+
+// Mulberry32 — μικρή ντετερμινιστική ψευδοτυχαία γεννήτρια (seed -> ροή αριθμών 0..1)
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Συνθέτει όλα τα "συστατικά" της στιγμής σε ένα seed, και παράγει 5 αριθμούς (1-45) + Τζόκερ (1-20).
+function mysticPick(date, temperature) {
+  const doy = dayOfYear(date);
+  const zIdx = zodiacIndexFromDOY(doy);
+  const elIdx = zIdx % 4;
+  const weekday = date.getDay();
+  const moonP = moonPhase(date);
+  const moonIdx = Math.floor(moonP * 8) % 8;
+  const temp = temperature != null ? temperature : seasonalTemp(doy);
+
+  const seed =
+    ((date.getFullYear() * 37) ^
+      ((date.getMonth() + 1) * 131) ^
+      (date.getDate() * 257) ^
+      (date.getHours() * 401) ^
+      (date.getMinutes() * 23) ^
+      (date.getSeconds() * 7) ^
+      (Math.round(temp * 97)) ^
+      (moonIdx * 211) ^
+      (zIdx * 181) ^
+      (weekday * 239) ^
+      (SPELL_VALUE * 311) ^
+      (doy * 13)) >>> 0;
+
+  const rng = mulberry32(seed);
+  const taken = new Set();
+  while (taken.size < 5) taken.add(1 + Math.floor(rng() * 45));
+  const n = [...taken].sort((a, b) => a - b);
+  const b = 1 + Math.floor(rng() * 20);
+  return {
+    n, b,
+    recipe: {
+      zodiac: ZODIAC_SIGNS[zIdx], element: ELEMENTS[elIdx],
+      planet: PLANETS[weekday], metal: METALS[weekday],
+      moonPhase: MOON_PHASES[moonIdx], temp, spellValue: SPELL_VALUE, doy,
+    },
+  };
 }
 
 // Strategy: the first SAMPLE_SIZE draws (or all of them, if fewer) are skipped as a warm-up
-// period. From draw #SAMPLE_SIZE+1 on, each draw is "played" using a shift-by-one of the
-// immediately preceding draw's numbers — so the pick changes every time based on what was
-// actually drawn last.
+// period. From draw #SAMPLE_SIZE+1 on, κάθε κλήρωση "παίζεται" με τη μυστικιστική συνταγή
+// της ίδιας ημέρας της κλήρωσης (ζώδιο/πλανήτης/σελήνη/εποχιακή θερμοκρασία εκείνης της
+// ημέρας + ώρα κλήρωσης 21:00) — άρα η πρόβλεψη αλλάζει σε κάθε κλήρωση χωρίς ποτέ να
+// χρησιμοποιεί το πραγματικό αποτέλεσμα της.
 function runAdaptiveBacktest(draws) {
   const seedCount = Math.min(SAMPLE_SIZE, draws.length);
 
@@ -360,7 +454,7 @@ function runAdaptiveBacktest(draws) {
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
   for (let i = seedCount; i < draws.length; i++) {
     const draw = draws[i];
-    const pick = shiftPick(draws[i - 1]);
+    const pick = mysticPick(new Date(draw.dt + 'T21:00:00'));
     const pickN = pick.n, pickB = pick.b;
     const ov = overlap(pickN, draw.n);
     const jokerHit = pickB === draw.b;
@@ -381,17 +475,26 @@ function runAdaptiveBacktest(draws) {
   const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
     + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
 
-  const nextPick = shiftPick(draws[draws.length - 1]);
   return {
-    nextPickN: nextPick.n,
-    nextPickB: nextPick.b,
-    lastDrawId: draws[draws.length - 1].id,
     seedCount,
     simulatedCount: draws.length - seedCount,
     summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j },
     cashWon,
     log,
   };
+}
+
+// Ζωντανή θερμοκρασία Αθήνας (Open-Meteo, χωρίς API key) για τη σημερινή "μαγική" πρόβλεψη.
+// Αν αποτύχει το αίτημα, γυρίζει null — ο mysticPick() τότε χρησιμοποιεί την εποχιακή προσέγγιση.
+async function getLiveAthensTemp() {
+  try {
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.98&longitude=23.73&current_weather=true');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.current_weather?.temperature ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function renderBall(n, joker) {
@@ -407,11 +510,25 @@ function renderLastDraw(draws) {
   meta.textContent = `#${last.id} · σύνολο ${draws.length.toLocaleString('el-GR')} κληρώσεις αποθηκευμένες`;
 }
 
-function renderAdaptiveBacktest(result) {
+function renderNextPick(pick, hasLiveTemp) {
   const box = document.getElementById('nextPick');
-  box.innerHTML = result.nextPickN.map(n => renderBall(n, false)).join('') + renderBall(result.nextPickB, true)
-    + `<div class="j-meta">Πρόβλεψη για την επόμενη κλήρωση — μετατόπιση +1 (κυκλικά) των αριθμών της τελευταίας κλήρωσης #${result.lastDrawId}.</div>`;
+  const r = pick.recipe;
+  const now = new Date();
+  box.innerHTML = pick.n.map(n => renderBall(n, false)).join('') + renderBall(pick.b, true) + `
+    <div class="j-meta" style="margin-top:8px">
+      🔮 Η σημερινή «μαγική συνταγή» (${now.toLocaleString('el-GR')}):
+    </div>
+    <div class="j-meta">
+      ♈ Ζώδιο: <b>${r.zodiac}</b> (στοιχείο <b>${r.element}</b>) ·
+      🪐 Πλανήτης ημέρας: <b>${r.planet}</b> (μέταλλο <b>${r.metal}</b>) ·
+      🌙 Σεληνιακή φάση: <b>${r.moonPhase}</b><br>
+      🌡️ Θερμοκρασία Αθήνας: <b>${r.temp.toFixed(1)}°C</b>${hasLiveTemp ? ' (ζωντανή)' : ' (εποχιακή εκτίμηση)'} ·
+      📜 Αξία ξορκιού (ισοψηφία): <b>${r.spellValue}</b> ·
+      📅 Ημέρα του έτους: <b>${r.doy}</b>
+    </div>`;
+}
 
+function renderAdaptiveBacktest(result) {
   const s = result.summary;
   const eur = v => v.toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
   // [label, count, fixed prize per hit (null = variable jackpot, excluded from the total)]
@@ -512,6 +629,8 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
+  const liveTemp = await getLiveAthensTemp();
+  renderNextPick(mysticPick(new Date(), liveTemp), liveTemp != null);
   renderBacktest('bt-random', runBacktest(draws, randomPick));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
