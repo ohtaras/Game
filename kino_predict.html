@@ -141,6 +141,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .pl-pending-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a1a2a;border:1.5px solid #3a3a5a;color:#666;font-weight:700;margin:1px}
 .calib-box{background:#0a1510;border:1px solid #2a4a2a;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.78rem;line-height:1.8;color:#80cbc4}
 .calib-box strong{color:#a5d6a7}
+table.hit-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px}
+table.hit-table th,table.hit-table td{padding:6px 8px;text-align:left;border-bottom:1px solid #2a2a3a}
+table.hit-table th{color:#7986cb;font-weight:600}
 .eval-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;margin-top:8px}
 .eval-badge.good{background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50}
 .eval-badge.ok{background:#2a2a00;color:#ffd54f;border:1px solid #ffd54f}
@@ -193,6 +196,18 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn btn-analyze" id="analyzeBtn">🎯 Αυτόματη Πρόβλεψη</button>
     </div>
     <div id="resultsBox"></div>
+  </section>
+
+  <section id="streakGoalSec">
+    <h2>🎯 Στόχος: 1/1 σε 10 συνεχόμενες κληρώσεις</h2>
+    <div style="font-size:.78rem;color:#999;margin-bottom:10px;line-height:1.6">
+      Σε κάθε κλήρωση παίζουμε μόνο 1 αριθμό — τον πιο «καθυστερημένο» (αυτόν που έχει να βγει
+      τις περισσότερες συνεχόμενες κληρώσεις μέχρι εκείνη τη στιγμή, υπολογισμένο μόνο από
+      προηγούμενα δεδομένα). Θεωρητική πιθανότητα χτυπήματος ανά κλήρωση: 20/80 = 25%.
+      Θεωρητική πιθανότητα 10 συνεχόμενων χτυπημάτων στη σειρά: 0,25¹⁰ ≈ 1 στις 1.048.576.
+    </div>
+    <button class="btn btn-analyze" id="streakGoalBtn">▶ Εκτέλεση σε όλο το ιστορικό</button>
+    <div id="streakGoalResults" style="margin-top:12px"></div>
   </section>
 
   <section id="delayShiftSec">
@@ -2137,6 +2152,76 @@ function renderScanLog() {
   el.innerHTML = calibHtml + rows;
 }
 
+// ── Streak goal: play only the single most-overdue number, walk-forward, no future leakage ──
+function simulateStreakGoal(draws) {
+  const lastSeen = new Array(81).fill(0);
+  for (const v of draws[0].n) lastSeen[v] = 0;
+
+  let streak = 0, bestStreak = 0, reached10 = 0, hits = 0, plays = 0;
+  const streakLog = []; // {endId, length} for every streak that ends (broken by a miss)
+  for (let i = 1; i < draws.length; i++) {
+    let pickNum = 1, bestDelay = -1;
+    for (let v = 1; v <= 80; v++) {
+      const delay = (i - 1) - lastSeen[v];
+      if (delay > bestDelay) { bestDelay = delay; pickNum = v; }
+    }
+    const draw = draws[i];
+    plays++;
+    const hit = draw.n.includes(pickNum);
+    if (hit) {
+      hits++;
+      streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      if (streak === 10) reached10++;
+    } else {
+      if (streak > 0) streakLog.push({ endId: draws[i - 1].id, length: streak });
+      streak = 0;
+    }
+    for (const v of draw.n) lastSeen[v] = i;
+  }
+  // Current live streak = whatever's still running at the very end of the loaded history.
+  return { plays, hits, bestStreak, reached10, currentStreak: streak, streakLog };
+}
+
+function renderStreakGoalResults(result) {
+  const box = document.getElementById('streakGoalResults');
+  const pct = (result.hits / result.plays * 100).toFixed(2);
+  const dist = {};
+  for (const s of result.streakLog) dist[s.length] = (dist[s.length] || 0) + 1;
+  if (result.currentStreak > 0) dist[result.currentStreak] = (dist[result.currentStreak] || 0) + 1;
+  const distRows = Object.entries(dist)
+    .map(([len, cnt]) => [+len, cnt])
+    .sort((a, b) => a[0] - b[0])
+    .filter(([len]) => len <= 12)
+    .map(([len, cnt]) => `<tr><td>${len}</td><td>${cnt.toLocaleString('el-GR')}</td></tr>`)
+    .join('');
+  box.innerHTML = `
+    <div class="calib-box" style="${result.currentStreak >= 10 ? 'border-color:#a5d6a7' : ''}">
+      🔥 <strong>Τρέχον σερί αυτή τη στιγμή:</strong> ${result.currentStreak} συνεχόμενα χτυπήματα
+      ${result.currentStreak >= 10 ? ' — 🎉 ΣΤΟΧΟΣ ΕΠΙΤΕΥΧΘΗΚΕ!' : ` (απομένουν ${10 - result.currentStreak} για τον στόχο)`}
+    </div>
+    <p style="padding:0 0 8px;font-size:.78rem;color:#999">
+      Εφαρμόστηκε σε ${result.plays.toLocaleString('el-GR')} κληρώσεις.
+      Χτυπήματα: ${result.hits.toLocaleString('el-GR')} (${pct}%, θεωρητικό 25%).
+      Καλύτερο σερί ποτέ: <b>${result.bestStreak}</b>.
+      Φορές που φτάσαμε σερί ακριβώς 10: <b>${result.reached10}</b>.
+    </p>
+    <table class="hit-table">
+      <tr><th>Μήκος σερί</th><th>Φορές που συνέβη</th></tr>
+      ${distRows}
+    </table>`;
+}
+
+async function runStreakGoalBacktest() {
+  const box = document.getElementById('streakGoalResults');
+  const draws = await loadFullHistoryForSim(box);
+  box.innerHTML = '<div style="color:#80cbc4;font-size:.82rem">⏳ Εκτέλεση backtest πάνω σε ' + draws.length.toLocaleString('el-GR') + ' κληρώσεις (πλήρες ιστορικό)...</div>';
+  setTimeout(() => {
+    const result = simulateStreakGoal(draws);
+    renderStreakGoalResults(result);
+  }, 50);
+}
+
 async function runSimBacktest(N) {
   const box = document.getElementById('simResults');
   const draws = await loadFullHistoryForSim();
@@ -2253,6 +2338,7 @@ window.addEventListener('load', () => {
   });
 
   document.getElementById('analyzeBtn').addEventListener('click', runAutoPredict);
+  document.getElementById('streakGoalBtn').addEventListener('click', runStreakGoalBacktest);
   document.getElementById('simBtn').addEventListener('click', () => {
     simAutoN = Math.min(Math.max(parseInt(document.getElementById('simNInput').value) || 9, 1), 12);
     simAutoRun = true;
