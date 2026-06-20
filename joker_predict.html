@@ -120,7 +120,7 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
       ενός ξορκιού. Όλα μαζί γίνονται seed σε μια ψευδοτυχαία γεννήτρια που παράγει τους 5
       αριθμούς + Τζόκερ — στατιστικά ισοδύναμο με καθαρή τύχη, απλά «ντυμένο» μυστικιστικά.
       Η πρόβλεψη είναι «κλειδωμένη» πάνω στην ακριβή ημερομηνία/ώρα της επόμενης κλήρωσης
-      (Κυριακή/Τρίτη/Πέμπτη, 21:00) — όχι στη στιγμή που ανοίγεις τη σελίδα — οπότε δίνει
+      (Κυριακή/Τρίτη/Πέμπτη, 22:00) — όχι στη στιγμή που ανοίγεις τη σελίδα — οπότε δίνει
       πάντα τους ίδιους αριθμούς, όπου και να την ανοίξεις, μέχρι να γίνει αυτή η κλήρωση.
       Από κάτω φαίνεται τι θα είχαμε κερδίσει αν παίζαμε έτσι από την #1001 μέχρι σήμερα, και
       η «μαγική» πρόβλεψη για την επόμενη κλήρωση.
@@ -448,7 +448,7 @@ function mysticPick(date, temperature) {
 // Strategy: the first SAMPLE_SIZE draws (or all of them, if fewer) are skipped as a warm-up
 // period. From draw #SAMPLE_SIZE+1 on, κάθε κλήρωση "παίζεται" με τη μυστικιστική συνταγή
 // της ίδιας ημέρας της κλήρωσης (ζώδιο/πλανήτης/σελήνη/εποχιακή θερμοκρασία εκείνης της
-// ημέρας + ώρα κλήρωσης 21:00) — άρα η πρόβλεψη αλλάζει σε κάθε κλήρωση χωρίς ποτέ να
+// ημέρας + ώρα κλήρωσης 22:00) — άρα η πρόβλεψη αλλάζει σε κάθε κλήρωση χωρίς ποτέ να
 // χρησιμοποιεί το πραγματικό αποτέλεσμα της.
 function runAdaptiveBacktest(draws) {
   const seedCount = Math.min(SAMPLE_SIZE, draws.length);
@@ -457,7 +457,7 @@ function runAdaptiveBacktest(draws) {
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
   for (let i = seedCount; i < draws.length; i++) {
     const draw = draws[i];
-    const pick = mysticPick(new Date(draw.dt + 'T21:00:00'));
+    const pick = mysticPick(new Date(draw.dt + 'T22:00:00'));
     const pickN = pick.n, pickB = pick.b;
     const ov = overlap(pickN, draw.n);
     const jokerHit = pickB === draw.b;
@@ -487,12 +487,12 @@ function runAdaptiveBacktest(draws) {
   };
 }
 
-// Επόμενη κλήρωση Τζόκερ: Κυριακή, Τρίτη ή Πέμπτη, ώρα 21:00 — σταθερό "fix point" στο
+// Επόμενη κλήρωση Τζόκερ: Κυριακή, Τρίτη ή Πέμπτη, ώρα 22:00 — σταθερό "fix point" στο
 // οποίο δένονται όλα τα συστατικά της συνταγής, ώστε η πρόβλεψη να ΜΗΝ αλλάζει σε κάθε
 // refresh· να δίνει πάντα τους ίδιους αριθμούς όσο δεν έχει γίνει ακόμα αυτή η κλήρωση.
 function nextJokerDrawDate(from) {
   const DRAW_DOWS = [0, 2, 4]; // Κυριακή, Τρίτη, Πέμπτη
-  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 21, 0, 0, 0);
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 22, 0, 0, 0);
   while (!DRAW_DOWS.includes(d.getDay()) || d <= from) d.setDate(d.getDate() + 1);
   return d;
 }
@@ -515,12 +515,15 @@ function renderNextPick(pick, drawDate) {
   const r = pick.recipe;
   box.innerHTML = pick.n.map(n => renderBall(n, false)).join('') + renderBall(pick.b, true) + `
     <div class="j-meta" style="margin-top:8px">
-      🔮 «Μαγική συνταγή» για την επόμενη κλήρωση (${drawDate.toLocaleString('el-GR')}) — σταθερή, δεν
-      αλλάζει με ανανέωση της σελίδας, μέχρι να γίνει αυτή η κλήρωση:</div>
+      🔮 Ακριβώς τη στιγμή της κλήρωσης (<b>${drawDate.toLocaleString('el-GR')}</b>, ώρα Ελλάδος) το
+      σύμπαν θα είναι παγιδευμένο σε αυτή τη συγκεκριμένη διάταξη — αυτό το ζώδιο στον ουρανό,
+      αυτή η σεληνιακή φάση, αυτός ο πλανήτης να κυβερνά την ημέρα — και τίποτα άλλο. Η «συνταγή»
+      παρακάτω είναι «κλειδωμένη» σε αυτή ακριβώς τη συνωμοσία του σύμπαντος, όχι στη στιγμή που
+      ανοίγεις τη σελίδα, οπότε δίνει πάντα τους ίδιους αριθμούς μέχρι να σημάνει η κλήρωση:</div>
     <div class="j-meta">
-      ♈ Ζώδιο: <b>${r.zodiac}</b> (στοιχείο <b>${r.element}</b>) ·
-      🪐 Πλανήτης ημέρας: <b>${r.planet}</b> (μέταλλο <b>${r.metal}</b>) ·
-      🌙 Σεληνιακή φάση: <b>${r.moonPhase}</b><br>
+      ♈ Ζώδιο τη στιγμή της κλήρωσης: <b>${r.zodiac}</b> (στοιχείο <b>${r.element}</b>) ·
+      🪐 Πλανήτης που κυβερνά εκείνη την ημέρα: <b>${r.planet}</b> (μέταλλο <b>${r.metal}</b>) ·
+      🌙 Σεληνιακή φάση εκείνη τη νύχτα: <b>${r.moonPhase}</b><br>
       🌡️ Εποχιακή θερμοκρασία Αθήνας: <b>${r.temp.toFixed(1)}°C</b> ·
       📜 Αξία ξορκιού (ισοψηφία): <b>${r.spellValue}</b> ·
       📅 Ημέρα του έτους: <b>${r.doy}</b>
