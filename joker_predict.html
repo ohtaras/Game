@@ -91,42 +91,12 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </section>
 
   <section>
-    <h2>Καθρέφτης (mirror)</h2>
+    <h2>Εντελώς τυχαία</h2>
     <p class="hint">
-      Κάθε αριθμός n της προηγούμενης κλήρωσης γίνεται 46-n (π.χ. το 3 γίνεται 43, το 20 γίνεται
-      26). Ο Τζόκερ γίνεται 21-b. Παίζουμε τον "καθρέφτη" της προηγούμενης κλήρωσης.
+      Καμία λογική, κανένας υπολογισμός — σε κάθε κλήρωση παίζουμε 5 εντελώς τυχαίους αριθμούς
+      (1-45) και έναν τυχαίο Τζόκερ (1-20), χωρίς να κοιτάμε καθόλου την προηγούμενη κλήρωση.
     </p>
-    <div id="bt-mirror"></div>
-  </section>
-
-  <section>
-    <h2>Ληξιπρόθεσμοι αριθμοί (overdue)</h2>
-    <p class="hint">
-      Σε κάθε κλήρωση παίζουμε τους 5 αριθμούς που έχουν να βγουν τις περισσότερες συνεχόμενες
-      κληρώσεις μέχρι εκείνη τη στιγμή (μεγαλύτερη "καθυστέρηση"), με βάση μόνο όσα έχουν ήδη
-      συμβεί — όχι μελλοντικά δεδομένα. Το ίδιο και για τον Τζόκερ.
-    </p>
-    <div id="bt-overdue"></div>
-  </section>
-
-  <section>
-    <h2>Άθροισμα &amp; Fibonacci</h2>
-    <p class="hint">
-      Παίρνουμε το άθροισμα των 5 αριθμών της προηγούμενης κλήρωσης, το ανάγουμε σε σημείο
-      αναφοράς μέσα στο 1-45, και χτίζουμε πεντάδα προσθέτοντας μετατοπίσεις Fibonacci
-      (0, 1, 2, 3, 5) γύρω από αυτό, κυκλικά. Ο Τζόκερ προκύπτει ομοίως από το άθροισμα mod 20.
-    </p>
-    <div id="bt-fib"></div>
-  </section>
-
-  <section>
-    <h2>Θέση-βάσει μετατόπιση (positional shift)</h2>
-    <p class="hint">
-      Ταξινομούμε την προηγούμενη κλήρωση από το μικρότερο στο μεγαλύτερο και προσθέτουμε στον
-      1ο +1, στον 2ο +2, στον 3ο +3, στον 4ο +4, στον 5ο +5 (κυκλικά μέσα στο 1-45). Ο Τζόκερ
-      μετατοπίζεται κατά +1.
-    </p>
-    <div id="bt-posshift"></div>
+    <div id="bt-random"></div>
   </section>
 
   <section>
@@ -269,14 +239,6 @@ function overlap(a, b) {
   return c;
 }
 
-// Wraps a value into 1..size (cyclically) and, if it collides with a number already chosen,
-// keeps stepping forward by 1 (wrapping past size) until a free slot is found.
-function wrapIntoRange(v, size, taken) {
-  let x = ((v - 1) % size + size) % size + 1;
-  while (taken.has(x)) x = x === size ? 1 : x + 1;
-  return x;
-}
-
 // Generic walk-forward backtest: pickFn(prevDraw, state, i) returns { n, b } using only
 // information available up to and including draw i-1. state.update(draw, i), if provided,
 // is called after each draw so causal state (e.g. frequency tables) never sees the future.
@@ -333,63 +295,13 @@ function renderBacktest(elId, result) {
     </table>`;
 }
 
-// --- 1. Mirror: each number n of the previous draw becomes 46-n; Joker becomes 21-b. ---
-function mirrorPick(prevDraw) {
-  const n = prevDraw.n.map(v => 46 - v).sort((a, b) => a - b);
-  const b = 21 - prevDraw.b;
-  return { n, b };
-}
-
-// --- 2. Overdue: play the 5 numbers (and the Joker number) that have gone the most ---
-// --- consecutive draws so far without appearing, based only on past draws. ---
-function makeOverdueState(draws) {
-  const lastSeen = new Array(46).fill(0);
-  const lastSeenB = new Array(21).fill(0);
-  for (const v of draws[0].n) lastSeen[v] = 0;
-  lastSeenB[draws[0].b] = 0;
-  return {
-    lastSeen, lastSeenB,
-    update(draw, i) {
-      for (const v of draw.n) lastSeen[v] = i;
-      lastSeenB[draw.b] = i;
-    },
-  };
-}
-function overduePick(prevDraw, state, i) {
-  const delays = [];
-  for (let v = 1; v <= 45; v++) delays.push([v, i - 1 - state.lastSeen[v]]);
-  delays.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-  const n = delays.slice(0, 5).map(x => x[0]).sort((a, b) => a - b);
-  let bestB = 1, bestDelay = -1;
-  for (let v = 1; v <= 20; v++) {
-    const d = i - 1 - state.lastSeenB[v];
-    if (d > bestDelay) { bestDelay = d; bestB = v; }
-  }
-  return { n, b: bestB };
-}
-
-// --- 3. Sum & Fibonacci: anchor on the previous draw's sum (mod 45), then offset by ---
-// --- Fibonacci numbers (0,1,2,3,5) around that anchor, wrapping cyclically. ---
-function fibPick(prevDraw) {
-  const sum = prevDraw.n.reduce((a, b) => a + b, 0);
-  const anchor = ((sum - 1) % 45) + 1;
-  const offsets = [0, 1, 2, 3, 5];
+// Completely random: 5 random numbers (1-45) and a random Joker (1-20) for every draw,
+// with no reference at all to the previous draw or any historical data.
+function randomPick() {
   const taken = new Set();
-  for (const off of offsets) taken.add(wrapIntoRange(anchor + off, 45, taken));
+  while (taken.size < 5) taken.add(1 + Math.floor(Math.random() * 45));
   const n = [...taken].sort((a, b) => a - b);
-  const b = ((sum - 1) % 20) + 1;
-  return { n, b };
-}
-
-// --- 4. Positional shift: sort the previous draw ascending, add +1,+2,+3,+4,+5 to each ---
-// --- position in turn, wrapping cyclically; Joker shifts by +1. ---
-function posShiftPick(prevDraw) {
-  const sorted = [...prevDraw.n].sort((a, b) => a - b);
-  const shifts = [1, 2, 3, 4, 5];
-  const taken = new Set();
-  for (let k = 0; k < 5; k++) taken.add(wrapIntoRange(sorted[k] + shifts[k], 45, taken));
-  const n = [...taken].sort((a, b) => a - b);
-  const b = wrapIntoRange(prevDraw.b + 1, 20, new Set());
+  const b = 1 + Math.floor(Math.random() * 20);
   return { n, b };
 }
 
@@ -566,10 +478,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
-  renderBacktest('bt-mirror', runBacktest(draws, mirrorPick));
-  renderBacktest('bt-overdue', runBacktest(draws, overduePick, makeOverdueState));
-  renderBacktest('bt-fib', runBacktest(draws, fibPick));
-  renderBacktest('bt-posshift', runBacktest(draws, posShiftPick));
+  renderBacktest('bt-random', runBacktest(draws, randomPick));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
 }
