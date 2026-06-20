@@ -14,8 +14,13 @@ header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
 .nav-link:hover{background:#2a2a4a}
 #statusBar{background:#0e0e1a;padding:8px 16px;font-size:.78rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:32px}
 main{max-width:1000px;margin:0 auto;padding:14px}
-section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
-section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+.section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+.section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin:0;text-transform:uppercase;letter-spacing:.06em;display:inline-flex;align-items:center;gap:6px}
+.section summary{list-style:none;cursor:pointer;margin-bottom:0}
+.section summary::-webkit-details-marker{display:none}
+.section h2::before{content:'▾';display:inline-block;font-size:.75rem;transition:transform .15s}
+.section:not([open]) h2::before{transform:rotate(-90deg)}
+.section[open] summary{margin-bottom:10px}
 p.hint{font-size:.78rem;color:#888;margin-bottom:10px;line-height:1.5}
 
 #lastDrawBox{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0;align-items:center}
@@ -55,14 +60,14 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
 <div id="statusBar">⏳ Φόρτωση δεδομένων…</div>
 
 <main>
-  <section>
-    <h2>Τελευταία Κλήρωση</h2>
+  <details class="section" open>
+    <summary><h2>Τελευταία Κλήρωση</h2></summary>
     <div id="lastDrawBox"><span style="color:#555;font-size:.82rem">Φόρτωση…</span></div>
     <div id="lastDrawMeta" class="j-meta"></div>
-  </section>
+  </details>
 
-  <section>
-    <h2>Λήψη Ιστορικού</h2>
+  <details class="section" open>
+    <summary><h2>Λήψη Ιστορικού</h2></summary>
     <p class="hint">
       Κατεβάζει όλες τις κληρώσεις του Τζόκερ απευθείας από το OPAP μέσα από τη σελίδα
       (χωρίς να χρειάζεται να πας στο GitHub Actions) και τις αποθηκεύει στο
@@ -71,10 +76,10 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
     </p>
     <button id="backfillBtn" style="background:#283593;color:#e0e0ff;border:none;border-radius:8px;padding:8px 16px;font-size:.82rem;cursor:pointer">⬇ Πλήρης λήψη ιστορικού</button>
     <div id="backfillStatus" class="j-meta"></div>
-  </section>
+  </details>
 
-  <section>
-    <h2>Στατιστική Πρόβλεψη (μετατόπιση κλήρωσης)</h2>
+  <details class="section" open>
+    <summary><h2>Στατιστική Πρόβλεψη (μετατόπιση κλήρωσης)</h2></summary>
     <p class="hint">
       Οι πρώτες 1.000 κληρώσεις (ή όσες υπάρχουν) παραλείπονται σαν περίοδος προθέρμανσης.
       Από την κλήρωση #1001 και μετά, η πρόβλεψη ΔΕΝ είναι σταθερή — σε κάθε κλήρωση παίζουμε
@@ -88,21 +93,21 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
     <div id="hitBreakdown"></div>
     <h3>Αναλυτικό ιστορικό επιτυχιών</h3>
     <div id="statLog"></div>
-  </section>
+  </details>
 
-  <section>
-    <h2>Εντελώς τυχαία</h2>
+  <details class="section" open>
+    <summary><h2>Εντελώς τυχαία</h2></summary>
     <p class="hint">
       Καμία λογική, κανένας υπολογισμός — σε κάθε κλήρωση παίζουμε 5 εντελώς τυχαίους αριθμούς
       (1-45) και έναν τυχαίο Τζόκερ (1-20), χωρίς να κοιτάμε καθόλου την προηγούμενη κλήρωση.
     </p>
     <div id="bt-random"></div>
-  </section>
+  </details>
 
-  <section>
-    <h2>Πρόσφατες Κληρώσεις</h2>
+  <details class="section" open>
+    <summary><h2>Πρόσφατες Κληρώσεις</h2></summary>
     <div id="historyList"></div>
-  </section>
+  </details>
 </main>
 
 <script>
