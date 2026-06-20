@@ -91,15 +91,15 @@ table.log-table td.hit{color:#a5d6a7;font-weight:700}
   </section>
 
   <section>
-    <h2>Παίζοντας την ημερομηνία της ίδιας κλήρωσης</h2>
+    <h2>Αλυσίδα Markov (ποιος αριθμός "οδηγεί" σε ποιον)</h2>
     <p class="hint">
-      Για κάθε κλήρωση φτιάχνουμε 5 αριθμούς + Τζόκερ από την ΙΔΙΑ ημερομηνία της κλήρωσης
-      (μέρα, μήνας, έτος, μέρα+μήνας, μέρα×μήνας) και ελέγχουμε αν ταιριάζουν με τους
-      πραγματικούς αριθμούς που βγήκαν εκείνη τη μέρα. Χρειάζεται οι αποθηκευμένες κληρώσεις
-      να έχουν πραγματική ημερομηνία — αν δεν έχουν ακόμα, πάτησε ξανά το "⬇ Πλήρης λήψη ιστορικού"
-      στην κορυφή της σελίδας.
+      Μαθαίνουμε από τις πρώτες χιλιάδες κληρώσεις πόσο συχνά κάθε αριθμός Α "ακολουθείται"
+      από κάθε αριθμό Β στην επόμενη κλήρωση (πίνακας μεταβάσεων 45×45), και μετά παίζουμε
+      σε κάθε επόμενη κλήρωση τους 5 αριθμούς με τη μεγαλύτερη βαθμολογία σύμφωνα με την
+      ΠΡΑΓΜΑΤΙΚΗ προηγούμενη κλήρωση (χωρίς διαρροή δεδομένων από το μέλλον). Πιο σύνθετο
+      μοντέλο από απλή συχνότητα, αλλά εξίσου ανώφελο — δείτε τα αποτελέσματα.
     </p>
-    <div id="dateBacktest"></div>
+    <div id="markovBacktest"></div>
   </section>
 
   <section>
@@ -242,28 +242,48 @@ function overlap(a, b) {
   return c;
 }
 
-// Builds a 5-number + Joker pick out of a calendar date (day/month/two-digit year), the way
-// someone playing "today's date" would: day, month, year-suffix, day+month, day×month —
-// deduplicated into distinct numbers 1-45.
-function datePick(dt) {
-  const [y, m, d] = dt.split('-').map(Number);
-  const ys = y % 100;
-  const raw = [d, m, (ys % 45) + 1, ((d + m) % 45) + 1, ((d * m) % 45) + 1];
-  const set = new Set();
-  for (const v of raw) { let x = v; while (set.has(x)) x = (x % 45) + 1; set.add(x); }
-  return { n: [...set].sort((a, b) => a - b), b: ((d + m + ys) % 20) + 1 };
+// Learns a 45x45 transition table (and a 20x20 Joker transition table) from the training
+// window only: M[a][b] = how many times number b appeared in the draw immediately AFTER a
+// draw containing number a. Built once from draws[0..trainTo-1], never touched again.
+function buildTransitions(draws, trainTo) {
+  const M = Array.from({ length: 46 }, () => new Array(46).fill(0));
+  const JM = Array.from({ length: 21 }, () => new Array(21).fill(0));
+  for (let i = 1; i < trainTo; i++) {
+    const prev = draws[i - 1], cur = draws[i];
+    for (const a of prev.n) for (const b of cur.n) M[a][b]++;
+    JM[prev.b][cur.b]++;
+  }
+  return { M, JM };
 }
 
-// "Play the draw's own date" strategy: for every draw that has a known calendar date, build
-// the pick from THAT draw's date and check it against THAT SAME draw's actual numbers. No
-// training/history needed — it's a deterministic function of the date, tested over every
-// draw we have a date for.
-function runDateBacktest(draws) {
-  const dated = draws.filter(d => d.dt);
+// Pick the 5 numbers with the highest learned transition score given the REAL previous draw,
+// and the Joker value most often seen following the previous draw's Joker.
+function markovPick(prevDraw, M, JM) {
+  const scores = [];
+  for (let j = 1; j <= 45; j++) {
+    let s = 0; for (const a of prevDraw.n) s += M[a][j];
+    scores.push([j, s]);
+  }
+  scores.sort((a, b) => b[1] - a[1]);
+  const n = scores.slice(0, 5).map(x => x[0]).sort((a, b) => a - b);
+  let bestB = 1, bestScore = -1;
+  for (let j = 1; j <= 20; j++) if (JM[prevDraw.b][j] > bestScore) { bestScore = JM[prevDraw.b][j]; bestB = j; }
+  return { n, b: bestB };
+}
+
+// Walk-forward test: the transition table is trained ONLY on draws[0..SAMPLE_SIZE-1]. Every
+// draw from SAMPLE_SIZE onward is "played" using the table applied to the REAL previous draw
+// (never a predicted one), so there is no leakage of future information into the model.
+function runMarkovBacktest(draws) {
+  const trainTo = Math.min(SAMPLE_SIZE, draws.length - 1);
+  if (trainTo < 2) return { trainedOn: 0, testedOn: 0, summary: null, cashWon: 0, log: [] };
+  const { M, JM } = buildTransitions(draws, trainTo);
   const log = [];
   let m5 = 0, m5j = 0, m4 = 0, m4j = 0, m3 = 0, m3j = 0, m2j = 0, m2 = 0, m1j = 0;
-  for (const draw of dated) {
-    const pick = datePick(draw.dt);
+  for (let i = trainTo; i < draws.length; i++) {
+    const prevDraw = draws[i - 1];
+    const draw = draws[i];
+    const pick = markovPick(prevDraw, M, JM);
     const ov = overlap(pick.n, draw.n);
     const jokerHit = pick.b === draw.b;
     let label = '—';
@@ -278,13 +298,13 @@ function runDateBacktest(draws) {
   const PRIZES = { m5: 100000, m4j: 2500, m4: 50, m3j: 50, m3: 2, m2j: 2, m1j: 1.5, m2: 1 };
   const cashWon = m5only * PRIZES.m5 + m4j * PRIZES.m4j + m4only * PRIZES.m4 + m3j * PRIZES.m3j
     + m3only * PRIZES.m3 + m2j * PRIZES.m2j + m1j * PRIZES.m1j + m2 * PRIZES.m2;
-  return { datedCount: dated.length, totalCount: draws.length, summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j }, cashWon, log };
+  return { trainedOn: trainTo, testedOn: draws.length - trainTo, summary: { m5, m5j, m4, m4j, m3, m3j, m2j, m2, m1j }, cashWon, log };
 }
 
-function renderDateBacktest(result) {
-  const box = document.getElementById('dateBacktest');
-  if (!result.datedCount) {
-    box.innerHTML = `<div class="j-meta" style="padding:8px">Δεν έχουμε ακόμα αποθηκευμένη την ημερομηνία καμίας κλήρωσης — πάτησε ξανά το "⬇ Πλήρης λήψη ιστορικού" στην κορυφή της σελίδας για να συμπληρωθούν.</div>`;
+function renderMarkovBacktest(result) {
+  const box = document.getElementById('markovBacktest');
+  if (!result.summary) {
+    box.innerHTML = `<div class="j-meta" style="padding:8px">Χρειάζονται τουλάχιστον λίγες κληρώσεις παραπάνω για να εκπαιδευτεί το μοντέλο.</div>`;
     return;
   }
   const s = result.summary;
@@ -301,13 +321,13 @@ function renderDateBacktest(result) {
     ['2', s.m2, 1],
   ];
   box.innerHTML = `
-    <p class="j-meta" style="padding:0 0 8px">Γνωστή ημερομηνία για ${result.datedCount.toLocaleString('el-GR')} από ${result.totalCount.toLocaleString('el-GR')} κληρώσεις.</p>
+    <p class="j-meta" style="padding:0 0 8px">Εκπαιδεύτηκε στις πρώτες ${result.trainedOn.toLocaleString('el-GR')} κληρώσεις, δοκιμάστηκε out-of-sample στις επόμενες ${result.testedOn.toLocaleString('el-GR')}.</p>
     <table class="hit-table">
       <tr><th>Αποτέλεσμα</th><th>Φορές</th><th>Βραβείο/φορά</th><th>Σύνολο</th></tr>
       ${rows.map(([label, n, prize]) => `<tr><td>${label}</td><td><b>${n}</b></td><td>${prize === null ? 'ΤΖΑΚΠΟΤ' : eur(prize)}</td><td>${prize === null ? '—' : eur(n * prize)}</td></tr>`).join('')}
       <tr><td colspan="3"><b>Σύνολο μετρητών (χωρίς τζακπότ)</b></td><td><b>${eur(result.cashWon)}</b></td></tr>
-      <tr><td colspan="3"><b>Κόστος (1€ × κληρώσεις με γνωστή ημερομηνία)</b></td><td><b>${eur(result.datedCount)}</b></td></tr>
-      <tr><td colspan="3"><b>Καθαρό</b></td><td><b>${eur(result.cashWon - result.datedCount)}</b></td></tr>
+      <tr><td colspan="3"><b>Κόστος (1€ × κληρώσεις test)</b></td><td><b>${eur(result.testedOn)}</b></td></tr>
+      <tr><td colspan="3"><b>Καθαρό</b></td><td><b>${eur(result.cashWon - result.testedOn)}</b></td></tr>
     </table>`;
 }
 
@@ -484,7 +504,7 @@ async function init() {
   await new Promise(r => setTimeout(r, 30));
   const result = runAdaptiveBacktest(draws);
   renderAdaptiveBacktest(result);
-  renderDateBacktest(runDateBacktest(draws));
+  renderMarkovBacktest(runMarkovBacktest(draws));
   renderHistory(draws);
   status.textContent = `✓ Έτοιμος · ${draws.length.toLocaleString('el-GR')} κληρώσεις συνολικά`;
 }
