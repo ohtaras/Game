@@ -122,6 +122,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 
   <section id="delayPredLogSec">
     <h2>📋 Ιστορικό Προβλέψεων & Βαθμονόμηση</h2>
+    <button class="btn" id="delayPredLogResetBtn" style="margin-bottom:10px;background:#5a1a1a" onclick="resetDelayPredLog()">🗑 Ρίσετ Καταχωρημένων Προβλέψεων</button>
     <div id="delayPredLog">
       <div style="color:#555;font-size:.82rem">Κάνε διπλό κλικ σε έναν αριθμό για να ξεκινήσει η καταγραφή.</div>
     </div>
@@ -413,6 +414,12 @@ function scheduleDsRefresh() {
 // ── Prediction log & calibration (independent από kino_pred_log) ───────────────
 function getDelayPredLog() { try { return JSON.parse(localStorage.getItem('kino_delay_pred_log') || '[]'); } catch(_) { return []; } }
 function setDelayPredLog(log) { try { localStorage.setItem('kino_delay_pred_log', JSON.stringify(log.slice(-60))); } catch(_) {} }
+
+function resetDelayPredLog() {
+  if (!confirm('Σίγουρα θέλεις να διαγράψεις όλο το ιστορικό καταχωρημένων προβλέψεων;')) return;
+  setDelayPredLog([]);
+  renderDelayPredLog();
+}
 
 function saveDelayPrediction(predictedArr, afterDrawId) {
   if (!predictedArr.length) return;
