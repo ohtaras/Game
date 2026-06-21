@@ -30,6 +30,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 #delayShiftSec.ds-dim-others .ds-cell:not(.ds-soldier):not(.ds-soldier-top){opacity:.12;filter:grayscale(1)}
 #delayShiftSec.ds-manual-dim .ds-cell:not(.ds-selected){opacity:.12;filter:grayscale(1)}
 .ds-cell.ds-selected{outline:2px solid #fff;outline-offset:1px}
+.ds-cell.ds-delay-faded{opacity:.12;filter:grayscale(1)}
+#dsDelayFilterRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+#dsDelayFilterRow .btn{padding:6px 12px;font-size:.78rem}
+#dsDelayFilterRow .btn-label{font-size:.78rem;color:#999;margin-right:2px}
 .ds-cell.ds-onfire .ds-n{position:relative;z-index:1;color:#fff;text-shadow:0 0 3px #000,0 0 6px #000}
 .ds-cell.ds-onfire .ds-d{position:absolute;right:2px;bottom:1px;z-index:1;background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px}
 .ds-cell.ds-onfire::before{content:'🔥';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.7rem;line-height:1;opacity:.95;z-index:0;filter:drop-shadow(0 0 4px #ff5722)}
@@ -97,6 +101,19 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsNoDimBtn" onclick="toggleNoDimSelect()">💡 Χωρίς σκοτείνιασμα κατά την επιλογή</button>
       <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
     </div>
+    <div id="dsDelayFilterRow">
+      <span class="btn-label">🔎 Δείξε μόνο καθυστέρηση:</span>
+      <button class="btn" id="dsDelayFilterBtn1" onclick="dsSetDelayFilter(1)">1</button>
+      <button class="btn" id="dsDelayFilterBtn2" onclick="dsSetDelayFilter(2)">2</button>
+      <button class="btn" id="dsDelayFilterBtn3" onclick="dsSetDelayFilter(3)">3</button>
+      <button class="btn" id="dsDelayFilterBtn4" onclick="dsSetDelayFilter(4)">4</button>
+      <button class="btn" id="dsDelayFilterBtn5" onclick="dsSetDelayFilter(5)">5</button>
+      <button class="btn" id="dsDelayFilterBtn6" onclick="dsSetDelayFilter(6)">6</button>
+      <button class="btn" id="dsDelayFilterBtn7" onclick="dsSetDelayFilter(7)">7</button>
+      <button class="btn" id="dsDelayFilterBtn8" onclick="dsSetDelayFilter(8)">8</button>
+      <button class="btn" id="dsDelayFilterBtn9" onclick="dsSetDelayFilter(9)">9</button>
+      <button class="btn" id="dsDelayFilterBtn10" onclick="dsSetDelayFilter(10)">10</button>
+    </div>
     <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικού…</span></div>
     <div id="dsLegend">
       <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
@@ -107,6 +124,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item">★★ Top 10 «στρατιώτες» (πιο κοντά στο 25%)</div>
       <div class="ds-legend-item">★ Επόμενοι 20 «στρατιώτες»</div>
       <div class="ds-legend-item">🔥 Ο αριθμός μέσα στη φλόγα = καυτός στρατιώτης (hot τώρα)</div>
+      <div class="ds-legend-item">🔎 Πάτα ένα κουμπί 1-10 για να κρατήσει «ζωντανούς» μόνο τους αριθμούς με αυτή την καθυστέρηση</div>
       <div class="ds-legend-item">👆 Πάτα σε αριθμούς για να τους επιλέξεις σαν σύνολο (σκοτεινιάζουν οι υπόλοιποι)</div>
       <div class="ds-legend-item">🔒 Καταχώρηση Πρόβλεψης = κλείδωμα όλου του επιλεγμένου συνόλου μαζί για αξιολόγηση στην επόμενη κλήρωση</div>
     </div>
@@ -279,6 +297,15 @@ function toggleDimOthers() {
   btn.textContent = on ? '🔆 Επανάφερε όλους' : '🔅 Σκοτείνιασε τους υπόλοιπους';
 }
 
+let dsDelayFilter = null;
+function dsSetDelayFilter(v) {
+  dsDelayFilter = dsDelayFilter === v ? null : v;
+  for (let i = 1; i <= 10; i++) {
+    document.getElementById('dsDelayFilterBtn' + i).classList.toggle('active', dsDelayFilter === i);
+  }
+  renderDelayShift();
+}
+
 let dsNoDimSelect = false;
 function toggleNoDimSelect() {
   dsNoDimSelect = !dsNoDimSelect;
@@ -342,7 +369,8 @@ function renderDelayShift() {
   for (let n = 1; n <= 80; n++) {
     const sm = soldierMark(n);
     const sel = dsSelectedNums.has(n) ? ' ds-selected' : '';
-    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}${sm.cls}${sel}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+    const faded = (dsDelayFilter !== null && delays[n] !== dsDelayFilter) ? ' ds-delay-faded' : '';
+    cells.push(`<div class="ds-cell ${delayBucketClass(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
   }
   grid.innerHTML = cells.join('');
   const badge = isFirstDrawOfDay(draw.id) ? ' 🌅 00:00' : '';
@@ -353,7 +381,8 @@ function renderDelayShift() {
   for (let n = 1; n <= 80; n++) {
     const sm = soldierMark(n);
     const sel = dsSelectedNums.has(n) ? ' ds-selected' : '';
-    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}${sm.cls}${sel}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
+    const faded = (dsDelayFilter !== null && bonusDelays[n] !== dsDelayFilter) ? ' ds-delay-faded' : '';
+    bonusCells.push(`<div class="ds-cell ${delayBucketClass(bonusDelays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
   }
   bonusGrid.innerHTML = bonusCells.join('');
   const drawOfDay = dsIdx - dayStartIndex(dsDraws, dsIdx) + 1;
