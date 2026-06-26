@@ -993,14 +993,19 @@
     }
     throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες (SHA mismatch)');
   }
-  async function ghGet(path){
-    // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
-    const rawUrl=`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
-    try{
-      const r=await fetch(rawUrl,{cache:'no-store',signal:AbortSignal.timeout(20000)});
-      if(r.ok) return r.json();
-    }catch(_){}
-    // Fallback: GitHub API (needed if file was just written and CDN hasn't updated)
+  async function ghGet(path,opts){
+    // fresh=true skips the CDN fast path — raw.githubusercontent.com caches
+    // for several minutes, so a read right after our own write can return
+    // stale content and make already-saved draws look like gaps again.
+    if(!opts?.fresh){
+      // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
+      const rawUrl=`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+      try{
+        const r=await fetch(rawUrl,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+        if(r.ok) return r.json();
+      }catch(_){}
+    }
+    // Fallback (or fresh=true path): GitHub API — not CDN-cached, always current
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     try{
       const r=await fetch(url,{headers:h,cache:'no-store',signal:AbortSignal.timeout(30000)});
@@ -1320,7 +1325,7 @@
       let totalNew = 0;
       for (const [mStr, draws] of Object.entries(byMonth)) {
         const [y, m] = mStr.split('-');
-        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`, {fresh:true});
         const exArr = existing?.draws || [];
         const exIds = new Set(exArr.map(d => d.id));
         const newOnes = draws.filter(d => !exIds.has(d.id));
@@ -1394,7 +1399,7 @@
       ]);
       const items = [...todayItems, ...prevItems];
       if (!items.length) { st.textContent = '✅ Auto: καμία νέα'; return; }
-      const exData = await ghGet(`data/raw/${filename}`);
+      const exData = await ghGet(`data/raw/${filename}`, {fresh:true});
       const existing = exData?.draws || [];
       const knownIds = new Set(existing.map(d => d.id));
       const newDraws = items
@@ -1476,7 +1481,7 @@
 
         // Τρέχων μήνας ή ελλιπής παλιός μήνας → φόρτωσε δεδομένα
         let existing=[],knownIds=new Set(),drawsByDay={};
-        const exData=isCurrent?await ghGet(`data/raw/${filename}`):null;
+        const exData=isCurrent?await ghGet(`data/raw/${filename}`,{fresh:true}):null;
         const exists=!!(exData?.draws?.length);
         if(exists){
           existing=exData.draws;
@@ -2144,7 +2149,7 @@
       }
       for (const [mStr, draws] of Object.entries(byMonth)) {
         const [y, m] = mStr.split('-');
-        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`, {fresh:true});
         const exArr = existing?.draws || [];
         const exIds = new Set(exArr.map(d => d.id));
         const newOnes = draws.filter(d => !exIds.has(d.id));
