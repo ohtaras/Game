@@ -2170,7 +2170,10 @@
       }
       liveLastSavedCount = liveBuffer.size;
       el.textContent = `✅ Αποθηκεύτηκε ${new Date().toLocaleTimeString('el-GR')}`;
-    } catch(e) { el.textContent = '⚠️ ' + e.message; }
+    } catch(e) {
+      if (e.name === 'AbortError') return; // page navigated away mid-request, not a real failure
+      el.textContent = '⚠️ ' + e.message;
+    }
   }
 
   // Initialize sim date picker to today
