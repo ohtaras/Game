@@ -526,6 +526,12 @@ async function gapFill(days=3) {
       ? `✓ Gap-fill: ${totalNew} νέες κληρώσεις αποθηκεύτηκαν`
       : '✓ Gap-fill: όλα ενημερωμένα';
   } catch(e) {
+    if (e.name === 'AbortError') {
+      // Page navigated/refreshed mid-fetch — the browser cancelled our request,
+      // not an actual failure. Nothing to report, the page is reloading anyway.
+      console.warn('gapFill aborted (page navigated away)');
+      return;
+    }
     el.textContent = '⚠ Gap-fill σφάλμα: ' + e.message;
     console.error('gapFill error:', e);
   }
