@@ -980,11 +980,22 @@
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     const b64=btoa(JSON.stringify(obj));
     for(let attempt=0;attempt<3;attempt++){
-      let sha;
-      const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
+      let sha, chk;
+      try{
+        chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store',signal:AbortSignal.timeout(20000)});
+      }catch(netErr){ // transient network failure ("Failed to fetch") → retry instead of aborting
+        if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
+        await new Promise(res=>setTimeout(res,1500)); continue;
+      }
       if(!chk.ok && chk.status===401) throw new Error('Token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
       if(chk.ok){const ex=await chk.json();sha=ex.sha;}
-      const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      let r;
+      try{
+        r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      }catch(netErr){
+        if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
+        await new Promise(res=>setTimeout(res,1500)); continue;
+      }
       if(r.ok) return;
       if(r.status===409){await new Promise(res=>setTimeout(res,1000));continue;} // SHA mismatch → retry
       let msg=`GitHub API ${r.status}`;
