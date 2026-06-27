@@ -371,12 +371,34 @@ function refreshTokenState() {
   document.getElementById('tokenState').textContent = parts.join('  ·  ');
 }
 
+// Remembers which transport actually worked this session, so once we know
+// direct fetch is CORS-blocked we stop wasting a 12s timeout on it for
+// every single page — this was the main cause of gap-fill looking "stuck".
+let apiFetchMethod = 0;
 async function apiFetch(url) {
-  try { const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)}); if(r.ok)return r.json(); } catch(_) {}
-  try { const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)}); if(r.ok)return r.json(); } catch(_) {}
-  const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  return JSON.parse((await r.json()).contents);
+  const tryDirect = async () => {
+    const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  };
+  const tryCorsProxy = async () => {
+    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  };
+  const tryAllOrigins = async () => {
+    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return JSON.parse((await r.json()).contents);
+  };
+  const methods = [tryDirect, tryCorsProxy, tryAllOrigins];
+  const order = [apiFetchMethod, ...methods.map((_,i)=>i).filter(i=>i!==apiFetchMethod)];
+  let lastErr;
+  for (const i of order) {
+    try { const result = await methods[i](); apiFetchMethod = i; return result; }
+    catch(e) { lastErr = e; }
+  }
+  throw lastErr;
 }
 
 async function ghGet(path, opts) {
@@ -499,6 +521,7 @@ async function gapFill(days=3) {
     for (let d=0; d<days; d++) {
       const dt = new Date(Date.now() - d * 86400000);
       const dayStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+      el.textContent = `⏳ Έλεγχος ${dayStr} (${d+1}/${days})...`;
       const items = await fetchDaySeq(dayStr);
       for (const item of items) {
         if (!item.winningNumbers?.list?.length) continue;
