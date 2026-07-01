@@ -426,15 +426,19 @@ async function loadDelayHistory() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     months.push(`${d.getFullYear()}_${pad(d.getMonth() + 1)}`);
   }
-  const currentYm = `${now.getFullYear()}_${pad(now.getMonth() + 1)}`;
+  const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const recentYms = new Set([
+    `${now.getFullYear()}_${pad(now.getMonth() + 1)}`,
+    `${prevD.getFullYear()}_${pad(prevD.getMonth() + 1)}`,
+  ]);
   const draws = [];
   const grid = document.getElementById('dsGrid');
   for (const ym of months.reverse()) {
     grid.innerHTML = `<span style="color:#666;font-size:.8rem">⏳ Φόρτωση ${ym.replace('_','-')}… (${draws.length.toLocaleString('el-GR')} κληρώσεις μέχρι τώρα)</span>`;
-    // Current month: bypass CDN — gap-fill may have just written new draws that
-    // the CDN hasn't propagated yet, causing the page to miss hundreds of recent
-    // draws and jump far back when pressing ◀.
-    const data = await ghGet(`data/raw/kino_raw_${ym}.json`, ym === currentYm ? {fresh:true} : {});
+    // Recent months (current + previous): bypass CDN — gap-fill may have just
+    // written new draws that Fastly hasn't propagated yet, causing the page to
+    // miss hundreds of recent draws and jump far back when pressing ◀.
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`, recentYms.has(ym) ? {fresh:true} : {});
     if (data?.draws) draws.push(...data.draws);
   }
   draws.sort((a, b) => a.id - b.id);

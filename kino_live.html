@@ -538,10 +538,18 @@ async function gapFill(days=3) {
       const path = `data/raw/kino_raw_${ym}.json`;
       const mStr = ym.replace('_','-');
       const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
-      const exIds = new Set(existing.draws.map(d=>d.id));
+      const exArr = existing.draws || [];
+      const exIds = new Set(exArr.map(d=>d.id));
       const newOnes = draws.filter(d=>!exIds.has(d.id));
       if (!newOnes.length) continue;
-      const merged = [...existing.draws, ...newOnes].sort((a,b)=>a.id-b.id);
+      const merged = [...exArr, ...newOnes].sort((a,b)=>a.id-b.id);
+      // Safety: never write fewer draws than what's already stored — means the
+      // fresh read failed silently and we'd be clobbering real data with only
+      // the last-3-days window.
+      if (merged.length < exArr.length) {
+        console.warn(`gapFill: merged(${merged.length}) < existing(${exArr.length}) for ${ym} — aborting write to prevent data loss`);
+        continue;
+      }
       await ghPut(path, {month:mStr, draws:merged}, `Gap-fill: +${newOnes.length} ${mStr}`);
       totalNew += newOnes.length;
     }
@@ -953,10 +961,15 @@ async function autoSaveLiveBuffer() {
       const mStr = ym.replace('_','-');
       const path = `data/raw/kino_raw_${ym}.json`;
       const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
-      const exIds = new Set(existing.draws.map(d=>d.id));
+      const exArr2 = existing.draws || [];
+      const exIds = new Set(exArr2.map(d=>d.id));
       const newOnes = draws.filter(d=>!exIds.has(d.id));
       if (!newOnes.length) continue;
-      const merged = [...existing.draws, ...newOnes].sort((a,b)=>a.id-b.id);
+      const merged = [...exArr2, ...newOnes].sort((a,b) => a.id - b.id);
+      if (merged.length < exArr2.length) {
+        console.warn(`autoSave: merged(${merged.length}) < existing(${exArr2.length}) for ${mStr} — aborting`);
+        continue;
+      }
       await ghPut(path, {month:mStr, draws:merged}, `Live +${newOnes.length} ${mStr}`);
       totalNew += newOnes.length;
     }
