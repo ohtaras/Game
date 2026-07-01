@@ -155,6 +155,12 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       </div>
     </div>
     <div id="saveStatus"></div>
+    <div id="backfillBar" style="display:none;margin-top:6px">
+      <button id="backfillBtn" onclick="startBackfillJune()" style="background:#c56200;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.75rem">
+        ⚠ Ανάκτηση κενών Ιούν 2026
+      </button>
+      <span style="font-size:.7rem;color:#888;margin-left:6px">~8000 κληρώσεις 1–27 Ιουν λείπουν</span>
+    </div>
   </section>
 
   <!-- Delay Table -->
@@ -566,6 +572,67 @@ async function gapFill(days=3) {
     el.textContent = '⚠ Gap-fill σφάλμα: ' + e.message;
     console.error('gapFill error:', e);
   }
+}
+
+async function backfillDateRange(fromStr, toStr) {
+  if (!localStorage.getItem('gh_token')) { alert('Χρειάζεται GitHub token'); return; }
+  const el = document.getElementById('saveStatus');
+  const btn = document.getElementById('backfillBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const from = new Date(fromStr + 'T00:00:00Z');
+    const to   = new Date(toStr   + 'T00:00:00Z');
+    const days = Math.round((to - from) / 86400000) + 1;
+    const byMonth = {};
+    for (let d = 0; d < days; d++) {
+      const dt = new Date(from.getTime() + d * 86400000);
+      const dayStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+      el.textContent = `⏳ Backfill ${dayStr} (${d+1}/${days})...`;
+      const items = await fetchDaySeq(dayStr);
+      for (const item of items) {
+        if (!item.winningNumbers?.list?.length) continue;
+        const id = item.drawId;
+        const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
+        const dt2 = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+        const ym = `${dt2.getUTCFullYear()}_${pad(dt2.getUTCMonth()+1)}`;
+        if (!byMonth[ym]) byMonth[ym] = [];
+        byMonth[ym].push({id, n:[...item.winningNumbers.list].sort((a,b)=>a-b), b:(item.winningNumbers.bonus||[])[0]||null});
+      }
+    }
+    let totalNew = 0;
+    for (const [ym, draws] of Object.entries(byMonth)) {
+      const path = `data/raw/kino_raw_${ym}.json`;
+      const mStr = ym.replace('_', '-');
+      el.textContent = `⏳ Αποθήκευση ${mStr}...`;
+      const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
+      const exArr = existing.draws || [];
+      const exIds = new Set(exArr.map(d=>d.id));
+      const newOnes = draws.filter(d=>!exIds.has(d.id));
+      if (!newOnes.length) continue;
+      const merged = [...exArr, ...newOnes].sort((a,b)=>a.id-b.id);
+      if (merged.length < exArr.length) {
+        console.warn(`backfill: merged(${merged.length}) < existing(${exArr.length}) for ${ym} — skipping`);
+        continue;
+      }
+      await ghPut(path, {month:mStr, draws:merged}, `Backfill: +${newOnes.length} ${mStr}`);
+      totalNew += newOnes.length;
+    }
+    el.textContent = totalNew > 0
+      ? `✓ Backfill: ${totalNew} κληρώσεις αποθηκεύτηκαν`
+      : '✓ Backfill: όλα ενημερωμένα';
+    localStorage.setItem('backfill_june_2026_done', '1');
+    if (btn) { btn.disabled = false; document.getElementById('backfillBar').style.display = 'none'; }
+  } catch(e) {
+    if (e.name === 'AbortError') { console.warn('backfill aborted'); return; }
+    el.textContent = '⚠ Backfill σφάλμα: ' + e.message;
+    console.error('backfill error:', e);
+    if (btn) btn.disabled = false;
+  }
+}
+
+function startBackfillJune() {
+  if (!confirm('Θα ανακτηθούν οι κληρώσεις 1–30 Ιουν 2026 (~8000 κλ).\nΘα πάρει 2–3 λεπτά. Συνεχίζεις;')) return;
+  backfillDateRange('2026-06-01', '2026-06-30').catch(e => console.error(e));
 }
 
 async function fetchDaySeq(dayStr, size=10) {
@@ -1145,6 +1212,10 @@ window.addEventListener('load', () => {
 
   renderPerfectLog();
   renderHot4Log();
+
+  if (localStorage.getItem('gh_token') && !localStorage.getItem('backfill_june_2026_done')) {
+    document.getElementById('backfillBar').style.display = 'block';
+  }
 
   loadHistoricalDelays().catch(e=>console.error('delay error',e))
     .then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
