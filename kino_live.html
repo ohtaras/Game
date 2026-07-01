@@ -588,7 +588,9 @@ async function backfillDateRange(fromStr, toStr) {
       const dt = new Date(from.getTime() + d * 86400000);
       const dayStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
       el.textContent = `⏳ Backfill ${dayStr} (${d+1}/${days})...`;
-      const items = await fetchDaySeq(dayStr);
+      const items = await fetchDaySeq(dayStr, 50);
+      el.textContent = `⏳ Backfill ${dayStr} (${d+1}/${days}): ${items.length} κλ...`;
+      if (d > 0) await new Promise(res => setTimeout(res, 150));
       for (const item of items) {
         if (!item.winningNumbers?.list?.length) continue;
         const id = item.drawId;
@@ -631,7 +633,8 @@ async function backfillDateRange(fromStr, toStr) {
 }
 
 function startBackfillJune() {
-  if (!confirm('Θα ανακτηθούν οι κληρώσεις 1–30 Ιουν 2026 (~8000 κλ).\nΘα πάρει 2–3 λεπτά. Συνεχίζεις;')) return;
+  if (!confirm('Θα ανακτηθούν οι κληρώσεις 1–30 Ιουν 2026 (~8000 κλ).\nΘα πάρει 3–5 λεπτά. Συνεχίζεις;')) return;
+  localStorage.removeItem('backfill_june_2026_done');
   backfillDateRange('2026-06-01', '2026-06-30').catch(e => console.error(e));
 }
 
