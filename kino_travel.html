@@ -185,9 +185,7 @@ async function apiFetch(url) {
 }
 
 async function fetchDay(dayStr) {
-  // size=10 matches the OPAP API's actual page capacity — larger values cause
-  // it to return 10 items anyway, which triggers the pg.length < size early-exit
-  // and gives only 10 draws per day instead of 288.
+  // date endpoint caps at 10/page regardless of size param
   const pageSize = 10;
   let items = [], page = 0;
   while (true) {
@@ -199,7 +197,42 @@ async function fetchDay(dayStr) {
     items = items.concat(pg);
     if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < pageSize) break;
     page++;
-    if (page > 35) break; // 35 × 10 = 350 > 288 draws/day
+    if (page > 35) break;
+  }
+  return items;
+}
+
+// Fetch a consecutive range of draw IDs using the draw-id endpoint.
+// The API can return up to 50 per page; handles pagination if needed.
+async function fetchDrawRange(fromId, toId) {
+  let items = [], page = 0;
+  while (true) {
+    const url = `${OPAP_BASE}/draw-id/${fromId}/${toId}?page=${page}&size=50`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg.filter(i => i.winningNumbers?.list?.length));
+    if (Array.isArray(raw) || raw.last === true || pg.length === 0) break;
+    page++;
+    if (page > 10) break;
+  }
+  return items;
+}
+
+// Fill a gap day by computing its expected ID range and fetching in 50-ID chunks.
+// 1 day = 288 draws → 6 chunks of 50 instead of 29 pages with the date endpoint.
+async function fetchDayByIdRange(dayStr) {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  const dayN = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2025, 0, 1)) / 86400000);
+  const firstId = LIVE_BASE_ID + dayN * DRAWS_PER_DAY;
+  const lastId  = firstId + DRAWS_PER_DAY - 1;
+  const CHUNK = 50;
+  let items = [];
+  for (let id = firstId; id <= lastId; id += CHUNK) {
+    const chunk = await fetchDrawRange(id, Math.min(id + CHUNK - 1, lastId));
+    items = items.concat(chunk);
+    if (id + CHUNK <= lastId) await new Promise(r => setTimeout(r, 120));
   }
   return items;
 }
@@ -325,8 +358,40 @@ async function loadAndSync() {
     if (data?.draws) draws.push(...data.draws);
   }
 
-  // Supplement with today's latest draws from OPAP (only today — a handful of requests)
+  // Build target day list and identify gaps (days in last KEEP_DAYS with <200 draws)
   const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
+  const targetDays = [];
+  for (let d = KEEP_DAYS - 1; d >= 0; d--) {
+    const dt = new Date(now.getTime() - d * 86400000);
+    targetDays.push(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+  }
+
+  // Count draws per day from what monthly files gave us
+  const drawsByDay = {};
+  for (const dr of draws) {
+    const day = drawDateStr(dr.id);
+    drawsByDay[day] = (drawsByDay[day] || 0) + 1;
+  }
+  // Gap days: previous days with <200 draws (incomplete or missing from monthly files)
+  const gapDays = targetDays.filter(day => day !== todayStr && (drawsByDay[day] || 0) < 200);
+
+  if (gapDays.length > 0) {
+    for (let i = 0; i < gapDays.length; i++) {
+      const day = gapDays[i];
+      sb.textContent = `⏳ Γέμισμα κενού ${day} (${i + 1}/${gapDays.length}) μέσω draw-id…`;
+      const items = await fetchDayByIdRange(day);
+      for (const item of items) {
+        if (!item.winningNumbers?.list?.length) continue;
+        draws.push({
+          id: item.drawId,
+          n: [...item.winningNumbers.list].sort((a,b) => a-b),
+          b: (item.winningNumbers.bonus||[])[0]||null
+        });
+      }
+    }
+  }
+
+  // Today's latest draws from OPAP (monthly file is behind by a few minutes)
   sb.textContent = '⏳ Ανάκτηση σημερινών κληρώσεων από OPAP…';
   try {
     const items = await fetchDay(todayStr);
