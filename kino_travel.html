@@ -184,7 +184,11 @@ async function apiFetch(url) {
   throw lastErr;
 }
 
-async function fetchDay(dayStr, pageSize = 50) {
+async function fetchDay(dayStr) {
+  // size=10 matches the OPAP API's actual page capacity — larger values cause
+  // it to return 10 items anyway, which triggers the pg.length < size early-exit
+  // and gives only 10 draws per day instead of 288.
+  const pageSize = 10;
   let items = [], page = 0;
   while (true) {
     const url = `${OPAP_BASE}/draw-date/${dayStr}/${dayStr}?page=${page}&size=${pageSize}`;
@@ -195,7 +199,7 @@ async function fetchDay(dayStr, pageSize = 50) {
     items = items.concat(pg);
     if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < pageSize) break;
     page++;
-    if (page > 10) break;
+    if (page > 35) break; // 35 × 10 = 350 > 288 draws/day
   }
   return items;
 }
