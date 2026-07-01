@@ -540,20 +540,31 @@ function showToast(msg) {
 }
 
 // ── Live update ────────────────────────────────────────────────────────────
+// Fetches ALL of today's draws to fill any gaps, not just the single latest.
 async function checkNewDraw() {
   try {
-    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
-    const r = raw?.last;
-    if (!r?.winningNumbers?.list?.length) return;
-    if (!dsDraws.length || r.drawId <= dsDraws[dsDraws.length - 1].id) return;
-    const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0]||null };
+    if (!dsDraws.length) return;
     const wasAtLast = dsIdx === dsDraws.length - 1;
-    dsDraws.push(newDraw);
+    const seen = new Set(dsDraws.map(d => d.id));
+    const now = new Date();
+    const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
+    const items = await fetchDay(todayStr);
+    let added = 0;
+    for (const item of items) {
+      if (!item.winningNumbers?.list?.length) continue;
+      const id = item.drawId;
+      if (seen.has(id)) continue;
+      dsDraws.push({ id, n: [...item.winningNumbers.list].sort((a,b) => a-b), b: (item.winningNumbers.bonus||[])[0]||null });
+      seen.add(id);
+      added++;
+    }
+    if (!added) return;
+    dsDraws.sort((a,b) => a.id - b.id);
     hotStates = computeHotStates(dsDraws);
-    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderGrid(); }
+    if (wasAtLast) dsIdx = dsDraws.length - 1;
+    renderGrid();
     renderPredLog();
     updateStatus();
-    // Persist new draw if token available
     if (ghToken()) saveBuffer(dsDraws).catch(e => console.warn('live save:', e));
   } catch(e) { console.warn('checkNewDraw:', e); }
 }
