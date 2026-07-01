@@ -234,16 +234,30 @@ function msToNextDraw() {
   return diff * 1000;
 }
 
-// ── GitHub storage ─────────────────────────────────────────────────────────
+// ── GitHub helpers ─────────────────────────────────────────────────────────
 function ghToken() { return localStorage.getItem('gh_token') || ''; }
+function ghHeaders() {
+  const t = ghToken();
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
 
-async function loadBuffer() {
-  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${DATA_PATH}?_=${Date.now()}`;
+async function ghGet(path, opts = {}) {
+  if (!opts.fresh) {
+    const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}?_=${Date.now()}`;
+    try { const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) }); if (r.ok) return r.json(); } catch(_) {}
+  }
+  const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
   try {
-    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
-    if (r.ok) return r.json();
-  } catch(_) {}
-  return null;
+    const r = await fetch(url, { headers: ghHeaders(), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!r.ok) return null;
+    const meta = await r.json();
+    if ((!meta.content || meta.content === '') && meta.download_url) {
+      const dr = await fetch(meta.download_url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!meta.content) return null;
+    return JSON.parse(atob(meta.content.replace(/\n/g, '')));
+  } catch(_) { return null; }
 }
 
 async function saveBuffer(draws) {
@@ -279,71 +293,77 @@ async function saveBuffer(draws) {
 }
 
 // ── Main data sync ─────────────────────────────────────────────────────────
+// Loads from pre-saved monthly files (same as kino_delay_shift.html),
+// then supplements with OPAP only for today's latest draws.
+// This avoids hundreds of OPAP API calls and uses reliable CDN-served data.
 async function loadAndSync() {
   const sb = document.getElementById('statusBar');
-
-  sb.textContent = '⏳ Φόρτωση αποθηκευμένων κληρώσεων…';
-  const bufferData = await loadBuffer();
-  let draws = (bufferData?.draws || []).slice();
-  draws.sort((a, b) => a.id - b.id);
-
-  // Build the list of last KEEP_DAYS date strings (oldest → newest)
   const now = new Date();
-  const targetDays = [];
-  for (let d = KEEP_DAYS - 1; d >= 0; d--) {
+
+  // Determine which months cover the last KEEP_DAYS
+  const monthsNeeded = [];
+  const monthsSeen = new Set();
+  for (let d = KEEP_DAYS; d >= 0; d--) {
     const dt = new Date(now.getTime() - d * 86400000);
-    targetDays.push(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+    const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
+    if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
   }
 
-  // Which days need fetching?
-  // Re-fetch from the last stored day onward (catches partial last-day + any gaps)
-  const lastId = draws.length ? draws[draws.length - 1].id : 0;
-  const lastStoredDay = lastId ? drawDateStr(lastId) : null;
-  const daysToFetch = lastStoredDay
-    ? targetDays.filter(d => d >= lastStoredDay)
-    : targetDays;
+  // Use fresh=true (GitHub Contents API) only for recent months when token is present,
+  // to bypass CDN cache right after new draws are written.
+  const hasToken = !!ghToken();
+  const curYm = `${now.getUTCFullYear()}_${pad(now.getUTCMonth()+1)}`;
+  const prevD = new Date(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+  const prevYm = `${prevD.getUTCFullYear()}_${pad(prevD.getUTCMonth()+1)}`;
+  const recentYms = new Set([curYm, prevYm]);
 
-  if (daysToFetch.length > 0) {
-    for (let i = 0; i < daysToFetch.length; i++) {
-      const dayStr = daysToFetch[i];
-      sb.textContent = `⏳ Ανάκτηση ${dayStr} (${i + 1}/${daysToFetch.length})…`;
-      const items = await fetchDay(dayStr);
-      for (const item of items) {
-        if (!item.winningNumbers?.list?.length) continue;
-        draws.push({
-          id: item.drawId,
-          n: [...item.winningNumbers.list].sort((a,b) => a-b),
-          b: (item.winningNumbers.bonus || [])[0] || null
-        });
-      }
+  // Load monthly files (fast CDN, pre-saved thousands of draws each)
+  let draws = [];
+  for (const ym of monthsNeeded) {
+    sb.textContent = `⏳ Φόρτωση ${ym.replace('_','-')}…`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`, (hasToken && recentYms.has(ym)) ? {fresh:true} : {});
+    if (data?.draws) draws.push(...data.draws);
+  }
+
+  // Supplement with today's latest draws from OPAP (only today — a handful of requests)
+  const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
+  sb.textContent = '⏳ Ανάκτηση σημερινών κληρώσεων από OPAP…';
+  try {
+    const items = await fetchDay(todayStr);
+    for (const item of items) {
+      if (!item.winningNumbers?.list?.length) continue;
+      draws.push({
+        id: item.drawId,
+        n: [...item.winningNumbers.list].sort((a,b) => a-b),
+        b: (item.winningNumbers.bonus||[])[0]||null
+      });
     }
+  } catch(e) { console.warn('OPAP today:', e); }
 
-    // Deduplicate
-    const seen = new Set();
-    draws = draws.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; });
-    draws.sort((a, b) => a.id - b.id);
+  // Deduplicate and sort
+  const seen = new Set();
+  draws = draws.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; });
+  draws.sort((a, b) => a.id - b.id);
 
-    // Trim to last KEEP_DAYS
-    const cutoff = new Date();
-    cutoff.setUTCHours(0, 0, 0, 0);
-    cutoff.setTime(cutoff.getTime() - KEEP_DAYS * 86400000);
-    draws = draws.filter(d => drawDate(d.id) >= cutoff);
+  // Trim to last KEEP_DAYS
+  const cutoff = new Date(now.getTime() - KEEP_DAYS * 86400000);
+  cutoff.setUTCHours(0, 0, 0, 0);
+  draws = draws.filter(d => drawDate(d.id) >= cutoff);
 
-    // Save if token available
-    if (ghToken() && draws.length > 0) {
-      sb.textContent = `⏳ Αποθήκευση ${draws.length} κληρώσεων…`;
-      try {
-        await saveBuffer(draws);
-        document.getElementById('syncNote').textContent =
-          `✓ Αποθηκεύτηκε στο GitHub · ${draws.length} κλ · ${new Date().toLocaleTimeString('el-GR')}`;
-      } catch(e) {
-        console.warn('kino-travel save:', e);
-        document.getElementById('syncNote').textContent = '⚠ Αποθήκευση απέτυχε: ' + e.message;
-      }
-    } else if (!ghToken()) {
+  // Save to buffer if token available (speeds up next visit)
+  if (ghToken() && draws.length > 0) {
+    sb.textContent = `⏳ Αποθήκευση ${draws.length} κληρώσεων…`;
+    try {
+      await saveBuffer(draws);
       document.getElementById('syncNote').textContent =
-        'ℹ Δεν υπάρχει GitHub token — τα δεδομένα δεν αποθηκεύτηκαν. Πρόσθεσε token στις Ρυθμίσεις.';
+        `✓ Αποθηκεύτηκε στο GitHub · ${draws.length} κλ · ${new Date().toLocaleTimeString('el-GR')}`;
+    } catch(e) {
+      console.warn('kino-travel save:', e);
+      document.getElementById('syncNote').textContent = '⚠ Αποθήκευση απέτυχε: ' + e.message;
     }
+  } else if (!ghToken()) {
+    document.getElementById('syncNote').textContent =
+      'ℹ Δεν υπάρχει GitHub token — τα δεδομένα δεν αποθηκεύτηκαν.';
   }
 
   return draws;
