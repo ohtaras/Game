@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kino — Χρονικό Ταξίδι v2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
+.nav-link{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
+.nav-link:hover{background:#2a2a4a}
+#statusBar{background:#0e0e1a;padding:8px 16px;font-size:.78rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:32px}
+main{max-width:1100px;margin:0 auto;padding:14px}
+section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+
+#dsControls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+#dsInfo{font-size:.78rem;color:#aaa;padding:0 6px;white-space:nowrap}
+#dsGrid,#dsBonusGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+@media(max-width:600px){#dsGrid,#dsBonusGrid{grid-template-columns:repeat(5,1fr)}}
+.ds-cell{border-radius:7px;padding:6px 2px;text-align:center;user-select:none;position:relative;cursor:pointer}
+.ds-cell.ds-soldier{box-shadow:0 0 0 2px #39ff14 inset,0 0 8px #39ff14}
+.ds-cell.ds-soldier-top{box-shadow:0 0 0 2px #ff9100 inset,0 0 8px #ff9100}
+.ds-cell .ds-star{position:absolute;top:1px;right:2px;font-size:.6rem;color:#39ff14;letter-spacing:-1px;text-shadow:0 0 4px #39ff14}
+.ds-cell.ds-soldier-top .ds-star{color:#ff9100;text-shadow:0 0 4px #ff9100}
+#travelSec.ds-dim-others .ds-cell:not(.ds-soldier):not(.ds-soldier-top){opacity:.12;filter:grayscale(1)}
+#travelSec.ds-manual-dim .ds-cell:not(.ds-selected){opacity:.12;filter:grayscale(1)}
+.ds-cell.ds-selected{outline:2px solid #fff;outline-offset:1px}
+.ds-cell.ds-delay-faded{opacity:.12;filter:grayscale(1)}
+#dsDelayFilterRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+#dsDelayFilterRow .btn{padding:6px 12px;font-size:.78rem}
+#dsDelayFilterRow .btn-label{font-size:.78rem;color:#999;margin-right:2px}
+.ds-cell.ds-onfire .ds-n{position:relative;z-index:1;color:#fff;text-shadow:0 0 3px #000,0 0 6px #000}
+.ds-cell.ds-onfire .ds-d{position:absolute;right:2px;bottom:1px;z-index:1;background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px}
+.ds-cell.ds-onfire::before{content:'🔥';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.7rem;line-height:1;opacity:.95;z-index:0;filter:drop-shadow(0 0 4px #ff5722)}
+.ds-cell .ds-n{font-size:.74rem;font-weight:700;display:block}
+.ds-cell .ds-d{font-size:.6rem;display:block;margin-top:1px;opacity:.85}
+#dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.82rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
+#dsToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ds-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
+.ds-12 {background:#0d2240;border:2px solid #2c5a8a;color:#90caf9}
+.ds-35 {background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
+.ds-69 {background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
+.ds-10p{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
+#dsLegend,.ds-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center}
+.ds-legend-item{display:flex;align-items:center;gap:5px}
+.ds-swatch{display:inline-block;width:16px;height:16px;border-radius:4px}
+.btn{padding:9px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s;background:#3949ab;color:#fff}
+.btn:hover{background:#3f51b5}
+.btn:disabled{background:#222;color:#555;cursor:not-allowed}
+.btn.active{background:#ffb300;color:#1a1300}
+.btn.active:hover{background:#ffc107}
+.pl-row{padding:9px 12px;background:#0a1510;border-radius:8px;margin-bottom:6px;font-size:.78rem;line-height:1.9;border-left:3px solid #333}
+.pl-row.pl-good{border-left-color:#4caf50}
+.pl-row.pl-ok{border-left-color:#ffd54f}
+.pl-row.pl-pending{border-left-color:#3a3a5a}
+.pl-meta{color:#4a5a4a;font-size:.68rem;margin-bottom:3px}
+.pl-hit{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a3a1a;border:1.5px solid #4caf50;color:#a5d6a7;font-weight:700;margin:1px}
+.pl-miss-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#111;border:1.5px solid #2a2a2a;color:#333;font-weight:700;margin:1px}
+.pl-pending-n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:22px;border-radius:5px;background:#1a1a2a;border:1.5px solid #3a3a5a;color:#666;font-weight:700;margin:1px}
+.eval-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;margin-top:8px}
+.eval-badge.good{background:#1a3a1a;color:#a5d6a7;border:1px solid #4caf50}
+.eval-badge.ok{background:#2a2a00;color:#ffd54f;border:1px solid #ffd54f}
+.eval-badge.miss{background:#1a1a1a;color:#666;border:1px solid #333}
+#syncNote{font-size:.7rem;color:#555;margin-top:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🕰 Χρονικό Ταξίδι v2</h1>
+  <a href="index.html" class="nav-link">🏠 Αρχική</a>
+  <a href="kino_live.html" class="nav-link">● Live</a>
+  <a href="kino_delay_shift.html" class="nav-link">← Παλιά έκδοση</a>
+  <a href="kino_settings.html" class="nav-link">⚙ Ρυθμίσεις</a>
+</header>
+
+<div id="statusBar">⏳ Εκκίνηση…</div>
+
+<main>
+  <section id="travelSec">
+    <h2>🕰 Χρονικό Ταξίδι Καθυστερήσεων</h2>
+    <div id="dsControls">
+      <button class="btn" id="dsBackDayBtn">⏮ -1 ημ.</button>
+      <button class="btn" id="dsBackBtn">◀ Προηγούμενη</button>
+      <span id="dsInfo">—</span>
+      <button class="btn" id="dsFwdBtn">Επόμενη ▶</button>
+      <button class="btn" id="dsFwdDayBtn">+1 ημ. ⏭</button>
+      <button class="btn" id="dsLastBtn">Τελευταία ⏭⏭</button>
+      <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
+      <button class="btn" id="dsNoDimBtn" onclick="toggleNoDimSelect()">💡 Χωρίς σκοτείνιασμα</button>
+      <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
+    </div>
+    <div id="dsDelayFilterRow">
+      <span class="btn-label">🔎 Καθυστέρηση:</span>
+      <button class="btn" id="dsDelayFilterBtn0"  onclick="dsSetDelayFilter(0)">0</button>
+      <button class="btn" id="dsDelayFilterBtn1"  onclick="dsSetDelayFilter(1)">1</button>
+      <button class="btn" id="dsDelayFilterBtn2"  onclick="dsSetDelayFilter(2)">2</button>
+      <button class="btn" id="dsDelayFilterBtn3"  onclick="dsSetDelayFilter(3)">3</button>
+      <button class="btn" id="dsDelayFilterBtn4"  onclick="dsSetDelayFilter(4)">4</button>
+      <button class="btn" id="dsDelayFilterBtn5"  onclick="dsSetDelayFilter(5)">5</button>
+      <button class="btn" id="dsDelayFilterBtn6"  onclick="dsSetDelayFilter(6)">6</button>
+      <button class="btn" id="dsDelayFilterBtn7"  onclick="dsSetDelayFilter(7)">7</button>
+      <button class="btn" id="dsDelayFilterBtn8"  onclick="dsSetDelayFilter(8)">8</button>
+      <button class="btn" id="dsDelayFilterBtn9"  onclick="dsSetDelayFilter(9)">9</button>
+      <button class="btn" id="dsDelayFilterBtn10" onclick="dsSetDelayFilter(10)">10</button>
+    </div>
+    <div id="dsGrid"><span style="color:#666;font-size:.8rem">Φόρτωση…</span></div>
+    <div id="dsLegend">
+      <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-35"></span>3-5</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-69"></span>6-9</div>
+      <div class="ds-legend-item"><span class="ds-swatch ds-10p"></span>10+</div>
+      <div class="ds-legend-item">★★ Top 10 στρατιώτες</div>
+      <div class="ds-legend-item">★ Επόμενοι 20</div>
+      <div class="ds-legend-item">🔥 Καυτός στρατιώτης</div>
+    </div>
+    <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb;cursor:pointer" id="dsBonusToggle" onclick="toggleBonusSection()">🎁 Καθυστέρηση ως Κοινό Μπόνους (εντός ημέρας) <span id="dsBonusToggleArrow">▾</span></h3>
+    <div id="dsBonusWrap">
+      <div id="dsBonusInfo" style="font-size:.78rem;color:#999;margin-bottom:6px">—</div>
+      <div id="dsBonusGrid"></div>
+    </div>
+    <div id="syncNote"></div>
+  </section>
+
+  <section>
+    <h2>📋 Ιστορικό Προβλέψεων</h2>
+    <button class="btn" style="margin-bottom:10px;background:#5a1a1a" onclick="resetPredLog()">🗑 Ρίσετ Προβλέψεων</button>
+    <div id="predLog"><div style="color:#555;font-size:.82rem">Κάνε κλικ σε αριθμό για να τον επιλέξεις, μετά πάτα 🔒.</div></div>
+  </section>
+</main>
+
+<div id="dsToast"></div>
+
+<script>
+'use strict';
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const REPO          = 'ohtaras/Game';
+const DATA_BRANCH   = 'main';
+const DATA_PATH     = 'data/kino_travel.json';
+const OPAP_BASE     = 'https://api.opap.gr/draws/v3.0/1100';
+const LIVE_BASE_ID  = 1155022;
+const KEEP_DAYS     = 10;
+const DRAWS_PER_DAY = 288;
+const FIRST_DAY_OFFSET = 1305886 % DRAWS_PER_DAY; // slot of the first draw of each day
+const pad = n => String(n).padStart(2, '0');
+
+// ── OPAP fetch (with transport memoization) ────────────────────────────────
+let apiFetchMethod = 0;
+async function apiFetch(url) {
+  const tryDirect = async () => {
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  };
+  const tryProxy = async () => {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), { signal: AbortSignal.timeout(16000) });
+    if (!r.ok) throw new Error('proxy ' + r.status);
+    return r.json();
+  };
+  const tryAllOrigins = async () => {
+    const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error('allorigins ' + r.status);
+    return JSON.parse((await r.json()).contents);
+  };
+  const methods = [tryDirect, tryProxy, tryAllOrigins];
+  const order = [apiFetchMethod, ...methods.map((_,i) => i).filter(i => i !== apiFetchMethod)];
+  let lastErr;
+  for (const i of order) {
+    try { const r = await methods[i](); apiFetchMethod = i; return r; }
+    catch(e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+async function fetchDay(dayStr, pageSize = 50) {
+  let items = [], page = 0;
+  while (true) {
+    const url = `${OPAP_BASE}/draw-date/${dayStr}/${dayStr}?page=${page}&size=${pageSize}`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg);
+    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < pageSize) break;
+    page++;
+    if (page > 10) break;
+  }
+  return items;
+}
+
+// ── Draw ID helpers ────────────────────────────────────────────────────────
+function drawDate(id) {
+  const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
+  return new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+}
+
+function drawDateStr(id) {
+  const d = drawDate(id);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+}
+
+function isFirstOfDay(id) {
+  return ((id % DRAWS_PER_DAY) + DRAWS_PER_DAY) % DRAWS_PER_DAY === FIRST_DAY_OFFSET;
+}
+
+function timeOfDay(id) {
+  const slot = ((id - FIRST_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+  const mins = slot * 5;
+  return `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+}
+
+function msToNextDraw() {
+  const now = new Date();
+  const m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds() / 1000;
+  const cur5 = Math.floor(m / 5) * 5;
+  let diff = (cur5 + 5) * 60 + 15 - (m * 60 + s);
+  if (diff <= 0) diff += 300;
+  return diff * 1000;
+}
+
+// ── GitHub storage ─────────────────────────────────────────────────────────
+function ghToken() { return localStorage.getItem('gh_token') || ''; }
+
+async function loadBuffer() {
+  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${DATA_PATH}?_=${Date.now()}`;
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+    if (r.ok) return r.json();
+  } catch(_) {}
+  return null;
+}
+
+async function saveBuffer(draws) {
+  const token = ghToken();
+  if (!token) return;
+  const h = { Authorization: 'token ' + token, 'Content-Type': 'application/json' };
+  const apiUrl = `https://api.github.com/repos/${REPO}/contents/${DATA_PATH}`;
+  const payload = { v: 1, updated: new Date().toISOString(), draws };
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let sha = null;
+    try {
+      const chk = await fetch(`${apiUrl}?ref=${DATA_BRANCH}`, { headers: h, signal: AbortSignal.timeout(20000) });
+      if (chk.ok) sha = (await chk.json()).sha;
+    } catch(e) {
+      if (attempt === 2) throw e;
+      await new Promise(r => setTimeout(r, 1500));
+      continue;
+    }
+    const body = { message: `kino-travel: ${draws.length} κλ`, content, branch: DATA_BRANCH };
+    if (sha) body.sha = sha;
+    try {
+      const r = await fetch(apiUrl, { method: 'PUT', headers: h, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+      if (r.status === 409) { await new Promise(r => setTimeout(r, 1000)); continue; }
+      if (!r.ok) throw new Error('PUT ' + r.status);
+      return;
+    } catch(e) {
+      if (attempt === 2) throw e;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+}
+
+// ── Main data sync ─────────────────────────────────────────────────────────
+async function loadAndSync() {
+  const sb = document.getElementById('statusBar');
+
+  sb.textContent = '⏳ Φόρτωση αποθηκευμένων κληρώσεων…';
+  const bufferData = await loadBuffer();
+  let draws = (bufferData?.draws || []).slice();
+  draws.sort((a, b) => a.id - b.id);
+
+  // Build the list of last KEEP_DAYS date strings (oldest → newest)
+  const now = new Date();
+  const targetDays = [];
+  for (let d = KEEP_DAYS - 1; d >= 0; d--) {
+    const dt = new Date(now.getTime() - d * 86400000);
+    targetDays.push(`${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`);
+  }
+
+  // Which days need fetching?
+  // Re-fetch from the last stored day onward (catches partial last-day + any gaps)
+  const lastId = draws.length ? draws[draws.length - 1].id : 0;
+  const lastStoredDay = lastId ? drawDateStr(lastId) : null;
+  const daysToFetch = lastStoredDay
+    ? targetDays.filter(d => d >= lastStoredDay)
+    : targetDays;
+
+  if (daysToFetch.length > 0) {
+    for (let i = 0; i < daysToFetch.length; i++) {
+      const dayStr = daysToFetch[i];
+      sb.textContent = `⏳ Ανάκτηση ${dayStr} (${i + 1}/${daysToFetch.length})…`;
+      const items = await fetchDay(dayStr);
+      for (const item of items) {
+        if (!item.winningNumbers?.list?.length) continue;
+        draws.push({
+          id: item.drawId,
+          n: [...item.winningNumbers.list].sort((a,b) => a-b),
+          b: (item.winningNumbers.bonus || [])[0] || null
+        });
+      }
+    }
+
+    // Deduplicate
+    const seen = new Set();
+    draws = draws.filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; });
+    draws.sort((a, b) => a.id - b.id);
+
+    // Trim to last KEEP_DAYS
+    const cutoff = new Date();
+    cutoff.setUTCHours(0, 0, 0, 0);
+    cutoff.setTime(cutoff.getTime() - KEEP_DAYS * 86400000);
+    draws = draws.filter(d => drawDate(d.id) >= cutoff);
+
+    // Save if token available
+    if (ghToken() && draws.length > 0) {
+      sb.textContent = `⏳ Αποθήκευση ${draws.length} κληρώσεων…`;
+      try {
+        await saveBuffer(draws);
+        document.getElementById('syncNote').textContent =
+          `✓ Αποθηκεύτηκε στο GitHub · ${draws.length} κλ · ${new Date().toLocaleTimeString('el-GR')}`;
+      } catch(e) {
+        console.warn('kino-travel save:', e);
+        document.getElementById('syncNote').textContent = '⚠ Αποθήκευση απέτυχε: ' + e.message;
+      }
+    } else if (!ghToken()) {
+      document.getElementById('syncNote').textContent =
+        'ℹ Δεν υπάρχει GitHub token — τα δεδομένα δεν αποθηκεύτηκαν. Πρόσθεσε token στις Ρυθμίσεις.';
+    }
+  }
+
+  return draws;
+}
+
+// ── Delay computation ──────────────────────────────────────────────────────
+function computeDelays(draws, idx) {
+  const d = new Array(81).fill(null);
+  let rem = 80;
+  for (let i = idx; i >= 0 && rem > 0; i--) {
+    for (const n of draws[i].n) {
+      if (n >= 1 && n <= 80 && d[n] === null) { d[n] = idx - i; rem--; }
+    }
+  }
+  for (let n = 1; n <= 80; n++) if (d[n] === null) d[n] = idx + 1;
+  return d;
+}
+
+function dayStart(draws, idx) {
+  let s = idx;
+  while (s > 0 && !isFirstOfDay(draws[s].id)) s--;
+  return s;
+}
+
+function computeBonusDelays(draws, idx) {
+  const start = dayStart(draws, idx);
+  const d = new Array(81).fill(null);
+  for (let i = idx; i >= start; i--) {
+    const b = draws[i].b;
+    if (b >= 1 && b <= 80 && d[b] === null) d[b] = idx - i;
+  }
+  for (let n = 1; n <= 80; n++) if (d[n] === null) d[n] = idx - start + 1;
+  return d;
+}
+
+// ── Hot states (last 30 draws) ────────────────────────────────────────────
+const HOT_W = 30, HOT_THR = 0.37, COLD_THR = 0.20;
+function computeHotStates(draws) {
+  const T = draws.length;
+  if (T < HOT_W) return null;
+  const res = {};
+  for (let n = 1; n <= 80; n++) {
+    let cnt = 0;
+    for (let i = T - HOT_W; i < T; i++) if (draws[i].n.includes(n)) cnt++;
+    res[n] = { isHot: cnt / HOT_W >= HOT_THR, isCold: cnt / HOT_W <= COLD_THR };
+  }
+  return res;
+}
+
+// ── Soldier markers ────────────────────────────────────────────────────────
+const SOLDIER_TOP  = new Set([56,70,2,51,15,57,35,11,6,8]);
+const SOLDIER_NEXT = new Set([76,61,7,59,72,20,28,49,39,66,77,29,9,55,58,64,24,32,52,68]);
+
+function soldierMark(n, hotStates) {
+  const isSoldier = SOLDIER_TOP.has(n) || SOLDIER_NEXT.has(n);
+  const flameCls = isSoldier && hotStates?.[n]?.isHot ? ' ds-onfire' : '';
+  if (SOLDIER_TOP.has(n))  return { cls: ' ds-soldier ds-soldier-top' + flameCls, star: '<span class="ds-star">★★</span>' };
+  if (SOLDIER_NEXT.has(n)) return { cls: ' ds-soldier' + flameCls, star: '<span class="ds-star">★</span>' };
+  return { cls: '', star: '' };
+}
+
+function delayBucket(d) {
+  if (d === 0) return 'ds-0';
+  if (d <= 2)  return 'ds-12';
+  if (d <= 5)  return 'ds-35';
+  if (d <= 9)  return 'ds-69';
+  return 'ds-10p';
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let dsDraws = [];
+let dsIdx = -1;
+let hotStates = null;
+const dsSelected = new Set();
+const dsDelayFilter = new Set();
+let dsNoDimSelect = false;
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderGrid() {
+  if (!dsDraws.length || dsIdx < 0) return;
+  const draw = dsDraws[dsIdx];
+  const delays = computeDelays(dsDraws, dsIdx);
+  const cells = [];
+  for (let n = 1; n <= 80; n++) {
+    const sm = soldierMark(n, hotStates);
+    const sel = dsSelected.has(n) ? ' ds-selected' : '';
+    const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
+    cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+  }
+  document.getElementById('dsGrid').innerHTML = cells.join('');
+
+  const badge = isFirstOfDay(draw.id) ? ' 🌅' : '';
+  document.getElementById('dsInfo').textContent = `#${draw.id} · ~${timeOfDay(draw.id)}${badge} (${dsIdx + 1}/${dsDraws.length})`;
+
+  const bonusDelays = computeBonusDelays(dsDraws, dsIdx);
+  const bCells = [];
+  for (let n = 1; n <= 80; n++) {
+    const sm = soldierMark(n, hotStates);
+    const sel = dsSelected.has(n) ? ' ds-selected' : '';
+    const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(bonusDelays[n])) ? ' ds-delay-faded' : '';
+    bCells.push(`<div class="ds-cell ${delayBucket(bonusDelays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${bonusDelays[n]}</span></div>`);
+  }
+  document.getElementById('dsBonusGrid').innerHTML = bCells.join('');
+  const drawOfDay = dsIdx - dayStart(dsDraws, dsIdx) + 1;
+  document.getElementById('dsBonusInfo').textContent =
+    `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — ${drawOfDay}η κλήρωση της ημέρας · 🎁 μπόνους: ${draw.b ?? '—'}`;
+}
+
+function updateStatus() {
+  if (!dsDraws.length) return;
+  const last = dsDraws[dsDraws.length - 1];
+  const secs = Math.round(msToNextDraw() / 1000);
+  document.getElementById('statusBar').textContent =
+    `✓ ${dsDraws.length.toLocaleString('el-GR')} κλ (τελευταίες ${KEEP_DAYS} ημ.) · τελευταία #${last.id} · επόμενη: ${Math.floor(secs/60)}:${pad(secs%60)}`;
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function dsStep(delta) {
+  if (!dsDraws.length) return;
+  dsIdx = Math.min(Math.max(dsIdx + delta, 0), dsDraws.length - 1);
+  renderGrid();
+  renderPredLog();
+}
+
+function dsJumpToDay(dir) {
+  if (!dsDraws.length) return;
+  for (let i = dsIdx + dir; i >= 0 && i < dsDraws.length; i += dir) {
+    if (isFirstOfDay(dsDraws[i].id)) { dsIdx = i; renderGrid(); renderPredLog(); return; }
+  }
+}
+
+function toggleBonusSection() {
+  const wrap = document.getElementById('dsBonusWrap');
+  const arrow = document.getElementById('dsBonusToggleArrow');
+  const hidden = wrap.style.display === 'none';
+  wrap.style.display = hidden ? '' : 'none';
+  arrow.textContent = hidden ? '▾' : '▸';
+}
+
+function toggleDimOthers() {
+  const sec = document.getElementById('travelSec');
+  const btn = document.getElementById('dsDimBtn');
+  const on = sec.classList.toggle('ds-dim-others');
+  btn.textContent = on ? '🔆 Επανάφερε όλους' : '🔅 Σκοτείνιασε τους υπόλοιπους';
+}
+
+function toggleNoDimSelect() {
+  dsNoDimSelect = !dsNoDimSelect;
+  document.getElementById('dsNoDimBtn').classList.toggle('active', dsNoDimSelect);
+  if (dsNoDimSelect) document.getElementById('travelSec').classList.remove('ds-manual-dim');
+  else document.getElementById('travelSec').classList.toggle('ds-manual-dim', dsSelected.size > 0);
+}
+
+function dsSetDelayFilter(v) {
+  if (dsDelayFilter.has(v)) dsDelayFilter.delete(v);
+  else dsDelayFilter.add(v);
+  document.getElementById('dsDelayFilterBtn' + v).classList.toggle('active', dsDelayFilter.has(v));
+  renderGrid();
+}
+
+function dsToggleSelect(n) {
+  if (dsSelected.has(n)) dsSelected.delete(n);
+  else dsSelected.add(n);
+  if (!dsNoDimSelect)
+    document.getElementById('travelSec').classList.toggle('ds-manual-dim', dsSelected.size > 0);
+  renderGrid();
+  updateLockBtn();
+}
+
+function updateLockBtn() {
+  const btn = document.getElementById('dsLockBtn');
+  btn.disabled = dsSelected.size === 0;
+  btn.textContent = dsSelected.size
+    ? `🔒 Καταχώρηση Πρόβλεψης (${dsSelected.size})`
+    : '🔒 Καταχώρηση Πρόβλεψης';
+}
+
+function dsLockSelection() {
+  if (!dsSelected.size || dsIdx < 0) return;
+  const arr = Array.from(dsSelected).sort((a,b) => a-b);
+  const afterId = dsDraws[dsIdx].id;
+  savePred(arr, afterId);
+  showToast(`✓ Καταχωρήθηκαν ${arr.length} αριθμοί για αξιολόγηση`);
+  dsSelected.clear();
+  document.getElementById('travelSec').classList.remove('ds-manual-dim');
+  renderGrid();
+  updateLockBtn();
+  renderPredLog();
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('dsToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── Live update ────────────────────────────────────────────────────────────
+async function checkNewDraw() {
+  try {
+    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
+    const r = raw?.last;
+    if (!r?.winningNumbers?.list?.length) return;
+    if (!dsDraws.length || r.drawId <= dsDraws[dsDraws.length - 1].id) return;
+    const newDraw = { id: r.drawId, n: [...r.winningNumbers.list].sort((a,b) => a-b), b: (r.winningNumbers.bonus||[])[0]||null };
+    const wasAtLast = dsIdx === dsDraws.length - 1;
+    dsDraws.push(newDraw);
+    hotStates = computeHotStates(dsDraws);
+    if (wasAtLast) { dsIdx = dsDraws.length - 1; renderGrid(); }
+    renderPredLog();
+    updateStatus();
+    // Persist new draw if token available
+    if (ghToken()) saveBuffer(dsDraws).catch(e => console.warn('live save:', e));
+  } catch(e) { console.warn('checkNewDraw:', e); }
+}
+
+let refreshTimer = null;
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => { checkNewDraw(); scheduleRefresh(); }, msToNextDraw() + 5000);
+}
+
+// ── Prediction log ─────────────────────────────────────────────────────────
+const PRED_KEY = 'kino_travel_pred_log';
+function getPredLog() { try { return JSON.parse(localStorage.getItem(PRED_KEY) || '[]'); } catch(_) { return []; } }
+function setPredLog(l) { try { localStorage.setItem(PRED_KEY, JSON.stringify(l.slice(-60))); } catch(_) {} }
+
+function savePred(nums, afterDrawId) {
+  const log = getPredLog();
+  log.push({ ts: Date.now(), afterDrawId, predicted: nums });
+  setPredLog(log);
+}
+
+function resetPredLog() {
+  if (!confirm('Διαγραφή όλων των καταχωρημένων προβλέψεων;')) return;
+  setPredLog([]);
+  renderPredLog();
+}
+
+function fmtTs(ts) {
+  return new Date(ts).toLocaleString('el-GR', { timeZone:'Europe/Athens', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+function renderPredLog() {
+  const el = document.getElementById('predLog');
+  if (!el || !dsDraws.length) return;
+  const log = getPredLog().slice().reverse();
+  if (!log.length) {
+    el.innerHTML = '<div style="color:#555;font-size:.82rem">Κάνε κλικ σε αριθμό για να τον επιλέξεις, μετά πάτα 🔒.</div>';
+    return;
+  }
+  const idxById = new Map();
+  dsDraws.forEach((d, i) => idxById.set(d.id, i));
+  let totalSlots = 0, totalHits = 0, totalChecks = 0;
+  const rows = log.slice(0, 25).map(pred => {
+    const i = idxById.get(pred.afterDrawId);
+    const total = pred.predicted.length;
+    const future = (i === undefined) ? [] : dsDraws.slice(i + 1);
+    if (!future.length) {
+      return `<div class="pl-row pl-pending">
+        <div class="pl-meta">${fmtTs(pred.ts)} · μετά #${pred.afterDrawId}</div>
+        <div style="color:#666;font-size:.78rem">⏳ Αναμονή…</div>
+        <div>${pred.predicted.map(n => `<span class="pl-pending-n">${n}</span>`).join('')}</div>
+      </div>`;
+    }
+    let sumHits = 0;
+    const drawRows = future.map(d => {
+      const hits = pred.predicted.filter(n => d.n.includes(n));
+      sumHits += hits.length;
+      totalChecks++; totalSlots += total; totalHits += hits.length;
+      const bc = hits.length === 0 ? 'miss' : hits.length >= Math.ceil(total * 0.4) ? 'good' : 'ok';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-top:1px solid #18241a;flex-wrap:wrap">
+        <span style="color:#556;font-size:.7rem;min-width:110px">#${d.id} ~${timeOfDay(d.id)}</span>
+        <span class="eval-badge ${bc}" style="margin:0">${hits.length}/${total}</span>
+        <span>${pred.predicted.map(n => `<span class="${hits.includes(n)?'pl-hit':'pl-miss-n'}">${n}</span>`).join('')}</span>
+      </div>`;
+    }).join('');
+    const avgPct = (sumHits / (future.length * total) * 100).toFixed(0);
+    return `<div class="pl-row${sumHits ? ' pl-good' : ''}">
+      <div class="pl-meta">${fmtTs(pred.ts)} · μετά #${pred.afterDrawId} · ${future.length} κλ · ${sumHits}/${future.length*total} (${avgPct}%)</div>
+      ${drawRows}
+    </div>`;
+  }).join('');
+
+  let calibHtml = '';
+  if (totalChecks >= 3) {
+    const avgHit = (totalHits/totalSlots*100).toFixed(1);
+    const edge = (totalHits/totalSlots*100 - 25).toFixed(1);
+    calibHtml = `<div style="background:#0a1510;border:1px solid #2a4a2a;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:.78rem;color:#80cbc4">
+      🔧 <strong style="color:#a5d6a7">Βαθμονόμηση</strong> — ${totalChecks} κλ · Hit-rate: <strong>${avgHit}%</strong> (βάση 25% · ${parseFloat(edge)>=0?'+':''}${edge}%)</div>`;
+  }
+  el.innerHTML = calibHtml + rows;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('dsBackBtn').addEventListener('click', () => dsStep(-1));
+  document.getElementById('dsFwdBtn').addEventListener('click', () => dsStep(1));
+  document.getElementById('dsBackDayBtn').addEventListener('click', () => dsJumpToDay(-1));
+  document.getElementById('dsFwdDayBtn').addEventListener('click', () => dsJumpToDay(1));
+  document.getElementById('dsLastBtn').addEventListener('click', () => {
+    if (dsDraws.length) { dsIdx = dsDraws.length - 1; renderGrid(); renderPredLog(); }
+  });
+
+  renderPredLog();
+
+  try {
+    dsDraws = await loadAndSync();
+  } catch(e) {
+    document.getElementById('statusBar').textContent = '⚠ Σφάλμα φόρτωσης: ' + e.message;
+    console.error(e);
+    return;
+  }
+
+  if (!dsDraws.length) {
+    document.getElementById('statusBar').textContent = '⚠ Δεν βρέθηκαν κληρώσεις. Έλεγξε σύνδεση δικτύου.';
+    return;
+  }
+
+  dsIdx = dsDraws.length - 1;
+  hotStates = computeHotStates(dsDraws);
+  renderGrid();
+  renderPredLog();
+  updateStatus();
+  setInterval(updateStatus, 1000);
+  scheduleRefresh();
+});
+</script>
+</body>
+</html>
