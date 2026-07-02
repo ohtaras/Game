@@ -89,6 +89,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
       <button class="btn" id="dsNoDimBtn" onclick="toggleNoDimSelect()">💡 Χωρίς σκοτείνιασμα</button>
       <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
+      <button class="btn" id="dsHeatBtn" onclick="toggleHeatMode()" style="margin-left:auto;background:#6a1a1a">🌡 Θερμικός Χάρτης</button>
+    </div>
+    <div id="dsHeatRow" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:.78rem;color:#999">Παράθυρο κληρώσεων:</span>
+      <button class="btn" id="dsHeatW20"  onclick="setHeatWindow(20)"  style="padding:5px 11px;font-size:.76rem">20</button>
+      <button class="btn" id="dsHeatW50"  onclick="setHeatWindow(50)"  style="padding:5px 11px;font-size:.76rem">50</button>
+      <button class="btn" id="dsHeatW100" onclick="setHeatWindow(100)" style="padding:5px 11px;font-size:.76rem">100</button>
+      <button class="btn" id="dsHeatW200" onclick="setHeatWindow(200)" style="padding:5px 11px;font-size:.76rem">200</button>
+      <span id="dsHeatNote" style="font-size:.73rem;color:#c44"></span>
     </div>
     <div id="dsDelayFilterRow">
       <span class="btn-label">🔎 Καθυστέρηση:</span>
@@ -124,6 +133,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div class="ds-legend-item">★★ Top 10 στρατιώτες</div>
       <div class="ds-legend-item">★ Επόμενοι 20</div>
       <div class="ds-legend-item">🔥 Καυτός στρατιώτης</div>
+    </div>
+    <div id="dsHeatLegend" style="display:none;gap:8px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center;margin-top:6px">
+      <span>🌡 Θερμικός: </span>
+      <span style="display:inline-flex;align-items:center;gap:4px">
+        <span style="display:inline-block;width:60px;height:14px;border-radius:3px;background:linear-gradient(to right,rgb(18,18,32),rgb(120,8,4),rgb(255,6,0)"></span>
+        ψυχρό → καυτό
+      </span>
+      <span style="color:#888">Αριθμός = εμφανίσεις στο παράθυρο</span>
     </div>
     <h3 style="margin:16px 0 8px;font-size:.88rem;color:#bbb;cursor:pointer;user-select:none" id="dsBonusToggle" onclick="toggleBonusSection()">🎁 Καθυστέρηση ως Κοινό Μπόνους (εντός ημέρας) <span id="dsBonusToggleArrow">▸</span></h3>
     <div id="dsBonusWrap" style="display:none">
@@ -505,18 +522,72 @@ let hotStates = null;
 const dsSelected = new Set();
 const dsDelayFilter = new Set();
 let dsNoDimSelect = false;
+let dsHeatMode = false;
+let dsHeatWindow = 50;
+
+// ── Heatmap ────────────────────────────────────────────────────────────────
+function computeHeat(draws, idx, w) {
+  const freq = new Array(81).fill(0);
+  const from = Math.max(0, idx - w + 1);
+  for (let i = from; i <= idx; i++)
+    for (const n of draws[i].n) if (n >= 1 && n <= 80) freq[n]++;
+  return freq;
+}
+
+function heatCellStyle(freq, actualW) {
+  // ratio=1 means the number appeared at the expected 25% rate
+  const ratio = freq / Math.max(1, actualW * 0.25);
+  const r = Math.min(255, Math.round(18 + ratio * 210));
+  const g = Math.max(4,  Math.round(18 - ratio * 14));
+  const b = Math.max(0,  Math.round(32 - ratio * 32));
+  const rb = Math.min(255, r + 35);
+  return `background:rgb(${r},${g},${b});border-color:rgb(${rb},${g+8},${b+4})`;
+}
+
+function toggleHeatMode() {
+  dsHeatMode = !dsHeatMode;
+  const btn = document.getElementById('dsHeatBtn');
+  btn.classList.toggle('active', dsHeatMode);
+  btn.style.background = dsHeatMode ? '' : '#6a1a1a';
+  document.getElementById('dsHeatRow').style.display = dsHeatMode ? 'flex' : 'none';
+  document.getElementById('dsHeatLegend').style.display = dsHeatMode ? 'flex' : 'none';
+  document.getElementById('dsLegend').style.display = dsHeatMode ? 'none' : 'flex';
+  if (dsHeatMode) setHeatWindow(dsHeatWindow);
+  renderGrid();
+}
+
+function setHeatWindow(w) {
+  dsHeatWindow = w;
+  [20, 50, 100, 200].forEach(n =>
+    document.getElementById('dsHeatW' + n).classList.toggle('active', n === w));
+  const actual = Math.min(w, dsIdx + 1);
+  document.getElementById('dsHeatNote').textContent =
+    actual < w ? `(${actual} διαθέσιμες)` : '';
+  renderGrid();
+}
 
 // ── Render ─────────────────────────────────────────────────────────────────
 function renderGrid() {
   if (!dsDraws.length || dsIdx < 0) return;
   const draw = dsDraws[dsIdx];
   const delays = computeDelays(dsDraws, dsIdx);
+
+  // Heat mode: compute frequency over the last dsHeatWindow draws
+  const actualW = Math.min(dsHeatWindow, dsIdx + 1);
+  const heatFreq = dsHeatMode ? computeHeat(dsDraws, dsIdx, actualW) : null;
+
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     const sm = soldierMark(n, hotStates);
     const sel = dsSelected.has(n) ? ' ds-selected' : '';
-    const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
-    cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+    if (heatFreq) {
+      // Heat mode: replace background with red-intensity color, show count
+      const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
+      cells.push(`<div class="ds-cell${sm.cls}${sel}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${heatFreq[n]}×</span></div>`);
+    } else {
+      const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
+      cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
+    }
   }
   document.getElementById('dsGrid').innerHTML = cells.join('');
 
