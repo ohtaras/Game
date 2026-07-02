@@ -111,10 +111,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     </div>
     <div id="dsHeatRow" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px">
       <span style="font-size:.78rem;color:#999">Παράθυρο κληρώσεων:</span>
+      <button class="btn" id="dsHeatW6"   onclick="setHeatWindow(6)"   style="padding:5px 11px;font-size:.76rem">6</button>
       <button class="btn" id="dsHeatW20"  onclick="setHeatWindow(20)"  style="padding:5px 11px;font-size:.76rem">20</button>
       <button class="btn" id="dsHeatW50"  onclick="setHeatWindow(50)"  style="padding:5px 11px;font-size:.76rem">50</button>
       <button class="btn" id="dsHeatW100" onclick="setHeatWindow(100)" style="padding:5px 11px;font-size:.76rem">100</button>
       <button class="btn" id="dsHeatW200" onclick="setHeatWindow(200)" style="padding:5px 11px;font-size:.76rem">200</button>
+      <input id="dsHeatCustom" type="number" min="1" max="2880" placeholder="custom"
+        style="width:70px;padding:5px 7px;font-size:.76rem;background:#1a1a2e;color:#e8e8e8;border:1px solid #3a3a5a;border-radius:8px;outline:none"
+        onchange="setHeatWindowCustom(this.value)">
       <span id="dsHeatNote" style="font-size:.73rem;color:#c44"></span>
     </div>
     <div id="dsDelayFilterRow">
@@ -541,7 +545,7 @@ const dsSelected = new Set();
 const dsDelayFilter = new Set();
 let dsNoDimSelect = false;
 let dsHeatMode = false;
-let dsHeatWindow = 50;
+let dsHeatWindow = 6;
 
 // ── Heatmap ────────────────────────────────────────────────────────────────
 function computeHeat(draws, idx, w) {
@@ -553,13 +557,12 @@ function computeHeat(draws, idx, w) {
 }
 
 function heatCellStyle(freq, actualW) {
-  // ratio=1 means the number appeared at the expected 25% rate
   const ratio = freq / Math.max(1, actualW * 0.25);
   const r = Math.min(255, Math.round(18 + ratio * 210));
   const g = Math.max(4,  Math.round(18 - ratio * 14));
   const b = Math.max(0,  Math.round(32 - ratio * 32));
   const rb = Math.min(255, r + 35);
-  return `background:rgb(${r},${g},${b});border-color:rgb(${rb},${g+8},${b+4})`;
+  return `background:rgb(${r},${g},${b});border:2px solid rgb(${rb},${g+8},${b+4});color:#fff`;
 }
 
 function toggleHeatMode() {
@@ -574,13 +577,34 @@ function toggleHeatMode() {
   renderGrid();
 }
 
+const HEAT_PRESETS = [6, 20, 50, 100, 200];
+
 function setHeatWindow(w) {
   dsHeatWindow = w;
-  [20, 50, 100, 200].forEach(n =>
-    document.getElementById('dsHeatW' + n).classList.toggle('active', n === w));
+  HEAT_PRESETS.forEach(n => {
+    const el = document.getElementById('dsHeatW' + n);
+    if (el) el.classList.toggle('active', n === w);
+  });
+  const customEl = document.getElementById('dsHeatCustom');
+  if (customEl && !HEAT_PRESETS.includes(w)) customEl.value = w;
+  else if (customEl && HEAT_PRESETS.includes(w)) customEl.value = '';
   const actual = Math.min(w, dsIdx + 1);
   document.getElementById('dsHeatNote').textContent =
-    actual < w ? `(${actual} διαθέσιμες)` : '';
+    actual < w ? `(${actual} διαθέσιμες)` : `${actual} κλ`;
+  renderGrid();
+}
+
+function setHeatWindowCustom(val) {
+  const w = parseInt(val, 10);
+  if (!w || w < 1) return;
+  HEAT_PRESETS.forEach(n => {
+    const el = document.getElementById('dsHeatW' + n);
+    if (el) el.classList.remove('active');
+  });
+  dsHeatWindow = w;
+  const actual = Math.min(w, dsIdx + 1);
+  document.getElementById('dsHeatNote').textContent =
+    actual < w ? `(${actual} διαθέσιμες)` : `${actual} κλ`;
   renderGrid();
 }
 
