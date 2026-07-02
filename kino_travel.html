@@ -107,6 +107,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsDimBtn" onclick="toggleDimOthers()">🔅 Σκοτείνιασε τους υπόλοιπους</button>
       <button class="btn" id="dsNoDimBtn" onclick="toggleNoDimSelect()">💡 Χωρίς σκοτείνιασμα</button>
       <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
+      <button class="btn" id="dsSoldierBtn" onclick="toggleSoldiers()">⭐ Στρατιώτες</button>
       <button class="btn" id="dsHeatBtn" onclick="toggleHeatMode()" style="margin-left:auto;background:#6a1a1a">🌡 Θερμικός Χάρτης</button>
     </div>
     <div id="dsHeatRow" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px">
@@ -522,11 +523,18 @@ const SOLDIER_TOP  = new Set([56,70,2,51,15,57,35,11,6,8]);
 const SOLDIER_NEXT = new Set([76,61,7,59,72,20,28,49,39,66,77,29,9,55,58,64,24,32,52,68]);
 
 function soldierMark(n, hotStates) {
+  if (!dsShowSoldiers) return { cls: '', star: '' };
   const isSoldier = SOLDIER_TOP.has(n) || SOLDIER_NEXT.has(n);
   const flameCls = isSoldier && hotStates?.[n]?.isHot ? ' ds-onfire' : '';
   if (SOLDIER_TOP.has(n))  return { cls: ' ds-soldier ds-soldier-top' + flameCls, star: '<span class="ds-star">★★</span>' };
   if (SOLDIER_NEXT.has(n)) return { cls: ' ds-soldier' + flameCls, star: '<span class="ds-star">★</span>' };
   return { cls: '', star: '' };
+}
+
+function toggleSoldiers() {
+  dsShowSoldiers = !dsShowSoldiers;
+  document.getElementById('dsSoldierBtn').classList.toggle('active', dsShowSoldiers);
+  renderGrid();
 }
 
 function delayBucket(d) {
@@ -546,6 +554,7 @@ const dsDelayFilter = new Set();
 let dsNoDimSelect = false;
 let dsHeatMode = false;
 let dsHeatWindow = 6;
+let dsShowSoldiers = false;
 
 // ── Heatmap ────────────────────────────────────────────────────────────────
 function computeHeat(draws, idx, w) {
