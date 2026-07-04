@@ -122,6 +122,30 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         onchange="setHeatWindowCustom(this.value)">
       <span id="dsHeatNote" style="font-size:.73rem;color:#c44"></span>
     </div>
+    <div id="dsHeatFilterRow" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="btn-label">🔎 Εμφανίσεις:</span>
+      <button class="btn" id="dsHeatFBtn0"  onclick="dsSetHeatFilter(0)">0</button>
+      <button class="btn" id="dsHeatFBtn1"  onclick="dsSetHeatFilter(1)">1</button>
+      <button class="btn" id="dsHeatFBtn2"  onclick="dsSetHeatFilter(2)">2</button>
+      <button class="btn" id="dsHeatFBtn3"  onclick="dsSetHeatFilter(3)">3</button>
+      <button class="btn" id="dsHeatFBtn4"  onclick="dsSetHeatFilter(4)">4</button>
+      <button class="btn" id="dsHeatFBtn5"  onclick="dsSetHeatFilter(5)">5</button>
+      <button class="btn" id="dsHeatFBtn6"  onclick="dsSetHeatFilter(6)">6</button>
+      <button class="btn" id="dsHeatFBtn7"  onclick="dsSetHeatFilter(7)">7</button>
+      <button class="btn" id="dsHeatFBtn8"  onclick="dsSetHeatFilter(8)">8</button>
+      <button class="btn" id="dsHeatFBtn9"  onclick="dsSetHeatFilter(9)">9</button>
+      <button class="btn" id="dsHeatFBtn10" onclick="dsSetHeatFilter(10)">10</button>
+      <button class="btn" id="dsHeatFBtn11" onclick="dsSetHeatFilter(11)">11</button>
+      <button class="btn" id="dsHeatFBtn12" onclick="dsSetHeatFilter(12)">12</button>
+      <button class="btn" id="dsHeatFBtn13" onclick="dsSetHeatFilter(13)">13</button>
+      <button class="btn" id="dsHeatFBtn14" onclick="dsSetHeatFilter(14)">14</button>
+      <button class="btn" id="dsHeatFBtn15" onclick="dsSetHeatFilter(15)">15</button>
+      <button class="btn" id="dsHeatFBtn16" onclick="dsSetHeatFilter(16)">16</button>
+      <button class="btn" id="dsHeatFBtn17" onclick="dsSetHeatFilter(17)">17</button>
+      <button class="btn" id="dsHeatFBtn18" onclick="dsSetHeatFilter(18)">18</button>
+      <button class="btn" id="dsHeatFBtn19" onclick="dsSetHeatFilter(19)">19</button>
+      <button class="btn" id="dsHeatFBtn20" onclick="dsSetHeatFilter(20)">20</button>
+    </div>
     <div id="dsDelayFilterRow">
       <span class="btn-label">🔎 Καθυστέρηση:</span>
       <button class="btn" id="dsDelayFilterBtn0"  onclick="dsSetDelayFilter(0)">0</button>
@@ -555,6 +579,7 @@ let dsNoDimSelect = false;
 let dsHeatMode = false;
 let dsHeatWindow = 6;
 let dsShowSoldiers = false;
+const dsHeatFilter = new Set();
 
 // ── Heatmap ────────────────────────────────────────────────────────────────
 function computeHeat(draws, idx, w) {
@@ -580,9 +605,19 @@ function toggleHeatMode() {
   btn.classList.toggle('active', dsHeatMode);
   btn.style.background = dsHeatMode ? '' : '#6a1a1a';
   document.getElementById('dsHeatRow').style.display = dsHeatMode ? 'flex' : 'none';
+  document.getElementById('dsHeatFilterRow').style.display = dsHeatMode ? 'flex' : 'none';
+  document.getElementById('dsDelayFilterRow').style.display = dsHeatMode ? 'none' : 'flex';
   document.getElementById('dsHeatLegend').style.display = dsHeatMode ? 'flex' : 'none';
   document.getElementById('dsLegend').style.display = dsHeatMode ? 'none' : 'flex';
+  if (!dsHeatMode) dsHeatFilter.clear();
   if (dsHeatMode) setHeatWindow(dsHeatWindow);
+  renderGrid();
+}
+
+function dsSetHeatFilter(v) {
+  if (dsHeatFilter.has(v)) dsHeatFilter.delete(v);
+  else dsHeatFilter.add(v);
+  document.getElementById('dsHeatFBtn' + v).classList.toggle('active', dsHeatFilter.has(v));
   renderGrid();
 }
 
@@ -632,9 +667,9 @@ function renderGrid() {
     const sm = soldierMark(n, hotStates);
     const sel = dsSelected.has(n) ? ' ds-selected' : '';
     if (heatFreq) {
-      // Heat mode: replace background with red-intensity color, show count
+      const faded = (dsHeatFilter.size > 0 && !dsHeatFilter.has(heatFreq[n])) ? ' ds-delay-faded' : '';
       const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
-      cells.push(`<div class="ds-cell${sm.cls}${sel}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${heatFreq[n]}×</span></div>`);
+      cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${heatFreq[n]}×</span></div>`);
     } else {
       const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
       cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
