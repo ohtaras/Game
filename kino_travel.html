@@ -568,6 +568,13 @@ function delayBucket(d) {
   if (d <= 9)  return 'ds-69';
   return 'ds-10p';
 }
+function delayColor(d) {
+  if (d === 0) return '#dde';
+  if (d <= 2)  return '#90caf9';
+  if (d <= 5)  return '#ffe082';
+  if (d <= 9)  return '#ffb74d';
+  return '#ef9a9a';
+}
 
 // ── State ──────────────────────────────────────────────────────────────────
 let dsDraws = [];
@@ -671,7 +678,7 @@ function renderGrid() {
       const delayFaded = dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n]);
       const faded = (heatFaded || delayFaded) ? ' ds-delay-faded' : '';
       const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
-      cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d" style="display:flex;justify-content:space-between;padding:0 1px"><span>${heatFreq[n]}&times;</span><span style="color:#adf;opacity:.85">${delays[n]}</span></span></div>`);
+      cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d" style="display:flex;justify-content:space-between;padding:0 1px"><span>${heatFreq[n]}&times;</span><span style="color:${delayColor(delays[n])};font-weight:700;text-shadow:0 0 4px rgba(0,0,0,.8)">${delays[n]}</span></span></div>`);
     } else {
       const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
       cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
