@@ -671,7 +671,7 @@ function renderGrid() {
       const delayFaded = dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n]);
       const faded = (heatFaded || delayFaded) ? ' ds-delay-faded' : '';
       const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
-      cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${heatFreq[n]}×</span></div>`);
+      cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d" style="display:flex;justify-content:space-between;padding:0 1px"><span>${heatFreq[n]}&times;</span><span style="color:#adf;opacity:.85">${delays[n]}</span></span></div>`);
     } else {
       const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
       cells.push(`<div class="ds-cell ${delayBucket(delays[n])}${sm.cls}${sel}${faded}" onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${delays[n]}</span></div>`);
