@@ -31,8 +31,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .ds-cell.ds-selected{outline:2px solid #fff;outline-offset:1px}
 .ds-cell.ds-delay-faded{opacity:.12;filter:grayscale(1)}
 #dsDelayFilterRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-#dsHeatBtn.active~* #dsDelayFilterRow,
-body.heat-on #dsDelayFilterRow{display:none!important}
 #dsDelayFilterRow .btn{padding:6px 12px;font-size:.78rem}
 #dsDelayFilterRow .btn-label{font-size:.78rem;color:#999;margin-right:2px}
 .ds-cell.ds-onfire .ds-n{position:relative;z-index:1;color:#fff;text-shadow:0 0 3px #000,0 0 6px #000}
@@ -609,7 +607,6 @@ function toggleHeatMode() {
   document.body.classList.toggle('heat-on', dsHeatMode);
   document.getElementById('dsHeatRow').style.display        = dsHeatMode ? 'flex' : 'none';
   document.getElementById('dsHeatFilterRow').style.display  = dsHeatMode ? 'flex' : 'none';
-  document.getElementById('dsDelayFilterRow').style.display = dsHeatMode ? 'none' : 'flex';
   document.getElementById('dsHeatLegend').style.display     = dsHeatMode ? 'flex' : 'none';
   document.getElementById('dsLegend').style.display         = dsHeatMode ? 'none' : 'flex';
   if (!dsHeatMode) dsHeatFilter.clear();
@@ -670,7 +667,9 @@ function renderGrid() {
     const sm = soldierMark(n, hotStates);
     const sel = dsSelected.has(n) ? ' ds-selected' : '';
     if (heatFreq) {
-      const faded = (dsHeatFilter.size > 0 && !dsHeatFilter.has(heatFreq[n])) ? ' ds-delay-faded' : '';
+      const heatFaded  = dsHeatFilter.size > 0  && !dsHeatFilter.has(heatFreq[n]);
+      const delayFaded = dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n]);
+      const faded = (heatFaded || delayFaded) ? ' ds-delay-faded' : '';
       const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
       cells.push(`<div class="ds-cell${sm.cls}${sel}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d">${heatFreq[n]}×</span></div>`);
     } else {
