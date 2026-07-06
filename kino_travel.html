@@ -75,6 +75,16 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .eval-badge.ok{background:#2a2a00;color:#ffd54f;border:1px solid #ffd54f}
 .eval-badge.miss{background:#1a1a1a;color:#666;border:1px solid #333}
 #syncNote{font-size:.7rem;color:#555;margin-top:6px}
+/* ── Mystical Prediction ── */
+#mystControls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+#mystControls select,#mystControls input[type=number]{padding:6px 10px;background:#1a1a2e;color:#e8e8e8;border:1px solid #3a3a6a;border-radius:8px;font-size:.82rem;outline:none}
+#mystControls input[type=number]{width:62px}
+.myst-numbers{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.myst-num{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#3a0070,#1a004a);border:2px solid #9c44dd;color:#e2b4ff;font-size:1.1rem;font-weight:800;box-shadow:0 0 10px rgba(156,68,221,.35)}
+.myst-desc{background:#0a080f;border:1px solid #2a1a3a;border-radius:10px;padding:14px;font-size:.78rem;color:#bbb;line-height:1.8;margin-top:4px}
+.myst-desc p{margin:0 0 7px 0}
+.myst-desc p:last-child{margin-bottom:0}
+.myst-desc strong{color:#e2b4ff}
 
 @media(max-width:600px){
   body{overflow-x:hidden}
@@ -210,6 +220,26 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div id="dsBonusGrid"></div>
     </div>
     <div id="syncNote"></div>
+  </section>
+
+  <section id="mystSec">
+    <h2>🔮 Μυστικιστική Πρόβλεψη ΚΙΝΟ</h2>
+    <p style="font-size:.78rem;color:#888;margin-bottom:12px">Η πρόβλεψη «κλειδώνεται» στη στρογγυλή ώρα που επιλέγεις — ίδιοι αριθμοί για όλους μέχρι την επόμενη ώρα.</p>
+    <div id="mystControls">
+      <span style="font-size:.82rem;color:#aaa">Ώρα κλήρωσης:</span>
+      <select id="mystHour" onchange="renderMystical()">
+        <option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option>
+        <option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option>
+        <option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option>
+        <option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option>
+        <option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option>
+        <option value="22">22:00</option><option value="23">23:00</option>
+      </select>
+      <span style="font-size:.82rem;color:#aaa">Αριθμοί:</span>
+      <input id="mystCount" type="number" min="1" max="20" value="9" onchange="renderMystical()">
+      <button class="btn" onclick="renderMystical()" style="background:#3a0070;border:1px solid #9c44dd">🔮 Πρόβλεψη</button>
+    </div>
+    <div id="mystOutput"></div>
   </section>
 
   <section>
@@ -967,7 +997,95 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateStatus();
   setInterval(updateStatus, 1000);
   scheduleRefresh();
+  initMystical();
 });
+
+// ── Mystical Prediction ─────────────────────────────────────────────────────
+const MYST_ZODIAC = [
+  {name:'Αιγόκερως', el:'Γη',    emoji:'♑', metal:'Μόλυβδος'},
+  {name:'Υδροχόος',  el:'Αέρας', emoji:'♒', metal:'Αλουμίνιο'},
+  {name:'Ιχθείς',    el:'Νερό',  emoji:'♓', metal:'Κασσίτερος'},
+  {name:'Κριός',     el:'Φωτιά', emoji:'♈', metal:'Σίδηρος'},
+  {name:'Ταύρος',    el:'Γη',    emoji:'♉', metal:'Χαλκός'},
+  {name:'Δίδυμοι',   el:'Αέρας', emoji:'♊', metal:'Υδράργυρος'},
+  {name:'Καρκίνος',  el:'Νερό',  emoji:'♋', metal:'Ασήμι'},
+  {name:'Λέων',      el:'Φωτιά', emoji:'♌', metal:'Χρυσός'},
+  {name:'Παρθένος',  el:'Γη',    emoji:'♍', metal:'Νικέλιο'},
+  {name:'Ζυγός',     el:'Αέρας', emoji:'♎', metal:'Χαλκός'},
+  {name:'Σκορπιός',  el:'Νερό',  emoji:'♏', metal:'Σίδηρος'},
+  {name:'Τοξότης',   el:'Φωτιά', emoji:'♐', metal:'Κασσίτερος'},
+];
+const MYST_DAY_PLANETS = ['Ήλιος ☀️','Σελήνη 🌙','Άρης ♂️','Ερμής ☿','Δίας ♃','Αφροδίτη ♀️','Κρόνος ♄'];
+const MYST_MOON_PHASES  = ['Νέα Σελήνη 🌑','Αυξανόμενη Ημισέληνος 🌒','Πρώτο Τέταρτο 🌓','Αυξανόμενη Αμφίκυρτος 🌔','Πανσέληνος 🌕','Φθίνουσα Αμφίκυρτος 🌖','Τελευταίο Τέταρτο 🌗','Φθίνουσα Ημισέληνος 🌘'];
+const MYST_ATHENS_TEMP  = [10,11,13,17,22,27,30,30,26,21,16,12];
+
+function mystZodiacIdx(month, day) {
+  const cutoffs = [19,18,20,19,20,20,22,22,22,22,21,21];
+  return day <= cutoffs[month - 1] ? month - 1 : month % 12;
+}
+function mystMoonPhase(date) {
+  const ref  = Date.UTC(2025, 0, 29);
+  const days = (date.getTime() - ref) / 86400000;
+  const cyc  = 29.53059;
+  return Math.floor(((days % cyc + cyc) % cyc) / (cyc / 8)) % 8;
+}
+function mystDayOfYear(date) {
+  return Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+}
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function initMystical() {
+  const now = new Date();
+  const sel = document.getElementById('mystHour');
+  const nextHour = now.getHours() < 23 ? now.getHours() + 1 : 23;
+  sel.value = String(nextHour);
+  renderMystical();
+}
+
+function renderMystical() {
+  const hour  = parseInt(document.getElementById('mystHour').value);
+  const count = Math.min(20, Math.max(1, parseInt(document.getElementById('mystCount').value) || 9));
+  const now   = new Date();
+  const d     = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+  const month = d.getMonth() + 1;
+  const day   = d.getDate();
+  const zi    = mystZodiacIdx(month, day);
+  const z     = MYST_ZODIAC[zi];
+  const moon  = mystMoonPhase(d);
+  const dow   = d.getDay();
+  const doy   = mystDayOfYear(d);
+  const temp  = MYST_ATHENS_TEMP[d.getMonth()];
+  const spell = String(d.getFullYear() * 1000000 + month * 10000 + day * 100 + hour)
+                .split('').reduce((s, c) => s + parseInt(c), 0);
+
+  const seed = d.getFullYear() * 1000000 + month * 10000 + day * 100 + hour
+             + zi * 777 + moon * 333 + dow * 111 + doy * 17 + spell * 7;
+  const rng  = mulberry32(seed);
+  const pool = Array.from({length: 80}, (_, i) => i + 1);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked = pool.slice(0, count).sort((a, b) => a - b);
+
+  const timeStr  = `${String(hour).padStart(2,'0')}:00`;
+  const dateLabel = `${day}/${month}/${d.getFullYear()}`;
+
+  document.getElementById('mystOutput').innerHTML = `
+    <div class="myst-numbers">${picked.map(n => `<span class="myst-num">${n}</span>`).join('')}</div>
+    <div class="myst-desc">
+      <p>🔮 Ακριβώς τη στιγμή της κλήρωσης (<strong>${dateLabel}, ${timeStr}, ώρα Ελλάδος</strong>) το σύμπαν θα είναι παγιδευμένο σε αυτή τη συγκεκριμένη διάταξη — αυτό το ζώδιο στον ουρανό, αυτή η σεληνιακή φάση, αυτός ο πλανήτης να κυβερνά την ημέρα — και τίποτα άλλο. Η «συνταγή» παρακάτω είναι «κλειδωμένη» σε αυτή ακριβώς τη συνωμοσία του σύμπαντος, όχι στη στιγμή που ανοίγεις τη σελίδα, οπότε δίνει πάντα τους ίδιους αριθμούς μέχρι να σημάνει η κλήρωση:</p>
+      <p>${z.emoji} Ζώδιο τη στιγμή της κλήρωσης: <strong>${z.name}</strong> (στοιχείο ${z.el}) · 🪐 Πλανήτης που κυβερνά εκείνη την ημέρα: <strong>${MYST_DAY_PLANETS[dow]}</strong> (μέταλλο ${z.metal}) · 🌙 Σεληνιακή φάση εκείνη τη νύχτα: <strong>${MYST_MOON_PHASES[moon]}</strong></p>
+      <p>🌡️ Εποχιακή θερμοκρασία Αθήνας: <strong>${temp}°C</strong> · 📜 Αξία ξορκιού (αριθμοσοφία): <strong>${spell}</strong> · 📅 Ημέρα του έτους: <strong>${doy}</strong></p>
+    </div>`;
+}
 </script>
 </body>
 </html>
