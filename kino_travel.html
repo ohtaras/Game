@@ -231,6 +231,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div id="dsMystResult" style="margin-top:5px"></div>
       <div style="margin-top:10px;border-top:1px solid #1e1428;padding-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <button class="btn" onclick="runMysticalBacktest()" style="padding:5px 12px;font-size:.72rem;background:#2a0050;border:1px solid #6a20a0">🔬 Back-test Συνταγών</button>
+        <button class="btn" id="dsMystBtToggle" onclick="toggleMystBtResults()" style="padding:5px 10px;font-size:.72rem;background:#12101a;border:1px solid #2a1a3a;display:none">▼ Απόκρυψη</button>
         <span style="font-size:.7rem;color:#555" id="dsMystBtStatus"></span>
       </div>
       <div id="dsMystBtResults"></div>
@@ -1240,6 +1241,18 @@ async function runMysticalBacktest() {
 
   resEl.innerHTML = `<div style="font-size:.7rem;color:#555;margin-bottom:6px">Αξιολόγηση ${n-1} κληρώσεων · baseline ${expected.toFixed(2)} hits (${(expected/count*100).toFixed(0)}%) · κλικ σε συνταγή για ενεργοποίηση</div>${rows}`;
   statusEl.textContent = `✓ ${MYST_RECIPES.length} συνταγές σε ${n-1} κλ.`;
+  resEl.style.display = '';
+  const tog = document.getElementById('dsMystBtToggle');
+  tog.style.display = '';
+  tog.textContent = '▲ Απόκρυψη';
+}
+
+function toggleMystBtResults() {
+  const resEl = document.getElementById('dsMystBtResults');
+  const tog   = document.getElementById('dsMystBtToggle');
+  const hidden = resEl.style.display === 'none';
+  resEl.style.display = hidden ? '' : 'none';
+  tog.textContent = hidden ? '▲ Απόκρυψη' : '▼ Εμφάνιση';
 }
 
 function selectMystRecipe(sortedIdx) {
