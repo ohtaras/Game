@@ -101,6 +101,14 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .myst-mini-num.myst-mini-bonus{background:#1a0030;color:#e2b4ff;border-color:#9c44dd}
 .myst-ph-score{font-size:.78rem;font-weight:700;padding:4px 0}
 .myst-ph-label{font-size:.68rem;color:#666;margin-bottom:3px}
+/* Backtest */
+#dsMystBtResults{margin-top:10px;display:flex;flex-direction:column;gap:3px}
+.myst-bt-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:7px;border:1px solid #1e1428;background:#0a0810;gap:8px;flex-wrap:wrap}
+.myst-bt-row.myst-bt-winner{background:#1a0035;border-color:#9c44dd}
+.myst-bt-name{font-size:.76rem;flex:1}
+.myst-bt-score{font-size:.76rem;font-weight:700;white-space:nowrap}
+.myst-bt-bar{height:4px;border-radius:2px;background:#3a1060;margin-top:3px}
+.myst-bt-bar-fill{height:4px;border-radius:2px;background:#9c44dd}
 
 @media(max-width:600px){
   body{overflow-x:hidden}
@@ -220,6 +228,11 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       </div>
       <div id="dsMystNumbers"></div>
       <div id="dsMystResult" style="margin-top:5px"></div>
+      <div style="margin-top:10px;border-top:1px solid #1e1428;padding-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="runMysticalBacktest()" style="padding:5px 12px;font-size:.72rem;background:#2a0050;border:1px solid #6a20a0">🔬 Back-test Συνταγών</button>
+        <span style="font-size:.7rem;color:#555" id="dsMystBtStatus"></span>
+      </div>
+      <div id="dsMystBtResults"></div>
     </div>
     <div id="dsLegend">
       <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
@@ -1097,6 +1110,113 @@ function renderTravelMystical() {
     `${z.emoji} ${z.name} · ${MYST_MOON_PHASES[moon].split(' ').slice(0,2).join(' ')} · ${MYST_DAY_PLANETS[dow].split(' ')[0]}`;
   document.getElementById('dsMystNumbers').innerHTML = `<div class="myst-mini-row">${numHtml}</div>`;
   document.getElementById('dsMystResult').innerHTML  = resultHtml;
+}
+
+// ── Backtest ─────────────────────────────────────────────────────────────────
+const MYST_RECIPES = [
+  { name: '🔮 Τρέχουσα Συνταγή',   c: [31337, 127,  777,  333,  111,  17]  },
+  { name: '🌙 Σεληνιακή',          c: [7,     7,    1,    9999, 1,    1]   },
+  { name: '♈ Ζωδιακή',             c: [7,     7,    9999, 1,    1,    1]   },
+  { name: '⏱ Χρονική (slot)',       c: [1,     9999, 1,    1,    1,    1]   },
+  { name: '🔢 Αριθμητική (ID)',      c: [9999,  1,    1,    1,    1,    1]   },
+  { name: '📅 Ετήσια (doy)',         c: [1,     1,    1,    1,    1,    9999]},
+  { name: '📆 Εβδομαδιαία (dow)',    c: [1,     1,    1,    1,    9999, 1]   },
+  { name: '🌙♈ Σελήνη+Ζώδιο',       c: [7,     7,    4999, 4999, 111,  77]  },
+  { name: '⏱🔢 Χρόνος+ID',          c: [4999,  4999, 1,    1,    1,    1]   },
+  { name: '☯ Όλα Ίσα',              c: [1,     1,    1,    1,    1,    1]   },
+  { name: '🌀 Fibonacci',            c: [1597,  987,  610,  377,  233,  144] },
+  { name: '⚡ Δυνάμεις ×2',          c: [64,    32,   16,   8,    4,    2]   },
+  { name: '🧮 Πρώτοι Αρ.',           c: [2,     3,    5,    7,    11,   13]  },
+  { name: '🌟 Μεγάλοι Πρώτοι',       c: [9973,  9967, 9949, 9941, 9929, 9923]},
+  { name: '🔥 Φωτιά',               c: [1193,  1201, 1213, 1217, 1223, 1229]},
+  { name: '🌊 Νερό',                c: [13337, 97,   888,  222,  66,   11]  },
+  { name: '🌍 Γη',                  c: [7777,  77,   444,  555,  33,   99]  },
+  { name: '💨 Αέρας',               c: [11111, 53,   666,  444,  77,   7]   },
+  { name: '🌕 Πανσέληνος',          c: [7,     13,   37,   9999, 37,   13]  },
+  { name: '☀️ Ηλιακή',              c: [7,     13,   37,   1,    9999, 13]  },
+  { name: '🌀 Χαοτική',             c: [54321, 12345,98765,56789,13579,24680]},
+  { name: '📐 Χρυσή Τομή',          c: [1618,  1000, 618,  382,  236,  146] },
+  { name: '🔵 Κύκλος (π)',           c: [3141,  5926, 5358, 9793, 2384, 6264]},
+  { name: '🧿 Τριπλό 3',            c: [333,   3,    33333,3333, 333,  33]  },
+  { name: '🎴 Κινεζικό 8',          c: [8888,  88,   888,  8,    88,   8]   },
+  { name: '🏛 Ολυμπιακή',           c: [1009,  1013, 1019, 1021, 1031, 1033]},
+  { name: '🔁 Εναλλαγή',            c: [1,     9999, 1,    9999, 1,    9999]},
+  { name: '🌗 Ήμισυ Σελήνης',       c: [37,    37,   333,  999,  99,   33]  },
+  { name: '🦋 Πυθαγόρας',           c: [3,     4,    5,    12,   13,   169] },
+  { name: '⭐ Πεντάγραμμο',         c: [5,     55,   555,  5555, 55555,5]   },
+];
+
+async function runMysticalBacktest() {
+  const draws = dsDraws;
+  if (draws.length < 10) {
+    document.getElementById('dsMystBtStatus').textContent = 'Χρειάζονται τουλάχιστον 10 κληρώσεις.';
+    return;
+  }
+  const count   = Math.min(20, Math.max(1, parseInt(document.getElementById('dsMystCount').value) || 9));
+  const statusEl = document.getElementById('dsMystBtStatus');
+  const resEl    = document.getElementById('dsMystBtResults');
+  resEl.innerHTML = '';
+  statusEl.textContent = '⏳ Εκτελείται…';
+
+  // Pre-compute factors for all draws
+  const factors = draws.map(draw => {
+    const id   = draw.id;
+    const slot = ((id - FIRST_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+    const dayN = Math.floor((id - LIVE_BASE_ID) / DRAWS_PER_DAY);
+    const d    = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+    const m    = d.getUTCMonth() + 1, dy = d.getUTCDate();
+    const zi   = mystZodiacIdx(m, dy);
+    const moon = mystMoonPhase(d);
+    const dow  = d.getUTCDay();
+    const doy  = Math.round((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 0))) / 86400000);
+    return { id, slot, zi, moon, dow, doy, actual: draw.n };
+  });
+
+  const n = factors.length;
+  const results = [];
+
+  for (let ri = 0; ri < MYST_RECIPES.length; ri++) {
+    const { name, c } = MYST_RECIPES[ri];
+    let totalHits = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const f    = factors[i];
+      const next = factors[i + 1];
+      const seed = f.id * c[0] + f.slot * c[1] + f.zi * c[2] + f.moon * c[3] + f.dow * c[4] + f.doy * c[5];
+      const rng  = mulberry32(seed);
+      const pool = Array.from({length: 80}, (_, k) => k + 1);
+      for (let k = 79; k > 0; k--) {
+        const j = Math.floor(rng() * (k + 1));
+        const tmp = pool[k]; pool[k] = pool[j]; pool[j] = tmp;
+      }
+      const picked = pool.slice(0, count);
+      const actSet = new Set(next.actual);
+      for (const p of picked) if (actSet.has(p)) totalHits++;
+    }
+    results.push({ name, avg: totalHits / (n - 1) });
+    if (ri % 5 === 4) await new Promise(r => setTimeout(r, 0));
+  }
+
+  results.sort((a, b) => b.avg - a.avg);
+  const expected = count * 20 / 80;
+  const best     = results[0].avg;
+  const worst    = results[results.length - 1].avg;
+  const range    = best - worst || 1;
+
+  const rows = results.map((r, i) => {
+    const pct   = (r.avg / count * 100).toFixed(1);
+    const color = r.avg >= best - 0.01 ? '#c4a0e8' : r.avg > expected ? '#86efac' : '#666';
+    const fill  = Math.round((r.avg - worst) / range * 100);
+    return `<div class="myst-bt-row${i === 0 ? ' myst-bt-winner' : ''}">
+      <div style="flex:1;min-width:0">
+        <div class="myst-bt-name">${i === 0 ? '🏆 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}${r.name}</div>
+        <div class="myst-bt-bar"><div class="myst-bt-bar-fill" style="width:${fill}%"></div></div>
+      </div>
+      <div class="myst-bt-score" style="color:${color}">${r.avg.toFixed(3)} avg<br><span style="font-size:.65rem;opacity:.7">${pct}% / αναμ. ${(expected/count*100).toFixed(0)}%</span></div>
+    </div>`;
+  }).join('');
+
+  resEl.innerHTML = `<div style="font-size:.7rem;color:#555;margin-bottom:6px">Αξιολόγηση ${n-1} κληρώσεων · baseline ${expected.toFixed(2)} hits (${(expected/count*100).toFixed(0)}%)</div>${rows}`;
+  statusEl.textContent = `✓ ${MYST_RECIPES.length} συνταγές σε ${n-1} κλ.`;
 }
 </script>
 </body>
