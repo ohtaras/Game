@@ -94,9 +94,10 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .myst-ph-header.open .myst-ph-arrow{transform:rotate(90deg)}
 .myst-ph-body{display:none;padding:12px 14px;background:#090610;border-top:1px solid #1e1428}
 .myst-mini-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;margin-bottom:8px}
-.myst-mini-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:.65rem;font-weight:800;background:#1a0a2e;color:#5a3a8a;border:1px solid #2a1a4a}
+.myst-mini-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:.65rem;font-weight:800;background:#1a0a2e;color:#5a3a8a;border:1px solid #2a1a4a;cursor:pointer;user-select:none}
 .myst-mini-num.myst-mini-pred{background:#2a0060;color:#d4a0ff;border-color:#7c3aed}
 .myst-mini-num.myst-mini-hit{background:#002800;color:#86efac;border-color:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
+.myst-mini-num.myst-mini-sel{outline:2px solid #fff;outline-offset:2px}
 .myst-mini-num.myst-mini-actual{background:#1a1200;color:#c9a227;border-color:#7c5c00}
 .myst-mini-num.myst-mini-bonus{background:#1a0030;color:#e2b4ff;border-color:#9c44dd}
 .myst-ph-score{font-size:.78rem;font-weight:700;padding:4px 0}
@@ -1115,13 +1116,13 @@ function renderTravelMystical() {
     const actualSet = new Set(nextDraw.n);
     const hits = picked.filter(n => actualSet.has(n));
     numHtml = picked.map(n =>
-      `<span class="myst-mini-num ${actualSet.has(n) ? 'myst-mini-hit' : 'myst-mini-pred'}">${n}</span>`
+      `<span class="myst-mini-num ${actualSet.has(n) ? 'myst-mini-hit' : 'myst-mini-pred'}${dsSelected.has(n) ? ' myst-mini-sel' : ''}" onclick="dsToggleSelect(${n})">${n}</span>`
     ).join('');
     const scoreColor = hits.length >= 6 ? '#22c55e' : hits.length >= 4 ? '#ffd54f' : hits.length >= 2 ? '#c4a0e8' : '#555';
     const recipeLabel = dsMystActiveRecipe ? ` <span style="font-size:.65rem;color:#7c3aed;opacity:.8">[${dsMystActiveRecipe.name}]</span>` : '';
     resultHtml = `<span style="font-size:.75rem;font-weight:700;color:${scoreColor}">✓ ${hits.length}/${count} στη #${nextDraw.id} · ~${timeOfDay(nextDraw.id)}</span>${recipeLabel}`;
   } else {
-    numHtml = picked.map(n => `<span class="myst-mini-num myst-mini-pred">${n}</span>`).join('');
+    numHtml = picked.map(n => `<span class="myst-mini-num myst-mini-pred${dsSelected.has(n) ? ' myst-mini-sel' : ''}" onclick="dsToggleSelect(${n})">${n}</span>`).join('');
     const recipeLabel = dsMystActiveRecipe ? ` <span style="font-size:.65rem;color:#7c3aed;opacity:.8">[${dsMystActiveRecipe.name}]</span>` : '';
     resultHtml = `<span style="font-size:.72rem;color:#555">⏳ Αναμένεται αξιολόγηση</span>${recipeLabel}`;
   }
