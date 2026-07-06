@@ -1094,7 +1094,20 @@ function renderTravelMystical() {
   const isLast   = !nextDraw;
 
   const { picked, z, moon, dow, timeStr } = generateDrawPrediction(draw.id, count);
-  const predSet = new Set(picked);
+
+  // Update panel border and recipe badge on every render
+  const panel    = document.getElementById('dsMystPanel');
+  const nameEl   = document.getElementById('dsMystActiveName');
+  if (dsMystActiveRecipe) {
+    panel.style.border      = '1px solid #7c3aed';
+    panel.style.boxShadow   = '0 0 8px rgba(124,58,237,.25)';
+    nameEl.textContent      = `⚗️ ${dsMystActiveRecipe.name}`;
+    nameEl.style.display    = '';
+  } else {
+    panel.style.border      = '1px solid #2a1a3a';
+    panel.style.boxShadow   = '';
+    nameEl.style.display    = 'none';
+  }
 
   let numHtml, resultHtml;
   if (!isLast) {
@@ -1104,10 +1117,12 @@ function renderTravelMystical() {
       `<span class="myst-mini-num ${actualSet.has(n) ? 'myst-mini-hit' : 'myst-mini-pred'}">${n}</span>`
     ).join('');
     const scoreColor = hits.length >= 6 ? '#22c55e' : hits.length >= 4 ? '#ffd54f' : hits.length >= 2 ? '#c4a0e8' : '#555';
-    resultHtml = `<span style="font-size:.75rem;font-weight:700;color:${scoreColor}">✓ ${hits.length}/${count} στη #${nextDraw.id} · ~${timeOfDay(nextDraw.id)}</span>`;
+    const recipeLabel = dsMystActiveRecipe ? ` <span style="font-size:.65rem;color:#7c3aed;opacity:.8">[${dsMystActiveRecipe.name}]</span>` : '';
+    resultHtml = `<span style="font-size:.75rem;font-weight:700;color:${scoreColor}">✓ ${hits.length}/${count} στη #${nextDraw.id} · ~${timeOfDay(nextDraw.id)}</span>${recipeLabel}`;
   } else {
     numHtml = picked.map(n => `<span class="myst-mini-num myst-mini-pred">${n}</span>`).join('');
-    resultHtml = '<span style="font-size:.72rem;color:#555">⏳ Αναμένεται αξιολόγηση</span>';
+    const recipeLabel = dsMystActiveRecipe ? ` <span style="font-size:.65rem;color:#7c3aed;opacity:.8">[${dsMystActiveRecipe.name}]</span>` : '';
+    resultHtml = `<span style="font-size:.72rem;color:#555">⏳ Αναμένεται αξιολόγηση</span>${recipeLabel}`;
   }
 
   document.getElementById('dsMystDesc').textContent =
