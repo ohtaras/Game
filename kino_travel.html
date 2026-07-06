@@ -224,6 +224,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <span style="font-size:.78rem;font-weight:600;color:#c4a0e8">🔮 Μυστικιστική Πρόβλεψη</span>
         <span style="font-size:.7rem;color:#5a3a7a" id="dsMystDesc"></span>
+        <span id="dsMystActiveName" style="font-size:.68rem;color:#7c3aed;background:#1a0035;padding:2px 7px;border-radius:10px;border:1px solid #4a1080;display:none"></span>
         <span style="font-size:.72rem;color:#888;margin-left:auto;white-space:nowrap">Αρ.: <input id="dsMystCount" type="number" min="1" max="20" value="9" onchange="renderGrid()" style="width:46px;padding:3px 6px;background:#1a1a2e;color:#e8e8e8;border:1px solid #3a3a6a;border-radius:6px;font-size:.72rem;outline:none"></span>
       </div>
       <div id="dsMystNumbers"></div>
@@ -650,6 +651,8 @@ let dsHeatMode = false;
 let dsHeatWindow = 6;
 let dsShowSoldiers = false;
 const dsHeatFilter = new Set();
+let dsMystActiveRecipe = null;   // null = use default formula; set to {name, c} to override
+let dsMystBtSorted    = [];      // last backtest sorted results (for selection)
 
 // ── Heatmap ────────────────────────────────────────────────────────────────
 function computeHeat(draws, idx, w) {
@@ -1071,7 +1074,8 @@ function generateDrawPrediction(drawId, count) {
   const dow   = d.getUTCDay();
   const doy   = Math.round((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 0))) / 86400000);
   const mins  = slot * 5;
-  const seed  = drawId * 31337 + slot * 127 + zi * 777 + moon * 333 + dow * 111 + doy * 17;
+  const c     = dsMystActiveRecipe ? dsMystActiveRecipe.c : [31337, 127, 777, 333, 111, 17];
+  const seed  = drawId * c[0] + slot * c[1] + zi * c[2] + moon * c[3] + dow * c[4] + doy * c[5];
   const rng   = mulberry32(seed);
   const pool  = Array.from({length: 80}, (_, i) => i + 1);
   for (let i = pool.length - 1; i > 0; i--) {
@@ -1202,21 +1206,60 @@ async function runMysticalBacktest() {
   const worst    = results[results.length - 1].avg;
   const range    = best - worst || 1;
 
+  dsMystBtSorted = results;
+
   const rows = results.map((r, i) => {
-    const pct   = (r.avg / count * 100).toFixed(1);
-    const color = r.avg >= best - 0.01 ? '#c4a0e8' : r.avg > expected ? '#86efac' : '#666';
-    const fill  = Math.round((r.avg - worst) / range * 100);
-    return `<div class="myst-bt-row${i === 0 ? ' myst-bt-winner' : ''}">
+    const pct      = (r.avg / count * 100).toFixed(1);
+    const color    = r.avg >= best - 0.01 ? '#c4a0e8' : r.avg > expected ? '#86efac' : '#666';
+    const fill     = Math.round((r.avg - worst) / range * 100);
+    const isActive = dsMystActiveRecipe && dsMystActiveRecipe.name === r.name;
+    return `<div class="myst-bt-row${i === 0 ? ' myst-bt-winner' : ''}" onclick="selectMystRecipe(${i})"
+      style="cursor:pointer${isActive ? ';outline:2px solid #9c44dd;outline-offset:1px' : ''}">
       <div style="flex:1;min-width:0">
-        <div class="myst-bt-name">${i === 0 ? '🏆 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}${r.name}</div>
+        <div class="myst-bt-name">${i === 0 ? '🏆 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ''}${r.name}${isActive ? ' ✓' : ''}</div>
         <div class="myst-bt-bar"><div class="myst-bt-bar-fill" style="width:${fill}%"></div></div>
       </div>
       <div class="myst-bt-score" style="color:${color}">${r.avg.toFixed(3)} avg<br><span style="font-size:.65rem;opacity:.7">${pct}% / αναμ. ${(expected/count*100).toFixed(0)}%</span></div>
     </div>`;
   }).join('');
 
-  resEl.innerHTML = `<div style="font-size:.7rem;color:#555;margin-bottom:6px">Αξιολόγηση ${n-1} κληρώσεων · baseline ${expected.toFixed(2)} hits (${(expected/count*100).toFixed(0)}%)</div>${rows}`;
+  resEl.innerHTML = `<div style="font-size:.7rem;color:#555;margin-bottom:6px">Αξιολόγηση ${n-1} κληρώσεων · baseline ${expected.toFixed(2)} hits (${(expected/count*100).toFixed(0)}%) · κλικ σε συνταγή για ενεργοποίηση</div>${rows}`;
   statusEl.textContent = `✓ ${MYST_RECIPES.length} συνταγές σε ${n-1} κλ.`;
+}
+
+function selectMystRecipe(sortedIdx) {
+  const recipe = dsMystBtSorted[sortedIdx];
+  if (!recipe) return;
+  const isSame = dsMystActiveRecipe && dsMystActiveRecipe.name === recipe.name;
+  dsMystActiveRecipe = isSame ? null : recipe;
+  const nameEl = document.getElementById('dsMystActiveName');
+  if (dsMystActiveRecipe) {
+    nameEl.textContent = dsMystActiveRecipe.name;
+    nameEl.style.display = '';
+  } else {
+    nameEl.style.display = 'none';
+  }
+  renderGrid();
+  // Refresh backtest rows to show active marker (no re-run, just re-render last results)
+  const resEl   = document.getElementById('dsMystBtResults');
+  const count   = Math.min(20, Math.max(1, parseInt(document.getElementById('dsMystCount').value) || 9));
+  const expected = count * 20 / 80;
+  const best = dsMystBtSorted[0]?.avg ?? 1;
+  const worst = dsMystBtSorted[dsMystBtSorted.length - 1]?.avg ?? 0;
+  const range = best - worst || 1;
+  resEl.querySelectorAll('.myst-bt-row').forEach((row, i) => {
+    const r = dsMystBtSorted[i];
+    if (!r) return;
+    const isActive = dsMystActiveRecipe && dsMystActiveRecipe.name === r.name;
+    row.style.outline = isActive ? '2px solid #9c44dd' : '';
+    row.style.outlineOffset = isActive ? '1px' : '';
+    const nameDiv = row.querySelector('.myst-bt-name');
+    if (nameDiv) {
+      const medal = i === 0 ? '🏆 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+      nameDiv.textContent = medal + r.name + (isActive ? ' ✓' : '');
+    }
+  });
+  showToast(dsMystActiveRecipe ? `✓ Ενεργή συνταγή: ${dsMystActiveRecipe.name}` : '↩ Επιστροφή στην προεπιλεγμένη συνταγή');
 }
 </script>
 </body>
