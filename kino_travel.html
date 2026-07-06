@@ -1211,7 +1211,7 @@ async function runMysticalBacktest() {
       const actSet = new Set(next.actual);
       for (const p of picked) if (actSet.has(p)) totalHits++;
     }
-    results.push({ name, avg: totalHits / (n - 1) });
+    results.push({ name, c, avg: totalHits / (n - 1) });
     if (ri % 5 === 4) await new Promise(r => setTimeout(r, 0));
   }
 
