@@ -212,6 +212,15 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <div class="dp-grid" id="dsDrawMini"></div>
       </div>
     </div>
+    <div id="dsMystPanel" style="background:#09070f;border:1px solid #2a1a3a;border-radius:10px;padding:10px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:.78rem;font-weight:600;color:#c4a0e8">🔮 Μυστικιστική Πρόβλεψη</span>
+        <span style="font-size:.7rem;color:#5a3a7a" id="dsMystDesc"></span>
+        <span style="font-size:.72rem;color:#888;margin-left:auto;white-space:nowrap">Αρ.: <input id="dsMystCount" type="number" min="1" max="20" value="9" onchange="renderGrid()" style="width:46px;padding:3px 6px;background:#1a1a2e;color:#e8e8e8;border:1px solid #3a3a6a;border-radius:6px;font-size:.72rem;outline:none"></span>
+      </div>
+      <div id="dsMystNumbers"></div>
+      <div id="dsMystResult" style="margin-top:5px"></div>
+    </div>
     <div id="dsLegend">
       <div class="ds-legend-item"><span class="ds-swatch ds-0"></span>0</div>
       <div class="ds-legend-item"><span class="ds-swatch ds-12"></span>1-2</div>
@@ -236,32 +245,6 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <div id="dsBonusGrid"></div>
     </div>
     <div id="syncNote"></div>
-  </section>
-
-  <section id="mystSec">
-    <h2>🔮 Μυστικιστική Πρόβλεψη ΚΙΝΟ</h2>
-    <p style="font-size:.78rem;color:#888;margin-bottom:12px">Η πρόβλεψη «κλειδώνεται» στη στρογγυλή ώρα που επιλέγεις — ίδιοι αριθμοί για όλους μέχρι την επόμενη ώρα.</p>
-    <div id="mystControls">
-      <span style="font-size:.82rem;color:#aaa">Ώρα κλήρωσης:</span>
-      <select id="mystHour" onchange="renderMystical()">
-        <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option>
-        <option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option>
-        <option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option>
-        <option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
-        <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option>
-        <option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option>
-        <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
-        <option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
-      </select>
-      <span style="font-size:.82rem;color:#aaa">Αριθμοί:</span>
-      <input id="mystCount" type="number" min="1" max="20" value="9" onchange="renderMystical()">
-      <button class="btn" onclick="renderMystical()" style="background:#3a0070;border:1px solid #9c44dd">🔮 Πρόβλεψη</button>
-    </div>
-    <div id="mystOutput"></div>
-    <div id="mystPastSec" style="margin-top:18px">
-      <div style="font-size:.8rem;color:#888;font-weight:600;margin-bottom:8px">📅 Σημερινές προβλέψεις (ώρες που πέρασαν)</div>
-      <div id="mystPastList"></div>
-    </div>
   </section>
 
   <section>
@@ -771,6 +754,7 @@ function renderGrid() {
   const nextDraw = dsIdx < dsDraws.length - 1 ? dsDraws[dsIdx + 1] : draw;
   const isLast   = dsIdx === dsDraws.length - 1;
   renderDrawPanel(nextDraw, isLast);
+  renderTravelMystical();
 }
 
 function renderDrawPanel(draw, isLast = false) {
@@ -1019,7 +1003,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateStatus();
   setInterval(updateStatus, 1000);
   scheduleRefresh();
-  initMystical();
 });
 
 // ── Mystical Prediction ─────────────────────────────────────────────────────
@@ -1063,144 +1046,57 @@ function mulberry32(seed) {
   };
 }
 
-// ── Shared helpers ──────────────────────────────────────────────────────────
-function generateMysticalData(d, hour, count) {
-  const month = d.getMonth() + 1, day = d.getDate();
+// ── Per-draw mystical prediction ─────────────────────────────────────────────
+function generateDrawPrediction(drawId, count) {
+  const slot  = ((drawId - FIRST_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
+  const dayN  = Math.floor((drawId - LIVE_BASE_ID) / DRAWS_PER_DAY);
+  const d     = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+  const month = d.getUTCMonth() + 1, day = d.getUTCDate();
   const zi    = mystZodiacIdx(month, day);
   const z     = MYST_ZODIAC[zi];
   const moon  = mystMoonPhase(d);
-  const dow   = d.getDay();
-  const doy   = mystDayOfYear(d);
-  const temp  = MYST_ATHENS_TEMP[d.getMonth()];
-  const spell = String(d.getFullYear() * 1000000 + month * 10000 + day * 100 + hour)
-                .split('').reduce((s, c) => s + parseInt(c), 0);
-  const seed  = d.getFullYear() * 1000000 + month * 10000 + day * 100 + hour
-              + zi * 777 + moon * 333 + dow * 111 + doy * 17 + spell * 7;
+  const dow   = d.getUTCDay();
+  const doy   = Math.round((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 0))) / 86400000);
+  const mins  = slot * 5;
+  const seed  = drawId * 31337 + slot * 127 + zi * 777 + moon * 333 + dow * 111 + doy * 17;
   const rng   = mulberry32(seed);
   const pool  = Array.from({length: 80}, (_, i) => i + 1);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return { picked: pool.slice(0, count).sort((a, b) => a - b), z, zi, moon, dow, doy, temp, spell };
+  const timeStr = `${String(Math.floor(mins / 60)).padStart(2,'0')}:${String(mins % 60).padStart(2,'0')}`;
+  return { picked: pool.slice(0, count).sort((a,b) => a-b), z, moon, dow, doy, timeStr };
 }
 
-function drawIdForHour(dateObj, hour) {
-  const y = dateObj.getFullYear(), m = dateObj.getMonth() + 1, d = dateObj.getDate();
-  const dayN      = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2025, 0, 1)) / 86400000);
-  const dayBaseId = LIVE_BASE_ID + dayN * DRAWS_PER_DAY;
-  const targetSlot = hour * 12;
-  const baseSlot  = ((dayBaseId - FIRST_DAY_OFFSET) % DRAWS_PER_DAY + DRAWS_PER_DAY) % DRAWS_PER_DAY;
-  return dayBaseId + (targetSlot - baseSlot + DRAWS_PER_DAY) % DRAWS_PER_DAY;
-}
+function renderTravelMystical() {
+  if (!dsDraws.length || dsIdx < 0) return;
+  const draw     = dsDraws[dsIdx];
+  const count    = Math.min(20, Math.max(1, parseInt(document.getElementById('dsMystCount').value) || 9));
+  const nextDraw = dsIdx < dsDraws.length - 1 ? dsDraws[dsIdx + 1] : null;
+  const isLast   = !nextDraw;
 
-async function lookupActualDraw(targetId) {
-  for (let delta = 0; delta <= 3; delta++) {
-    const f = dsDraws.find(d => d.id === targetId + delta || d.id === targetId - delta);
-    if (f) return f;
-  }
-  try {
-    const raw = await apiFetch(`${OPAP_BASE}/draw-id/${targetId - 1}/${targetId + 4}?page=0&size=6`);
-    if (!raw) return null;
-    const items = (Array.isArray(raw) ? raw : (raw.content || raw.draws || []))
-                  .filter(i => i.winningNumbers?.list?.length);
-    if (!items.length) return null;
-    items.sort((a, b) => Math.abs(a.drawId - targetId) - Math.abs(b.drawId - targetId));
-    const it = items[0];
-    return { id: it.drawId, n: it.winningNumbers.list, b: it.winningNumbers.bonus?.[0] ?? null };
-  } catch(_) { return null; }
-}
-
-// ── Future prediction ────────────────────────────────────────────────────────
-function initMystical() {
-  const now = new Date();
-  const sel = document.getElementById('mystHour');
-  sel.value = String(now.getHours() < 23 ? now.getHours() + 1 : 23);
-  renderMystical();
-  buildMystPastList();
-}
-
-function renderMystical() {
-  const hour  = parseInt(document.getElementById('mystHour').value);
-  const count = Math.min(20, Math.max(1, parseInt(document.getElementById('mystCount').value) || 9));
-  const now   = new Date();
-  const d     = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
-  const { picked, z, moon, dow, doy, temp, spell } = generateMysticalData(d, hour, count);
-  const timeStr   = `${String(hour).padStart(2,'0')}:00`;
-  const dateLabel = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
-  document.getElementById('mystOutput').innerHTML = `
-    <div class="myst-numbers">${picked.map(n => `<span class="myst-num">${n}</span>`).join('')}</div>
-    <div class="myst-desc">
-      <p>🔮 Ακριβώς τη στιγμή της κλήρωσης (<strong>${dateLabel}, ${timeStr}, ώρα Ελλάδος</strong>) το σύμπαν θα είναι παγιδευμένο σε αυτή τη συγκεκριμένη διάταξη — αυτό το ζώδιο στον ουρανό, αυτή η σεληνιακή φάση, αυτός ο πλανήτης να κυβερνά την ημέρα — και τίποτα άλλο. Η «συνταγή» παρακάτω είναι «κλειδωμένη» σε αυτή ακριβώς τη συνωμοσία του σύμπαντος, όχι στη στιγμή που ανοίγεις τη σελίδα, οπότε δίνει πάντα τους ίδιους αριθμούς μέχρι να σημάνει η κλήρωση:</p>
-      <p>${z.emoji} Ζώδιο: <strong>${z.name}</strong> (${z.el}) · 🪐 Πλανήτης: <strong>${MYST_DAY_PLANETS[dow]}</strong> (${z.metal}) · 🌙 <strong>${MYST_MOON_PHASES[moon]}</strong></p>
-      <p>🌡️ Αθήνα: <strong>${temp}°C</strong> · 📜 Ξόρκι: <strong>${spell}</strong> · 📅 Ημέρα έτους: <strong>${doy}</strong></p>
-    </div>`;
-}
-
-// ── Past hours list ──────────────────────────────────────────────────────────
-function buildMystPastList() {
-  const now   = new Date();
-  const curH  = now.getHours();
-  const count = Math.min(20, Math.max(1, parseInt(document.getElementById('mystCount').value) || 9));
-  const list  = document.getElementById('mystPastList');
-  if (curH === 0) { list.innerHTML = '<div style="color:#555;font-size:.75rem">Δεν έχουν περάσει ώρες ακόμα σήμερα.</div>'; return; }
-  const rows = [];
-  for (let h = curH - 1; h >= 0; h--) {
-    rows.push(`<div class="myst-ph-row">
-      <div class="myst-ph-header" onclick="toggleMystPast(this,${h},${count})">
-        <span>${String(h).padStart(2,'0')}:00</span>
-        <span class="myst-ph-arrow">▶</span>
-      </div>
-      <div class="myst-ph-body" data-loaded="false"></div>
-    </div>`);
-  }
-  list.innerHTML = rows.join('');
-}
-
-async function toggleMystPast(header, hour, count) {
-  const body  = header.nextElementSibling;
-  const arrow = header.querySelector('.myst-ph-arrow');
-  const isOpen = header.classList.contains('open');
-  if (isOpen) {
-    header.classList.remove('open');
-    body.style.display = 'none';
-    return;
-  }
-  header.classList.add('open');
-  body.style.display = 'block';
-  if (body.dataset.loaded === 'true') return;
-  body.dataset.loaded = 'true';
-
-  const now = new Date();
-  const d   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
-  const { picked } = generateMysticalData(d, hour, count);
+  const { picked, z, moon, dow, timeStr } = generateDrawPrediction(draw.id, count);
   const predSet = new Set(picked);
 
-  body.innerHTML = '<div style="color:#555;font-size:.73rem;padding:4px 0">⏳ Αναζήτηση κλήρωσης…</div>';
+  let numHtml, resultHtml;
+  if (!isLast) {
+    const actualSet = new Set(nextDraw.n);
+    const hits = picked.filter(n => actualSet.has(n));
+    numHtml = picked.map(n =>
+      `<span class="myst-mini-num ${actualSet.has(n) ? 'myst-mini-hit' : 'myst-mini-pred'}">${n}</span>`
+    ).join('');
+    const scoreColor = hits.length >= 6 ? '#22c55e' : hits.length >= 4 ? '#ffd54f' : hits.length >= 2 ? '#c4a0e8' : '#555';
+    resultHtml = `<span style="font-size:.75rem;font-weight:700;color:${scoreColor}">✓ ${hits.length}/${count} στη #${nextDraw.id} · ~${timeOfDay(nextDraw.id)}</span>`;
+  } else {
+    numHtml = picked.map(n => `<span class="myst-mini-num myst-mini-pred">${n}</span>`).join('');
+    resultHtml = '<span style="font-size:.72rem;color:#555">⏳ Αναμένεται αξιολόγηση</span>';
+  }
 
-  const targetId   = drawIdForHour(d, hour);
-  const actual     = await lookupActualDraw(targetId);
-  const actualSet  = actual ? new Set(actual.n) : null;
-  const hits       = actual ? picked.filter(n => actualSet.has(n)) : [];
-
-  const predHtml = picked.map(n => {
-    const isHit = actual && actualSet.has(n);
-    return `<span class="myst-mini-num ${isHit ? 'myst-mini-hit' : 'myst-mini-pred'}">${n}</span>`;
-  }).join('');
-
-  const actHtml = actual
-    ? actual.n.slice().sort((a,b)=>a-b).map(n => {
-        const cls = (n === actual.b) ? 'myst-mini-bonus' : predSet.has(n) ? 'myst-mini-hit' : 'myst-mini-actual';
-        return `<span class="myst-mini-num ${cls}">${n}</span>`;
-      }).join('')
-    : '<span style="color:#444;font-size:.72rem">Δεν βρέθηκε κλήρωση</span>';
-
-  const scoreColor = hits.length >= 6 ? '#22c55e' : hits.length >= 4 ? '#ffd54f' : hits.length >= 2 ? '#c4a0e8' : '#555';
-
-  body.innerHTML = `
-    <div><div class="myst-ph-label">🔮 Πρόβλεψη (${count} αρ.):</div><div class="myst-mini-row">${predHtml}</div></div>
-    <div><div class="myst-ph-label">🎱 Κλήρωση${actual ? ` #${actual.id}` : ''}:</div><div class="myst-mini-row">${actHtml}</div></div>
-    ${actual ? `<div class="myst-ph-score" style="color:${scoreColor}">✓ ${hits.length} / ${count} αριθμοί εμφανίστηκαν</div>` : ''}`;
+  document.getElementById('dsMystDesc').textContent =
+    `${z.emoji} ${z.name} · ${MYST_MOON_PHASES[moon].split(' ').slice(0,2).join(' ')} · ${MYST_DAY_PLANETS[dow].split(' ')[0]}`;
+  document.getElementById('dsMystNumbers').innerHTML = `<div class="myst-mini-row">${numHtml}</div>`;
+  document.getElementById('dsMystResult').innerHTML  = resultHtml;
 }
 </script>
 </body>
