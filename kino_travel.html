@@ -716,10 +716,12 @@ function renderGrid() {
   const drawOfDay = dsIdx - dayStart(dsDraws, dsIdx) + 1;
   document.getElementById('dsBonusInfo').textContent =
     `#${draw.id} · ~${timeOfDay(draw.id)}${badge} — ${drawOfDay}η κλήρωση της ημέρας · 🎁 μπόνους: ${draw.b ?? '—'}`;
-  renderDrawPanel(draw);
+  const nextDraw = dsIdx < dsDraws.length - 1 ? dsDraws[dsIdx + 1] : draw;
+  const isLast   = dsIdx === dsDraws.length - 1;
+  renderDrawPanel(nextDraw, isLast);
 }
 
-function renderDrawPanel(draw) {
+function renderDrawPanel(draw, isLast = false) {
   const hits = new Set(draw.n || []);
   const bonus = draw.b;
   const cells = [];
@@ -730,8 +732,8 @@ function renderDrawPanel(draw) {
     cells.push(`<div class="dp-cell${cls}">${n}</div>`);
   }
   document.getElementById('dsDrawMini').innerHTML = cells.join('');
-  document.getElementById('dsDrawPanel').querySelector('.dp-title').textContent =
-    `#${draw.id} · ${draw.n?.length ?? 0} αρ.`;
+  const label = isLast ? `#${draw.id} · τελευταία` : `#${draw.id} · επόμενη`;
+  document.getElementById('dsDrawPanel').querySelector('.dp-title').textContent = label;
 }
 
 function updateStatus() {
