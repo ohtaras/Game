@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Power Spin & Super 3 — Χρονικό Ταξίδι</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
+a{color:#64b5f6;text-decoration:none}
+header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
+header h1{font-size:1.15rem;font-weight:700;color:#e0e0ff}
+.nav-link{font-size:.78rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px;white-space:nowrap}
+.nav-link:hover{background:#2a2a4a}
+#statusBar{background:#0e0e1a;padding:8px 16px;font-size:.76rem;color:#888;border-bottom:1px solid #1a1a2e;min-height:30px}
+main{max-width:920px;margin:0 auto;padding:12px}
+section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
+section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ── Tabs ── */
+#tabBar{display:flex;gap:6px;margin-bottom:12px}
+.tab-btn{padding:7px 18px;border:1px solid #2a2a4a;border-radius:8px;background:#1a1a2e;color:#777;cursor:pointer;font-size:.82rem;font-weight:600;transition:background .15s}
+.tab-btn.active{background:#3949ab;color:#fff;border-color:#3949ab}
+.tab-btn:hover:not(.active){background:#222}
+
+/* ── Buttons ── */
+.btn{padding:7px 15px;border:none;border-radius:7px;font-size:.8rem;font-weight:600;cursor:pointer;background:#3949ab;color:#fff;transition:background .15s}
+.btn:hover{background:#3f51b5}
+.btn:disabled{background:#1e1e2e;color:#444;cursor:not-allowed}
+.ctrl-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.ctrl-info{font-size:.75rem;color:#999;padding:0 4px}
+
+/* ── Delay color classes (shared) ── */
+.d-0  {background:#1e2535;border:2px solid #3a4254;color:#dde}
+.d-hot{background:#0d2240;border:2px solid #2c5a8a;color:#90caf9}
+.d-wrm{background:#3a3414;border:2px solid #8a7a1a;color:#ffe082}
+.d-cld{background:#4a2c0c;border:2px solid #c1740c;color:#ffb74d}
+.d-ovr{background:#3a0d0d;border:2px solid #c62828;color:#ef9a9a}
+
+/* ── Power Spin ── */
+#psWheelsWrap{display:flex;flex-direction:column;gap:12px;margin-bottom:10px}
+.ps-wheel-block{background:#0d0d1a;border:1px solid #1e1e2e;border-radius:8px;padding:8px}
+.ps-wheel-title{font-size:.68rem;color:#555;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.ps-num-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-bottom:4px}
+.ps-sym-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.ps-cell{border-radius:5px;padding:5px 2px;text-align:center;cursor:default;line-height:1.2}
+.ps-cell .pc-n{font-size:.7rem;font-weight:700;display:block}
+.ps-cell .pc-d{font-size:.56rem;display:block;margin-top:1px;opacity:.85}
+.ps-cell.ps-drawn{outline:2px solid #fff;outline-offset:1px;z-index:1;position:relative}
+.ps-sym-cell{border-radius:5px;padding:4px 2px;text-align:center;cursor:default;line-height:1.2}
+.ps-sym-cell .pc-n{font-size:.65rem;font-weight:700;display:block}
+.ps-sym-cell .pc-d{font-size:.54rem;display:block;margin-top:1px;opacity:.85}
+.ps-sym-cell.ps-drawn{outline:2px solid #fff;outline-offset:1px}
+
+/* ── Super 3 ── */
+.s3-number-big{text-align:center;font-size:2.4rem;font-weight:900;letter-spacing:.25em;color:#ffd54f;margin:6px 0 12px;text-shadow:0 0 24px rgba(255,213,79,.35);font-variant-numeric:tabular-nums}
+#s3Tracks{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.s3-track{flex:1;min-width:70px;background:#0d0d1a;border:1px solid #1e1e2e;border-radius:8px;padding:8px}
+.s3-track-label{font-size:.7rem;color:#555;text-align:center;margin-bottom:6px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.s3-grid{display:grid;grid-template-columns:1fr;gap:3px}
+.s3-cell{border-radius:5px;padding:5px 8px;display:flex;justify-content:space-between;align-items:center;cursor:default}
+.s3-cell .sc-n{font-size:.78rem;font-weight:800}
+.s3-cell .sc-d{font-size:.6rem;opacity:.85}
+.s3-cell.s3-drawn{outline:2px solid #fff;outline-offset:1px}
+
+/* ── Legend ── */
+.ds-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.7rem;color:#888;align-items:center}
+.ds-legend-item{display:flex;align-items:center;gap:4px}
+.ds-swatch{display:inline-block;width:13px;height:13px;border-radius:3px}
+
+/* ── Settings ── */
+.set-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.set-row label{font-size:.76rem;color:#888;min-width:90px}
+.set-row input{flex:1;min-width:0;padding:5px 8px;background:#12101a;color:#e8e8e8;border:1px solid #2a2a4a;border-radius:6px;font-size:.76rem;outline:none}
+.set-row input:focus{border-color:#3949ab}
+
+/* ── Raw debug ── */
+#psRawNote,#s3RawNote{font-size:.65rem;color:#3a3a5a;margin-top:6px;font-family:monospace;word-break:break-all}
+
+/* ── Toast ── */
+#dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.8rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
+#dsToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:500px){#s3Tracks{gap:6px}.s3-cell{padding:4px 5px}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎰 Power Spin &amp; Super 3</h1>
+  <a class="nav-link" href="kino_travel.html">← KINO Χρονικό Ταξίδι</a>
+  <span id="syncNote" style="font-size:.7rem;color:#444;margin-left:auto"></span>
+</header>
+
+<div id="statusBar">⏳ Φόρτωση…</div>
+
+<main>
+
+  <!-- ── Tab bar ── -->
+  <div id="tabBar">
+    <button class="tab-btn active" onclick="switchTab('ps')">🎡 Power Spin</button>
+    <button class="tab-btn"        onclick="switchTab('s3')">🔢 Super 3</button>
+    <button class="tab-btn"        onclick="switchTab('cfg')" style="margin-left:auto">⚙️</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       POWER SPIN TAB
+  ════════════════════════════════════════════════ -->
+  <section id="psTab">
+    <h2 style="color:#7986cb">🎡 Power Spin — Χρονικό Ταξίδι Καθυστερήσεων</h2>
+    <div class="ctrl-bar">
+      <button class="btn" id="psPrevBtn" onclick="psNav(-1)" disabled>◀ Προηγ.</button>
+      <button class="btn" id="psNextBtn" onclick="psNav(+1)" disabled>Επόμ. ▶</button>
+      <button class="btn" id="psPrevDayBtn" onclick="psNavDay(-1)" disabled style="font-size:.7rem;padding:5px 10px">−Μέρα</button>
+      <button class="btn" id="psNextDayBtn" onclick="psNavDay(+1)" disabled style="font-size:.7rem;padding:5px 10px">+Μέρα</button>
+      <button class="btn" onclick="psGoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Τελευταία</button>
+      <span class="ctrl-info" id="psInfo">—</span>
+    </div>
+
+    <div id="psWheelsWrap">
+      <!-- 3 wheel blocks injected by JS -->
+      <div class="ps-wheel-block">
+        <div class="ps-wheel-title">Τροχός 1</div>
+        <div class="ps-num-grid" id="psW0"></div>
+        <div class="ps-sym-grid" id="psS0"></div>
+      </div>
+      <div class="ps-wheel-block">
+        <div class="ps-wheel-title">Τροχός 2</div>
+        <div class="ps-num-grid" id="psW1"></div>
+        <div class="ps-sym-grid" id="psS1"></div>
+      </div>
+      <div class="ps-wheel-block">
+        <div class="ps-wheel-title">Τροχός 3</div>
+        <div class="ps-num-grid" id="psW2"></div>
+        <div class="ps-sym-grid" id="psS2"></div>
+      </div>
+    </div>
+
+    <div class="ds-legend" style="margin-bottom:8px">
+      <span style="color:#666">Καθυστ. Τροχ. (pool 27):</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-hot"></span> 1-9</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-wrm"></span> 10-18</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-cld"></span> 19-27</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-ovr"></span> 28+</span>
+    </div>
+    <div id="psRawNote"></div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       SUPER 3 TAB
+  ════════════════════════════════════════════════ -->
+  <section id="s3Tab" style="display:none">
+    <h2 style="color:#ef9a9a">🔢 Super 3 — Χρονικό Ταξίδι Καθυστερήσεων</h2>
+    <div class="ctrl-bar">
+      <button class="btn" id="s3PrevBtn" onclick="s3Nav(-1)" disabled>◀ Προηγ.</button>
+      <button class="btn" id="s3NextBtn" onclick="s3Nav(+1)" disabled>Επόμ. ▶</button>
+      <button class="btn" id="s3PrevDayBtn" onclick="s3NavDay(-1)" disabled style="font-size:.7rem;padding:5px 10px">−Μέρα</button>
+      <button class="btn" id="s3NextDayBtn" onclick="s3NavDay(+1)" disabled style="font-size:.7rem;padding:5px 10px">+Μέρα</button>
+      <button class="btn" onclick="s3GoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Τελευταία</button>
+      <span class="ctrl-info" id="s3Info">—</span>
+    </div>
+
+    <div class="s3-number-big" id="s3Result">—</div>
+
+    <div id="s3Tracks">
+      <div class="s3-track">
+        <div class="s3-track-label">Εκατοντάδες</div>
+        <div class="s3-grid" id="s3TH"></div>
+      </div>
+      <div class="s3-track">
+        <div class="s3-track-label">Δεκάδες</div>
+        <div class="s3-grid" id="s3TT"></div>
+      </div>
+      <div class="s3-track">
+        <div class="s3-track-label">Μονάδες</div>
+        <div class="s3-grid" id="s3TU"></div>
+      </div>
+    </div>
+
+    <div class="ds-legend" style="margin-bottom:8px">
+      <span style="color:#666">Καθυστ. Ψηφίου (pool 10):</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-hot"></span> 1-4</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-wrm"></span> 5-8</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-cld"></span> 9-14</span>
+      <span class="ds-legend-item"><span class="ds-swatch d-ovr"></span> 15+</span>
+    </div>
+    <div id="s3RawNote"></div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       SETTINGS TAB
+  ════════════════════════════════════════════════ -->
+  <section id="cfgTab" style="display:none">
+    <h2 style="color:#888">⚙️ Ρυθμίσεις</h2>
+    <div class="set-row">
+      <label>GitHub Token</label>
+      <input type="password" id="ghTokIn" placeholder="ghp_…" oninput="localStorage.setItem('gh_token',this.value.trim())">
+    </div>
+    <p style="font-size:.7rem;color:#444;margin-top:6px">Προαιρετικό – για πρόσβαση σε private GitHub Contents API.</p>
+    <div style="margin-top:14px;font-size:.72rem;color:#555;line-height:1.7">
+      <strong style="color:#777">Ώρες κληρώσεων</strong><br>
+      Power Spin (1110): 08:01 – 23:57, κάθε 4 λεπτά (240/μέρα)<br>
+      Super 3 (2100): 00:03 – 23:59, κάθε 4 λεπτά (360/μέρα)
+    </div>
+  </section>
+
+</main>
+
+<div id="dsToast"></div>
+
+<script>
+'use strict';
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const KEEP_DAYS   = 14;
+const pad  = n => String(n).padStart(2, '0');
+const pad3 = n => String(n).padStart(3, '0');
+
+const PS_GAME_ID    = 1110;
+const PS_NUMS       = 24;       // numbers per wheel (1-24)
+const PS_SYMS       = 3;        // symbol slots per wheel (25, 26, 27)
+const PS_POOL       = PS_NUMS + PS_SYMS; // 27
+
+const S3_GAME_ID    = 2100;
+
+// Athens = UTC+3 (EEST in summer; we use fixed +3 for simplicity)
+const ATHENS_MS     = 3 * 3600000;
+
+let apiFetchMethod  = 0;
+
+// ── State ─────────────────────────────────────────────────────────────────
+let psDraws = []; // [{id, d:"YYYY-MM-DD", m:minsFromMidnight, w:[v0,v1,v2]}]
+                  //  w[i]: 1-24 = number, 25-27 = symbol
+let psIdx   = -1;
+
+let s3Draws = []; // [{id, d, m, n:0-999}]
+let s3Idx   = -1;
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function minsToTime(m) { return `${pad(Math.floor(m/60))}:${pad(m%60)}`; }
+
+function athensDate(ms) { return new Date(ms + ATHENS_MS); }
+
+function drawMinutes(ms) {
+  const d = athensDate(ms);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
+function drawDateStr(ms) {
+  const d = athensDate(ms);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+}
+
+function ghToken()   { return localStorage.getItem('gh_token') || ''; }
+function ghHeaders() {
+  const t = ghToken();
+  return t ? { Authorization: 'token ' + t, 'Content-Type': 'application/json' }
+           : { 'Content-Type': 'application/json' };
+}
+
+function showToast(msg) {
+  const el = document.getElementById('dsToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── OPAP API with CORS fallbacks ───────────────────────────────────────────
+async function apiFetch(url) {
+  const tryDirect = async () => {
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  };
+  const tryProxy = async () => {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), { signal: AbortSignal.timeout(16000) });
+    if (!r.ok) throw new Error('proxy ' + r.status);
+    return r.json();
+  };
+  const tryAllOrigins = async () => {
+    const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error('allorigins ' + r.status);
+    return JSON.parse((await r.json()).contents);
+  };
+  const methods = [tryDirect, tryProxy, tryAllOrigins];
+  const order = [apiFetchMethod, ...methods.map((_,i) => i).filter(i => i !== apiFetchMethod)];
+  let lastErr;
+  for (const i of order) {
+    try { const r = await methods[i](); apiFetchMethod = i; return r; }
+    catch(e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+async function fetchDayOpap(gameId, dayStr) {
+  let items = [], page = 0;
+  while (true) {
+    const url = `https://api.opap.gr/draws/v3.0/${gameId}/draw-date/${dayStr}/${dayStr}?page=${page}&size=200`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg);
+    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 100) break;
+    page++;
+    if (page > 10) break;
+  }
+  return items;
+}
+
+// ── GitHub raw file fetch ──────────────────────────────────────────────────
+async function ghGet(path) {
+  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}?_=${Date.now()}`;
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
+    if (r.ok) return r.json();
+  } catch(_) {}
+  // Fallback: GitHub Contents API (works even for large files, needs token for fresh cache)
+  try {
+    const meta = await fetch(`https://api.github.com/repos/${REPO}/contents/${path}`,
+      { headers: ghHeaders(), cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!meta.ok) return null;
+    const j = await meta.json();
+    if (j.download_url) {
+      const dr = await fetch(j.download_url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!j.content) return null;
+    return JSON.parse(atob(j.content.replace(/\n/g, '')));
+  } catch(_) { return null; }
+}
+
+// ── Power Spin item parsing ────────────────────────────────────────────────
+let psRawSample = null;
+
+function parsePsValue(v) {
+  // Normalize a single wheel result to 1-24 (number) or 25-27 (symbol)
+  if (typeof v === 'number') {
+    if (v >= 1 && v <= 24) return v;
+    if (v > 24)  return 25 + ((Math.floor(v) - 25) % PS_SYMS); // map >24 to 25-27
+    return 25; // 0 or negative → symbol
+  }
+  if (typeof v === 'string') {
+    const n = parseInt(v);
+    if (!isNaN(n) && n >= 1 && n <= 24) return n;
+    // String symbol: hash to 25-27
+    const h = v.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+    return 25 + (h % PS_SYMS);
+  }
+  return 25;
+}
+
+function parsePsItem(item) {
+  if (!item.drawTime) return null;
+  const list = item.winningNumbers?.list || [];
+  if (list.length < 1) return null;
+  if (!psRawSample) psRawSample = { id: item.drawId, list, bonus: item.winningNumbers?.bonus };
+
+  // Take up to 3 values as wheel results
+  const w = list.slice(0, 3).map(parsePsValue);
+  while (w.length < 3) w.push(null); // pad if fewer
+  return { id: item.drawId, d: drawDateStr(item.drawTime), m: drawMinutes(item.drawTime), w };
+}
+
+// ── Super 3 item parsing ───────────────────────────────────────────────────
+let s3RawSample = null;
+
+function parseS3Item(item) {
+  if (!item.drawTime) return null;
+  const list = item.winningNumbers?.list || [];
+  if (!s3RawSample) s3RawSample = { id: item.drawId, list, bonus: item.winningNumbers?.bonus };
+
+  let n = null;
+  if (list.length === 3 && list.every(v => typeof v === 'number' && v >= 0 && v <= 9)) {
+    // [3, 4, 7] format → 347
+    n = list[0] * 100 + list[1] * 10 + list[2];
+  } else if (list.length === 1) {
+    n = parseInt(list[0]);
+  } else if (list.length === 3) {
+    // Could be digits stored differently
+    n = parseInt(String(list[0]).padStart(1,'') + String(list[1]) + String(list[2]));
+  } else if (list.length > 0) {
+    n = parseInt(list[0]);
+  }
+  if (n === null || isNaN(n) || n < 0 || n > 999) return null;
+  return { id: item.drawId, d: drawDateStr(item.drawTime), m: drawMinutes(item.drawTime), n };
+}
+
+// ── Load data ──────────────────────────────────────────────────────────────
+async function loadData() {
+  const sb  = document.getElementById('statusBar');
+  const now = new Date();
+  const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
+
+  // Months needed
+  const monthsSeen = new Set(), monthsNeeded = [];
+  for (let d = KEEP_DAYS; d >= 0; d--) {
+    const dt = new Date(now.getTime() - d * 86400000);
+    const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
+    if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
+  }
+
+  let psAll = [], s3All = [];
+
+  // Monthly files (pre-saved historical data)
+  for (const ym of monthsNeeded) {
+    sb.textContent = `⏳ Φόρτωση PS ${ym.replace('_','-')}…`;
+    const data = await ghGet(`data/raw/ps_raw_${ym}.json`);
+    if (data?.draws) psAll.push(...data.draws);
+  }
+  for (const ym of monthsNeeded) {
+    sb.textContent = `⏳ Φόρτωση S3 ${ym.replace('_','-')}…`;
+    const data = await ghGet(`data/raw/s3_raw_${ym}.json`);
+    if (data?.draws) s3All.push(...data.draws);
+  }
+
+  // Previous days gap-fill from OPAP (last 3 days at most)
+  const cutoffStr = new Date(now.getTime() - KEEP_DAYS * 86400000).toISOString().slice(0,10);
+  const psDaysSeen = new Set(psAll.map(d => d.d));
+  const s3DaysSeen = new Set(s3All.map(d => d.d));
+
+  for (let dd = KEEP_DAYS - 1; dd >= 1; dd--) {
+    const dt  = new Date(now.getTime() - dd * 86400000);
+    const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+    if (day < cutoffStr) break;
+
+    if (!psDaysSeen.has(day)) {
+      sb.textContent = `⏳ PS κενό ${day}…`;
+      try {
+        const items = await fetchDayOpap(PS_GAME_ID, day);
+        for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
+        if (items.length) await new Promise(r => setTimeout(r, 80));
+      } catch(e) { console.warn('PS gap', day, e); }
+    }
+    if (!s3DaysSeen.has(day)) {
+      sb.textContent = `⏳ S3 κενό ${day}…`;
+      try {
+        const items = await fetchDayOpap(S3_GAME_ID, day);
+        for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
+        if (items.length) await new Promise(r => setTimeout(r, 80));
+      } catch(e) { console.warn('S3 gap', day, e); }
+    }
+  }
+
+  // Today's latest
+  sb.textContent = '⏳ Power Spin σήμερα από OPAP…';
+  try {
+    const items = await fetchDayOpap(PS_GAME_ID, todayStr);
+    for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
+  } catch(e) { console.warn('PS today:', e); }
+
+  sb.textContent = '⏳ Super 3 σήμερα από OPAP…';
+  try {
+    const items = await fetchDayOpap(S3_GAME_ID, todayStr);
+    for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
+  } catch(e) { console.warn('S3 today:', e); }
+
+  // Deduplicate, sort, trim
+  function dedup(arr) {
+    const seen = new Set();
+    return arr
+      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
+      .sort((a, b) => a.id - b.id)
+      .filter(d => d.d >= cutoffStr);
+  }
+
+  psDraws = dedup(psAll);
+  s3Draws = dedup(s3All);
+
+  psIdx = psDraws.length - 1;
+  s3Idx = s3Draws.length - 1;
+
+  const parts = [];
+  if (psDraws.length) { psRender(); parts.push(`Power Spin: ${psDraws.length} κλ.`); }
+  if (s3Draws.length) { s3Render(); parts.push(`Super 3: ${s3Draws.length} κλ.`); }
+
+  sb.textContent = parts.length
+    ? `✓ ${parts.join('  ·  ')}  ·  τελευταία ανανέωση ${new Date().toLocaleTimeString('el-GR')}`
+    : '⚠ Δεν βρέθηκαν κληρώσεις — ελέγξτε σύνδεση';
+
+  // Show raw sample for debugging API format
+  if (psRawSample) {
+    document.getElementById('psRawNote').textContent =
+      `API δείγμα PS #${psRawSample.id}: list=${JSON.stringify(psRawSample.list)}, bonus=${JSON.stringify(psRawSample.bonus)}`;
+  }
+  if (s3RawSample) {
+    document.getElementById('s3RawNote').textContent =
+      `API δείγμα S3 #${s3RawSample.id}: list=${JSON.stringify(s3RawSample.list)}, bonus=${JSON.stringify(s3RawSample.bonus)}`;
+  }
+}
+
+// ── Delay computations ─────────────────────────────────────────────────────
+function computePsDelays(draws, idx) {
+  // Returns 3 arrays (one per wheel), each of length PS_POOL+1 (index 1..27)
+  const dels = [
+    new Array(PS_POOL + 1).fill(null),
+    new Array(PS_POOL + 1).fill(null),
+    new Array(PS_POOL + 1).fill(null),
+  ];
+  const rem = [PS_POOL, PS_POOL, PS_POOL];
+
+  for (let i = idx; i >= 0 && (rem[0] > 0 || rem[1] > 0 || rem[2] > 0); i--) {
+    const dw = draws[i];
+    for (let w = 0; w < 3; w++) {
+      const v = dw.w?.[w];
+      if (!v) continue;
+      if (dels[w][v] === null) { dels[w][v] = idx - i; rem[w]--; }
+    }
+  }
+
+  for (let w = 0; w < 3; w++)
+    for (let v = 1; v <= PS_POOL; v++)
+      if (dels[w][v] === null) dels[w][v] = idx + 1;
+
+  return dels;
+}
+
+function computeS3Delays(draws, idx) {
+  // Returns 3 arrays (H, T, U), each of length 10
+  const dels = [new Array(10).fill(null), new Array(10).fill(null), new Array(10).fill(null)];
+  const rem  = [10, 10, 10];
+
+  for (let i = idx; i >= 0 && (rem[0] > 0 || rem[1] > 0 || rem[2] > 0); i--) {
+    const n = draws[i].n;
+    const digs = [Math.floor(n / 100), Math.floor(n / 10) % 10, n % 10];
+    for (let pos = 0; pos < 3; pos++) {
+      const d = digs[pos];
+      if (dels[pos][d] === null) { dels[pos][d] = idx - i; rem[pos]--; }
+    }
+  }
+
+  for (let pos = 0; pos < 3; pos++)
+    for (let d = 0; d < 10; d++)
+      if (dels[pos][d] === null) dels[pos][d] = idx + 1;
+
+  return dels;
+}
+
+// ── Delay color classes ────────────────────────────────────────────────────
+function psDelayClass(d) {
+  if (d === 0) return 'd-0';
+  if (d <= 9)  return 'd-hot';
+  if (d <= 18) return 'd-wrm';
+  if (d <= 27) return 'd-cld';
+  return 'd-ovr';
+}
+
+function s3DelayClass(d) {
+  if (d === 0) return 'd-0';
+  if (d <= 4)  return 'd-hot';
+  if (d <= 8)  return 'd-wrm';
+  if (d <= 14) return 'd-cld';
+  return 'd-ovr';
+}
+
+// ── Power Spin render ──────────────────────────────────────────────────────
+const SYM_LABELS = ['★', '♦', '✦'];
+
+function psRender() {
+  if (!psDraws.length || psIdx < 0) return;
+  const draw   = psDraws[psIdx];
+  const delays = computePsDelays(psDraws, psIdx);
+  const drawn  = draw.w || [];
+
+  for (let w = 0; w < 3; w++) {
+    const drawnV = drawn[w];
+
+    // Numbers 1-24 in 6×4 grid
+    const numCells = [];
+    for (let n = 1; n <= 24; n++) {
+      const d   = delays[w][n];
+      const cls = psDelayClass(d);
+      const sel = n === drawnV ? ' ps-drawn' : '';
+      numCells.push(`<div class="ps-cell ${cls}${sel}"><span class="pc-n">${n}</span><span class="pc-d">${d}</span></div>`);
+    }
+    document.getElementById(`psW${w}`).innerHTML = numCells.join('');
+
+    // Symbols 25-27
+    const symCells = [];
+    for (let s = 0; s < PS_SYMS; s++) {
+      const v   = 25 + s;
+      const d   = delays[w][v];
+      const cls = psDelayClass(d);
+      const sel = v === drawnV ? ' ps-drawn' : '';
+      symCells.push(`<div class="ps-sym-cell ${cls}${sel}"><span class="pc-n">${SYM_LABELS[s]}</span><span class="pc-d">${d}</span></div>`);
+    }
+    document.getElementById(`psS${w}`).innerHTML = symCells.join('');
+  }
+
+  const time = minsToTime(draw.m);
+  document.getElementById('psInfo').textContent =
+    `#${draw.id} · ${draw.d} · ${time} · ${psIdx + 1}/${psDraws.length}`;
+  document.getElementById('psPrevBtn').disabled    = psIdx <= 0;
+  document.getElementById('psNextBtn').disabled    = psIdx >= psDraws.length - 1;
+  document.getElementById('psPrevDayBtn').disabled = psIdx <= 0;
+  document.getElementById('psNextDayBtn').disabled = psIdx >= psDraws.length - 1;
+}
+
+function psNav(dir) {
+  psIdx = Math.max(0, Math.min(psDraws.length - 1, psIdx + dir));
+  psRender();
+}
+
+function psNavDay(dir) {
+  if (!psDraws.length) return;
+  const cur = psDraws[psIdx].d;
+  // Skip to next/prev day boundary
+  if (dir > 0) {
+    let i = psIdx + 1;
+    while (i < psDraws.length && psDraws[i].d === cur) i++;
+    psIdx = Math.min(psDraws.length - 1, i);
+  } else {
+    let i = psIdx - 1;
+    const prevDay = i >= 0 ? psDraws[i].d : null;
+    if (prevDay && prevDay !== cur) {
+      while (i > 0 && psDraws[i - 1].d === prevDay) i--;
+    } else if (prevDay) {
+      const pp = psDraws[i].d;
+      while (i > 0 && psDraws[i - 1].d === pp) i--;
+    }
+    psIdx = Math.max(0, i);
+  }
+  psRender();
+}
+
+function psGoLast() { psIdx = psDraws.length - 1; psRender(); }
+
+// ── Super 3 render ─────────────────────────────────────────────────────────
+function s3Render() {
+  if (!s3Draws.length || s3Idx < 0) return;
+  const draw   = s3Draws[s3Idx];
+  const delays = computeS3Delays(s3Draws, s3Idx);
+  const digs   = [Math.floor(draw.n / 100), Math.floor(draw.n / 10) % 10, draw.n % 10];
+
+  document.getElementById('s3Result').textContent = pad3(draw.n);
+
+  const trackIds = ['s3TH', 's3TT', 's3TU'];
+  for (let pos = 0; pos < 3; pos++) {
+    const cells = [];
+    for (let d = 0; d < 10; d++) {
+      const delay = delays[pos][d];
+      const cls   = s3DelayClass(delay);
+      const sel   = d === digs[pos] ? ' s3-drawn' : '';
+      cells.push(`<div class="s3-cell ${cls}${sel}"><span class="sc-n">${d}</span><span class="sc-d">${delay}</span></div>`);
+    }
+    document.getElementById(trackIds[pos]).innerHTML = cells.join('');
+  }
+
+  const time = minsToTime(draw.m);
+  document.getElementById('s3Info').textContent =
+    `#${draw.id} · ${draw.d} · ${time} · ${s3Idx + 1}/${s3Draws.length}`;
+  document.getElementById('s3PrevBtn').disabled    = s3Idx <= 0;
+  document.getElementById('s3NextBtn').disabled    = s3Idx >= s3Draws.length - 1;
+  document.getElementById('s3PrevDayBtn').disabled = s3Idx <= 0;
+  document.getElementById('s3NextDayBtn').disabled = s3Idx >= s3Draws.length - 1;
+}
+
+function s3Nav(dir) {
+  s3Idx = Math.max(0, Math.min(s3Draws.length - 1, s3Idx + dir));
+  s3Render();
+}
+
+function s3NavDay(dir) {
+  if (!s3Draws.length) return;
+  const cur = s3Draws[s3Idx].d;
+  if (dir > 0) {
+    let i = s3Idx + 1;
+    while (i < s3Draws.length && s3Draws[i].d === cur) i++;
+    s3Idx = Math.min(s3Draws.length - 1, i);
+  } else {
+    let i = s3Idx - 1;
+    const prevDay = i >= 0 ? s3Draws[i].d : null;
+    if (prevDay) { while (i > 0 && s3Draws[i - 1].d === prevDay) i--; }
+    s3Idx = Math.max(0, i);
+  }
+  s3Render();
+}
+
+function s3GoLast() { s3Idx = s3Draws.length - 1; s3Render(); }
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+const TABS = ['ps', 's3', 'cfg'];
+function switchTab(name) {
+  TABS.forEach((t, i) => {
+    document.getElementById(`${t}Tab`).style.display = t === name ? '' : 'none';
+    document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === name);
+  });
+}
+
+// ── Keyboard navigation ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const activeTab = TABS.find(t => document.getElementById(`${t}Tab`).style.display !== 'none');
+  if (activeTab === 'ps') {
+    if (e.key === 'ArrowLeft')  psNav(-1);
+    if (e.key === 'ArrowRight') psNav(+1);
+    if (e.key === 'ArrowDown')  psNavDay(-1);
+    if (e.key === 'ArrowUp')    psNavDay(+1);
+  } else if (activeTab === 's3') {
+    if (e.key === 'ArrowLeft')  s3Nav(-1);
+    if (e.key === 'ArrowRight') s3Nav(+1);
+    if (e.key === 'ArrowDown')  s3NavDay(-1);
+    if (e.key === 'ArrowUp')    s3NavDay(+1);
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.getElementById('ghTokIn').value = ghToken();
+loadData();
+</script>
+</body>
+</html>
