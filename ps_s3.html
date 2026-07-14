@@ -433,12 +433,14 @@ function parseS3Item(item) {
 async function loadData() {
   const sb  = document.getElementById('statusBar');
   const now = new Date();
-  const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
-  const cutoffStr = new Date(now.getTime() - KEEP_DAYS * 86400000).toISOString().slice(0,10);
+  const athNow = athensDate(now.getTime());
+  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
+  const cutoffAth = athensDate(now.getTime() - KEEP_DAYS * 86400000);
+  const cutoffStr = `${cutoffAth.getUTCFullYear()}-${pad(cutoffAth.getUTCMonth()+1)}-${pad(cutoffAth.getUTCDate())}`;
 
   const monthsSeen = new Set(), monthsNeeded = [];
   for (let d = KEEP_DAYS; d >= 0; d--) {
-    const dt = new Date(now.getTime() - d * 86400000);
+    const dt = athensDate(now.getTime() - d * 86400000);
     const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
     if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
   }
@@ -460,7 +462,7 @@ async function loadData() {
   const psDays = new Set(psAll.map(d => d.d));
   const s3Days = new Set(s3All.map(d => d.d));
   for (let dd = Math.min(KEEP_DAYS - 1, 5); dd >= 1; dd--) {
-    const dt  = new Date(now.getTime() - dd * 86400000);
+    const dt  = athensDate(now.getTime() - dd * 86400000);
     const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
     if (day < cutoffStr) continue;
     if (!psDays.has(day)) {
