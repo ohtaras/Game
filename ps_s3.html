@@ -310,10 +310,11 @@ async function fetchDayOpap(gameId, dayStr) {
     try { raw = await apiFetch(url); } catch(_) { break; }
     if (!raw) break;
     const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    if (pg.length === 0) break;
     items = items.concat(pg);
-    if (Array.isArray(raw) || raw.last === true || pg.length === 0 || pg.length < 200) break;
+    if (Array.isArray(raw) || raw.last === true) break;
     page++;
-    if (page > 10) break;
+    if (page > 50) break;
   }
   return items;
 }
