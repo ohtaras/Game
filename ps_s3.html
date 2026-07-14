@@ -82,8 +82,16 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .set-row input{flex:1;min-width:0;padding:5px 8px;background:#12101a;color:#e8e8e8;border:1px solid #2a2a4a;border-radius:6px;font-size:.76rem;outline:none}
 .set-row input:focus{border-color:#3949ab}
 
+/* ── Countdown ── */
+.countdown-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#0d0d1a;border:1px solid #1e1e2e;border-radius:7px;padding:7px 12px;margin-bottom:10px;font-size:.78rem}
+.cd-label{color:#555;white-space:nowrap}
+.cd-timer{font-weight:800;font-variant-numeric:tabular-nums;color:#80cbc4;font-size:.9rem;min-width:44px}
+.cd-timer.cd-off{color:#333}
+.cd-next{color:#666;font-size:.72rem}
+
 /* ── Raw debug ── */
-.raw-note{font-size:.62rem;color:#2a2a4a;margin-top:8px;font-family:monospace;word-break:break-all;line-height:1.5}
+.raw-note{font-size:.62rem;color:#607d8b;margin-top:8px;font-family:monospace;word-break:break-all;line-height:1.5;background:#0a0f14;padding:6px 8px;border-radius:5px;border:1px solid #1e2a30;display:none}
+.raw-note.has-data{display:block}
 
 /* ── Toast ── */
 #dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.8rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
@@ -113,6 +121,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <!-- ═══ POWER SPIN ═══ -->
   <section id="psTab">
     <h2 style="color:#7986cb">🎡 Power Spin — Χρονικό Ταξίδι Καθυστερήσεων</h2>
+
+    <div class="countdown-bar">
+      <span class="cd-label">⏱ Επόμενη κλήρωση:</span>
+      <span class="cd-timer" id="psCdTimer">--:--</span>
+      <span class="cd-next"  id="psCdNext"></span>
+    </div>
 
     <div class="ctrl-bar">
       <button class="btn" id="psPrevBtn"    onclick="psNav(-1)"    disabled>◀ Προηγ.</button>
@@ -159,6 +173,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <!-- ═══ SUPER 3 ═══ -->
   <section id="s3Tab" style="display:none">
     <h2 style="color:#ef9a9a">🔢 Super 3 — Χρονικό Ταξίδι Καθυστερήσεων</h2>
+
+    <div class="countdown-bar">
+      <span class="cd-label">⏱ Επόμενη κλήρωση:</span>
+      <span class="cd-timer" id="s3CdTimer">--:--</span>
+      <span class="cd-next"  id="s3CdNext"></span>
+    </div>
 
     <div class="ctrl-bar">
       <button class="btn" id="s3PrevBtn"    onclick="s3Nav(-1)"    disabled>◀ Προηγ.</button>
@@ -341,7 +361,8 @@ async function ghGet(path) {
 }
 
 // ── Power Spin item parsing ────────────────────────────────────────────────
-let psRawSample = null;
+let psRawSample    = null;
+let psFirstRawItem = null;
 
 function parsePsValue(v) {
   if (typeof v === 'number') {
@@ -364,8 +385,12 @@ function parsePsItem(item) {
   const lst = wn.list  || [];
   const bon = wn.bonus || [];
 
-  // Save full winningNumbers for debugging (first draw only)
-  if (!psRawSample) psRawSample = JSON.stringify(wn).slice(0, 600);
+  // Save full item for debugging (first draw only)
+  if (!psRawSample) {
+    psRawSample    = JSON.stringify(wn);
+    psFirstRawItem = item;
+    console.log('[PS DEBUG] First raw item:', JSON.stringify(item, null, 2));
+  }
 
   if (lst.length === 0 && bon.length === 0) return null;
 
@@ -521,14 +546,20 @@ async function loadData() {
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
     : '⚠ Δεν βρέθηκαν κληρώσεις';
 
-  // Debug: show full winningNumbers for developers
-  if (psRawSample) {
-    document.getElementById('psRawNote').textContent =
-      `API δείγμα winningNumbers PS: ${psRawSample}`;
+  // Debug: show full API structure
+  if (psRawSample && psFirstRawItem) {
+    const firstW = psDraws.length ? JSON.stringify(psDraws[0].w) : '?';
+    const el = document.getElementById('psRawNote');
+    el.textContent =
+      `[DEBUG PS] winningNumbers: ${psRawSample}\n` +
+      `[DEBUG PS] parsed w[0]: ${firstW}\n` +
+      `[DEBUG PS] drawId sample: ${psFirstRawItem.drawId || '?'}`;
+    el.classList.add('has-data');
   }
   if (s3RawSample) {
-    document.getElementById('s3RawNote').textContent =
-      `API δείγμα winningNumbers S3: ${s3RawSample}`;
+    const el = document.getElementById('s3RawNote');
+    el.textContent = `[DEBUG S3] winningNumbers: ${s3RawSample}`;
+    el.classList.add('has-data');
   }
 }
 
@@ -760,6 +791,59 @@ function s3NavDay(dir) {
   s3Render();
 }
 
+// ── Countdown timer ────────────────────────────────────────────────────────
+// Power Spin: 08:01 → 23:57, step 4 min  (start=481, end=1437)
+// Super 3   : 00:03 → 23:59, step 4 min  (start=3,   end=1439)
+function nextDrawSecs(startMin, endMin, stepMin) {
+  const now  = athensDate(Date.now());
+  const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
+  const mins = secs / 60;
+  if (mins > endMin) return null; // no more draws today
+
+  // smallest draw minute >= current
+  const offset   = Math.max(0, mins - startMin);
+  const stepsAhead = Math.ceil(offset / stepMin);
+  const nextMin  = startMin + stepsAhead * stepMin;
+  if (nextMin > endMin) return null;
+
+  const nextSec  = nextMin * 60;
+  return { remaining: Math.max(0, Math.round(nextSec - secs)), nextMin };
+}
+
+function fmtCountdown(secs) {
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function tickCountdowns() {
+  const psR = nextDrawSecs(481, 1437, 4);
+  const psTm = document.getElementById('psCdTimer');
+  const psNx = document.getElementById('psCdNext');
+  if (psR) {
+    psTm.textContent = fmtCountdown(psR.remaining);
+    psTm.className   = 'cd-timer';
+    psNx.textContent = `(${minsToTime(psR.nextMin)})`;
+  } else {
+    psTm.textContent = 'Τέλος';
+    psTm.className   = 'cd-timer cd-off';
+    psNx.textContent = 'Επόμενη αύριο 08:01';
+  }
+
+  const s3R = nextDrawSecs(3, 1439, 4);
+  const s3Tm = document.getElementById('s3CdTimer');
+  const s3Nx = document.getElementById('s3CdNext');
+  if (s3R) {
+    s3Tm.textContent = fmtCountdown(s3R.remaining);
+    s3Tm.className   = 'cd-timer';
+    s3Nx.textContent = `(${minsToTime(s3R.nextMin)})`;
+  } else {
+    s3Tm.textContent = 'Τέλος';
+    s3Tm.className   = 'cd-timer cd-off';
+    s3Nx.textContent = 'Επόμενη αύριο 00:03';
+  }
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────
 const TABS = ['ps', 's3', 'cfg'];
 function switchTab(name) {
@@ -787,6 +871,8 @@ document.addEventListener('keydown', e => {
 
 // ── Init ───────────────────────────────────────────────────────────────────
 document.getElementById('ghTokIn').value = ghToken();
+tickCountdowns();
+setInterval(tickCountdowns, 1000);
 loadData();
 </script>
 </body>
