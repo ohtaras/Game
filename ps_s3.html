@@ -816,9 +816,50 @@ function fmtCountdown(secs) {
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-// Track previous next-draw minute to detect transitions
-let psPrevNextMin = -1, s3PrevNextMin = -1;
-// Pending auto-fetch timers
+// Precise scheduling — like KINO's scheduleRefresh
+let psRefreshTimer = null, s3RefreshTimer = null;
+
+function msToNextPs() {
+  const now  = athensDate(Date.now());
+  const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
+             + now.getUTCMilliseconds() / 1000;
+  const mins  = secs / 60;
+  const start = 481, step = 4, end = 1437;
+  if (mins > end) return null;
+  const stepsAhead = Math.ceil(Math.max(0, mins - start) / step);
+  const nextMin    = start + stepsAhead * step;
+  if (nextMin > end) return null;
+  return Math.max(0, nextMin * 60 - secs) * 1000;
+}
+
+function msToNextS3() {
+  const now  = athensDate(Date.now());
+  const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
+             + now.getUTCMilliseconds() / 1000;
+  const mins  = secs / 60;
+  const start = 3, step = 4, end = 1439;
+  if (mins > end) return null;
+  const stepsAhead = Math.ceil(Math.max(0, mins - start) / step);
+  const nextMin    = start + stepsAhead * step;
+  if (nextMin > end) return null;
+  return Math.max(0, nextMin * 60 - secs) * 1000;
+}
+
+function schedulePs() {
+  clearTimeout(psRefreshTimer);
+  const ms = msToNextPs();
+  if (ms === null) return;
+  psRefreshTimer = setTimeout(() => { autoFetchPs(); schedulePs(); }, ms + 5000);
+}
+
+function scheduleS3() {
+  clearTimeout(s3RefreshTimer);
+  const ms = msToNextS3();
+  if (ms === null) return;
+  s3RefreshTimer = setTimeout(() => { autoFetchS3(); scheduleS3(); }, ms + 5000);
+}
+
+// (kept for tickCountdowns compatibility)
 let psAutoFetchTimer = null, s3AutoFetchTimer = null;
 
 async function autoFetchPs() {
@@ -881,12 +922,6 @@ function tickCountdowns() {
     psTm.textContent = fmtCountdown(psR.remaining);
     psTm.className   = 'cd-timer';
     psNx.textContent = `(${minsToTime(psR.nextMin)})`;
-    // Detect draw boundary: next-draw minute just changed → previous draw fired
-    if (psPrevNextMin !== -1 && psR.nextMin !== psPrevNextMin) {
-      if (psAutoFetchTimer) clearTimeout(psAutoFetchTimer);
-      psAutoFetchTimer = setTimeout(autoFetchPs, 15000);
-    }
-    psPrevNextMin = psR.nextMin;
   } else {
     psTm.textContent = 'Τέλος';
     psTm.className   = 'cd-timer cd-off';
@@ -900,11 +935,6 @@ function tickCountdowns() {
     s3Tm.textContent = fmtCountdown(s3R.remaining);
     s3Tm.className   = 'cd-timer';
     s3Nx.textContent = `(${minsToTime(s3R.nextMin)})`;
-    if (s3PrevNextMin !== -1 && s3R.nextMin !== s3PrevNextMin) {
-      if (s3AutoFetchTimer) clearTimeout(s3AutoFetchTimer);
-      s3AutoFetchTimer = setTimeout(autoFetchS3, 15000);
-    }
-    s3PrevNextMin = s3R.nextMin;
   } else {
     s3Tm.textContent = 'Τέλος';
     s3Tm.className   = 'cd-timer cd-off';
@@ -941,6 +971,8 @@ document.addEventListener('keydown', e => {
 document.getElementById('ghTokIn').value = ghToken();
 tickCountdowns();
 setInterval(tickCountdowns, 1000);
+schedulePs();
+scheduleS3();
 loadData();
 </script>
 </body>
