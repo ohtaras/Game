@@ -322,6 +322,11 @@ async function apiFetch(url) {
   throw lastErr;
 }
 
+async function fetchActive(gameId) {
+  const url = `https://api.opap.gr/draws/v3.0/${gameId}/active`;
+  return apiFetch(url); // returns single draw object
+}
+
 async function fetchDayOpap(gameId, dayStr) {
   let items = [], page = 0;
   while (true) {
@@ -546,16 +551,21 @@ async function loadData() {
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
     : '⚠ Δεν βρέθηκαν κληρώσεις';
 
-  // Debug: show full API structure
-  if (psRawSample && psFirstRawItem) {
-    const firstW = psDraws.length ? JSON.stringify(psDraws[0].w) : '?';
-    const el = document.getElementById('psRawNote');
-    el.textContent =
-      `[DEBUG PS] winningNumbers: ${psRawSample}\n` +
-      `[DEBUG PS] parsed w[0]: ${firstW}\n` +
-      `[DEBUG PS] drawId sample: ${psFirstRawItem.drawId || '?'}`;
-    el.classList.add('has-data');
-  }
+  // Debug: show /active endpoint structure for PS wheel diagnosis
+  try {
+    const act = await fetchActive(PS_GAME_ID);
+    if (act) {
+      const wn = act.winningNumbers || {};
+      const el = document.getElementById('psRawNote');
+      el.textContent =
+        `[/active] drawId: ${act.drawId}\n` +
+        `[/active] winningNumbers: ${JSON.stringify(wn)}\n` +
+        `[/active] full keys: ${Object.keys(act).join(', ')}`;
+      el.classList.add('has-data');
+      console.log('[PS /active]', JSON.stringify(act, null, 2));
+    }
+  } catch(e) { console.warn('PS /active debug failed:', e); }
+
   if (s3RawSample) {
     const el = document.getElementById('s3RawNote');
     el.textContent = `[DEBUG S3] winningNumbers: ${s3RawSample}`;
@@ -863,55 +873,51 @@ function scheduleS3() {
 let psAutoFetchTimer = null, s3AutoFetchTimer = null;
 
 async function autoFetchPs() {
-  const athNow   = athensDate(Date.now());
-  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
   const sb = document.getElementById('statusBar');
   sb.textContent = '⏳ Live ανανέωση Power Spin…';
   try {
-    const items      = await fetchDayOpap(PS_GAME_ID, todayStr);
-    const existingIds = new Set(psDraws.map(d => d.id));
-    const wasAtLast  = psIdx >= psDraws.length - 1;
-    let added = 0;
-    for (const it of items) {
-      const d = parsePsItem(it);
-      if (d && !existingIds.has(d.id)) { psDraws.push(d); added++; }
-    }
-    if (added > 0) {
+    const it = await fetchActive(PS_GAME_ID);
+    if (!it) throw new Error('empty');
+    const d = parsePsItem(it);
+    if (d && !psDraws.find(x => x.id === d.id)) {
+      const wasAtLast = psIdx >= psDraws.length - 1;
+      psDraws.push(d);
       psDraws.sort((a, b) => a.id - b.id);
       if (wasAtLast) psIdx = psDraws.length - 1;
       psRender();
-      sb.textContent = `✓ +${added} νέες κληρώσεις PS — ${new Date().toLocaleTimeString('el-GR')}`;
+      sb.textContent = `✓ Νέα κλήρωση PS #${d.id} — ${new Date().toLocaleTimeString('el-GR')}`;
     } else {
-      sb.textContent = '✓ Καμία νέα κλήρωση PS ακόμα — επαναδοκιμή σε 10s';
-      psAutoFetchTimer = setTimeout(autoFetchPs, 10000);
+      sb.textContent = '⏳ PS: αναμονή αποτελέσματος…';
+      psAutoFetchTimer = setTimeout(autoFetchPs, 8000);
     }
-  } catch(e) { sb.textContent = '⚠ Σφάλμα live ανανέωσης PS'; }
+  } catch(e) {
+    sb.textContent = '⚠ Σφάλμα live PS — επαναδοκιμή';
+    psAutoFetchTimer = setTimeout(autoFetchPs, 10000);
+  }
 }
 
 async function autoFetchS3() {
-  const athNow   = athensDate(Date.now());
-  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
   const sb = document.getElementById('statusBar');
   sb.textContent = '⏳ Live ανανέωση Super 3…';
   try {
-    const items      = await fetchDayOpap(S3_GAME_ID, todayStr);
-    const existingIds = new Set(s3Draws.map(d => d.id));
-    const wasAtLast  = s3Idx >= s3Draws.length - 1;
-    let added = 0;
-    for (const it of items) {
-      const d = parseS3Item(it);
-      if (d && !existingIds.has(d.id)) { s3Draws.push(d); added++; }
-    }
-    if (added > 0) {
+    const it = await fetchActive(S3_GAME_ID);
+    if (!it) throw new Error('empty');
+    const d = parseS3Item(it);
+    if (d && !s3Draws.find(x => x.id === d.id)) {
+      const wasAtLast = s3Idx >= s3Draws.length - 1;
+      s3Draws.push(d);
       s3Draws.sort((a, b) => a.id - b.id);
       if (wasAtLast) s3Idx = s3Draws.length - 1;
       s3Render();
-      sb.textContent = `✓ +${added} νέες κληρώσεις S3 — ${new Date().toLocaleTimeString('el-GR')}`;
+      sb.textContent = `✓ Νέα κλήρωση S3 #${d.id} — ${new Date().toLocaleTimeString('el-GR')}`;
     } else {
-      sb.textContent = '✓ Καμία νέα κλήρωση S3 ακόμα — επαναδοκιμή σε 10s';
-      s3AutoFetchTimer = setTimeout(autoFetchS3, 10000);
+      sb.textContent = '⏳ S3: αναμονή αποτελέσματος…';
+      s3AutoFetchTimer = setTimeout(autoFetchS3, 8000);
     }
-  } catch(e) { sb.textContent = '⚠ Σφάλμα live ανανέωσης S3'; }
+  } catch(e) {
+    sb.textContent = '⚠ Σφάλμα live S3 — επαναδοκιμή';
+    s3AutoFetchTimer = setTimeout(autoFetchS3, 10000);
+  }
 }
 
 function tickCountdowns() {
