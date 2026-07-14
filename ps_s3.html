@@ -816,27 +816,95 @@ function fmtCountdown(secs) {
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
+// Track previous next-draw minute to detect transitions
+let psPrevNextMin = -1, s3PrevNextMin = -1;
+// Pending auto-fetch timers
+let psAutoFetchTimer = null, s3AutoFetchTimer = null;
+
+async function autoFetchPs() {
+  const athNow   = athensDate(Date.now());
+  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
+  const sb = document.getElementById('statusBar');
+  sb.textContent = '⏳ Live ανανέωση Power Spin…';
+  try {
+    const items      = await fetchDayOpap(PS_GAME_ID, todayStr);
+    const existingIds = new Set(psDraws.map(d => d.id));
+    const wasAtLast  = psIdx >= psDraws.length - 1;
+    let added = 0;
+    for (const it of items) {
+      const d = parsePsItem(it);
+      if (d && !existingIds.has(d.id)) { psDraws.push(d); added++; }
+    }
+    if (added > 0) {
+      psDraws.sort((a, b) => a.id - b.id);
+      if (wasAtLast) psIdx = psDraws.length - 1;
+      psRender();
+      sb.textContent = `✓ +${added} νέες κληρώσεις PS — ${new Date().toLocaleTimeString('el-GR')}`;
+    } else {
+      sb.textContent = '✓ Καμία νέα κλήρωση PS ακόμα — επαναδοκιμή σε 10s';
+      psAutoFetchTimer = setTimeout(autoFetchPs, 10000);
+    }
+  } catch(e) { sb.textContent = '⚠ Σφάλμα live ανανέωσης PS'; }
+}
+
+async function autoFetchS3() {
+  const athNow   = athensDate(Date.now());
+  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
+  const sb = document.getElementById('statusBar');
+  sb.textContent = '⏳ Live ανανέωση Super 3…';
+  try {
+    const items      = await fetchDayOpap(S3_GAME_ID, todayStr);
+    const existingIds = new Set(s3Draws.map(d => d.id));
+    const wasAtLast  = s3Idx >= s3Draws.length - 1;
+    let added = 0;
+    for (const it of items) {
+      const d = parseS3Item(it);
+      if (d && !existingIds.has(d.id)) { s3Draws.push(d); added++; }
+    }
+    if (added > 0) {
+      s3Draws.sort((a, b) => a.id - b.id);
+      if (wasAtLast) s3Idx = s3Draws.length - 1;
+      s3Render();
+      sb.textContent = `✓ +${added} νέες κληρώσεις S3 — ${new Date().toLocaleTimeString('el-GR')}`;
+    } else {
+      sb.textContent = '✓ Καμία νέα κλήρωση S3 ακόμα — επαναδοκιμή σε 10s';
+      s3AutoFetchTimer = setTimeout(autoFetchS3, 10000);
+    }
+  } catch(e) { sb.textContent = '⚠ Σφάλμα live ανανέωσης S3'; }
+}
+
 function tickCountdowns() {
-  const psR = nextDrawSecs(481, 1437, 4);
+  const psR  = nextDrawSecs(481, 1437, 4);
   const psTm = document.getElementById('psCdTimer');
   const psNx = document.getElementById('psCdNext');
   if (psR) {
     psTm.textContent = fmtCountdown(psR.remaining);
     psTm.className   = 'cd-timer';
     psNx.textContent = `(${minsToTime(psR.nextMin)})`;
+    // Detect draw boundary: next-draw minute just changed → previous draw fired
+    if (psPrevNextMin !== -1 && psR.nextMin !== psPrevNextMin) {
+      if (psAutoFetchTimer) clearTimeout(psAutoFetchTimer);
+      psAutoFetchTimer = setTimeout(autoFetchPs, 15000);
+    }
+    psPrevNextMin = psR.nextMin;
   } else {
     psTm.textContent = 'Τέλος';
     psTm.className   = 'cd-timer cd-off';
     psNx.textContent = 'Επόμενη αύριο 08:01';
   }
 
-  const s3R = nextDrawSecs(3, 1439, 4);
+  const s3R  = nextDrawSecs(3, 1439, 4);
   const s3Tm = document.getElementById('s3CdTimer');
   const s3Nx = document.getElementById('s3CdNext');
   if (s3R) {
     s3Tm.textContent = fmtCountdown(s3R.remaining);
     s3Tm.className   = 'cd-timer';
     s3Nx.textContent = `(${minsToTime(s3R.nextMin)})`;
+    if (s3PrevNextMin !== -1 && s3R.nextMin !== s3PrevNextMin) {
+      if (s3AutoFetchTimer) clearTimeout(s3AutoFetchTimer);
+      s3AutoFetchTimer = setTimeout(autoFetchS3, 15000);
+    }
+    s3PrevNextMin = s3R.nextMin;
   } else {
     s3Tm.textContent = 'Τέλος';
     s3Tm.className   = 'cd-timer cd-off';
