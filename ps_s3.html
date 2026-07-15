@@ -859,14 +859,14 @@ function schedulePs() {
   clearTimeout(psRefreshTimer);
   const ms = msToNextPs();
   if (ms === null) return;
-  psRefreshTimer = setTimeout(() => { autoFetchPs(); schedulePs(); }, ms + 5000);
+  psRefreshTimer = setTimeout(() => { autoFetchPs(); schedulePs(); }, ms + 10000);
 }
 
 function scheduleS3() {
   clearTimeout(s3RefreshTimer);
   const ms = msToNextS3();
   if (ms === null) return;
-  s3RefreshTimer = setTimeout(() => { autoFetchS3(); scheduleS3(); }, ms + 5000);
+  s3RefreshTimer = setTimeout(() => { autoFetchS3(); scheduleS3(); }, ms + 10000);
 }
 
 // (kept for tickCountdowns compatibility)
