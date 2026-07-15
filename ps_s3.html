@@ -872,53 +872,40 @@ function scheduleS3() {
 // (kept for tickCountdowns compatibility)
 let psAutoFetchTimer = null, s3AutoFetchTimer = null;
 
-async function autoFetchPs() {
+async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label) {
   const sb = document.getElementById('statusBar');
-  sb.textContent = '⏳ Live ανανέωση Power Spin…';
+  const athNow   = athensDate(Date.now());
+  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
+  sb.textContent = `⏳ Live ανανέωση ${label}…`;
   try {
-    const it = await fetchActive(PS_GAME_ID);
-    if (!it) throw new Error('empty');
-    const d = parsePsItem(it);
-    if (d && !psDraws.find(x => x.id === d.id)) {
-      const wasAtLast = psIdx >= psDraws.length - 1;
-      psDraws.push(d);
-      psDraws.sort((a, b) => a.id - b.id);
-      if (wasAtLast) psIdx = psDraws.length - 1;
-      psRender();
-      sb.textContent = `✓ Νέα κλήρωση PS #${d.id} — ${new Date().toLocaleTimeString('el-GR')}`;
+    const items      = await fetchDayOpap(gameId, todayStr);
+    const existingIds = new Set(drawsArr.map(d => d.id));
+    const wasAtLast  = idxSetter.get() >= drawsArr.length - 1;
+    let added = 0;
+    for (const it of items) {
+      const d = parseItem(it);
+      if (d && !existingIds.has(d.id)) { drawsArr.push(d); existingIds.add(d.id); added++; }
+    }
+    if (added > 0) {
+      drawsArr.sort((a, b) => a.id - b.id);
+      if (wasAtLast) idxSetter.set(drawsArr.length - 1);
+      renderFn();
+      sb.textContent = `✓ +${added} νέες κληρώσεις ${label} — ${new Date().toLocaleTimeString('el-GR')}`;
     } else {
-      sb.textContent = '⏳ PS: αναμονή αποτελέσματος…';
-      psAutoFetchTimer = setTimeout(autoFetchPs, 8000);
+      sb.textContent = `⏳ ${label}: αναμονή αποτελέσματος — επαναδοκιμή σε 10s`;
+      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label), 10000);
     }
   } catch(e) {
-    sb.textContent = '⚠ Σφάλμα live PS — επαναδοκιμή';
-    psAutoFetchTimer = setTimeout(autoFetchPs, 10000);
+    sb.textContent = `⚠ Σφάλμα live ${label} — επαναδοκιμή σε 10s`;
+    setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label), 10000);
   }
 }
 
-async function autoFetchS3() {
-  const sb = document.getElementById('statusBar');
-  sb.textContent = '⏳ Live ανανέωση Super 3…';
-  try {
-    const it = await fetchActive(S3_GAME_ID);
-    if (!it) throw new Error('empty');
-    const d = parseS3Item(it);
-    if (d && !s3Draws.find(x => x.id === d.id)) {
-      const wasAtLast = s3Idx >= s3Draws.length - 1;
-      s3Draws.push(d);
-      s3Draws.sort((a, b) => a.id - b.id);
-      if (wasAtLast) s3Idx = s3Draws.length - 1;
-      s3Render();
-      sb.textContent = `✓ Νέα κλήρωση S3 #${d.id} — ${new Date().toLocaleTimeString('el-GR')}`;
-    } else {
-      sb.textContent = '⏳ S3: αναμονή αποτελέσματος…';
-      s3AutoFetchTimer = setTimeout(autoFetchS3, 8000);
-    }
-  } catch(e) {
-    sb.textContent = '⚠ Σφάλμα live S3 — επαναδοκιμή';
-    s3AutoFetchTimer = setTimeout(autoFetchS3, 10000);
-  }
-}
+const psIdxRef = { get: () => psIdx, set: v => { psIdx = v; } };
+const s3IdxRef = { get: () => s3Idx, set: v => { s3Idx = v; } };
+
+function autoFetchPs() { return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef, psRender, 'PS'); }
+function autoFetchS3() { return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef, s3Render, 'S3'); }
 
 function tickCountdowns() {
   const psR  = nextDrawSecs(481, 1437, 4);
