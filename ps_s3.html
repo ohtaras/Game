@@ -82,6 +82,15 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .set-row input{flex:1;min-width:0;padding:5px 8px;background:#12101a;color:#e8e8e8;border:1px solid #2a2a4a;border-radius:6px;font-size:.76rem;outline:none}
 .set-row input:focus{border-color:#3949ab}
 
+/* ── Heat mode ── */
+.heat-ctrl{display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.heat-ctrl.visible{display:flex}
+.heat-ctrl .hl{font-size:.72rem;color:#888;margin-right:2px}
+.ps-cell.ps-heat,.ps-sym-cell.ps-heat{border-radius:5px!important}
+.s3-cell.s3-heat{border-radius:5px!important}
+.pc-d-heat{font-size:.5rem;display:flex;justify-content:space-between;padding:0 1px;margin-top:1px}
+.sc-d-heat{font-size:.58rem;display:flex;justify-content:space-between;width:100%}
+
 /* ── Countdown ── */
 .countdown-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#0d0d1a;border:1px solid #1e1e2e;border-radius:7px;padding:7px 12px;margin-bottom:10px;font-size:.78rem}
 .cd-label{color:#555;white-space:nowrap}
@@ -134,7 +143,18 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <button class="btn" id="psPrevDayBtn" onclick="psNavDay(-1)" disabled style="font-size:.7rem;padding:5px 10px">−Μέρα</button>
       <button class="btn" id="psNextDayBtn" onclick="psNavDay(+1)" disabled style="font-size:.7rem;padding:5px 10px">+Μέρα</button>
       <button class="btn" onclick="psGoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Τελευταία</button>
+      <button class="btn" id="psHeatBtn" onclick="togglePsHeat()" style="margin-left:auto;background:#6a1a1a;font-size:.75rem;padding:5px 12px">🌡 Θερμικός</button>
       <span class="ctrl-info" id="psInfo">—</span>
+    </div>
+
+    <div class="heat-ctrl" id="psHeatCtrl">
+      <span class="hl">Παράθυρο:</span>
+      <button class="btn" id="psHW6"   onclick="setPsHeatW(6)"   style="padding:4px 9px;font-size:.73rem">6</button>
+      <button class="btn" id="psHW20"  onclick="setPsHeatW(20)"  style="padding:4px 9px;font-size:.73rem">20</button>
+      <button class="btn" id="psHW50"  onclick="setPsHeatW(50)"  style="padding:4px 9px;font-size:.73rem">50</button>
+      <button class="btn" id="psHW100" onclick="setPsHeatW(100)" style="padding:4px 9px;font-size:.73rem">100</button>
+      <button class="btn active" id="psHW240" onclick="setPsHeatW(240)" style="padding:4px 9px;font-size:.73rem">240</button>
+      <span id="psHeatNote" style="font-size:.7rem;color:#c44"></span>
     </div>
 
     <!-- Delay filter 0-20 -->
@@ -186,7 +206,18 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <button class="btn" id="s3PrevDayBtn" onclick="s3NavDay(-1)" disabled style="font-size:.7rem;padding:5px 10px">−Μέρα</button>
       <button class="btn" id="s3NextDayBtn" onclick="s3NavDay(+1)" disabled style="font-size:.7rem;padding:5px 10px">+Μέρα</button>
       <button class="btn" onclick="s3GoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Τελευταία</button>
+      <button class="btn" id="s3HeatBtn" onclick="toggleS3Heat()" style="margin-left:auto;background:#6a1a1a;font-size:.75rem;padding:5px 12px">🌡 Θερμικός</button>
       <span class="ctrl-info" id="s3Info">—</span>
+    </div>
+
+    <div class="heat-ctrl" id="s3HeatCtrl">
+      <span class="hl">Παράθυρο:</span>
+      <button class="btn" id="s3HW6"   onclick="setS3HeatW(6)"   style="padding:4px 9px;font-size:.73rem">6</button>
+      <button class="btn" id="s3HW20"  onclick="setS3HeatW(20)"  style="padding:4px 9px;font-size:.73rem">20</button>
+      <button class="btn" id="s3HW50"  onclick="setS3HeatW(50)"  style="padding:4px 9px;font-size:.73rem">50</button>
+      <button class="btn" id="s3HW100" onclick="setS3HeatW(100)" style="padding:4px 9px;font-size:.73rem">100</button>
+      <button class="btn active" id="s3HW360" onclick="setS3HeatW(360)" style="padding:4px 9px;font-size:.73rem">360</button>
+      <span id="s3HeatNote" style="font-size:.7rem;color:#c44"></span>
     </div>
 
     <!-- Delay filter 0-20 -->
@@ -679,6 +710,89 @@ function s3DelayClass(d) {
   return 'd-ovr';
 }
 
+// ── Heat map ───────────────────────────────────────────────────────────────
+let psHeatMode = false, psHeatW = 240;
+let s3HeatMode = false, s3HeatW = 360;
+const PS_HEAT_PRESETS = [6,20,50,100,240];
+const S3_HEAT_PRESETS = [6,20,50,100,360];
+
+function heatStyle(freq, actualW, poolSize) {
+  const ratio = freq / Math.max(1, actualW / poolSize);
+  const r = Math.min(255, Math.round(18 + ratio * 210));
+  const g = Math.max(4,   Math.round(18 - ratio * 14));
+  const b = Math.max(0,   Math.round(32 - ratio * 32));
+  const rb = Math.min(255, r + 35);
+  return `background:rgb(${r},${g},${b});border:2px solid rgb(${rb},${g+8},${b+4});color:#fff`;
+}
+
+function computePsHeat(draws, idx, w) {
+  const freq = [
+    new Array(PS_POOL + 1).fill(0),
+    new Array(PS_POOL + 1).fill(0),
+    new Array(PS_POOL + 1).fill(0),
+  ];
+  const from = Math.max(0, idx - w + 1);
+  for (let i = from; i <= idx; i++) {
+    for (let wi = 0; wi < 3; wi++) {
+      const v = draws[i].w?.[wi];
+      if (v >= 1 && v <= PS_POOL) freq[wi][v]++;
+    }
+  }
+  return freq;
+}
+
+function computeS3Heat(draws, idx, w) {
+  const freq = [new Array(10).fill(0), new Array(10).fill(0), new Array(10).fill(0)];
+  const from = Math.max(0, idx - w + 1);
+  for (let i = from; i <= idx; i++) {
+    const n = draws[i].n;
+    freq[0][Math.floor(n/100)]++;
+    freq[1][Math.floor(n/10)%10]++;
+    freq[2][n%10]++;
+  }
+  return freq;
+}
+
+function togglePsHeat() {
+  psHeatMode = !psHeatMode;
+  const btn = document.getElementById('psHeatBtn');
+  btn.classList.toggle('active', psHeatMode);
+  btn.style.background = psHeatMode ? '' : '#6a1a1a';
+  document.getElementById('psHeatCtrl').classList.toggle('visible', psHeatMode);
+  if (psHeatMode) setPsHeatW(psHeatW); else psRender();
+}
+
+function setPsHeatW(w) {
+  psHeatW = w;
+  PS_HEAT_PRESETS.forEach(n => {
+    const el = document.getElementById(`psHW${n}`);
+    if (el) el.classList.toggle('active', n === w);
+  });
+  const actual = Math.min(w, psIdx + 1);
+  document.getElementById('psHeatNote').textContent = actual < w ? `(${actual} διαθ.)` : `${actual} κλ.`;
+  psRender();
+}
+
+function toggleS3Heat() {
+  s3HeatMode = !s3HeatMode;
+  const btn = document.getElementById('s3HeatBtn');
+  btn.classList.toggle('active', s3HeatMode);
+  btn.style.background = s3HeatMode ? '' : '#6a1a1a';
+  document.getElementById('s3HeatCtrl').classList.toggle('visible', s3HeatMode);
+  if (s3HeatMode) setS3HeatW(s3HeatW); else s3Render();
+}
+
+function setS3HeatW(w) {
+  s3HeatW = w;
+  S3_HEAT_PRESETS.forEach(n => {
+    const el = document.getElementById(`s3HW${n}`);
+    if (el) el.classList.toggle('active', n === w);
+  });
+  const actual = Math.min(w, s3Idx + 1);
+  document.getElementById('s3HeatNote').textContent = actual < w ? `(${actual} διαθ.)` : `${actual} κλ.`;
+  s3Render();
+}
+
 // ── Power Spin render ──────────────────────────────────────────────────────
 const SYM_LABELS = ['★', '♦', '✦'];
 
@@ -689,27 +803,40 @@ function psRender() {
   const drawn  = draw.w || [];
   const flt    = psDelayFilter;
 
+  const actualW  = psHeatMode ? Math.min(psHeatW, psIdx + 1) : 0;
+  const heatFreq = psHeatMode ? computePsHeat(psDraws, psIdx, actualW) : null;
+
   for (let w = 0; w < 3; w++) {
     const drawnV = drawn[w];
 
     const numCells = [];
     for (let n = 1; n <= 24; n++) {
-      const d     = delays[w][n];
-      const cls   = psDelayClass(d);
-      const sel   = n === drawnV ? ' ps-drawn' : '';
+      const d   = delays[w][n];
+      const sel = n === drawnV ? ' ps-drawn' : '';
       const faded = flt.size > 0 && !flt.has(d) ? ' ps-faded' : '';
-      numCells.push(`<div class="ps-cell ${cls}${sel}${faded}"><span class="pc-n">${n}</span><span class="pc-d">${d}</span></div>`);
+      if (heatFreq) {
+        const f  = heatFreq[w][n];
+        const st = heatStyle(f, actualW, PS_POOL);
+        numCells.push(`<div class="ps-cell ps-heat${sel}${faded}" style="${st}"><span class="pc-n">${n}</span><span class="pc-d-heat"><span>${f}×</span><span>${d}</span></span></div>`);
+      } else {
+        numCells.push(`<div class="ps-cell ${psDelayClass(d)}${sel}${faded}"><span class="pc-n">${n}</span><span class="pc-d">${d}</span></div>`);
+      }
     }
     document.getElementById(`psW${w}`).innerHTML = numCells.join('');
 
     const symCells = [];
     for (let s = 0; s < PS_SYMS; s++) {
-      const v     = 25 + s;
-      const d     = delays[w][v];
-      const cls   = psDelayClass(d);
-      const sel   = v === drawnV ? ' ps-drawn' : '';
+      const v   = 25 + s;
+      const d   = delays[w][v];
+      const sel = v === drawnV ? ' ps-drawn' : '';
       const faded = flt.size > 0 && !flt.has(d) ? ' ps-faded' : '';
-      symCells.push(`<div class="ps-sym-cell ${cls}${sel}${faded}"><span class="pc-n">${SYM_LABELS[s]}</span><span class="pc-d">${d}</span></div>`);
+      if (heatFreq) {
+        const f  = heatFreq[w][v];
+        const st = heatStyle(f, actualW, PS_POOL);
+        symCells.push(`<div class="ps-sym-cell ps-heat${sel}${faded}" style="${st}"><span class="pc-n">${SYM_LABELS[s]}</span><span class="pc-d-heat"><span>${f}×</span><span>${d}</span></span></div>`);
+      } else {
+        symCells.push(`<div class="ps-sym-cell ${psDelayClass(d)}${sel}${faded}"><span class="pc-n">${SYM_LABELS[s]}</span><span class="pc-d">${d}</span></div>`);
+      }
     }
     document.getElementById(`psS${w}`).innerHTML = symCells.join('');
   }
@@ -756,15 +883,23 @@ function s3Render() {
 
   document.getElementById('s3Result').textContent = pad3(draw.n);
 
+  const actualW  = s3HeatMode ? Math.min(s3HeatW, s3Idx + 1) : 0;
+  const heatFreq = s3HeatMode ? computeS3Heat(s3Draws, s3Idx, actualW) : null;
+
   const trackIds = ['s3TH','s3TT','s3TU'];
   for (let pos = 0; pos < 3; pos++) {
     const cells = [];
     for (let d = 0; d < 10; d++) {
       const delay = delays[pos][d];
-      const cls   = s3DelayClass(delay);
       const sel   = d === digs[pos] ? ' s3-drawn' : '';
       const faded = flt.size > 0 && !flt.has(delay) ? ' s3-faded' : '';
-      cells.push(`<div class="s3-cell ${cls}${sel}${faded}"><span class="sc-n">${d}</span><span class="sc-d">${delay}</span></div>`);
+      if (heatFreq) {
+        const f  = heatFreq[pos][d];
+        const st = heatStyle(f, actualW, 10);
+        cells.push(`<div class="s3-cell s3-heat${sel}${faded}" style="${st}"><span class="sc-n">${d}</span><span class="sc-d-heat"><span>${f}×</span><span>${delay}</span></span></div>`);
+      } else {
+        cells.push(`<div class="s3-cell ${s3DelayClass(delay)}${sel}${faded}"><span class="sc-n">${d}</span><span class="sc-d">${delay}</span></div>`);
+      }
     }
     document.getElementById(trackIds[pos]).innerHTML = cells.join('');
   }
