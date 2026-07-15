@@ -417,53 +417,65 @@ function parsePsValue(v) {
 
 function parsePsItem(item) {
   if (!item.drawTime) return null;
-  const wn  = item.winningNumbers || {};
-  const lst = wn.list  || [];
-  const bon = wn.bonus || [];
+  const wn   = item.winningNumbers || {};
+  const lst  = wn.list    || [];
+  const bon  = wn.bonus   || [];
+  const cols = wn.columns || [];
 
-  // Save full item for debugging (first draw only)
+  // Save full structure for debug display (first draw only)
   if (!psRawSample) {
     psRawSample    = JSON.stringify(wn);
     psFirstRawItem = item;
-    console.log('[PS DEBUG] First raw item:', JSON.stringify(item, null, 2));
+    console.log('[PS DEBUG] Full first item:', JSON.stringify(item, null, 2));
   }
 
-  if (lst.length === 0 && bon.length === 0) return null;
-
-  // Extract 3 wheel results.
-  // OPAP Power Spin may use:
-  //   (A) list=[v1,v2,v3]          — 3 values in list
-  //   (B) list=[v1], bonus=[v2,v3] — wheel1 in list, wheels 2&3 in bonus
-  //   (C) list=[v1,v2], bonus=[v3] — split differently
-  //   (D) some named sub-field     — fallback scan
   let w = [null, null, null];
 
-  if (lst.length >= 3) {
+  // (A) columns array: [{list:[v1],...}, {list:[v2],...}, {list:[v3],...}]
+  //     Most common OPAP structure for multi-wheel games
+  if (cols.length >= 3) {
+    for (let wi = 0; wi < 3; wi++) {
+      const col = cols[wi] || {};
+      const cl  = col.list || col.bonus || [];
+      if (cl.length > 0) w[wi] = parsePsValue(cl[0]);
+    }
+  }
+
+  // (B) list has 3+ values directly
+  if (w.every(x => x === null) && lst.length >= 3) {
     w = [parsePsValue(lst[0]), parsePsValue(lst[1]), parsePsValue(lst[2])];
-  } else {
-    // Fill from list first
+  }
+
+  // (C) list (wheel 1) + bonus (wheels 2&3)
+  if (w.every(x => x === null) && (lst.length > 0 || bon.length > 0)) {
     for (let i = 0; i < Math.min(lst.length, 3); i++) w[i] = parsePsValue(lst[i]);
-    // Fill remaining from bonus
     let bi = 0;
     for (let i = 0; i < 3; i++) {
       if (w[i] === null && bi < bon.length) { w[i] = parsePsValue(bon[bi]); bi++; }
     }
   }
 
-  // Fallback: scan winningNumbers fields for column/reel/wheel keys
-  const wnKeys = Object.keys(wn);
+  // (D) Fallback: scan all winningNumbers keys for numbered/column/reel/wheel patterns
+  //     Handles nested objects like {c1:{list:[5]}, c2:{list:[12]}, c3:{list:[8]}}
   for (let wi = 0; wi < 3; wi++) {
     if (w[wi] !== null) continue;
-    for (const key of wnKeys) {
+    for (const key of Object.keys(wn)) {
       const kl = key.toLowerCase();
-      if (kl.includes(`${wi+1}`) || kl.endsWith(`reel${wi+1}`) || kl.endsWith(`col${wi+1}`)) {
-        const raw = Array.isArray(wn[key]) ? wn[key][0] : wn[key];
-        const parsed = parsePsValue(raw);
-        if (parsed !== null) { w[wi] = parsed; break; }
-      }
+      if (!kl.includes(`${wi+1}`) && !kl.endsWith(`reel${wi+1}`) &&
+          !kl.endsWith(`col${wi+1}`) && !kl.endsWith(`wheel${wi+1}`)) continue;
+      const val = wn[key];
+      let raw = null;
+      if (Array.isArray(val))                              raw = val[0];
+      else if (val && typeof val === 'object' && !Array.isArray(val)) {
+        const inner = val.list || val.bonus || [];
+        raw = inner.length > 0 ? inner[0] : null;
+      } else                                               raw = val;
+      const parsed = parsePsValue(raw);
+      if (parsed !== null) { w[wi] = parsed; break; }
     }
   }
 
+  if (w.every(x => x === null)) return null;
   return { id: item.drawId, d: drawDateStr(item.drawTime), m: drawMinutes(item.drawTime), w };
 }
 
@@ -582,20 +594,32 @@ async function loadData() {
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
     : '⚠ Δεν βρέθηκαν κληρώσεις';
 
-  // Debug: show /active endpoint structure for PS wheel diagnosis
+  // Debug: show API structure for PS wheel diagnosis
   try {
     const act = await fetchActive(PS_GAME_ID);
     if (act) {
-      const wn = act.winningNumbers || {};
-      const el = document.getElementById('psRawNote');
+      const wn   = act.winningNumbers || {};
+      const cols = wn.columns || [];
+      const el   = document.getElementById('psRawNote');
       el.textContent =
-        `[/active] drawId: ${act.drawId}\n` +
-        `[/active] winningNumbers: ${JSON.stringify(wn)}\n` +
-        `[/active] full keys: ${Object.keys(act).join(', ')}`;
+        `drawId: ${act.drawId}\n` +
+        `winningNumbers keys: [${Object.keys(wn).join(', ')}]\n` +
+        `list: ${JSON.stringify(wn.list || [])}\n` +
+        `bonus: ${JSON.stringify(wn.bonus || [])}\n` +
+        `columns(${cols.length}): ${cols.map((c,i) => `[${i}]=${JSON.stringify(c)}`).join(' | ')}\n` +
+        `full wn: ${JSON.stringify(wn)}`;
       el.classList.add('has-data');
-      console.log('[PS /active]', JSON.stringify(act, null, 2));
+      console.log('[PS /active full]', JSON.stringify(act, null, 2));
     }
   } catch(e) { console.warn('PS /active debug failed:', e); }
+
+  if (psRawSample) {
+    const el = document.getElementById('psRawNote');
+    if (!el.classList.contains('has-data')) {
+      el.textContent = `[1ο draw wn]: ${psRawSample}`;
+      el.classList.add('has-data');
+    }
+  }
 
   if (s3RawSample) {
     const el = document.getElementById('s3RawNote');
