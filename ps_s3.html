@@ -164,6 +164,16 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="ctrl-info" id="psInfo">—</span>
     </div>
 
+    <div class="ctrl-bar" style="background:#070c16;border:1px solid #1a2540;border-radius:7px;padding:6px 10px">
+      <button class="btn" id="psHistBtn" onclick="loadPsHistory(6)"
+        style="background:#1a3a1a;font-size:.72rem;padding:5px 12px">📚 Ιστορικό 6μ.</button>
+      <button class="btn" onclick="loadPsHistory(12)"
+        style="background:#1a2a3a;font-size:.72rem;padding:5px 10px">12μ.</button>
+      <button class="btn" onclick="clearPsHistCache()"
+        style="background:#2a1a1a;font-size:.68rem;padding:5px 8px" title="Εκκαθάριση localStorage cache">🗑</button>
+      <span id="psHistInfo" style="font-size:.7rem;color:#4a7a4a;margin-left:6px"></span>
+    </div>
+
     <div class="heat-ctrl" id="psHeatCtrl">
       <span class="hl">Παράθυρο:</span>
       <button class="btn" id="psHW6"   onclick="setPsHeatW(6)"   style="padding:4px 9px;font-size:.73rem">6</button>
@@ -1149,6 +1159,97 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
 
 const psIdxRef = { get: () => psIdx, set: v => { psIdx = v; } };
 const s3IdxRef = { get: () => s3Idx, set: v => { s3Idx = v; } };
+
+// ── PS Historical backfill via OPAP API + localStorage cache ─────────────────
+async function fetchMonthRangeOpap(gameId, fromDate, toDate) {
+  const allItems = [];
+  let page = 0;
+  while (true) {
+    const url = `https://api.opap.gr/draws/v3.0/${gameId}/draw-date/${fromDate}/${toDate}?page=${page}&size=500`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || []);
+    if (!pg.length) break;
+    allItems.push(...pg);
+    if (Array.isArray(raw) || raw.last === true || pg.length < 500) break;
+    page++;
+    if (page > 30) break;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return allItems;
+}
+
+async function loadPsHistory(numMonths) {
+  const btn  = document.getElementById('psHistBtn');
+  const info = document.getElementById('psHistInfo');
+  if (btn) btn.disabled = true;
+
+  const now    = new Date();
+  const athNow = athensDate(now.getTime());
+  const curY   = athNow.getUTCFullYear();
+  const curM   = athNow.getUTCMonth() + 1;
+
+  const histDraws = [];
+
+  for (let i = numMonths - 1; i >= 0; i--) {
+    let y = curY, m = curM - i;
+    while (m <= 0) { m += 12; y--; }
+    const ym       = `${y}-${String(m).padStart(2, '0')}`;
+    const isCurMon = (y === curY && m === curM);
+    const lsKey    = `ps_h1_${ym}`;
+
+    if (info) info.textContent = `⏳ ${ym}…`;
+
+    if (!isCurMon) {
+      const cached = localStorage.getItem(lsKey);
+      if (cached) {
+        try {
+          histDraws.push(...JSON.parse(cached));
+          if (info) info.textContent = `✓ ${ym} (cache)`;
+          continue;
+        } catch(_) {}
+      }
+    }
+
+    try {
+      const lastDay  = new Date(y, m, 0).getDate();
+      const fromDate = `${ym}-01`;
+      const toDate   = `${ym}-${String(lastDay).padStart(2, '0')}`;
+      const items    = await fetchMonthRangeOpap(PS_GAME_ID, fromDate, toDate);
+      const draws    = items.map(parsePsItem).filter(Boolean);
+      histDraws.push(...draws);
+      if (!isCurMon && draws.length > 0) {
+        try { localStorage.setItem(lsKey, JSON.stringify(draws)); } catch(_) {}
+      }
+      if (info) info.textContent = `✓ ${ym} · ${draws.length} κλ.`;
+    } catch(e) {
+      console.warn('PS hist', ym, e);
+      if (info) info.textContent = `⚠ ${ym}`;
+    }
+  }
+
+  // Merge into psDraws (deduplicate by id)
+  const seen = new Set(psDraws.map(d => d.id));
+  for (const d of histDraws) {
+    if (!seen.has(d.id)) { seen.add(d.id); psDraws.push(d); }
+  }
+  psDraws.sort((a, b) => a.id - b.id);
+  psIdx = psDraws.length - 1;
+  psRender();
+
+  const total = psDraws.length;
+  if (info) info.textContent = `✅ ${total} κληρώσεις σύνολο`;
+  if (btn)  { btn.disabled = false; btn.textContent = '📚 Ανανέωση'; }
+  showToast(`Φορτώθηκαν ${total} κληρώσεις Power Spin`);
+}
+
+function clearPsHistCache() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('ps_h1_'));
+  keys.forEach(k => localStorage.removeItem(k));
+  const info = document.getElementById('psHistInfo');
+  if (info) info.textContent = `🗑 Διαγράφηκαν ${keys.length} μήνες cache`;
+}
 
 function autoFetchPs() { return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef, psRender, 'PS'); }
 function autoFetchS3() { return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef, s3Render, 'S3'); }
