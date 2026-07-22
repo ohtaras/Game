@@ -101,13 +101,23 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 /* ── Prediction panel ── */
 .pred-panel{background:#0b0f1e;border:1px solid #1e2840;border-radius:8px;padding:10px 12px;margin-top:10px}
 .pred-title{font-size:.7rem;color:#5c7aaa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
-.pred-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-.pred-num{width:28px;text-align:center;font-size:.8rem;font-weight:bold;color:#e0e8ff}
-.pred-bar-wrap{flex:1;height:8px;background:#0d1220;border-radius:4px;overflow:hidden}
+.pred-section{margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid #0d1830}
+.pred-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.pred-section-hdr{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.pred-order-badge{font-size:.58rem;background:#1a2840;color:#4a6a9a;padding:2px 5px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.pred-ctx{font-size:.75rem;color:#b8caf0;flex:1;font-weight:700}
+.pred-found{font-size:.7rem;font-weight:800;white-space:nowrap}
+.pred-found.found-good{color:#4caf50}
+.pred-found.found-low{color:#ff9800}
+.pred-found.found-none{color:#555}
+.pred-empty{font-size:.63rem;color:#2a3a5a;font-style:italic;padding:2px 0}
+.pred-row{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.pred-num{width:26px;text-align:center;font-size:.78rem;font-weight:bold;color:#e0e8ff}
+.pred-bar-wrap{flex:1;height:7px;background:#0d1220;border-radius:4px;overflow:hidden}
 .pred-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,#1a4a8a,#3a8aff);transition:width .3s}
-.pred-pct{width:32px;text-align:right;font-size:.68rem;color:#4a7aaa}
+.pred-cnt{width:22px;text-align:right;font-size:.63rem;color:#5a8a5a}
+.pred-pct{width:28px;text-align:right;font-size:.63rem;color:#4a6a8a}
 .pred-sym{color:#ffd700}
-.pred-note{font-size:.6rem;color:#3a5a7a;margin-top:6px;text-align:center}
 
 /* ── Toast ── */
 #dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.8rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
@@ -806,14 +816,24 @@ function setS3HeatW(w) {
 // ── DNA Chain Prediction (all 3 wheels) ───────────────────────────────────
 // Weighted Markov chain order 1+2+3 over full per-wheel history.
 
-function markovCounts(seq, order) {
-  const map = new Map();
+function patternLookup(seq, ctx) {
+  // Βρες όλες τις εμφανίσεις του ctx στο ιστορικό και μέτρα τι ακολούθησε
+  const order = ctx.length;
+  const counts = new Array(PS_POOL + 1).fill(0);
+  let found = 0;
   for (let i = order; i < seq.length; i++) {
-    const key = seq.slice(i - order, i).join(',');
-    if (!map.has(key)) map.set(key, new Array(PS_POOL + 1).fill(0));
-    map.get(key)[seq[i]]++;
+    let match = true;
+    for (let k = 0; k < order; k++) {
+      if (seq[i - order + k] !== ctx[k]) { match = false; break; }
+    }
+    if (match) { counts[seq[i]]++; found++; }
   }
-  return map;
+  const next = [];
+  for (let v = 1; v <= PS_POOL; v++) {
+    if (counts[v] > 0) next.push({ v, count: counts[v] });
+  }
+  next.sort((a, b) => b.count - a.count);
+  return { found, next };
 }
 
 function predictPsWheel(draws, idx, wi) {
@@ -824,29 +844,14 @@ function predictPsWheel(draws, idx, wi) {
   }
   if (seq.length < 2) return null;
 
-  const scores  = new Array(PS_POOL + 1).fill(0);
-  const weights = [0, 0.20, 0.35, 0.45];
-
-  for (let order = 1; order <= 3; order++) {
+  const results = [];
+  for (let order = 3; order >= 1; order--) {
     if (seq.length <= order) continue;
-    const counts = markovCounts(seq, order);
-    const key    = seq.slice(-order).join(',');
-    const row    = counts.get(key);
-    if (!row) continue;
-    const total  = row.reduce((s, c) => s + c, 0);
-    if (total === 0) continue;
-    for (let v = 1; v <= PS_POOL; v++) scores[v] += weights[order] * (row[v] / total);
+    const ctx = seq.slice(-order);
+    const { found, next } = patternLookup(seq, ctx);
+    results.push({ order, ctx, found, next: next.slice(0, 8) });
   }
-
-  const sum = scores.reduce((s, c) => s + c, 0);
-  if (sum === 0) return null;
-  const probs = scores.map(s => s / sum);
-
-  const ranked = [];
-  for (let v = 1; v <= PS_POOL; v++) ranked.push({ v, p: probs[v] });
-  ranked.sort((a, b) => b.p - a.p);
-
-  return { top: ranked.slice(0, 7), ctx: seq.slice(-3), total: seq.length };
+  return { results, total: seq.length };
 }
 
 function valLabel(v) {
@@ -855,29 +860,46 @@ function valLabel(v) {
 
 function renderPsPred() {
   if (!psDraws.length || psIdx < 0) return;
+  const orderNames = ['', 'Τελ. αριθμός', 'Ζεύγος', 'Τριάδα'];
   for (let wi = 0; wi < 3; wi++) {
     const el = document.getElementById(`psPred${wi}`);
     if (!el) continue;
     const res = predictPsWheel(psDraws, psIdx, wi);
     if (!res) { el.innerHTML = ''; continue; }
 
-    const ctxLabels = res.ctx.map(valLabel).join(' → ');
-    const topVal    = res.top[0]?.p || 0.001;
+    let html = `<div class="pred-title">🧬 Στατιστική Ανάλυση Τροχού ${wi + 1} · ${res.total} κλ.</div>`;
 
-    const rows = res.top.map(({ v, p }) => {
-      const pct = Math.round(p * 100);
-      const bar = Math.round((p / topVal) * 100); // relative bar, top=100%
-      return `<div class="pred-row">
-        <div class="pred-num">${valLabel(v)}</div>
-        <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}%"></div></div>
-        <div class="pred-pct">${pct}%</div>
+    for (const { order, ctx, found, next } of res.results) {
+      const ctxStr = ctx.map(valLabel).join(' → ');
+      const foundCls = found === 0 ? 'found-none' : found < 5 ? 'found-low' : 'found-good';
+      const foundTxt = found === 0 ? '—' : `${found}×`;
+      const topCount = next[0]?.count || 1;
+
+      html += `<div class="pred-section">`;
+      html += `<div class="pred-section-hdr">
+        <span class="pred-order-badge">${orderNames[order]}</span>
+        <span class="pred-ctx">${ctxStr}</span>
+        <span class="pred-found ${foundCls}">${foundTxt}</span>
       </div>`;
-    }).join('');
 
-    el.innerHTML =
-      `<div class="pred-title">🧬 Πρόβλεψη Τροχού ${wi + 1}</div>` +
-      rows +
-      `<div class="pred-note">${ctxLabels} · ${res.total} κλ.</div>`;
+      if (found === 0) {
+        html += `<div class="pred-empty">Δεν βρέθηκε αυτή η ακολουθία στο ιστορικό</div>`;
+      } else {
+        for (const { v, count } of next) {
+          const bar = Math.round((count / topCount) * 100);
+          const pct = Math.round((count / found) * 100);
+          html += `<div class="pred-row">
+            <div class="pred-num">${valLabel(v)}</div>
+            <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}%"></div></div>
+            <div class="pred-cnt">${count}×</div>
+            <div class="pred-pct">${pct}%</div>
+          </div>`;
+        }
+      }
+      html += `</div>`;
+    }
+
+    el.innerHTML = html;
   }
 }
 
