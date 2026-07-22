@@ -194,20 +194,35 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <div id="psWheelsWrap">
       <div class="ps-wheel-block">
         <div class="ps-wheel-title">Τροχός 1</div>
-        <div class="ps-num-grid" id="psW0"></div>
-        <div class="ps-sym-grid" id="psS0"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0">
+            <div class="ps-num-grid" id="psW0"></div>
+            <div class="ps-sym-grid" id="psS0"></div>
+          </div>
+          <div id="psWheelSvg0" style="flex-shrink:0"></div>
+        </div>
         <div class="pred-panel" id="psPred0"></div>
       </div>
       <div class="ps-wheel-block">
         <div class="ps-wheel-title">Τροχός 2</div>
-        <div class="ps-num-grid" id="psW1"></div>
-        <div class="ps-sym-grid" id="psS1"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0">
+            <div class="ps-num-grid" id="psW1"></div>
+            <div class="ps-sym-grid" id="psS1"></div>
+          </div>
+          <div id="psWheelSvg1" style="flex-shrink:0"></div>
+        </div>
         <div class="pred-panel" id="psPred1"></div>
       </div>
       <div class="ps-wheel-block">
         <div class="ps-wheel-title">Τροχός 3</div>
-        <div class="ps-num-grid" id="psW2"></div>
-        <div class="ps-sym-grid" id="psS2"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0">
+            <div class="ps-num-grid" id="psW2"></div>
+            <div class="ps-sym-grid" id="psS2"></div>
+          </div>
+          <div id="psWheelSvg2" style="flex-shrink:0"></div>
+        </div>
         <div class="pred-panel" id="psPred2"></div>
       </div>
     </div>
@@ -319,6 +334,20 @@ const PS_GAME_ID = 1110;
 const PS_NUMS    = 24;
 const PS_SYMS    = 3;
 const PS_POOL    = PS_NUMS + PS_SYMS; // 27
+
+// Σειρά αριθμών στον τροχό (δεξιόστροφα από την κορυφή): 25=★ 26=♦ 27=✦
+const PS_WHEEL_ORDER = [12,25,14,11,16,22,9,24,8,1,26,15,5,10,21,7,6,2,20,27,13,18,3,17,4,23,19];
+
+// Χρώμα κάθε αριθμού σύμφωνα με τον τροχό
+const PS_COLORS = {
+  1:'#1a4a9a', 2:'#6a0f1a', 3:'#2e7d32', 4:'#43a047',
+  5:'#e53935', 6:'#8b1720', 7:'#b71c1c', 8:'#1565c0',
+  9:'#00838f', 10:'#c62828', 11:'#1976d2', 12:'#ef6c00',
+  13:'#1a3310', 14:'#42a5f5', 15:'#ef5350', 16:'#1565c0',
+  17:'#388e3c', 18:'#1b5e20', 19:'#81c784', 20:'#420a12',
+  21:'#d84315', 22:'#1e88e5', 23:'#66bb6a', 24:'#0097a7',
+  25:'#bdbdbd', 26:'#bdbdbd', 27:'#bdbdbd',
+};
 
 const S3_GAME_ID = 2100;
 
@@ -867,7 +896,52 @@ function predictPsWheel(draws, idx, wi) {
 }
 
 function valLabel(v) {
-  return v <= 24 ? `${v}` : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`;
+  const col = PS_COLORS[v] || '#e0e8ff';
+  if (v <= 24) return `<span style="color:${col};font-weight:bold">${v}</span>`;
+  return `<span class="pred-sym" style="color:${col}">${SYM_LABELS[v - 25]}</span>`;
+}
+
+// ── Mini SVG τροχός ────────────────────────────────────────────────────────
+function fv(n) { return n.toFixed(2); }
+
+function makePsWheelSvg(drawnVal) {
+  const N  = 27, SZ = 130, cx = SZ/2, cy = SZ/2;
+  const R  = 58, ri = 20;
+  const sa = (2 * Math.PI) / N;
+  let segs = '';
+  for (let i = 0; i < N; i++) {
+    const v   = PS_WHEEL_ORDER[i];
+    const a0  = i * sa - Math.PI / 2;
+    const a1  = a0 + sa;
+    const hit = v === drawnVal;
+    const ox1 = cx + R*Math.cos(a0),  oy1 = cy + R*Math.sin(a0);
+    const ox2 = cx + R*Math.cos(a1),  oy2 = cy + R*Math.sin(a1);
+    const ix1 = cx + ri*Math.cos(a0), iy1 = cy + ri*Math.sin(a0);
+    const ix2 = cx + ri*Math.cos(a1), iy2 = cy + ri*Math.sin(a1);
+    const d = `M${fv(ox1)},${fv(oy1)} A${R},${R},0,0,1,${fv(ox2)},${fv(oy2)} L${fv(ix2)},${fv(iy2)} A${ri},${ri},0,0,0,${fv(ix1)},${fv(iy1)}Z`;
+    const col = PS_COLORS[v] || '#555';
+    segs += `<path d="${d}" fill="${col}" opacity="${hit?1:.5}" stroke="${hit?'#fff':'#0a0a14'}" stroke-width="${hit?1.8:.4}"${hit?' filter="url(#gw)"':''}/>`;
+    // Label chωρίς στροφή - μόνο για τον drawn segment
+    if (hit) {
+      const am = a0 + sa / 2;
+      const lr = (R + ri) / 2 + 2;
+      const lx = cx + lr*Math.cos(am), ly = cy + lr*Math.sin(am);
+      const lbl = v <= 24 ? v : SYM_LABELS[v-25];
+      segs += `<text x="${fv(lx)}" y="${fv(ly)}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="900" fill="#fff" stroke="#0003" stroke-width=".5">${lbl}</text>`;
+    }
+  }
+  // Δείκτης
+  const ptr = `<polygon points="${fv(cx)},${fv(cy-R-8)} ${fv(cx-5)},${fv(cy-R+2)} ${fv(cx+5)},${fv(cy-R+2)}" fill="#f5a623" stroke="#7a4000" stroke-width=".5"/>`;
+  // Κεντρικός αριθμός
+  const lbl  = drawnVal ? (drawnVal <= 24 ? drawnVal : SYM_LABELS[drawnVal-25]) : '?';
+  const col  = drawnVal ? (PS_COLORS[drawnVal] || '#888') : '#444';
+  const fs   = drawnVal && drawnVal > 24 ? 20 : 16;
+  return `<svg width="${SZ}" height="${SZ}" viewBox="0 0 ${SZ} ${SZ}">
+<defs><filter id="gw" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+${segs}${ptr}
+<circle cx="${cx}" cy="${cy}" r="${ri-1}" fill="#080c18" stroke="#222" stroke-width=".8"/>
+<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}" font-weight="900" fill="${col}">${lbl}</text>
+</svg>`;
 }
 
 function renderPsPred() {
@@ -898,11 +972,12 @@ function renderPsPred() {
         html += `<div class="pred-empty">Δεν βρέθηκε αυτή η ακολουθία στο ιστορικό</div>`;
       } else {
         for (const { v, count } of next) {
-          const bar = Math.round((count / topCount) * 100);
-          const pct = Math.round((count / found) * 100);
+          const bar  = Math.round((count / topCount) * 100);
+          const pct  = Math.round((count / found) * 100);
+          const bcol = PS_COLORS[v] || '#3a8aff';
           html += `<div class="pred-row">
             <div class="pred-num">${valLabel(v)}</div>
-            <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}%"></div></div>
+            <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}%;background:${bcol}"></div></div>
             <div class="pred-cnt">${count}×</div>
             <div class="pred-pct">${pct}%</div>
           </div>`;
@@ -961,6 +1036,10 @@ function psRender() {
       }
     }
     document.getElementById(`psS${w}`).innerHTML = symCells.join('');
+
+    // Mini τροχός SVG
+    const svgEl = document.getElementById(`psWheelSvg${w}`);
+    if (svgEl) svgEl.innerHTML = makePsWheelSvg(drawnV || null);
   }
 
   const start  = dayStart(psDraws, psIdx);
