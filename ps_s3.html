@@ -98,9 +98,16 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cd-timer.cd-off{color:#333}
 .cd-next{color:#666;font-size:.72rem}
 
-/* ── Raw debug ── */
-.raw-note{font-size:.62rem;color:#607d8b;margin-top:8px;font-family:monospace;word-break:break-all;line-height:1.5;background:#0a0f14;padding:6px 8px;border-radius:5px;border:1px solid #1e2a30;display:none}
-.raw-note.has-data{display:block}
+/* ── Prediction panel ── */
+.pred-panel{background:#0b0f1e;border:1px solid #1e2840;border-radius:8px;padding:10px 12px;margin-top:10px}
+.pred-title{font-size:.7rem;color:#5c7aaa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.pred-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.pred-num{width:28px;text-align:center;font-size:.8rem;font-weight:bold;color:#e0e8ff}
+.pred-bar-wrap{flex:1;height:8px;background:#0d1220;border-radius:4px;overflow:hidden}
+.pred-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,#1a4a8a,#3a8aff);transition:width .3s}
+.pred-pct{width:32px;text-align:right;font-size:.68rem;color:#4a7aaa}
+.pred-sym{color:#ffd700}
+.pred-note{font-size:.6rem;color:#3a5a7a;margin-top:6px;text-align:center}
 
 /* ── Toast ── */
 #dsToast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1b5e20;color:#dfffe0;padding:10px 18px;border-radius:8px;font-size:.8rem;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:999}
@@ -187,7 +194,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="ds-legend-item"><span class="ds-swatch d-cld"></span> 19-27</span>
       <span class="ds-legend-item"><span class="ds-swatch d-ovr"></span> 28+</span>
     </div>
-    <div class="raw-note" id="psRawNote"></div>
+    <div class="pred-panel" id="psPredPanel"></div>
   </section>
 
   <!-- ═══ SUPER 3 ═══ -->
@@ -249,7 +256,6 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="ds-legend-item"><span class="ds-swatch d-cld"></span> 9-14</span>
       <span class="ds-legend-item"><span class="ds-swatch d-ovr"></span> 15+</span>
     </div>
-    <div class="raw-note" id="s3RawNote"></div>
   </section>
 
   <!-- ═══ SETTINGS ═══ -->
@@ -397,8 +403,6 @@ async function ghGet(path) {
 }
 
 // ── Power Spin item parsing ────────────────────────────────────────────────
-let psRawSample    = null;
-let psFirstRawItem = null;
 
 function parsePsValue(v) {
   if (typeof v === 'number') {
@@ -432,13 +436,6 @@ function parsePsItem(item) {
   const cols = wn.columns || [];
   // Top-level array with one entry per wheel — the definitive PS structure
   const lwn  = item.listWinningNumbers || [];
-
-  // Save full structure for debug display (first draw only)
-  if (!psRawSample) {
-    psRawSample    = JSON.stringify(item);
-    psFirstRawItem = item;
-    console.log('[PS DEBUG] Full first item:', JSON.stringify(item, null, 2));
-  }
 
   let w = [null, null, null];
 
@@ -502,14 +499,11 @@ function parsePsItem(item) {
 }
 
 // ── Super 3 item parsing ───────────────────────────────────────────────────
-let s3RawSample = null;
 
 function parseS3Item(item) {
   if (!item.drawTime) return null;
   const wn  = item.winningNumbers || {};
   const lst = wn.list || [];
-
-  if (!s3RawSample) s3RawSample = JSON.stringify(wn).slice(0, 300);
 
   let n = null;
   if (lst.length === 3 && lst.every(v => typeof v === 'number' && v >= 0 && v <= 9)) {
@@ -616,49 +610,6 @@ async function loadData() {
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
     : '⚠ Δεν βρέθηκαν κληρώσεις';
 
-  // Debug: show API structure for PS wheel diagnosis
-  try {
-    const act = await fetchActive(PS_GAME_ID);
-    if (act) {
-      const wn   = act.winningNumbers || {};
-      const cols = wn.columns || [];
-      const el   = document.getElementById('psRawNote');
-      const lst = wn.list || [];
-      const lstTypes = lst.map(v => `${JSON.stringify(v)}[${typeof v}]`).join(', ');
-      el.textContent =
-        `drawId: ${act.drawId}\n` +
-        `wn keys: [${Object.keys(wn).join(', ')}]\n` +
-        `list[${lst.length}]: ${lstTypes}\n` +
-        `bonus: ${JSON.stringify(wn.bonus || [])}\n` +
-        `columns(${cols.length}): ${cols.map((c,i) => `[${i}]=${JSON.stringify(c)}`).join(' | ')}\n` +
-        `full wn: ${JSON.stringify(wn)}`;
-      el.classList.add('has-data');
-      console.log('[PS /active full]', JSON.stringify(act, null, 2));
-    }
-  } catch(e) { console.warn('PS /active debug failed:', e); }
-
-  // Always overwrite debug with draw-date item (more useful than /active)
-  if (psRawSample && psFirstRawItem) {
-    const el   = document.getElementById('psRawNote');
-    const item = psFirstRawItem;
-    const wn2  = item.winningNumbers || {};
-    el.textContent =
-      `=== DRAW-DATE 1ο item ===\n` +
-      `item keys: [${Object.keys(item).join(', ')}]\n` +
-      `wn keys:   [${Object.keys(wn2).join(', ')}]\n` +
-      `wn.list:   ${JSON.stringify(wn2.list || [])}\n` +
-      `wn.bonus:  ${JSON.stringify(wn2.bonus || [])}\n` +
-      `wn.columns(${(wn2.columns||[]).length}): ${JSON.stringify(wn2.columns||[])}\n` +
-      `FULL wn:   ${JSON.stringify(wn2)}\n` +
-      `FULL item: ${psRawSample.slice(0, 600)}`;
-    el.classList.add('has-data');
-  }
-
-  if (s3RawSample) {
-    const el = document.getElementById('s3RawNote');
-    el.textContent = `[DEBUG S3] winningNumbers: ${s3RawSample}`;
-    el.classList.add('has-data');
-  }
 }
 
 // ── Filter buttons ─────────────────────────────────────────────────────────
@@ -850,6 +801,102 @@ function setS3HeatW(w) {
   s3Render();
 }
 
+// ── DNA Chain Prediction (Wheel 1) ────────────────────────────────────────
+// Builds a weighted Markov chain (order 1+2+3) over all wheel-1 history.
+// For each candidate next value, combines how often it appeared after the
+// last 1, 2, and 3 draws in the full sequence.
+
+function buildPsW1Sequence(draws) {
+  // Returns the wheel-1 sequence across ALL loaded draws (day boundaries ignored)
+  const seq = [];
+  for (const d of draws) {
+    const v = d.w?.[0];
+    if (v >= 1 && v <= PS_POOL) seq.push(v);
+  }
+  return seq;
+}
+
+function markovCounts(seq, order) {
+  const map = new Map();
+  for (let i = order; i < seq.length; i++) {
+    const key = seq.slice(i - order, i).join(',');
+    if (!map.has(key)) map.set(key, new Array(PS_POOL + 1).fill(0));
+    map.get(key)[seq[i]]++;
+  }
+  return map;
+}
+
+function predictPsW1(draws, idx) {
+  // Extract full wheel-1 sequence up to (and including) idx
+  const seq = [];
+  for (let i = 0; i <= idx; i++) {
+    const v = draws[i].w?.[0];
+    if (v >= 1 && v <= PS_POOL) seq.push(v);
+  }
+  if (seq.length < 2) return null;
+
+  const scores = new Array(PS_POOL + 1).fill(0);
+  const weights = [0, 0.20, 0.35, 0.45]; // order 1, 2, 3
+
+  for (let order = 1; order <= 3; order++) {
+    if (seq.length <= order) continue;
+    const counts = markovCounts(seq, order);
+    const key    = seq.slice(-order).join(',');
+    const row    = counts.get(key);
+    if (!row) continue;
+    const total  = row.reduce((s, c) => s + c, 0);
+    if (total === 0) continue;
+    for (let v = 1; v <= PS_POOL; v++) {
+      scores[v] += weights[order] * (row[v] / total);
+    }
+  }
+
+  // Normalise
+  const sum = scores.reduce((s, c) => s + c, 0);
+  if (sum === 0) return null;
+
+  const probs = scores.map(s => s / sum);
+
+  // Top-7 sorted by probability
+  const ranked = [];
+  for (let v = 1; v <= PS_POOL; v++) ranked.push({ v, p: probs[v] });
+  ranked.sort((a, b) => b.p - a.p);
+
+  // Context info: last 3 values
+  const ctx = seq.slice(-3);
+  const total = seq.length;
+
+  return { top: ranked.slice(0, 7), ctx, total };
+}
+
+function renderPsPred() {
+  const el = document.getElementById('psPredPanel');
+  if (!el || !psDraws.length || psIdx < 0) return;
+
+  const res = predictPsW1(psDraws, psIdx);
+  if (!res) { el.innerHTML = ''; return; }
+
+  const ctxLabels = res.ctx.map(v =>
+    v <= 24 ? `<b>${v}</b>` : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`
+  ).join(' → ');
+
+  const rows = res.top.map(({ v, p }) => {
+    const pct  = Math.round(p * 100);
+    const bar  = Math.round(p * 100 * 2.8); // max ~280px
+    const lbl  = v <= 24 ? v : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`;
+    return `<div class="pred-row">
+      <div class="pred-num">${lbl}</div>
+      <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}px"></div></div>
+      <div class="pred-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML =
+    `<div class="pred-title">🧬 Πρόβλεψη Τροχού 1</div>` +
+    rows +
+    `<div class="pred-note">Αλυσίδα: ${ctxLabels} · Βάση: ${res.total} κλ.</div>`;
+}
+
 // ── Power Spin render ──────────────────────────────────────────────────────
 const SYM_LABELS = ['★', '♦', '✦'];
 
@@ -907,6 +954,7 @@ function psRender() {
   document.getElementById('psNextBtn').disabled    = psIdx >= psDraws.length - 1;
   document.getElementById('psPrevDayBtn').disabled = psIdx <= 0;
   document.getElementById('psNextDayBtn').disabled = psIdx >= psDraws.length - 1;
+  renderPsPred();
 }
 
 function psNav(dir)  { psIdx = Math.max(0, Math.min(psDraws.length-1, psIdx+dir)); psRender(); }
