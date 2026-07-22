@@ -433,12 +433,9 @@ function parsePsItem(item) {
 
   // Save full structure for debug display (first draw only)
   if (!psRawSample) {
-    psRawSample    = JSON.stringify(wn);
+    psRawSample    = JSON.stringify(item); // FULL item, not just wn
     psFirstRawItem = item;
-    const listTypes = lst.map(v => `${JSON.stringify(v)}(${typeof v})`).join(', ');
     console.log('[PS DEBUG] Full first item:', JSON.stringify(item, null, 2));
-    console.log('[PS DEBUG] list item types:', listTypes);
-    console.log('[PS DEBUG] wn keys:', Object.keys(wn).join(', '));
   }
 
   let w = [null, null, null];
@@ -627,12 +624,21 @@ async function loadData() {
     }
   } catch(e) { console.warn('PS /active debug failed:', e); }
 
-  if (psRawSample) {
-    const el = document.getElementById('psRawNote');
-    if (!el.classList.contains('has-data')) {
-      el.textContent = `[1ο draw wn]: ${psRawSample}`;
-      el.classList.add('has-data');
-    }
+  // Always overwrite debug with draw-date item (more useful than /active)
+  if (psRawSample && psFirstRawItem) {
+    const el   = document.getElementById('psRawNote');
+    const item = psFirstRawItem;
+    const wn2  = item.winningNumbers || {};
+    el.textContent =
+      `=== DRAW-DATE 1ο item ===\n` +
+      `item keys: [${Object.keys(item).join(', ')}]\n` +
+      `wn keys:   [${Object.keys(wn2).join(', ')}]\n` +
+      `wn.list:   ${JSON.stringify(wn2.list || [])}\n` +
+      `wn.bonus:  ${JSON.stringify(wn2.bonus || [])}\n` +
+      `wn.columns(${(wn2.columns||[]).length}): ${JSON.stringify(wn2.columns||[])}\n` +
+      `FULL wn:   ${JSON.stringify(wn2)}\n` +
+      `FULL item: ${psRawSample.slice(0, 600)}`;
+    el.classList.add('has-data');
   }
 
   if (s3RawSample) {
