@@ -409,8 +409,17 @@ function parsePsValue(v) {
   if (typeof v === 'string') {
     const n = parseInt(v);
     if (!isNaN(n) && n >= 1 && n <= 24) return n;
-    // String → hash to symbol slot 25-27
+    // Non-numeric string → map to symbol slot
     return 25 + (v.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % PS_SYMS);
+  }
+  // Object (symbol) → try common numeric id fields; any object = symbol
+  if (v !== null && typeof v === 'object') {
+    const id = v.id ?? v.value ?? v.code ?? v.symbolId ?? v.number ?? null;
+    if (typeof id === 'number' && id >= 1 && id <= 24) return id;
+    // It's a symbol object — map its id (or name hash) to slot 25-27
+    if (typeof id === 'number') return 25 + ((Math.floor(id) - 1) % PS_SYMS);
+    const name = v.name ?? v.label ?? v.symbol ?? '';
+    return 25 + (String(name).split('').reduce((a, c) => a + c.charCodeAt(0), 0) % PS_SYMS);
   }
   return null;
 }
@@ -426,7 +435,10 @@ function parsePsItem(item) {
   if (!psRawSample) {
     psRawSample    = JSON.stringify(wn);
     psFirstRawItem = item;
+    const listTypes = lst.map(v => `${JSON.stringify(v)}(${typeof v})`).join(', ');
     console.log('[PS DEBUG] Full first item:', JSON.stringify(item, null, 2));
+    console.log('[PS DEBUG] list item types:', listTypes);
+    console.log('[PS DEBUG] wn keys:', Object.keys(wn).join(', '));
   }
 
   let w = [null, null, null];
@@ -601,10 +613,12 @@ async function loadData() {
       const wn   = act.winningNumbers || {};
       const cols = wn.columns || [];
       const el   = document.getElementById('psRawNote');
+      const lst = wn.list || [];
+      const lstTypes = lst.map(v => `${JSON.stringify(v)}[${typeof v}]`).join(', ');
       el.textContent =
         `drawId: ${act.drawId}\n` +
-        `winningNumbers keys: [${Object.keys(wn).join(', ')}]\n` +
-        `list: ${JSON.stringify(wn.list || [])}\n` +
+        `wn keys: [${Object.keys(wn).join(', ')}]\n` +
+        `list[${lst.length}]: ${lstTypes}\n` +
         `bonus: ${JSON.stringify(wn.bonus || [])}\n` +
         `columns(${cols.length}): ${cols.map((c,i) => `[${i}]=${JSON.stringify(c)}`).join(' | ')}\n` +
         `full wn: ${JSON.stringify(wn)}`;
