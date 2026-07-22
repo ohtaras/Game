@@ -174,16 +174,19 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <div class="ps-wheel-title">Τροχός 1</div>
         <div class="ps-num-grid" id="psW0"></div>
         <div class="ps-sym-grid" id="psS0"></div>
+        <div class="pred-panel" id="psPred0"></div>
       </div>
       <div class="ps-wheel-block">
         <div class="ps-wheel-title">Τροχός 2</div>
         <div class="ps-num-grid" id="psW1"></div>
         <div class="ps-sym-grid" id="psS1"></div>
+        <div class="pred-panel" id="psPred1"></div>
       </div>
       <div class="ps-wheel-block">
         <div class="ps-wheel-title">Τροχός 3</div>
         <div class="ps-num-grid" id="psW2"></div>
         <div class="ps-sym-grid" id="psS2"></div>
+        <div class="pred-panel" id="psPred2"></div>
       </div>
     </div>
 
@@ -194,7 +197,6 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="ds-legend-item"><span class="ds-swatch d-cld"></span> 19-27</span>
       <span class="ds-legend-item"><span class="ds-swatch d-ovr"></span> 28+</span>
     </div>
-    <div class="pred-panel" id="psPredPanel"></div>
   </section>
 
   <!-- ═══ SUPER 3 ═══ -->
@@ -801,20 +803,8 @@ function setS3HeatW(w) {
   s3Render();
 }
 
-// ── DNA Chain Prediction (Wheel 1) ────────────────────────────────────────
-// Builds a weighted Markov chain (order 1+2+3) over all wheel-1 history.
-// For each candidate next value, combines how often it appeared after the
-// last 1, 2, and 3 draws in the full sequence.
-
-function buildPsW1Sequence(draws) {
-  // Returns the wheel-1 sequence across ALL loaded draws (day boundaries ignored)
-  const seq = [];
-  for (const d of draws) {
-    const v = d.w?.[0];
-    if (v >= 1 && v <= PS_POOL) seq.push(v);
-  }
-  return seq;
-}
+// ── DNA Chain Prediction (all 3 wheels) ───────────────────────────────────
+// Weighted Markov chain order 1+2+3 over full per-wheel history.
 
 function markovCounts(seq, order) {
   const map = new Map();
@@ -826,17 +816,16 @@ function markovCounts(seq, order) {
   return map;
 }
 
-function predictPsW1(draws, idx) {
-  // Extract full wheel-1 sequence up to (and including) idx
+function predictPsWheel(draws, idx, wi) {
   const seq = [];
   for (let i = 0; i <= idx; i++) {
-    const v = draws[i].w?.[0];
+    const v = draws[i].w?.[wi];
     if (v >= 1 && v <= PS_POOL) seq.push(v);
   }
   if (seq.length < 2) return null;
 
-  const scores = new Array(PS_POOL + 1).fill(0);
-  const weights = [0, 0.20, 0.35, 0.45]; // order 1, 2, 3
+  const scores  = new Array(PS_POOL + 1).fill(0);
+  const weights = [0, 0.20, 0.35, 0.45];
 
   for (let order = 1; order <= 3; order++) {
     if (seq.length <= order) continue;
@@ -846,55 +835,50 @@ function predictPsW1(draws, idx) {
     if (!row) continue;
     const total  = row.reduce((s, c) => s + c, 0);
     if (total === 0) continue;
-    for (let v = 1; v <= PS_POOL; v++) {
-      scores[v] += weights[order] * (row[v] / total);
-    }
+    for (let v = 1; v <= PS_POOL; v++) scores[v] += weights[order] * (row[v] / total);
   }
 
-  // Normalise
   const sum = scores.reduce((s, c) => s + c, 0);
   if (sum === 0) return null;
-
   const probs = scores.map(s => s / sum);
 
-  // Top-7 sorted by probability
   const ranked = [];
   for (let v = 1; v <= PS_POOL; v++) ranked.push({ v, p: probs[v] });
   ranked.sort((a, b) => b.p - a.p);
 
-  // Context info: last 3 values
-  const ctx = seq.slice(-3);
-  const total = seq.length;
+  return { top: ranked.slice(0, 7), ctx: seq.slice(-3), total: seq.length };
+}
 
-  return { top: ranked.slice(0, 7), ctx, total };
+function valLabel(v) {
+  return v <= 24 ? `${v}` : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`;
 }
 
 function renderPsPred() {
-  const el = document.getElementById('psPredPanel');
-  if (!el || !psDraws.length || psIdx < 0) return;
+  if (!psDraws.length || psIdx < 0) return;
+  for (let wi = 0; wi < 3; wi++) {
+    const el = document.getElementById(`psPred${wi}`);
+    if (!el) continue;
+    const res = predictPsWheel(psDraws, psIdx, wi);
+    if (!res) { el.innerHTML = ''; continue; }
 
-  const res = predictPsW1(psDraws, psIdx);
-  if (!res) { el.innerHTML = ''; return; }
+    const ctxLabels = res.ctx.map(valLabel).join(' → ');
+    const topVal    = res.top[0]?.p || 0.001;
 
-  const ctxLabels = res.ctx.map(v =>
-    v <= 24 ? `<b>${v}</b>` : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`
-  ).join(' → ');
+    const rows = res.top.map(({ v, p }) => {
+      const pct = Math.round(p * 100);
+      const bar = Math.round((p / topVal) * 100); // relative bar, top=100%
+      return `<div class="pred-row">
+        <div class="pred-num">${valLabel(v)}</div>
+        <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}%"></div></div>
+        <div class="pred-pct">${pct}%</div>
+      </div>`;
+    }).join('');
 
-  const rows = res.top.map(({ v, p }) => {
-    const pct  = Math.round(p * 100);
-    const bar  = Math.round(p * 100 * 2.8); // max ~280px
-    const lbl  = v <= 24 ? v : `<span class="pred-sym">${SYM_LABELS[v - 25]}</span>`;
-    return `<div class="pred-row">
-      <div class="pred-num">${lbl}</div>
-      <div class="pred-bar-wrap"><div class="pred-bar" style="width:${bar}px"></div></div>
-      <div class="pred-pct">${pct}%</div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML =
-    `<div class="pred-title">🧬 Πρόβλεψη Τροχού 1</div>` +
-    rows +
-    `<div class="pred-note">Αλυσίδα: ${ctxLabels} · Βάση: ${res.total} κλ.</div>`;
+    el.innerHTML =
+      `<div class="pred-title">🧬 Πρόβλεψη Τροχού ${wi + 1}</div>` +
+      rows +
+      `<div class="pred-note">${ctxLabels} · ${res.total} κλ.</div>`;
+  }
 }
 
 // ── Power Spin render ──────────────────────────────────────────────────────
