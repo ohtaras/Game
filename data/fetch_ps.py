@@ -23,10 +23,39 @@ HEADERS   = {
     "Referer": "https://www.opap.gr/",
 }
 ATHENS = timezone(timedelta(hours=3))
+PS_SYMS = 3  # ★ ♦ ✦
 
 
 def athens_now():
     return datetime.now(ATHENS)
+
+
+def parse_ps_value(v):
+    """Map raw API value to pool position 1-27 (1-24=numbers, 25-27=symbols)."""
+    if isinstance(v, (int, float)):
+        n = int(v)
+        if 1 <= n <= 24:
+            return n
+        if n > 24:
+            return 25 + ((n - 25) % PS_SYMS)
+        return 25
+    if isinstance(v, str):
+        try:
+            n = int(v)
+            if 1 <= n <= 24:
+                return n
+            return 25 + ((n - 25) % PS_SYMS) if n > 24 else 25
+        except ValueError:
+            return 25
+    if isinstance(v, dict):
+        vid = v.get("id") or v.get("value") or v.get("code") or v.get("symbolId") or v.get("number")
+        if isinstance(vid, (int, float)):
+            n = int(vid)
+            if 1 <= n <= 24:
+                return n
+            return 25 + ((n - 1) % PS_SYMS)
+        return 25
+    return None
 
 
 def fetch_draws_for_date(date_str):
@@ -40,21 +69,28 @@ def fetch_draws_for_date(date_str):
         if not dt_ms:
             continue
         d = datetime.utcfromtimestamp(dt_ms / 1000) + timedelta(hours=3)
-        day_str   = d.strftime("%Y-%m-%d")
-        mins      = d.hour * 60 + d.minute
-        nums_list = item.get("winningNumbers", {}).get("list", [])
-        if len(nums_list) < 1:
+        day_str = d.strftime("%Y-%m-%d")
+        mins    = d.hour * 60 + d.minute
+
+        # PRIMARY: listWinningNumbers[0..2] — confirmed OPAP PS structure per-wheel
+        lwn = item.get("listWinningNumbers") or []
+        w = [None, None, None]
+        if len(lwn) >= 3:
+            for wi in range(3):
+                entry = lwn[wi] or {}
+                cl = entry.get("list") or entry.get("bonus") or []
+                if cl:
+                    w[wi] = parse_ps_value(cl[0])
+
+        # FALLBACK: winningNumbers.list (only wheel 1)
+        if all(x is None for x in w):
+            nums_list = item.get("winningNumbers", {}).get("list", [])
+            if nums_list:
+                w[0] = parse_ps_value(nums_list[0])
+
+        if all(x is None for x in w):
             continue
-        # Map values: 1-24 = number, anything else = symbol (25-27)
-        w = []
-        for v in nums_list[:3]:
-            try:
-                n = int(v)
-                w.append(n if 1 <= n <= 24 else 25)
-            except (ValueError, TypeError):
-                w.append(25)
-        while len(w) < 3:
-            w.append(None)
+
         draws.append({
             "id": item["drawId"],
             "d": day_str,
@@ -103,12 +139,10 @@ def fetch_month_range(start_ym, end_ym):
     cur = date(sy, sm, 1)
     end = date(ey, em, 1)
     while cur <= end:
-        # iterate each day in this month
         day = cur
         while day.month == cur.month:
             fetch_date(day.strftime("%Y-%m-%d"))
             day += timedelta(days=1)
-        # next month
         if cur.month == 12:
             cur = date(cur.year + 1, 1, 1)
         else:
@@ -121,7 +155,7 @@ if __name__ == "__main__":
         fetch_date(athens_now().strftime("%Y-%m-%d"))
     elif len(args) == 1:
         arg = args[0]
-        if len(arg) == 7:  # YYYY-MM
+        if len(arg) == 7:
             fetch_month_range(arg, arg)
         else:
             fetch_date(arg)
