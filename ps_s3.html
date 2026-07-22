@@ -1280,25 +1280,6 @@ const psIdxRef = { get: () => psIdx, set: v => { psIdx = v; } };
 const s3IdxRef = { get: () => s3Idx, set: v => { s3Idx = v; } };
 
 // ── PS Historical backfill via OPAP API + localStorage cache ─────────────────
-async function fetchMonthRangeOpap(gameId, fromDate, toDate) {
-  const allItems = [];
-  let page = 0;
-  while (true) {
-    const url = `https://api.opap.gr/draws/v3.0/${gameId}/draw-date/${fromDate}/${toDate}?page=${page}&size=500`;
-    let raw = null;
-    try { raw = await apiFetch(url); } catch(_) { break; }
-    if (!raw) break;
-    const pg = Array.isArray(raw) ? raw : (raw.content || []);
-    if (!pg.length) break;
-    allItems.push(...pg);
-    if (Array.isArray(raw) || raw.last === true || pg.length < 500) break;
-    page++;
-    if (page > 30) break;
-    // χωρίς καθυστέρηση μεταξύ σελίδων — γρηγορότερη φόρτωση
-  }
-  return allItems;
-}
-
 async function loadPsHistory(numMonths) {
   const btn  = document.getElementById('psHistBtn');
   const info = document.getElementById('psHistInfo');
@@ -1308,8 +1289,10 @@ async function loadPsHistory(numMonths) {
   const athNow = athensDate(now.getTime());
   const curY   = athNow.getUTCFullYear();
   const curM   = athNow.getUTCMonth() + 1;
+  const curYm  = `${curY}-${String(curM).padStart(2,'0')}`;
+  const todayStr = `${curYm}-${String(athNow.getUTCDate()).padStart(2,'0')}`;
 
-  // Λίστα μηνών (παλαιότερος πρώτος)
+  // Λίστα μηνών
   const months = [];
   for (let i = numMonths - 1; i >= 0; i--) {
     let y = curY, m = curM - i;
@@ -1317,40 +1300,57 @@ async function loadPsHistory(numMonths) {
     months.push({ y, m, ym: `${y}-${String(m).padStart(2,'0')}`, isCur: y===curY && m===curM });
   }
 
-  let done = 0;
+  // Χωρισμός σε cached/uncached
   const histDraws = [];
+  const uncachedMonths = [];
+  let cachedCount = 0;
 
-  const fetchOne = async ({ y, m, ym, isCur }) => {
-    const lsKey = `ps_h1_${ym}`;
-    if (!isCur) {
-      const cached = localStorage.getItem(lsKey);
+  for (const mo of months) {
+    if (!mo.isCur) {
+      const cached = localStorage.getItem(`ps_h1_${mo.ym}`);
       if (cached) {
-        try {
-          const cDraws = JSON.parse(cached);
-          histDraws.push(...cDraws);
-          done++;
-          if (info) info.textContent = `⏳ ${done}/${numMonths} (cache)…`;
-          return;
-        } catch(_) {}
+        try { histDraws.push(...JSON.parse(cached)); cachedCount++; continue; } catch(_) {}
       }
     }
-    try {
-      const lastDay  = new Date(y, m, 0).getDate();
-      const items    = await fetchMonthRangeOpap(PS_GAME_ID, `${ym}-01`, `${ym}-${String(lastDay).padStart(2,'0')}`);
-      const draws    = items.map(parsePsItem).filter(Boolean);
-      histDraws.push(...draws);
-      if (!isCur && draws.length > 0) {
-        try { localStorage.setItem(lsKey, JSON.stringify(draws)); } catch(_) {}
-      }
-    } catch(e) { console.warn('PS hist', ym, e); }
-    done++;
-    if (info) info.textContent = `⏳ ${done}/${numMonths} μήνες…`;
-  };
+    uncachedMonths.push(mo);
+  }
+  if (info && cachedCount) info.textContent = `⏳ cache: ${cachedCount}μ., φόρτωση ${uncachedMonths.length}μ.…`;
 
-  // Παράλληλη φόρτωση 4 μηνών ταυτόχρονα
-  const BATCH = 4;
-  for (let bi = 0; bi < months.length; bi += BATCH) {
-    await Promise.all(months.slice(bi, bi + BATCH).map(fetchOne));
+  // Φτιάχνουμε λίστα από όλες τις ημέρες που δεν είναι cached
+  const allDays = [];
+  for (const { y, m, ym } of uncachedMonths) {
+    const lastDay = new Date(y, m, 0).getDate();
+    for (let dd = 1; dd <= lastDay; dd++) {
+      const ds = `${ym}-${String(dd).padStart(2,'0')}`;
+      if (ds <= todayStr) allDays.push({ ym, ds });
+    }
+  }
+
+  // Φέρνουμε μέρα-μέρα, 16 παράλληλα — το fetchDayOpap είναι αξιόπιστο
+  const monthMap = {};
+  const BATCH = 16;
+  for (let bi = 0; bi < allDays.length; bi += BATCH) {
+    const batch = allDays.slice(bi, bi + BATCH);
+    const results = await Promise.all(batch.map(async ({ ym, ds }) => {
+      try {
+        const items = await fetchDayOpap(PS_GAME_ID, ds);
+        return { ym, draws: items.map(parsePsItem).filter(Boolean) };
+      } catch(_) { return { ym, draws: [] }; }
+    }));
+    for (const { ym, draws } of results) {
+      if (!monthMap[ym]) monthMap[ym] = [];
+      monthMap[ym].push(...draws);
+    }
+    if (info) info.textContent = `⏳ ${Math.min(bi + BATCH, allDays.length)}/${allDays.length} ημέρες…`;
+  }
+
+  // Cache ανά μήνα + merge στο histDraws
+  for (const { ym, isCur } of uncachedMonths) {
+    const mDraws = monthMap[ym] || [];
+    histDraws.push(...mDraws);
+    if (!isCur && mDraws.length > 0) {
+      try { localStorage.setItem(`ps_h1_${ym}`, JSON.stringify(mDraws)); } catch(_) {}
+    }
   }
 
   // Merge στα psDraws (dedup by id)
