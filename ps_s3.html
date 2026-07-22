@@ -1263,7 +1263,8 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
     }
     if (added > 0) {
       drawsArr.sort((a, b) => a.id - b.id);
-      if (wasAtLast) idxSetter.set(drawsArr.length - 1);
+      // Μείνε στην προτελευταία ώστε η νέα κλήρωση να φαίνεται ως "next" στον τροχό
+      if (wasAtLast) idxSetter.set(Math.max(0, drawsArr.length - 2));
       renderFn();
       sb.textContent = `✓ +${added} νέες κληρώσεις ${label} — ${new Date().toLocaleTimeString('el-GR')}`;
     } else {
