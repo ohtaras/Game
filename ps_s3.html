@@ -1294,7 +1294,7 @@ async function fetchMonthRangeOpap(gameId, fromDate, toDate) {
     if (Array.isArray(raw) || raw.last === true || pg.length < 500) break;
     page++;
     if (page > 30) break;
-    await new Promise(r => setTimeout(r, 250));
+    // χωρίς καθυστέρηση μεταξύ σελίδων — γρηγορότερη φόρτωση
   }
   return allItems;
 }
@@ -1309,46 +1309,51 @@ async function loadPsHistory(numMonths) {
   const curY   = athNow.getUTCFullYear();
   const curM   = athNow.getUTCMonth() + 1;
 
-  const histDraws = [];
-
+  // Λίστα μηνών (παλαιότερος πρώτος)
+  const months = [];
   for (let i = numMonths - 1; i >= 0; i--) {
     let y = curY, m = curM - i;
     while (m <= 0) { m += 12; y--; }
-    const ym       = `${y}-${String(m).padStart(2, '0')}`;
-    const isCurMon = (y === curY && m === curM);
-    const lsKey    = `ps_h1_${ym}`;
+    months.push({ y, m, ym: `${y}-${String(m).padStart(2,'0')}`, isCur: y===curY && m===curM });
+  }
 
-    if (info) info.textContent = `⏳ ${ym}…`;
+  let done = 0;
+  const histDraws = [];
 
-    if (!isCurMon) {
+  const fetchOne = async ({ y, m, ym, isCur }) => {
+    const lsKey = `ps_h1_${ym}`;
+    if (!isCur) {
       const cached = localStorage.getItem(lsKey);
       if (cached) {
         try {
-          histDraws.push(...JSON.parse(cached));
-          if (info) info.textContent = `✓ ${ym} (cache)`;
-          continue;
+          const cDraws = JSON.parse(cached);
+          histDraws.push(...cDraws);
+          done++;
+          if (info) info.textContent = `⏳ ${done}/${numMonths} (cache)…`;
+          return;
         } catch(_) {}
       }
     }
-
     try {
       const lastDay  = new Date(y, m, 0).getDate();
-      const fromDate = `${ym}-01`;
-      const toDate   = `${ym}-${String(lastDay).padStart(2, '0')}`;
-      const items    = await fetchMonthRangeOpap(PS_GAME_ID, fromDate, toDate);
+      const items    = await fetchMonthRangeOpap(PS_GAME_ID, `${ym}-01`, `${ym}-${String(lastDay).padStart(2,'0')}`);
       const draws    = items.map(parsePsItem).filter(Boolean);
       histDraws.push(...draws);
-      if (!isCurMon && draws.length > 0) {
+      if (!isCur && draws.length > 0) {
         try { localStorage.setItem(lsKey, JSON.stringify(draws)); } catch(_) {}
       }
-      if (info) info.textContent = `✓ ${ym} · ${draws.length} κλ.`;
-    } catch(e) {
-      console.warn('PS hist', ym, e);
-      if (info) info.textContent = `⚠ ${ym}`;
-    }
+    } catch(e) { console.warn('PS hist', ym, e); }
+    done++;
+    if (info) info.textContent = `⏳ ${done}/${numMonths} μήνες…`;
+  };
+
+  // Παράλληλη φόρτωση 4 μηνών ταυτόχρονα
+  const BATCH = 4;
+  for (let bi = 0; bi < months.length; bi += BATCH) {
+    await Promise.all(months.slice(bi, bi + BATCH).map(fetchOne));
   }
 
-  // Merge into psDraws (deduplicate by id)
+  // Merge στα psDraws (dedup by id)
   const seen = new Set(psDraws.map(d => d.id));
   for (const d of histDraws) {
     if (!seen.has(d.id)) { seen.add(d.id); psDraws.push(d); }
@@ -1358,7 +1363,7 @@ async function loadPsHistory(numMonths) {
   psRender();
 
   const total = psDraws.length;
-  if (info) info.textContent = `✅ ${total} κληρώσεις σύνολο`;
+  if (info) info.textContent = `✅ ${total} κληρώσεις`;
   if (btn)  { btn.disabled = false; btn.textContent = '📚 Ανανέωση'; }
   showToast(`Φορτώθηκαν ${total} κληρώσεις Power Spin`);
 }
