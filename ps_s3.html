@@ -1092,11 +1092,14 @@ function psRender() {
   renderPsPred();
 }
 
-function psNav(dir)  { psIdx = Math.max(0, Math.min(psDraws.length-1, psIdx+dir)); psRender(); }
-function psGoLast()  { psIdx = psDraws.length - 1; psRender(); }
+let psLiveMode = true; // true = ακολουθεί πάντα την τελευταία κλήρωση
+
+function psNav(dir)  { psLiveMode = false; psIdx = Math.max(0, Math.min(psDraws.length-1, psIdx+dir)); psRender(); }
+function psGoLast()  { psLiveMode = true;  psIdx = psDraws.length - 1; psRender(); }
 
 function psNavDay(dir) {
   if (!psDraws.length) return;
+  psLiveMode = false;
   const cur = psDraws[psIdx].d;
   if (dir > 0) {
     let i = psIdx + 1;
@@ -1255,7 +1258,7 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
   try {
     const items      = await fetchDayOpap(gameId, todayStr);
     const existingIds = new Set(drawsArr.map(d => d.id));
-    const wasAtLast  = idxSetter.get() >= drawsArr.length - 1;
+    const isLive = idxSetter.isLive ? idxSetter.isLive() : idxSetter.get() >= drawsArr.length - 1;
     let added = 0;
     for (const it of items) {
       const d = parseItem(it);
@@ -1263,7 +1266,7 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
     }
     if (added > 0) {
       drawsArr.sort((a, b) => a.id - b.id);
-      if (wasAtLast) idxSetter.set(drawsArr.length - 1);
+      if (isLive) idxSetter.set(drawsArr.length - 1);
       renderFn();
       sb.textContent = `✓ +${added} νέες κληρώσεις ${label} — ${new Date().toLocaleTimeString('el-GR')}`;
     } else {
@@ -1276,7 +1279,7 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
   }
 }
 
-const psIdxRef = { get: () => psIdx, set: v => { psIdx = v; } };
+const psIdxRef = { get: () => psIdx, set: v => { psIdx = v; }, isLive: () => psLiveMode };
 const s3IdxRef = { get: () => s3Idx, set: v => { s3Idx = v; } };
 
 // ── PS Historical backfill via OPAP API + localStorage cache ─────────────────
