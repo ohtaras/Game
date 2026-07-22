@@ -430,19 +430,29 @@ function parsePsItem(item) {
   const lst  = wn.list    || [];
   const bon  = wn.bonus   || [];
   const cols = wn.columns || [];
+  // Top-level array with one entry per wheel — the definitive PS structure
+  const lwn  = item.listWinningNumbers || [];
 
   // Save full structure for debug display (first draw only)
   if (!psRawSample) {
-    psRawSample    = JSON.stringify(item); // FULL item, not just wn
+    psRawSample    = JSON.stringify(item);
     psFirstRawItem = item;
     console.log('[PS DEBUG] Full first item:', JSON.stringify(item, null, 2));
   }
 
   let w = [null, null, null];
 
-  // (A) columns array: [{list:[v1],...}, {list:[v2],...}, {list:[v3],...}]
-  //     Most common OPAP structure for multi-wheel games
-  if (cols.length >= 3) {
+  // (A) listWinningNumbers[0..2].list — confirmed OPAP Power Spin structure
+  if (lwn.length >= 3) {
+    for (let wi = 0; wi < 3; wi++) {
+      const entry = lwn[wi] || {};
+      const cl    = entry.list || entry.bonus || [];
+      if (cl.length > 0) w[wi] = parsePsValue(cl[0]);
+    }
+  }
+
+  // (B) columns array fallback
+  if (w.every(x => x === null) && cols.length >= 3) {
     for (let wi = 0; wi < 3; wi++) {
       const col = cols[wi] || {};
       const cl  = col.list || col.bonus || [];
@@ -450,12 +460,12 @@ function parsePsItem(item) {
     }
   }
 
-  // (B) list has 3+ values directly
+  // (C) list has 3+ values directly
   if (w.every(x => x === null) && lst.length >= 3) {
     w = [parsePsValue(lst[0]), parsePsValue(lst[1]), parsePsValue(lst[2])];
   }
 
-  // (C) list (wheel 1) + bonus (wheels 2&3)
+  // (D) list (wheel 1) + bonus (wheels 2&3)
   if (w.every(x => x === null) && (lst.length > 0 || bon.length > 0)) {
     for (let i = 0; i < Math.min(lst.length, 3); i++) w[i] = parsePsValue(lst[i]);
     let bi = 0;
@@ -463,6 +473,9 @@ function parsePsItem(item) {
       if (w[i] === null && bi < bon.length) { w[i] = parsePsValue(bon[bi]); bi++; }
     }
   }
+
+  // Wheel 1 fallback from winningNumbers.list if listWinningNumbers gave only wheel 1
+  if (w[0] === null && lst.length > 0) w[0] = parsePsValue(lst[0]);
 
   // (D) Fallback: scan all winningNumbers keys for numbered/column/reel/wheel patterns
   //     Handles nested objects like {c1:{list:[5]}, c2:{list:[12]}, c3:{list:[8]}}
