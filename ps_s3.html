@@ -699,8 +699,9 @@ function parseKinoItem(item) {
   const wn  = item.winningNumbers || {};
   const lst = (wn.list || []).map(Number).filter(n => n >= 1 && n <= 80);
   if (lst.length < 20) return null;
-  const b = (wn.bonus || [])[0] ? Number((wn.bonus || [])[0]) : null;
-  return { id: item.drawId, n: lst.slice(0, 20), b };
+  const b   = (wn.bonus || [])[0] ? Number((wn.bonus || [])[0]) : null;
+  const d   = drawDateStr(item.drawTime);
+  return { id: item.drawId, n: lst.slice(0, 20), b, d };
 }
 
 // ── Render ΚΙΝΟ ───────────────────────────────────────────────────────────
@@ -757,16 +758,26 @@ function kinoRender() {
     }
   }
 
-  // Επιτυχίες
+  // Ποιοι συνδυασμοί έχουν ήδη "βγει" σήμερα (hitMid+)
+  const athNow   = athensDate(Date.now());
+  const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
+  const todayDraws = kinoDraws.filter(d => d.d === todayStr);
+  const firedToday = new Set();
+  for (const td of todayDraws) {
+    const tds = new Set(td.n);
+    combos.forEach((c, i) => {
+      if (!firedToday.has(i) && c.filter(n => tds.has(n)).length >= hitMid) firedToday.add(i);
+    });
+  }
+  const availCount = combos.length - firedToday.size;
+
+  // Επιτυχίες στην τρέχουσα κλήρωση
   const panel = document.getElementById('kinoComboHits');
   if (!panel) return;
   let html = '';
 
-  const hiIcon = kinoMode === '6' ? '✅' : '✅';
-  const midIcon = '⭐';
-
   if (hitsHigh.length) {
-    html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">${hiIcon} ${hitHigh}+ επιτυχίες (${hitsHigh.length}):</span>`;
+    html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">✅ ${hitHigh}+ επιτυχίες (${hitsHigh.length}):</span>`;
     for (const r of hitsHigh) {
       html += `<div style="margin:3px 0;font-size:.78rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
         r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#4caf50':'#555'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
@@ -775,7 +786,7 @@ function kinoRender() {
     html += '</div>';
   }
   if (hitsMid.length) {
-    html += `<div style="margin-bottom:8px"><span style="color:#ffd700;font-weight:bold;font-size:.82rem">${midIcon} ${hitMid} επιτυχίες (${hitsMid.length}):</span>`;
+    html += `<div style="margin-bottom:8px"><span style="color:#ffd700;font-weight:bold;font-size:.82rem">⭐ ${hitMid} επιτυχίες (${hitsMid.length}):</span>`;
     for (const r of hitsMid.slice(0, 8)) {
       html += `<div style="margin:3px 0;font-size:.75rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
         r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#ffd700':'#444'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
@@ -787,19 +798,22 @@ function kinoRender() {
     html = `<div style="color:#444;font-size:.75rem;margin-bottom:8px">Κανένας συνδυασμός με ${hitMid}+ επιτυχίες.</div>`;
   }
 
-  // Σύσταση για επόμενη
-  const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  // Σύσταση — μόνο από συνδυασμούς που δεν έχουν βγει σήμερα
+  const bestAvail = results.find(r => !firedToday.has(r.idx - 1)) || best;
+  const nextDraw  = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  const availInfo = `<span style="color:#555;font-size:.68rem"> · Διαθέσιμες: ${availCount}/${combos.length}</span>`;
+
   if (nextDraw) {
     const nextSet  = new Set(nextDraw.n);
-    const bestNext = best.combo.filter(n => nextSet.has(n)).length;
+    const bestNext = bestAvail.combo.filter(n => nextSet.has(n)).length;
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
-      <div style="color:#9fa8da;font-size:.72rem">▶ Σύσταση από #${draw.id} → επόμενη είχε <span style="color:${bestNext>=hitHigh?'#4caf50':bestNext>=hitMid?'#ffd700':'#888'};font-weight:bold">${bestNext}/${comboSz}</span>:</div>
-      <div style="font-size:.88rem;font-weight:bold;color:#fff;margin-top:3px">${best.combo.join(' · ')}</div>
+      <div style="color:#9fa8da;font-size:.72rem">▶ Σύσταση #${draw.id} → επόμενη είχε <span style="color:${bestNext>=hitHigh?'#4caf50':bestNext>=hitMid?'#ffd700':'#888'};font-weight:bold">${bestNext}/${comboSz}</span>${availInfo}</div>
+      <div style="font-size:.88rem;font-weight:bold;color:#fff;margin-top:3px">${bestAvail.combo.join(' · ')}</div>
     </div>`;
   } else {
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
-      <div style="color:#9fa8da;font-size:.72rem">▶ ΠΑΙΞΕ ΕΠΟΜΕΝΗ (${label} #${best.idx}, ${best.hits}/${comboSz} στην τελευταία):</div>
-      <div style="font-size:1rem;font-weight:bold;color:#fff;letter-spacing:.05em;margin-top:3px">${best.combo.join(' · ')}</div>
+      <div style="color:#9fa8da;font-size:.72rem">▶ ΠΑΙΞΕ ΕΠΟΜΕΝΗ (${label} #${bestAvail.idx}, ${bestAvail.hits}/${comboSz} τελ. κλ.)${availInfo}</div>
+      <div style="font-size:1rem;font-weight:bold;color:#fff;letter-spacing:.05em;margin-top:3px">${bestAvail.combo.join(' · ')}</div>
     </div>`;
   }
   panel.innerHTML = html;
@@ -815,12 +829,11 @@ function msToNextKino() {
   const now  = athensDate(Date.now());
   const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
              + now.getUTCMilliseconds() / 1000;
-  const mins = secs / 60;
-  const start = 480, step = 5, end = 1315;
-  if (mins > end) return null;
-  const stepsAhead = Math.ceil(Math.max(0, mins - start) / step);
-  const nextMin    = start + stepsAhead * step;
-  if (nextMin > end) return null;
+  const mins  = secs / 60;
+  const step  = 5;
+  const stepsAhead = Math.ceil(mins / step);
+  const nextMin    = stepsAhead * step;
+  if (nextMin >= 1440) return (1440 - mins) * 60 * 1000; // ως τα μεσάνυχτα
   return Math.max(0, nextMin * 60 - secs) * 1000;
 }
 
@@ -828,7 +841,6 @@ let kinoRefreshTimer = null;
 function scheduleKino() {
   clearTimeout(kinoRefreshTimer);
   const ms = msToNextKino();
-  if (ms === null) return;
   kinoRefreshTimer = setTimeout(() => { autoFetchKino(); scheduleKino(); }, ms + 10000);
 }
 
@@ -1683,19 +1695,20 @@ function tickCountdowns() {
     s3Nx.textContent = 'Επόμενη αύριο 00:03';
   }
 
-  const kinoR  = nextDrawSecs(480, 1315, 5);
   const kinoTm = document.getElementById('kinoCdTimer');
   const kinoNx = document.getElementById('kinoCdNext');
   if (kinoTm) {
-    if (kinoR) {
-      kinoTm.textContent = fmtCountdown(kinoR.remaining);
-      kinoTm.className   = 'cd-timer';
-      kinoNx.textContent = `(${minsToTime(kinoR.nextMin)})`;
-    } else {
-      kinoTm.textContent = 'Τέλος';
-      kinoTm.className   = 'cd-timer cd-off';
-      kinoNx.textContent = 'Επόμενη αύριο 08:00';
-    }
+    const kAth   = athensDate(Date.now());
+    const kSecs  = kAth.getUTCHours() * 3600 + kAth.getUTCMinutes() * 60 + kAth.getUTCSeconds()
+                 + kAth.getUTCMilliseconds() / 1000;
+    const kMins  = kSecs / 60;
+    const kSteps = Math.ceil(kMins / 5);
+    const kNext  = kSteps * 5;
+    const kRem   = kNext >= 1440 ? (1440 - kMins) * 60 : Math.max(0, kNext * 60 - kSecs);
+    const kLabel = kNext >= 1440 ? '00:00' : minsToTime(kNext);
+    kinoTm.textContent = fmtCountdown(kRem);
+    kinoTm.className   = 'cd-timer';
+    kinoNx.textContent = `(${kLabel})`;
   }
 }
 
