@@ -321,9 +321,15 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="ctrl-info" id="kinoInfo">—</span>
     </div>
 
-    <div id="kinoNumGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:6px"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:.63rem;color:#555;margin-bottom:8px">
-      <span>🔵 Τρέχουσα</span><span style="color:#ef6c00">🟠 Επόμενη</span><span style="color:#ffd700">🟡 Σύσταση</span><span style="color:#69f0ae">🟢 Τρέχουσα+Σύσταση</span>
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.62rem;color:#555;margin-bottom:3px">🔵 Τρέχουσα &nbsp;<span style="color:#ffd700">🟡=σύσταση</span></div>
+        <div id="kinoNumGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
+      </div>
+      <div id="kinoNextWrap" style="flex:1;min-width:0;display:none">
+        <div id="kinoNextLabel" style="font-size:.62rem;color:#ef6c00;margin-bottom:3px">🟠 Επόμενη &nbsp;<span style="color:#69f0ae">🟢=hit</span></div>
+        <div id="kinoNextGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
+      </div>
     </div>
     <div id="kinoComboHits"></div>
   </section>
@@ -741,30 +747,52 @@ function kinoRender() {
   const info = document.getElementById('kinoInfo');
   if (info) info.textContent = `#${draw.id} · ${kinoIdx + 1}/${kinoDraws.length}`;
 
-  // Πλέγμα 80 αριθμών
-  const nextDraw0 = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
-  const nextSet0  = nextDraw0 ? new Set(nextDraw0.n) : null;
+  // Πλέγμα τρέχουσας κλήρωσης
+  const nextDraw0   = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  const nextSet0    = nextDraw0 ? new Set(nextDraw0.n) : null;
+
+  function makeCell(n, bg, color, border, bold) {
+    const c = document.createElement('div');
+    c.style.cssText = `text-align:center;border-radius:3px;padding:3px 1px;font-size:.62rem;font-weight:${bold?'bold':'normal'};background:${bg};color:${color};border:1px solid ${border}`;
+    c.textContent = n;
+    return c;
+  }
+
   const grid = document.getElementById('kinoNumGrid');
   if (grid) {
     grid.innerHTML = '';
     for (let n = 1; n <= 80; n++) {
-      const drawn   = drawnSet.has(n);
-      const inBest  = bestSet.has(n);
-      const inNext  = nextSet0 ? nextSet0.has(n) : false;
-      const cell    = document.createElement('div');
+      const drawn  = drawnSet.has(n);
+      const inBest = bestSet.has(n);
       let bg, color, border;
       if (drawn && inBest) { bg='#1b5e20'; color='#69f0ae'; border='#4caf50'; }
       else if (drawn)      { bg='#0d47a1'; color='#90caf9'; border='#1565c0'; }
       else if (inBest)     { bg='#332900'; color='#ffd700'; border='#665000'; }
       else                 { bg='#0d1117'; color='#2a2a3a'; border='#111';    }
-      cell.style.cssText = [
-        'text-align:center;border-radius:4px;padding:4px 1px;font-size:.7rem;position:relative;',
-        `font-weight:${drawn ? 'bold' : 'normal'};`,
-        `background:${bg};color:${color};`,
-        `border:${inNext ? `2px solid #ef6c00` : `1px solid ${border}`};`,
-      ].join('');
-      cell.textContent = n;
-      grid.appendChild(cell);
+      grid.appendChild(makeCell(n, bg, color, border, drawn));
+    }
+  }
+
+  // Πλέγμα επόμενης κλήρωσης (δίπλα)
+  const nextWrap = document.getElementById('kinoNextWrap');
+  const nextGrid = document.getElementById('kinoNextGrid');
+  const nextLabel = document.getElementById('kinoNextLabel');
+  if (nextWrap) {
+    if (nextDraw0 && nextGrid) {
+      nextWrap.style.display = '';
+      if (nextLabel) nextLabel.innerHTML = `🟠 Επόμενη #${nextDraw0.id} &nbsp;<span style="color:#69f0ae">🟢=hit</span>`;
+      nextGrid.innerHTML = '';
+      for (let n = 1; n <= 80; n++) {
+        const inNext = nextSet0.has(n);
+        const inBest = bestSet.has(n);
+        let bg, color, border;
+        if (inNext && inBest) { bg='#1b5e20'; color='#69f0ae'; border='#4caf50'; }
+        else if (inNext)      { bg='#1a3a5c'; color='#90caf9'; border='#1e5080'; }
+        else                  { bg='#0d1117'; color='#2a2a3a'; border='#111';    }
+        nextGrid.appendChild(makeCell(n, bg, color, border, inNext));
+      }
+    } else {
+      nextWrap.style.display = 'none';
     }
   }
 
@@ -814,19 +842,11 @@ function kinoRender() {
   const availInfo = `<span style="color:#555;font-size:.68rem"> · Διαθέσιμες: ${availCount}/${combos.length}</span>`;
 
   if (nextDraw) {
-    const nextSet   = nextSet0;
-    const bestNext  = bestAvail.combo.filter(n => nextSet.has(n)).length;
+    const bestNext  = bestAvail.combo.filter(n => nextSet0.has(n)).length;
     const nextColor = bestNext >= hitHigh ? '#4caf50' : bestNext >= hitMid ? '#ffd700' : '#888';
-    // Οι 20 αριθμοί επόμενης κλήρωσης με highlight όσοι είναι στον συνδυασμό
-    const bestAvailSet = new Set(bestAvail.combo);
-    const nextNums = [...nextDraw.n].sort((a,b)=>a-b)
-      .map(n => `<span style="display:inline-block;min-width:22px;text-align:center;padding:2px 3px;border-radius:3px;font-size:.75rem;font-weight:${bestAvailSet.has(n)?'bold':'normal'};background:${bestAvailSet.has(n)?'#1b5e20':'#0d1117'};color:${bestAvailSet.has(n)?'#69f0ae':'#555'};border:1px solid ${bestAvailSet.has(n)?'#4caf50':'#222'}">${n}</span>`)
-      .join(' ');
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
       <div style="color:#9fa8da;font-size:.72rem">▶ Σύσταση για #${nextDraw.id} — <span style="color:${nextColor};font-weight:bold">${bestNext}/${comboSz} hits</span>${availInfo}</div>
-      <div style="font-size:.9rem;font-weight:bold;color:#fff;margin:4px 0">${bestAvail.combo.join(' · ')}</div>
-      <div style="color:#ef6c00;font-size:.68rem;margin-bottom:3px">🟠 Επόμενη κλήρωση #${nextDraw.id}:</div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px">${nextNums}</div>
+      <div style="font-size:.9rem;font-weight:bold;color:#fff;margin-top:4px">${bestAvail.combo.join(' · ')}</div>
     </div>`;
   } else {
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
