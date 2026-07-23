@@ -141,6 +141,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <div id="tabBar">
     <button class="tab-btn active" onclick="switchTab('ps')">🎡 Power Spin</button>
     <button class="tab-btn"        onclick="switchTab('s3')">🔢 Super 3</button>
+    <button class="tab-btn"        onclick="switchTab('kino')">🎰 ΚΙΝΟ</button>
     <button class="tab-btn"        onclick="switchTab('cfg')" style="margin-left:auto">⚙️</button>
   </div>
 
@@ -297,6 +298,27 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
   </section>
 
+  <!-- ═══ ΚΙΝΟ ═══ -->
+  <section id="kinoTab" style="display:none">
+    <h2 style="color:#43a047">🎰 ΚΙΝΟ — Εννιάδες Live</h2>
+
+    <div class="countdown-bar">
+      <span class="cd-label">⏱ Επόμενη κλήρωση:</span>
+      <span class="cd-timer" id="kinoCdTimer">--:--</span>
+      <span class="cd-next"  id="kinoCdNext"></span>
+    </div>
+
+    <div class="ctrl-bar">
+      <button class="btn" id="kinoPrevBtn" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
+      <button class="btn" id="kinoNextBtn" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
+      <button class="btn" onclick="kinoGoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Live</button>
+      <span class="ctrl-info" id="kinoInfo">—</span>
+    </div>
+
+    <div id="kinoNumGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;margin-bottom:10px"></div>
+    <div id="kinoComboHits"></div>
+  </section>
+
   <!-- ═══ SETTINGS ═══ -->
   <section id="cfgTab" style="display:none">
     <h2 style="color:#888">⚙️ Ρυθμίσεις</h2>
@@ -357,7 +379,29 @@ const PS_COLORS = {
   25:'#9e9e9e', 26:'#9e9e9e', 27:'#9e9e9e',  // σύμβολα
 };
 
-const S3_GAME_ID = 2100;
+const S3_GAME_ID   = 2100;
+const KINO_GAME_ID = 1100;
+
+// 50 εννιάδες — φτιαγμένες με βάση συχνότητα + ισορροπία μονά/ζυγά + κατανομή δεκάδων
+const KINO_COMBOS = [
+  [7,12,19,24,34,55,60,67,72],[5,12,14,23,34,35,61,67,78],[4,9,10,25,31,51,57,59,72],
+  [5,14,20,31,51,58,59,66,80],[3,16,18,20,22,25,48,67,71],[5,10,13,24,31,41,57,71,80],
+  [4,20,22,34,44,55,58,59,67],[9,14,17,20,31,34,42,59,69],[5,10,20,29,48,64,67,78,79],
+  [4,5,9,13,44,59,66,71,79],  [4,5,18,34,35,44,58,59,66], [10,18,20,24,34,37,43,53,57],
+  [5,7,10,12,20,21,51,59,67], [9,10,13,19,21,48,55,59,76],[4,9,12,29,33,52,57,71,78],
+  [4,14,20,40,59,67,69,75,78],[10,22,30,36,57,62,66,67,79],[4,13,20,24,26,58,59,71,78],
+  [5,9,18,20,43,48,57,59,76], [1,20,34,37,52,57,66,75,76],[9,10,12,24,32,59,71,72,75],
+  [10,24,25,43,53,59,65,78,79],[12,20,23,24,41,48,53,69,73],[1,20,21,34,51,57,60,62,67],
+  [4,9,17,20,34,48,63,67,73], [2,5,12,24,64,66,71,72,79],[4,9,10,34,35,45,48,54,79],
+  [5,9,11,23,34,37,59,66,78], [9,11,20,48,51,54,57,73,75],[10,16,20,31,34,45,48,55,57],
+  [1,4,5,24,34,36,45,48,57],  [8,18,20,25,34,50,59,71,77],[10,12,37,49,61,66,67,72,79],
+  [4,13,24,33,55,57,69,71,78],[10,22,35,58,59,66,67,71,78],[9,12,20,21,29,34,58,72,78],
+  [2,5,12,46,57,67,71,72,77], [12,31,34,53,57,58,63,67,78],[4,5,9,47,52,59,66,67,74],
+  [4,10,22,27,28,37,66,67,78],[2,9,10,25,34,54,66,71,77], [9,10,35,48,51,57,58,67,78],
+  [5,22,24,35,57,59,67,71,78],[10,12,27,28,34,41,47,55,78],[10,12,23,34,45,48,49,71,72],
+  [10,15,19,21,24,48,59,71,78],[4,16,18,24,39,58,59,71,79],[1,8,24,34,51,59,61,67,76],
+  [4,10,11,21,48,66,69,77,78],[5,6,9,14,26,45,51,57,78],
+];
 
 const ATHENS_MS  = 3 * 3600000;  // UTC+3
 
@@ -371,6 +415,11 @@ const psDelayFilter = new Set();
 let s3Draws = [];  // {id, d, m, n:0-999}
 let s3Idx   = -1;
 const s3DelayFilter = new Set();
+
+let kinoDraws = [];  // {id, n:[20 nums], b}
+let kinoIdx   = -1;
+let kinoLiveMode = true;
+const kinoIdxRef = { get: () => kinoIdx, set: v => { kinoIdx = v; }, isLive: () => kinoLiveMode };
 
 // ── Utilities ─────────────────────────────────────────────────────────────
 const minsToTime = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
@@ -580,6 +629,130 @@ function parseS3Item(item) {
   return { id: item.drawId, d: drawDateStr(item.drawTime), m: drawMinutes(item.drawTime), n };
 }
 
+// ── ΚΙΝΟ item parsing ─────────────────────────────────────────────────────
+function parseKinoItem(item) {
+  if (!item.drawTime) return null;
+  const wn  = item.winningNumbers || {};
+  const lst = (wn.list || []).map(Number).filter(n => n >= 1 && n <= 80);
+  if (lst.length < 20) return null;
+  const b = (wn.bonus || [])[0] ? Number((wn.bonus || [])[0]) : null;
+  return { id: item.drawId, n: lst.slice(0, 20), b };
+}
+
+// ── Render ΚΙΝΟ ───────────────────────────────────────────────────────────
+function kinoRender() {
+  if (!kinoDraws.length || kinoIdx < 0) return;
+  const draw = kinoDraws[kinoIdx];
+  const drawnSet = new Set(draw.n);
+
+  // Αξιολόγηση εννιάδων
+  const results = KINO_COMBOS.map((c, i) => ({
+    idx: i + 1, combo: c, hits: c.filter(n => drawnSet.has(n)).length,
+  })).sort((a, b) => b.hits - a.hits);
+  const best = results[0];
+  const bestSet = new Set(best.combo);
+  const hits5 = results.filter(r => r.hits >= 5);
+  const hits4 = results.filter(r => r.hits === 4);
+
+  // Info
+  const info = document.getElementById('kinoInfo');
+  if (info) info.textContent = `#${draw.id} · ${kinoIdx + 1}/${kinoDraws.length}`;
+
+  // Πλέγμα 80 αριθμών
+  const grid = document.getElementById('kinoNumGrid');
+  if (grid) {
+    grid.innerHTML = '';
+    for (let n = 1; n <= 80; n++) {
+      const drawn  = drawnSet.has(n);
+      const inBest = bestSet.has(n);
+      const cell   = document.createElement('div');
+      cell.style.cssText = [
+        'text-align:center;border-radius:4px;padding:4px 1px;font-size:.7rem;',
+        `font-weight:${drawn ? 'bold' : 'normal'};`,
+        `background:${drawn && inBest ? '#1b5e20' : drawn ? '#0d47a1' : inBest ? '#332900' : '#0d1117'};`,
+        `color:${drawn && inBest ? '#69f0ae' : drawn ? '#90caf9' : inBest ? '#ffd700' : '#2a2a3a'};`,
+        `border:1px solid ${drawn && inBest ? '#4caf50' : drawn ? '#1565c0' : inBest ? '#665000' : '#111'};`,
+      ].join('');
+      cell.textContent = n;
+      grid.appendChild(cell);
+    }
+  }
+
+  // Επιτυχίες
+  const panel = document.getElementById('kinoComboHits');
+  if (!panel) return;
+  let html = '';
+
+  if (hits5.length) {
+    html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">✅ 5 επιτυχίες (${hits5.length}):</span>`;
+    for (const r of hits5) {
+      html += `<div style="margin:3px 0;font-size:.78rem"><span style="color:#555">Εννιάδα #${r.idx}:</span> ` +
+        r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#4caf50':'#555'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
+        ` <span style="color:#4caf50">(${r.hits}/9)</span></div>`;
+    }
+    html += '</div>';
+  }
+  if (hits4.length) {
+    html += `<div style="margin-bottom:8px"><span style="color:#ffd700;font-weight:bold;font-size:.82rem">⭐ 4 επιτυχίες (${hits4.length}):</span>`;
+    for (const r of hits4.slice(0, 8)) {
+      html += `<div style="margin:3px 0;font-size:.75rem"><span style="color:#555">Εννιάδα #${r.idx}:</span> ` +
+        r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#ffd700':'#444'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
+        ` <span style="color:#ffd700">(${r.hits}/9)</span></div>`;
+    }
+    html += '</div>';
+  }
+  if (!hits5.length && !hits4.length) {
+    html = `<div style="color:#444;font-size:.75rem;margin-bottom:8px">Καμία εννιάδα με 4+ επιτυχίες.</div>`;
+  }
+
+  // Σύσταση για επόμενη
+  const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  if (nextDraw) {
+    // Βλέπουμε τι έβγαλε η "επόμενη" — επαλήθευση
+    const nextSet  = new Set(nextDraw.n);
+    const bestNext = best.combo.filter(n => nextSet.has(n)).length;
+    html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
+      <div style="color:#9fa8da;font-size:.72rem">▶ Σύσταση από κλήρωση #${draw.id} → επόμενη είχε <span style="color:${bestNext>=5?'#4caf50':bestNext>=4?'#ffd700':'#888'};font-weight:bold">${bestNext}/9</span>:</div>
+      <div style="font-size:.88rem;font-weight:bold;color:#fff;margin-top:3px">${best.combo.join(' · ')}</div>
+    </div>`;
+  } else {
+    html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
+      <div style="color:#9fa8da;font-size:.72rem">▶ ΠΑΙΞΕ ΕΠΟΜΕΝΗ (Εννιάδα #${best.idx}, ${best.hits}/9 στην τελευταία):</div>
+      <div style="font-size:1rem;font-weight:bold;color:#fff;letter-spacing:.05em;margin-top:3px">${best.combo.join(' · ')}</div>
+    </div>`;
+  }
+  panel.innerHTML = html;
+
+  document.getElementById('kinoPrevBtn').disabled = kinoIdx <= 0;
+  document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
+}
+
+function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
+function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
+
+function msToNextKino() {
+  const now  = athensDate(Date.now());
+  const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
+             + now.getUTCMilliseconds() / 1000;
+  const mins = secs / 60;
+  const start = 480, step = 5, end = 1315;
+  if (mins > end) return null;
+  const stepsAhead = Math.ceil(Math.max(0, mins - start) / step);
+  const nextMin    = start + stepsAhead * step;
+  if (nextMin > end) return null;
+  return Math.max(0, nextMin * 60 - secs) * 1000;
+}
+
+let kinoRefreshTimer = null;
+function scheduleKino() {
+  clearTimeout(kinoRefreshTimer);
+  const ms = msToNextKino();
+  if (ms === null) return;
+  kinoRefreshTimer = setTimeout(() => { autoFetchKino(); scheduleKino(); }, ms + 10000);
+}
+
+function autoFetchKino() { return autoFetchToday(KINO_GAME_ID, kinoDraws, parseKinoItem, kinoIdxRef, kinoRender, 'ΚΙΝΟ'); }
+
 // ── Load data ──────────────────────────────────────────────────────────────
 async function loadData() {
   const sb  = document.getElementById('statusBar');
@@ -596,7 +769,7 @@ async function loadData() {
     if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
   }
 
-  let psAll = [], s3All = [];
+  let psAll = [], s3All = [], kinoAll = [];
 
   for (const ym of monthsNeeded) {
     sb.textContent = `⏳ PS ${ym.replace('_','-')}…`;
@@ -607,6 +780,11 @@ async function loadData() {
     sb.textContent = `⏳ S3 ${ym.replace('_','-')}…`;
     const d = await ghGet(`data/raw/s3_raw_${ym}.json`);
     if (d?.draws) s3All.push(...d.draws);
+  }
+  for (const ym of monthsNeeded) {
+    sb.textContent = `⏳ ΚΙΝΟ ${ym.replace('_','-')}…`;
+    const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (d?.draws) kinoAll.push(...d.draws);
   }
 
   // Gap-fill previous days missing from monthly files
@@ -647,6 +825,12 @@ async function loadData() {
     for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
   } catch(e) { console.warn('S3 today:', e); }
 
+  sb.textContent = '⏳ ΚΙΝΟ σήμερα…';
+  try {
+    const items = await fetchDayOpap(KINO_GAME_ID, todayStr);
+    for (const it of items) { const d = parseKinoItem(it); if (d) kinoAll.push(d); }
+  } catch(e) { console.warn('KINO today:', e); }
+
   const dedup = arr => {
     const seen = new Set();
     return arr
@@ -660,12 +844,22 @@ async function loadData() {
   psIdx   = psDraws.length - 1;
   s3Idx   = s3Draws.length - 1;
 
+  const dedupKino = arr => {
+    const seen = new Set();
+    return arr
+      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
+      .sort((a, b) => a.id - b.id);
+  };
+  kinoDraws = dedupKino(kinoAll);
+  kinoIdx   = kinoDraws.length - 1;
+
   buildFilterBtns('psFilterRow', 'ps', 20);
   buildFilterBtns('s3FilterRow', 's3', 20);
 
   const parts = [];
-  if (psDraws.length) { psRender(); parts.push(`PS: ${psDraws.length} κλ.`); }
-  if (s3Draws.length) { s3Render(); parts.push(`S3: ${s3Draws.length} κλ.`); }
+  if (psDraws.length)   { psRender();   parts.push(`PS: ${psDraws.length} κλ.`); }
+  if (s3Draws.length)   { s3Render();   parts.push(`S3: ${s3Draws.length} κλ.`); }
+  if (kinoDraws.length) { kinoRender(); parts.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
 
   sb.textContent = parts.length
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
@@ -1407,10 +1601,25 @@ function tickCountdowns() {
     s3Tm.className   = 'cd-timer cd-off';
     s3Nx.textContent = 'Επόμενη αύριο 00:03';
   }
+
+  const kinoR  = nextDrawSecs(480, 1315, 5);
+  const kinoTm = document.getElementById('kinoCdTimer');
+  const kinoNx = document.getElementById('kinoCdNext');
+  if (kinoTm) {
+    if (kinoR) {
+      kinoTm.textContent = fmtCountdown(kinoR.remaining);
+      kinoTm.className   = 'cd-timer';
+      kinoNx.textContent = `(${minsToTime(kinoR.nextMin)})`;
+    } else {
+      kinoTm.textContent = 'Τέλος';
+      kinoTm.className   = 'cd-timer cd-off';
+      kinoNx.textContent = 'Επόμενη αύριο 08:00';
+    }
+  }
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
-const TABS = ['ps', 's3', 'cfg'];
+const TABS = ['ps', 's3', 'kino', 'cfg'];
 function switchTab(name) {
   TABS.forEach((t, i) => {
     document.getElementById(`${t}Tab`).style.display = t === name ? '' : 'none';
@@ -1431,6 +1640,9 @@ document.addEventListener('keydown', e => {
     if (e.key === 'ArrowRight') s3Nav(+1);
     if (e.key === 'ArrowDown')  s3NavDay(-1);
     if (e.key === 'ArrowUp')    s3NavDay(+1);
+  } else if (at === 'kino') {
+    if (e.key === 'ArrowLeft')  kinoNav(-1);
+    if (e.key === 'ArrowRight') kinoNav(+1);
   }
 });
 
@@ -1440,6 +1652,7 @@ tickCountdowns();
 setInterval(tickCountdowns, 1000);
 schedulePs();
 scheduleS3();
+scheduleKino();
 loadData();
 </script>
 </body>
