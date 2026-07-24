@@ -322,10 +322,14 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span class="cd-next"  id="kinoCdNext"></span>
     </div>
 
-    <div class="ctrl-bar">
-      <button class="btn" id="kinoPrevBtn" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
-      <button class="btn" id="kinoNextBtn" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
-      <button class="btn" onclick="kinoGoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Live</button>
+    <div class="ctrl-bar" style="flex-wrap:wrap;gap:4px">
+      <button class="btn" id="kinoPrevDayBtn" onclick="kinoNavDay(-1)"  disabled style="font-size:.68rem;padding:4px 7px">◀◀ Ημέρα</button>
+      <button class="btn" id="kinoPrev10Btn"  onclick="kinoNav(-10)"    disabled style="font-size:.68rem;padding:4px 7px">◀ -10</button>
+      <button class="btn" id="kinoPrevBtn"    onclick="kinoNav(-1)"     disabled style="font-size:.68rem;padding:4px 7px">◀ -1</button>
+      <button class="btn" id="kinoNextBtn"    onclick="kinoNav(+1)"     disabled style="font-size:.68rem;padding:4px 7px">+1 ▶</button>
+      <button class="btn" id="kinoNext10Btn"  onclick="kinoNav(+10)"    disabled style="font-size:.68rem;padding:4px 7px">+10 ▶</button>
+      <button class="btn" id="kinoNextDayBtn" onclick="kinoNavDay(+1)"  disabled style="font-size:.68rem;padding:4px 7px">Ημέρα ▶▶</button>
+      <button class="btn" onclick="kinoGoLast()" style="font-size:.68rem;padding:4px 7px">▶▶ Live</button>
       <span class="ctrl-info" id="kinoInfo">—</span>
     </div>
 
@@ -1588,7 +1592,7 @@ function kinoRender() {
         const inNext2 = nextSet2.has(n);
         const inBest  = bestSet.has(n);
         let bg, color, border;
-        if (inNext2 && inBest) { bg='#1a0040'; color='#e1bee7'; border='#9c27b0'; }
+        if (inNext2 && inBest) { bg='#004d26'; color='#69f0ae'; border='#00e676'; }
         else if (inNext2)      { bg='#2d0050'; color='#ce93d8'; border='#7b1fa2'; }
         else                   { bg='#0c0420'; color='#1a0530'; border='#1a0535'; }
         next2Grid.appendChild(makeCell(n, bg, color, border, inNext2));
@@ -1658,11 +1662,39 @@ function kinoRender() {
   }
   panel.innerHTML = html;
 
-  document.getElementById('kinoPrevBtn').disabled = kinoIdx <= 0;
-  document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
+  document.getElementById('kinoPrevBtn').disabled    = kinoIdx <= 0;
+  document.getElementById('kinoNextBtn').disabled    = kinoIdx >= kinoDraws.length - 1;
+  document.getElementById('kinoPrev10Btn').disabled  = kinoIdx <= 0;
+  document.getElementById('kinoNext10Btn').disabled  = kinoIdx >= kinoDraws.length - 1;
+  document.getElementById('kinoPrevDayBtn').disabled = kinoIdx <= 0;
+  document.getElementById('kinoNextDayBtn').disabled = kinoIdx >= kinoDraws.length - 1;
 }
 
-function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
+function kinoNav(dir) {
+  kinoLiveMode = false;
+  kinoIdx = Math.max(0, Math.min(kinoDraws.length - 1, kinoIdx + dir));
+  kinoRender();
+}
+
+function kinoNavDay(dir) {
+  if (!kinoDraws.length) return;
+  kinoLiveMode = false;
+  const curDate = kinoDraws[kinoIdx].d;
+  let i = kinoIdx;
+  if (dir > 0) {
+    // βρες την πρώτη κλήρωση της επόμενης ημέρας
+    while (i < kinoDraws.length - 1 && kinoDraws[i].d === curDate) i++;
+  } else {
+    // βρες την τελευταία κλήρωση της προηγούμενης ημέρας
+    while (i > 0 && kinoDraws[i].d === curDate) i--;
+    // τώρα βρες την πρώτη κλήρωση αυτής της ημέρας
+    const prevDate = kinoDraws[i].d;
+    while (i > 0 && kinoDraws[i - 1].d === prevDate) i--;
+  }
+  kinoIdx = i;
+  kinoRender();
+}
+
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
 
 function msToNextKino() {
