@@ -338,6 +338,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <div id="kinoNextLabel" style="font-size:.62rem;color:#ef6c00;margin-bottom:3px">🟠 Επόμενη &nbsp;<span style="color:#69f0ae">🟢=hit</span></div>
         <div id="kinoNextGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
       </div>
+      <div id="kinoNext2Wrap" style="flex:1;min-width:0;display:none;background:#0c0420;border:1px solid #2a0050;border-radius:6px;padding:5px">
+        <div id="kinoNext2Label" style="font-size:.62rem;color:#ce93d8;margin-bottom:3px">🟣 +2η &nbsp;<span style="color:#69f0ae">🟢=hit</span></div>
+        <div id="kinoNext2Grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
+      </div>
     </div>
     <div id="kinoComboHits"></div>
   </section>
@@ -1523,6 +1527,8 @@ function kinoRender() {
   // Πλέγμα τρέχουσας κλήρωσης
   const nextDraw0   = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
   const nextSet0    = nextDraw0 ? new Set(nextDraw0.n) : null;
+  const nextDraw2   = kinoIdx < kinoDraws.length - 2 ? kinoDraws[kinoIdx + 2] : null;
+  const nextSet2    = nextDraw2 ? new Set(nextDraw2.n) : null;
 
   function makeCell(n, bg, color, border, bold) {
     const c = document.createElement('div');
@@ -1566,6 +1572,29 @@ function kinoRender() {
       }
     } else {
       nextWrap.style.display = 'none';
+    }
+  }
+
+  // Πλέγμα +2ης κλήρωσης
+  const next2Wrap  = document.getElementById('kinoNext2Wrap');
+  const next2Grid  = document.getElementById('kinoNext2Grid');
+  const next2Label = document.getElementById('kinoNext2Label');
+  if (next2Wrap) {
+    if (nextDraw2 && next2Grid) {
+      next2Wrap.style.display = '';
+      if (next2Label) next2Label.innerHTML = `🟣 +2η #${nextDraw2.id} &nbsp;<span style="color:#69f0ae">🟢=hit</span>`;
+      next2Grid.innerHTML = '';
+      for (let n = 1; n <= 80; n++) {
+        const inNext2 = nextSet2.has(n);
+        const inBest  = bestSet.has(n);
+        let bg, color, border;
+        if (inNext2 && inBest) { bg='#1a0040'; color='#e1bee7'; border='#9c27b0'; }
+        else if (inNext2)      { bg='#2d0050'; color='#ce93d8'; border='#7b1fa2'; }
+        else                   { bg='#0c0420'; color='#1a0530'; border='#1a0535'; }
+        next2Grid.appendChild(makeCell(n, bg, color, border, inNext2));
+      }
+    } else {
+      next2Wrap.style.display = 'none';
     }
   }
 
