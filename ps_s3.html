@@ -346,6 +346,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <div id="kinoNext2Label" style="font-size:.62rem;color:#ce93d8;margin-bottom:3px">🟣 +2η &nbsp;<span style="color:#69f0ae">🟢=hit</span></div>
         <div id="kinoNext2Grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
       </div>
+      <div id="kinoNext3Wrap" style="flex:1;min-width:0;display:none;background:#001a20;border:1px solid #004d40;border-radius:6px;padding:5px">
+        <div id="kinoNext3Label" style="font-size:.62rem;color:#80cbc4;margin-bottom:3px">🩵 +3η &nbsp;<span style="color:#69f0ae">🟢=hit</span></div>
+        <div id="kinoNext3Grid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
+      </div>
     </div>
     <div id="kinoComboHits"></div>
   </section>
@@ -1533,6 +1537,8 @@ function kinoRender() {
   const nextSet0    = nextDraw0 ? new Set(nextDraw0.n) : null;
   const nextDraw2   = kinoIdx < kinoDraws.length - 2 ? kinoDraws[kinoIdx + 2] : null;
   const nextSet2    = nextDraw2 ? new Set(nextDraw2.n) : null;
+  const nextDraw3   = kinoIdx < kinoDraws.length - 3 ? kinoDraws[kinoIdx + 3] : null;
+  const nextSet3    = nextDraw3 ? new Set(nextDraw3.n) : null;
 
   function makeCell(n, bg, color, border, bold) {
     const c = document.createElement('div');
@@ -1599,6 +1605,29 @@ function kinoRender() {
       }
     } else {
       next2Wrap.style.display = 'none';
+    }
+  }
+
+  // Πλέγμα +3ης κλήρωσης
+  const next3Wrap  = document.getElementById('kinoNext3Wrap');
+  const next3Grid  = document.getElementById('kinoNext3Grid');
+  const next3Label = document.getElementById('kinoNext3Label');
+  if (next3Wrap) {
+    if (nextDraw3 && next3Grid) {
+      next3Wrap.style.display = '';
+      if (next3Label) next3Label.innerHTML = `🩵 +3η #${nextDraw3.id} &nbsp;<span style="color:#69f0ae">🟢=hit</span>`;
+      next3Grid.innerHTML = '';
+      for (let n = 1; n <= 80; n++) {
+        const inNext3 = nextSet3.has(n);
+        const inBest  = bestSet.has(n);
+        let bg, color, border;
+        if (inNext3 && inBest) { bg='#004d26'; color='#69f0ae'; border='#00e676'; }
+        else if (inNext3)      { bg='#003330'; color='#80cbc4'; border='#00796b'; }
+        else                   { bg='#001a20'; color='#0d2520'; border='#002820'; }
+        next3Grid.appendChild(makeCell(n, bg, color, border, inNext3));
+      }
+    } else {
+      next3Wrap.style.display = 'none';
     }
   }
 
