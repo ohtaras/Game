@@ -302,9 +302,22 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <section id="kinoTab" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
       <h2 id="kinoTitle" style="color:#43a047;margin:0">🎰 ΚΙΝΟ — Εννιάδες Live</h2>
-      <div style="display:flex;gap:5px">
-        <button id="kinoBtn9" class="btn active" onclick="kinoSetMode('9')" style="padding:5px 12px;font-size:.75rem">9άδες</button>
-        <button id="kinoBtn6" class="btn"        onclick="kinoSetMode('6')" style="padding:5px 12px;font-size:.75rem">6άδες</button>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div style="display:flex;gap:4px">
+          <button id="kinoBtnA" class="btn active" onclick="kinoSetSet('A')" style="padding:4px 10px;font-size:.72rem;background:#1a3a1a;border-color:#43a047">Σετ Α</button>
+          <button id="kinoBtnC" class="btn"        onclick="kinoSetSet('C')" style="padding:4px 10px;font-size:.72rem;background:#1a1a3a;border-color:#7c4dff">Σετ Γ</button>
+        </div>
+        <div style="display:flex;gap:4px" id="kinoModeBar">
+          <button id="kinoBtn9" class="btn active" onclick="kinoSetMode('9')" style="padding:4px 10px;font-size:.72rem">9άδες</button>
+          <button id="kinoBtn6" class="btn"        onclick="kinoSetMode('6')" style="padding:4px 10px;font-size:.72rem">6άδες</button>
+        </div>
+        <div id="kinoHotBar" style="display:none;align-items:center;gap:5px;font-size:.68rem;color:#9e9e9e">
+          <span>Χ=</span>
+          <input type="range" id="kinoHotSlider" min="5" max="50" value="10" step="1"
+            style="width:80px;accent-color:#7c4dff"
+            oninput="kinoHotWindow=+this.value;document.getElementById('kinoHotVal').textContent=this.value;kinoRender()">
+          <span id="kinoHotVal">10</span><span> κλ.</span>
+        </div>
       </div>
     </div>
 
@@ -475,6 +488,8 @@ const KINO_EXADES = [
   [4,10,27,35,57,71],[12,19,42,57,63,74],[10,13,23,40,46,48],[4,7,22,32,59,65],[10,12,32,39,41,65],
 ];
 
+// Σετ Γ — combos υπολογίζονται live στο kinoRender() από τα hot numbers
+
 const ATHENS_MS  = 3 * 3600000;  // UTC+3
 
 let apiFetchMethod = 0;
@@ -492,6 +507,8 @@ let kinoDraws = [];  // {id, n:[20 nums], b}
 let kinoIdx   = -1;
 let kinoLiveMode = true;
 let kinoMode  = '9'; // '9' = εννιάδες, '6' = εξάδες
+let kinoSet       = 'A'; // 'A' = κλασικό, 'C' = Σετ Γ (hot live)
+let kinoHotWindow = 10;  // πλήθος τελευταίων κληρώσεων για hot numbers
 const kinoIdxRef = { get: () => kinoIdx, set: v => { kinoIdx = v; }, isLive: () => kinoLiveMode };
 
 // ── Utilities ─────────────────────────────────────────────────────────────
@@ -714,12 +731,35 @@ function parseKinoItem(item) {
 }
 
 // ── Render ΚΙΝΟ ───────────────────────────────────────────────────────────
+function kinoSetSet(s) {
+  kinoSet = s;
+  document.getElementById('kinoBtnA').classList.toggle('active', s === 'A');
+  document.getElementById('kinoBtnC').classList.toggle('active', s === 'C');
+  const modeBar = document.getElementById('kinoModeBar');
+  if (modeBar) modeBar.style.display = s === 'C' ? 'none' : '';
+  const hotBar = document.getElementById('kinoHotBar');
+  if (hotBar) hotBar.style.display = s === 'C' ? 'flex' : 'none';
+  if (s === 'C') kinoMode = '9'; // Σετ Γ = πάντα εννιάδες
+  kinoUpdateTitle(); // πάντα ενημέρωσε τίτλο
+  kinoRender();
+}
+
+function kinoUpdateTitle(hotNums) {
+  const title = document.getElementById('kinoTitle');
+  if (!title) return;
+  if (kinoSet === 'C') {
+    const numsStr = hotNums ? hotNums.join(' ') : '…';
+    title.innerHTML = `🎰 ΚΙΝΟ — Σετ Γ · <span style="font-size:.7em;color:#ce93d8">hot-15 (${kinoHotWindow} κλ.): ${numsStr}</span>`;
+    return;
+  }
+  title.textContent = kinoMode === '6' ? '🎰 ΚΙΝΟ — Εξάδες Live' : '🎰 ΚΙΝΟ — Εννιάδες Live';
+}
+
 function kinoSetMode(m) {
   kinoMode = m;
   document.getElementById('kinoBtn9').classList.toggle('active', m === '9');
   document.getElementById('kinoBtn6').classList.toggle('active', m === '6');
-  const title = document.getElementById('kinoTitle');
-  if (title) title.textContent = m === '9' ? '🎰 ΚΙΝΟ — Εννιάδες Live' : '🎰 ΚΙΝΟ — Εξάδες Live';
+  kinoUpdateTitle();
   kinoRender();
 }
 
@@ -728,12 +768,35 @@ function kinoRender() {
   const draw = kinoDraws[kinoIdx];
   const drawnSet = new Set(draw.n);
 
-  const combos   = kinoMode === '6' ? KINO_EXADES : KINO_COMBOS;
-  const comboSz  = kinoMode === '6' ? 6 : 9;
-  const label    = kinoMode === '6' ? 'Εξάδα' : 'Εννιάδα';
-  // Κατώφλι για "καλό" hit: 4+ για 9άδες, 3+ για 6άδες
-  const hitHigh  = kinoMode === '6' ? 4 : 5;
-  const hitMid   = kinoMode === '6' ? 3 : 4;
+  const isC = kinoSet === 'C';
+
+  // Σετ Γ: δυναμικά top-15 hot numbers από τις τελευταίες kinoHotWindow κληρώσεις
+  let hotNums = [], combos;
+  if (isC) {
+    const winStart = Math.max(0, kinoIdx - kinoHotWindow);
+    const freq = new Array(81).fill(0);
+    for (let i = winStart; i < kinoIdx; i++)
+      kinoDraws[i].n.forEach(n => freq[n]++);
+    hotNums = Array.from({length: 80}, (_, i) => i + 1)
+      .sort((a, b) => freq[b] - freq[a])
+      .slice(0, 15);
+    hotNums.sort((a, b) => a - b);
+    // Γεννά C(15,9)=5005 combos on the fly
+    combos = [];
+    for (let a=0;a<15;a++) for (let b=a+1;b<15;b++) for (let c=b+1;c<15;c++)
+    for (let d=c+1;d<15;d++) for (let e=d+1;e<15;e++) for (let f=e+1;f<15;f++)
+    for (let g=f+1;g<15;g++) for (let h=g+1;h<15;h++) for (let k=h+1;k<15;k++)
+      combos.push([hotNums[a],hotNums[b],hotNums[c],hotNums[d],hotNums[e],
+                   hotNums[f],hotNums[g],hotNums[h],hotNums[k]]);
+  } else {
+    combos = kinoMode === '6' ? KINO_EXADES : KINO_COMBOS;
+  }
+
+  const comboSz = kinoMode === '6' && !isC ? 6 : 9;
+  const label   = kinoMode === '6' && !isC ? 'Εξάδα' : 'Εννιάδα';
+  // Κατώφλι: Σετ Γ → 9/9 high, 8/9 mid · 9άδες → 5/9, 4/9 · 6άδες → 4/6, 3/6
+  const hitHigh = isC ? 9 : (kinoMode === '6' ? 4 : 5);
+  const hitMid  = isC ? 8 : (kinoMode === '6' ? 3 : 4);
 
   const results = combos.map((c, i) => ({
     idx: i + 1, combo: c, hits: c.filter(n => drawnSet.has(n)).length,
@@ -742,6 +805,9 @@ function kinoRender() {
   const bestSet = new Set(best.combo);
   const hitsHigh = results.filter(r => r.hits >= hitHigh);
   const hitsMid  = results.filter(r => r.hits === hitMid);
+
+  // Ενημέρωση τίτλου με τα hot numbers (μόνο Σετ Γ)
+  if (isC) kinoUpdateTitle(hotNums);
 
   // Info
   const info = document.getElementById('kinoInfo');
@@ -815,7 +881,8 @@ function kinoRender() {
   let html = '';
 
   if (hitsHigh.length) {
-    html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">✅ ${hitHigh}+ επιτυχίες (${hitsHigh.length}):</span>`;
+    const highLabel = isC ? '🎯 9/9 ΕΠΙΤΥΧΙΑ' : `✅ ${hitHigh}+ επιτυχίες`;
+    html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">${highLabel} (${hitsHigh.length}):</span>`;
     for (const r of hitsHigh) {
       html += `<div style="margin:3px 0;font-size:.78rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
         r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#4caf50':'#555'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
@@ -824,8 +891,10 @@ function kinoRender() {
     html += '</div>';
   }
   if (hitsMid.length) {
-    html += `<div style="margin-bottom:8px"><span style="color:#ffd700;font-weight:bold;font-size:.82rem">⭐ ${hitMid} επιτυχίες (${hitsMid.length}):</span>`;
-    for (const r of hitsMid.slice(0, 8)) {
+    const midLabel = isC ? `⭐ 8/9 (${hitsMid.length})` : `⭐ ${hitMid} επιτυχίες (${hitsMid.length})`;
+    html += `<div style="margin-bottom:8px"><span style="color:#ffd700;font-weight:bold;font-size:.82rem">${midLabel}:</span>`;
+    const showMid = isC ? hitsMid.slice(0, 5) : hitsMid.slice(0, 8);
+    for (const r of showMid) {
       html += `<div style="margin:3px 0;font-size:.75rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
         r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#ffd700':'#444'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
         ` <span style="color:#ffd700">(${r.hits}/${comboSz})</span></div>`;
@@ -833,7 +902,10 @@ function kinoRender() {
     html += '</div>';
   }
   if (!hitsHigh.length && !hitsMid.length) {
-    html = `<div style="color:#444;font-size:.75rem;margin-bottom:8px">Κανένας συνδυασμός με ${hitMid}+ επιτυχίες.</div>`;
+    const noHitMsg = isC
+      ? `<div style="color:#444;font-size:.75rem;margin-bottom:8px">Κανένα 8/9 ή 9/9 hit. Καλύτερο: ${best.hits}/9 (Εννιάδα #${best.idx}).</div>`
+      : `<div style="color:#444;font-size:.75rem;margin-bottom:8px">Κανένας συνδυασμός με ${hitMid}+ επιτυχίες.</div>`;
+    html = noHitMsg;
   }
 
   // Σύσταση — μόνο από συνδυασμούς που δεν έχουν βγει σήμερα
