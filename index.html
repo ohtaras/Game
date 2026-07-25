@@ -980,11 +980,22 @@
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     const b64=btoa(JSON.stringify(obj));
     for(let attempt=0;attempt<3;attempt++){
-      let sha;
-      const chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store'});
+      let sha, chk;
+      try{
+        chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store',signal:AbortSignal.timeout(20000)});
+      }catch(netErr){ // transient network failure ("Failed to fetch") → retry instead of aborting
+        if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
+        await new Promise(res=>setTimeout(res,1500)); continue;
+      }
       if(!chk.ok && chk.status===401) throw new Error('Token άκυρο ή χωρίς δικαίωμα εγγραφής (401)');
       if(chk.ok){const ex=await chk.json();sha=ex.sha;}
-      const r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      let r;
+      try{
+        r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(300000)});
+      }catch(netErr){
+        if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
+        await new Promise(res=>setTimeout(res,1500)); continue;
+      }
       if(r.ok) return;
       if(r.status===409){await new Promise(res=>setTimeout(res,1000));continue;} // SHA mismatch → retry
       let msg=`GitHub API ${r.status}`;
@@ -993,14 +1004,19 @@
     }
     throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες (SHA mismatch)');
   }
-  async function ghGet(path){
-    // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
-    const rawUrl=`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
-    try{
-      const r=await fetch(rawUrl,{cache:'no-store',signal:AbortSignal.timeout(20000)});
-      if(r.ok) return r.json();
-    }catch(_){}
-    // Fallback: GitHub API (needed if file was just written and CDN hasn't updated)
+  async function ghGet(path,opts){
+    // fresh=true skips the CDN fast path — raw.githubusercontent.com caches
+    // for several minutes, so a read right after our own write can return
+    // stale content and make already-saved draws look like gaps again.
+    if(!opts?.fresh){
+      // Fast path: raw.githubusercontent.com (CDN, no auth, no rate limits)
+      const rawUrl=`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
+      try{
+        const r=await fetch(rawUrl,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+        if(r.ok) return r.json();
+      }catch(_){}
+    }
+    // Fallback (or fresh=true path): GitHub API — not CDN-cached, always current
     const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
     try{
       const r=await fetch(url,{headers:h,cache:'no-store',signal:AbortSignal.timeout(30000)});
@@ -1320,7 +1336,7 @@
       let totalNew = 0;
       for (const [mStr, draws] of Object.entries(byMonth)) {
         const [y, m] = mStr.split('-');
-        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`, {fresh:true});
         const exArr = existing?.draws || [];
         const exIds = new Set(exArr.map(d => d.id));
         const newOnes = draws.filter(d => !exIds.has(d.id));
@@ -1394,7 +1410,7 @@
       ]);
       const items = [...todayItems, ...prevItems];
       if (!items.length) { st.textContent = '✅ Auto: καμία νέα'; return; }
-      const exData = await ghGet(`data/raw/${filename}`);
+      const exData = await ghGet(`data/raw/${filename}`, {fresh:true});
       const existing = exData?.draws || [];
       const knownIds = new Set(existing.map(d => d.id));
       const newDraws = items
@@ -1476,7 +1492,7 @@
 
         // Τρέχων μήνας ή ελλιπής παλιός μήνας → φόρτωσε δεδομένα
         let existing=[],knownIds=new Set(),drawsByDay={};
-        const exData=isCurrent?await ghGet(`data/raw/${filename}`):null;
+        const exData=isCurrent?await ghGet(`data/raw/${filename}`,{fresh:true}):null;
         const exists=!!(exData?.draws?.length);
         if(exists){
           existing=exData.draws;
@@ -1606,12 +1622,21 @@
   }
 
   // ── API ───────────────────────────────────────────────────────
+  // Remembers which transport actually worked this session, so once we know
+  // direct fetch is CORS-blocked we stop wasting a 12s timeout on it for
+  // every single page — this was the main cause of gap-fill looking "stuck".
+  let apiFetchMethod=0;
   async function apiFetch(url){
-    try{const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});if(r.ok)return r.json();}catch(_){}
-    try{const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});if(r.ok)return r.json();}catch(_){}
-    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return JSON.parse((await r.json()).contents);
+    const tryDirect=async()=>{const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();};
+    const tryCorsProxy=async()=>{const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});if(!r.ok)throw new Error('HTTP '+r.status);return r.json();};
+    const tryAllOrigins=async()=>{const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('HTTP '+r.status);return JSON.parse((await r.json()).contents);};
+    const methods=[tryDirect,tryCorsProxy,tryAllOrigins];
+    const order=[apiFetchMethod,...methods.map((_,i)=>i).filter(i=>i!==apiFetchMethod)];
+    let lastErr;
+    for(const i of order){
+      try{const result=await methods[i]();apiFetchMethod=i;return result;}catch(e){lastErr=e;}
+    }
+    throw lastErr;
   }
   function toMs(t){return t>1e11?t:t*1000;}
   function localTimeStr(ms){const d=new Date(ms+TZ_MS);return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;}
@@ -2144,7 +2169,7 @@
       }
       for (const [mStr, draws] of Object.entries(byMonth)) {
         const [y, m] = mStr.split('-');
-        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`);
+        const existing = await ghGet(`data/raw/kino_raw_${y}_${m}.json`, {fresh:true});
         const exArr = existing?.draws || [];
         const exIds = new Set(exArr.map(d => d.id));
         const newOnes = draws.filter(d => !exIds.has(d.id));
@@ -2154,7 +2179,10 @@
       }
       liveLastSavedCount = liveBuffer.size;
       el.textContent = `✅ Αποθηκεύτηκε ${new Date().toLocaleTimeString('el-GR')}`;
-    } catch(e) { el.textContent = '⚠️ ' + e.message; }
+    } catch(e) {
+      if (e.name === 'AbortError') return; // page navigated away mid-request, not a real failure
+      el.textContent = '⚠️ ' + e.message;
+    }
   }
 
   // Initialize sim date picker to today
@@ -3448,6 +3476,7 @@
   // ── Delay Panel ────────────────────────────────────────────────────────────
   (function(){
     let _dtIdx=-1;
+    let _claudeAnalyzing=false;
 
     // Separate verified-live draw store (populated only via dtOnNewDraw with real data)
     let _dtLive=[];
@@ -4387,6 +4416,10 @@
       // Skip duplicate auto-trigger for same draw
       if (autoTriggered && prevState && prevState.analyzedDrawId === currentDraw.id) return;
 
+      // Prevent concurrent calls
+      if (_claudeAnalyzing) return;
+      _claudeAnalyzing = true;
+
       // Build evaluation of previous prediction
       let evalText = '';
       let evalHTML = '';
@@ -4488,6 +4521,8 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
         </div>`;
       } catch(e) {
         el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#991b1b">⚠️ ${e.message}</div>`;
+      } finally {
+        _claudeAnalyzing = false;
       }
 
       if (runBtn) { runBtn.disabled = false; runBtn.textContent = '🔄 Ανάλυση τώρα'; }
@@ -5606,12 +5641,11 @@ ${evalText ? 'Αξιολόγησε την προηγούμενη πρόβλεψ�
           _dtLive.push({id:draw.id,n:draw.n,b:draw.b||0});
         }
       }
-      // Auto-trigger Claude analysis regardless of whether Delay section is open
+      // Auto-trigger Claude analysis (only if section already open, no forced scroll)
       const apiKey=(localStorage.getItem('claude_api_key')||'').trim();
       if(apiKey){
         const det=document.getElementById('claudeAnalysisDetails');
-        if(det) det.open=true;
-        window.dtRunClaudeAnalysis(true);
+        if(det&&det.open) window.dtRunClaudeAnalysis(true);
       }
       const el=document.querySelector('#delaySection details');
       if(!el?.open) return;
