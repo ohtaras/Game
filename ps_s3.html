@@ -1782,13 +1782,14 @@ async function loadData() {
   }
 
   // Gap-fill previous days missing from monthly files
-  const psDays = new Set(psAll.map(d => d.d));
-  const s3Days = new Set(s3All.map(d => d.d));
-  for (let dd = Math.min(KEEP_DAYS - 1, 5); dd >= 1; dd--) {
+  const psDays   = new Set(psAll.map(d => d.d));
+  const s3Days   = new Set(s3All.map(d => d.d));
+  const kinoDays = new Set(kinoAll.filter(d => d.d).map(d => d.d));
+  for (let dd = KEEP_DAYS - 1; dd >= 1; dd--) {
     const dt  = athensDate(now.getTime() - dd * 86400000);
     const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
     if (day < cutoffStr) continue;
-    if (!psDays.has(day)) {
+    if (dd <= 5 && !psDays.has(day)) {
       sb.textContent = `⏳ PS κενό ${day}…`;
       try {
         const items = await fetchDayOpap(PS_GAME_ID, day);
@@ -1796,13 +1797,21 @@ async function loadData() {
         if (items.length) await new Promise(r => setTimeout(r, 100));
       } catch(e) { console.warn('PS gap', day, e); }
     }
-    if (!s3Days.has(day)) {
+    if (dd <= 5 && !s3Days.has(day)) {
       sb.textContent = `⏳ S3 κενό ${day}…`;
       try {
         const items = await fetchDayOpap(S3_GAME_ID, day);
         for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
         if (items.length) await new Promise(r => setTimeout(r, 100));
       } catch(e) { console.warn('S3 gap', day, e); }
+    }
+    if (!kinoDays.has(day)) {
+      sb.textContent = `⏳ ΚΙΝΟ ${day}…`;
+      try {
+        const items = await fetchDayOpap(KINO_GAME_ID, day);
+        for (const it of items) { const d = parseKinoItem(it); if (d) { kinoAll.push(d); kinoDays.add(day); } }
+        if (items.length) await new Promise(r => setTimeout(r, 200));
+      } catch(e) { console.warn('KINO gap', day, e); }
     }
   }
 
