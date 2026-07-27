@@ -135,6 +135,7 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
   <button class="btn" onclick="goLast()">▶▶ Live</button>
   <button class="btn" onclick="navDraw(-10)" style="font-size:.65rem">−10</button>
   <button class="btn" onclick="navDraw(+10)" style="font-size:.65rem">+10</button>
+  <button class="btn" id="btnClearSel" onclick="clearSel()" style="display:none;border-color:#c62828;color:#ef9a9a;font-size:.72rem">✕ Διαγραφή επιλογής <span id="selCount"></span></button>
   <span class="ctrl-info" id="ctrlInfo">—</span>
 </div>
 
@@ -600,25 +601,30 @@ function renderPanel(idx, draw, highlightA, highlightB) {
 }
 
 // ── Number selection & eval ───────────────────────────────────────────────
+function updateSelUI() {
+  const hasAny = selectedNums.size > 0;
+  const btn = document.getElementById('btnClearSel');
+  const cnt = document.getElementById('selCount');
+  if (btn) btn.style.display = hasAny ? '' : 'none';
+  if (cnt) cnt.textContent = hasAny ? `(${selectedNums.size})` : '';
+  const wrap = document.getElementById('evalWrap');
+  if (wrap) wrap.style.display = hasAny ? '' : 'none';
+}
+
 function toggleNum(n) {
   if (selectedNums.has(n)) selectedNums.delete(n);
   else selectedNums.add(n);
-  // Re-render grid cell state without full re-render
   document.querySelectorAll('.kc').forEach((el, i) => {
-    const num = i + 1;
-    if (num === n) el.classList.toggle('sel', selectedNums.has(num));
+    if (i + 1 === n) el.classList.toggle('sel', selectedNums.has(n));
   });
   renderEval();
-  // Show eval panel
-  const wrap = document.getElementById('evalWrap');
-  if (wrap) wrap.style.display = selectedNums.size > 0 ? '' : 'none';
+  updateSelUI();
 }
 
 function clearSel() {
   selectedNums.clear();
   document.querySelectorAll('.kc.sel').forEach(el => el.classList.remove('sel'));
-  const wrap = document.getElementById('evalWrap');
-  if (wrap) wrap.style.display = 'none';
+  updateSelUI();
 }
 
 function renderEval() {
