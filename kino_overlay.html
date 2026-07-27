@@ -144,10 +144,13 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
 <div id="toast"></div>
 
 <script>
-const REPO        = 'ohtaras/Game';
-const DATA_BRANCH = 'main';
-const KINO_GAME_ID = 1100;
-const ATHENS_MS   = 3 * 3600000;
+const REPO         = 'ohtaras/Game';
+const DATA_BRANCH  = 'main';
+const OPAP_BASE    = 'https://api.opap.gr/draws/v3.0/1100';
+const LIVE_BASE_ID = 1155022;
+const DRAWS_PER_DAY = 288;
+const KEEP_DAYS    = 3;   // σήμερα + χθες + προχθές (για overlap ακρίβεια)
+const ATHENS_MS    = 3 * 3600000;
 const pad = n => String(n).padStart(2, '0');
 
 // ── State ────────────────────────────────────────────────────────────────
@@ -166,28 +169,30 @@ function showToast(msg) {
 }
 
 // ── Athens date helpers ───────────────────────────────────────────────────
-const athensNow    = ()  => new Date(Date.now() + ATHENS_MS);
-const athensDate   = ms  => new Date(ms + ATHENS_MS);
-const drawDateStr  = ms  => {
-  const d = athensDate(ms);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-};
-const drawMinutes  = ms  => {
-  const d = athensDate(ms);
-  return d.getUTCHours()*60 + d.getUTCMinutes();
-};
-const todayStr = () => {
-  const n = athensNow();
-  return `${n.getUTCFullYear()}-${pad(n.getUTCMonth()+1)}-${pad(n.getUTCDate())}`;
-};
-function monthsNeeded(keepDays) {
-  const months = new Set();
-  const now = Date.now();
-  for (let d = 0; d <= keepDays; d++) {
-    const dt = athensDate(now - d*86400000);
-    months.add(`${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`);
+const athensNow   = ()  => new Date(Date.now() + ATHENS_MS);
+const athensDate  = ms  => new Date(ms + ATHENS_MS);
+const athensStr   = dt  => `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+const todayStr    = ()  => athensStr(athensNow());
+
+// Draw ID → date string (using LIVE_BASE_ID anchor, same as kino_travel)
+function drawDateStrById(id) {
+  const dayN = Math.floor((id - LIVE_BASE_ID) / DRAWS_PER_DAY);
+  const dt = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
+  return athensStr(dt);
+}
+
+// drawTime timestamp → date string & minutes (for OPAP API items)
+const drawDateStrTs = ms => { const d = athensDate(ms); return athensStr(d); };
+const drawMinutes   = ms => { const d = athensDate(ms); return d.getUTCHours()*60 + d.getUTCMinutes(); };
+
+function monthsForDays(keepDays) {
+  const months = [], seen = new Set();
+  for (let d = keepDays; d >= 0; d--) {
+    const dt = athensDate(Date.now() - d*86400000);
+    const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
+    if (!seen.has(ym)) { seen.add(ym); months.push(ym); }
   }
-  return [...months];
+  return months;
 }
 
 // ── OPAP API ─────────────────────────────────────────────────────────────
@@ -216,19 +221,48 @@ async function apiFetch(url) {
   throw lastErr;
 }
 
-async function fetchDayOpap(dayStr) {
+async function fetchDay(dayStr) {
   let items = [], page = 0;
   while (true) {
-    const url = `https://api.opap.gr/draws/v3.0/${KINO_GAME_ID}/draw-date/${dayStr}/${dayStr}?page=${page}&size=500`;
+    const url = `${OPAP_BASE}/draw-date/${dayStr}/${dayStr}?page=${page}&size=10`;
     let raw = null;
     try { raw = await apiFetch(url); } catch(_) { break; }
     if (!raw) break;
     const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
-    if (!pg.length) break;
     items = items.concat(pg);
-    if (Array.isArray(raw) || raw.last === true) break;
+    if (Array.isArray(raw) || raw.last === true || !pg.length || pg.length < 10) break;
     page++;
-    if (page > 50) break;
+    if (page > 35) break;
+  }
+  return items;
+}
+
+async function fetchDrawRange(fromId, toId) {
+  let items = [], page = 0;
+  while (true) {
+    const url = `${OPAP_BASE}/draw-id/${fromId}/${toId}?page=${page}&size=50`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    items = items.concat(pg.filter(i => i.winningNumbers?.list?.length));
+    if (Array.isArray(raw) || raw.last === true || !pg.length) break;
+    page++;
+    if (page > 10) break;
+  }
+  return items;
+}
+
+async function fetchDayByIdRange(dayStr) {
+  const [y, m, d] = dayStr.split('-').map(Number);
+  const dayN = Math.round((Date.UTC(y, m-1, d) - Date.UTC(2025, 0, 1)) / 86400000);
+  const firstId = LIVE_BASE_ID + dayN * DRAWS_PER_DAY;
+  const lastId  = firstId + DRAWS_PER_DAY - 1;
+  let items = [];
+  for (let id = firstId; id <= lastId; id += 50) {
+    const chunk = await fetchDrawRange(id, Math.min(id+49, lastId));
+    items = items.concat(chunk);
+    if (id+50 <= lastId) await new Promise(r => setTimeout(r, 120));
   }
   return items;
 }
@@ -277,7 +311,8 @@ function parseKinoItem(item) {
   if (nums.length < 20) return null;
   const b  = wn?.bonus ?? item.bonus ?? null;
   const ts = item.drawTime ?? item.timestamp ?? null;
-  const d  = ts ? drawDateStr(ts) : null;
+  // date & time from timestamp if available, otherwise derive from id
+  const d  = ts ? drawDateStrTs(ts) : drawDateStrById(id);
   const m  = ts ? drawMinutes(ts) : null;
   return { id, n: nums.sort((a,b)=>a-b), b, d, m };
 }
@@ -288,32 +323,66 @@ function dedupKino(arr) {
   return [...seen.values()].sort((a,b) => a.id - b.id);
 }
 
-// ── Load data ─────────────────────────────────────────────────────────────
+// ── Load data (ίδια λογική με kino_travel) ───────────────────────────────
 async function loadData() {
-  document.getElementById('ctrlInfo').textContent = '⏳ φόρτωση…';
+  const info = document.getElementById('ctrlInfo');
+  info.textContent = '⏳ φόρτωση…';
 
-  // Load from GitHub raw files (last 2 months to cover yesterday)
-  const months = monthsNeeded(2);
-  const kinoAll = [];
-  await Promise.all(months.map(async ym => {
-    const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
-    if (!d) return;
-    const arr = d.draws ?? d;
-    if (Array.isArray(arr)) arr.forEach(it => { const p = parseKinoItem(it); if (p) kinoAll.push(p); });
-  }));
+  const now    = Date.now();
+  const today  = todayStr();
+  const months = monthsForDays(KEEP_DAYS);
 
-  // Also fetch today from OPAP API for freshest data
+  // 1. Φόρτωση monthly raw files από GitHub
+  let draws = [];
+  for (const ym of months) {
+    info.textContent = `⏳ GitHub ${ym.replace('_','-')}…`;
+    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (data?.draws) {
+      for (const it of data.draws) {
+        const p = parseKinoItem(it);
+        if (p) draws.push(p);
+      }
+    } else if (Array.isArray(data)) {
+      for (const it of data) {
+        const p = parseKinoItem(it);
+        if (p) draws.push(p);
+      }
+    }
+  }
+
+  // 2. Gap-fill: ημέρες με <200 κληρώσεις → fetch από OPAP (draw-id range)
+  const drawsByDay = {};
+  for (const dr of draws) { const day = dr.d || drawDateStrById(dr.id); drawsByDay[day] = (drawsByDay[day]||0)+1; }
+
+  const targetDays = [];
+  for (let d = KEEP_DAYS - 1; d >= 0; d--) {
+    const dt = athensDate(now - d*86400000);
+    targetDays.push(athensStr(dt));
+  }
+  const gapDays = targetDays.filter(day => day !== today && (drawsByDay[day]||0) < 200);
+
+  for (let i = 0; i < gapDays.length; i++) {
+    const day = gapDays[i];
+    info.textContent = `⏳ Gap-fill ${day} (${i+1}/${gapDays.length})…`;
+    const items = await fetchDayByIdRange(day);
+    for (const it of items) {
+      const p = parseKinoItem(it);
+      if (p) draws.push(p);
+    }
+  }
+
+  // 3. Σημερινές κληρώσεις από OPAP (πιο πρόσφατες)
+  info.textContent = '⏳ OPAP σήμερα…';
   try {
-    const today = todayStr();
-    const items = await fetchDayOpap(today);
-    for (const it of items) { const p = parseKinoItem(it); if (p) kinoAll.push(p); }
-  } catch(_) {}
+    const items = await fetchDay(today);
+    for (const it of items) { const p = parseKinoItem(it); if (p) draws.push(p); }
+  } catch(e) { console.warn('OPAP today:', e); }
 
-  kinoDraws = dedupKino(kinoAll);
+  kinoDraws = dedupKino(draws);
   kinoIdx   = kinoDraws.length - 1;
 
   if (!kinoDraws.length) {
-    document.getElementById('ctrlInfo').textContent = '❌ Δεν φορτώθηκαν δεδομένα';
+    info.textContent = '❌ Δεν φορτώθηκαν δεδομένα';
     return;
   }
 
@@ -326,8 +395,7 @@ async function loadData() {
 async function autoFetch() {
   if (!kinoDraws.length) return;
   try {
-    const today = todayStr();
-    const items = await fetchDayOpap(today);
+    const items = await fetchDay(todayStr());
     const fresh = [];
     for (const it of items) { const p = parseKinoItem(it); if (p) fresh.push(p); }
     if (!fresh.length) return;
