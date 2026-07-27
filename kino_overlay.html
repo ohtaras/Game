@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ΚΙΝΟ Overlay</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
+
+/* ── Nav ── */
+.top-nav{background:#161b22;border-bottom:1px solid #30363d;padding:6px 12px;font-size:.75rem;color:#8b949e}
+.top-nav a{color:#58a6ff;text-decoration:none}
+
+/* ── Header ── */
+.page-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#0d1117;border-bottom:1px solid #21262d}
+.page-title{font-size:1.05rem;font-weight:bold;color:#43a047}
+.cd-timer{font-size:.85rem;color:#9e9e9e;font-variant-numeric:tabular-nums}
+.cd-next{font-size:.72rem;color:#6e7681;margin-left:6px}
+
+/* ── Controls ── */
+.ctrl-bar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:#0d1117;flex-wrap:wrap}
+.btn{background:#161b22;border:1px solid #30363d;color:#e0e0e0;padding:4px 11px;border-radius:5px;cursor:pointer;font-size:.75rem;font-family:monospace}
+.btn:hover{background:#21262d}
+.btn.active{border-color:#43a047;color:#43a047;background:#0a1f0a}
+.ctrl-info{font-size:.72rem;color:#6e7681}
+
+/* ── Main layout ── */
+.main{padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+
+/* ── Overlay grid ── */
+.grid-wrap{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px}
+.grid-title{font-size:.78rem;color:#8b949e;margin-bottom:8px;text-align:center}
+.kino-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:480px;margin:0 auto}
+.kc{display:flex;align-items:center;justify-content:center;border-radius:4px;aspect-ratio:1;font-size:.78rem;font-weight:bold;background:#21262d;color:#444;border:1px solid transparent;transition:background .15s}
+
+/* Single draw colours */
+.kc.c0{background:#0a2a0a;color:#43a047;border-color:#2a5a2a}   /* today green */
+.kc.c1{background:#0a1a3a;color:#4fc3f7;border-color:#1a3a6a}   /* yesterday same blue */
+.kc.c2{background:#2a1200;color:#ef6c00;border-color:#5a2a00}   /* yesterday next orange */
+
+/* Two-draw overlaps */
+.kc.c01{background:#0a2a3a;color:#69f0ae;border-color:#1a5a6a}  /* today+same → cyan-green */
+.kc.c02{background:#1a2a00;color:#d4e157;border-color:#4a5a00}  /* today+next → lime */
+.kc.c12{background:#1a0a3a;color:#ce93d8;border-color:#4a1a7a}  /* same+next  → purple */
+
+/* All three */
+.kc.c012{background:#2a2a00;color:#fff176;border-color:#6a6a00;font-size:.9rem} /* gold */
+
+/* ── Legend ── */
+.legend{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:.7rem;color:#9e9e9e}
+.leg-dot{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+
+/* ── Three panels ── */
+.draws-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:600px){.draws-row{grid-template-columns:1fr}}
+
+.draw-panel{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:9px}
+.draw-panel.dp0{border-color:#2a5a2a}
+.draw-panel.dp1{border-color:#1a3a6a}
+.draw-panel.dp2{border-color:#5a2a00}
+.dp-label{font-size:.68rem;font-weight:bold;margin-bottom:5px}
+.dp0 .dp-label{color:#43a047}
+.dp1 .dp-label{color:#4fc3f7}
+.dp2 .dp-label{color:#ef6c00}
+.dp-id{font-size:.62rem;color:#6e7681;margin-bottom:6px}
+.dp-nums{display:flex;flex-wrap:wrap;gap:4px}
+.dp-num{background:#21262d;border-radius:4px;padding:3px 6px;font-size:.75rem;font-weight:bold}
+.dp0 .dp-num{color:#43a047}
+.dp1 .dp-num{color:#4fc3f7}
+.dp2 .dp-num{color:#ef6c00}
+.dp-num.hit{outline:2px solid currentColor}
+.dp-empty{color:#444;font-size:.72rem;font-style:italic}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:7px 16px;border-radius:6px;font-size:.78rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <a href="ps_s3.html">← PS/S3/ΚΙΝΟ</a>
+  &nbsp;|&nbsp;
+  <a href="kino_travel.html">ΚΙΝΟ Χρονικό Ταξίδι</a>
+</div>
+
+<div class="page-header">
+  <span class="page-title">🎰 ΚΙΝΟ Overlay</span>
+  <span>
+    <span class="cd-timer" id="cdTimer">--:--</span>
+    <span class="cd-next"  id="cdNext"></span>
+  </span>
+</div>
+
+<div class="ctrl-bar">
+  <button class="btn" id="btnPrev" onclick="navDraw(-1)" disabled>◀ Προηγ.</button>
+  <button class="btn" id="btnNext" onclick="navDraw(+1)" disabled>Επόμ. ▶</button>
+  <button class="btn" onclick="goLast()">▶▶ Live</button>
+  <button class="btn" onclick="navDraw(-10)" style="font-size:.65rem">−10</button>
+  <button class="btn" onclick="navDraw(+10)" style="font-size:.65rem">+10</button>
+  <span class="ctrl-info" id="ctrlInfo">—</span>
+</div>
+
+<div class="main">
+
+  <!-- Overlay Grid -->
+  <div class="grid-wrap">
+    <div class="grid-title" id="gridTitle">Overlay — 3 κληρώσεις</div>
+    <div class="kino-grid" id="kinoGrid"></div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#0a2a0a;border:1px solid #2a5a2a"></div>Τρέχουσα</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#0a1a3a;border:1px solid #1a3a6a"></div>Χθες ίδια ώρα</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#2a1200;border:1px solid #5a2a00"></div>Χθες επόμενη</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#0a2a3a;border:1px solid #1a5a6a"></div>Τρέχ+Χθες ίδια</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1a2a00;border:1px solid #4a5a00"></div>Τρέχ+Χθες επόμ.</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1a0a3a;border:1px solid #4a1a7a"></div>Χθες ίδια+επόμ.</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#2a2a00;border:1px solid #6a6a00"></div>Και οι 3</div>
+    </div>
+  </div>
+
+  <!-- Three draw panels -->
+  <div class="draws-row">
+    <div class="draw-panel dp0" id="panel0">
+      <div class="dp-label">🟢 Τρέχουσα κλήρωση</div>
+      <div class="dp-id" id="dpId0">—</div>
+      <div class="dp-nums" id="dpNums0"><span class="dp-empty">φόρτωση…</span></div>
+    </div>
+    <div class="draw-panel dp1" id="panel1">
+      <div class="dp-label">🔵 Χθες — ίδια ώρα</div>
+      <div class="dp-id" id="dpId1">—</div>
+      <div class="dp-nums" id="dpNums1"><span class="dp-empty">—</span></div>
+    </div>
+    <div class="draw-panel dp2" id="panel2">
+      <div class="dp-label">🟠 Χθες — επόμενη</div>
+      <div class="dp-id" id="dpId2">—</div>
+      <div class="dp-nums" id="dpNums2"><span class="dp-empty">—</span></div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast"></div>
+
+<script>
+const REPO        = 'ohtaras/Game';
+const DATA_BRANCH = 'main';
+const KINO_GAME_ID = 1100;
+const ATHENS_MS   = 3 * 3600000;
+const pad = n => String(n).padStart(2, '0');
+
+// ── State ────────────────────────────────────────────────────────────────
+let kinoDraws = [];
+let kinoIdx   = -1;
+let liveMode  = true;
+let refreshTimer = null;
+let apiFetchMethod = 0;
+
+// ── Toast ────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Athens date helpers ───────────────────────────────────────────────────
+const athensNow    = ()  => new Date(Date.now() + ATHENS_MS);
+const athensDate   = ms  => new Date(ms + ATHENS_MS);
+const drawDateStr  = ms  => {
+  const d = athensDate(ms);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+};
+const drawMinutes  = ms  => {
+  const d = athensDate(ms);
+  return d.getUTCHours()*60 + d.getUTCMinutes();
+};
+const todayStr = () => {
+  const n = athensNow();
+  return `${n.getUTCFullYear()}-${pad(n.getUTCMonth()+1)}-${pad(n.getUTCDate())}`;
+};
+function monthsNeeded(keepDays) {
+  const months = new Set();
+  const now = Date.now();
+  for (let d = 0; d <= keepDays; d++) {
+    const dt = athensDate(now - d*86400000);
+    months.add(`${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`);
+  }
+  return [...months];
+}
+
+// ── OPAP API ─────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const direct = async () => {
+    const r = await fetch(url, { headers:{Accept:'application/json'}, signal:AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  };
+  const proxy = async () => {
+    const r = await fetch('https://corsproxy.io/?'+encodeURIComponent(url), { signal:AbortSignal.timeout(16000) });
+    if (!r.ok) throw new Error('proxy '+r.status);
+    return r.json();
+  };
+  const allOrigins = async () => {
+    const r = await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url), { signal:AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error('allorigins '+r.status);
+    return JSON.parse((await r.json()).contents);
+  };
+  const methods = [direct, proxy, allOrigins];
+  const order = [apiFetchMethod, ...methods.map((_,i)=>i).filter(i=>i!==apiFetchMethod)];
+  let lastErr;
+  for (const i of order) {
+    try { const r = await methods[i](); apiFetchMethod = i; return r; } catch(e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+async function fetchDayOpap(dayStr) {
+  let items = [], page = 0;
+  while (true) {
+    const url = `https://api.opap.gr/draws/v3.0/${KINO_GAME_ID}/draw-date/${dayStr}/${dayStr}?page=${page}&size=500`;
+    let raw = null;
+    try { raw = await apiFetch(url); } catch(_) { break; }
+    if (!raw) break;
+    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    if (!pg.length) break;
+    items = items.concat(pg);
+    if (Array.isArray(raw) || raw.last === true) break;
+    page++;
+    if (page > 50) break;
+  }
+  return items;
+}
+
+// ── GitHub raw ────────────────────────────────────────────────────────────
+const ghToken = () => localStorage.getItem('gh_token') || '';
+const ghHdrs  = () => {
+  const t = ghToken();
+  return t ? { Authorization:'token '+t, 'Content-Type':'application/json' }
+           : { 'Content-Type':'application/json' };
+};
+async function ghGet(path) {
+  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}?_=${Date.now()}`;
+  try {
+    const r = await fetch(url, { cache:'no-store', signal:AbortSignal.timeout(20000) });
+    if (r.ok) return r.json();
+  } catch(_) {}
+  try {
+    const meta = await fetch(`https://api.github.com/repos/${REPO}/contents/${path}`,
+      { headers:ghHdrs(), cache:'no-store', signal:AbortSignal.timeout(30000) });
+    if (!meta.ok) return null;
+    const j = await meta.json();
+    if (j.download_url) {
+      const dr = await fetch(j.download_url, { cache:'no-store', signal:AbortSignal.timeout(30000) });
+      return dr.ok ? dr.json() : null;
+    }
+    if (!j.content) return null;
+    return JSON.parse(atob(j.content.replace(/\n/g,'')));
+  } catch(_) { return null; }
+}
+
+// ── Parse KINO item ───────────────────────────────────────────────────────
+function parseKinoItem(item) {
+  if (!item) return null;
+  const id = item.drawId ?? item.id;
+  if (!id) return null;
+  let nums = null;
+  const wn = item.winningNumbers;
+  if (wn) {
+    if (Array.isArray(wn.list) && wn.list.length >= 20) nums = wn.list.map(Number);
+    else if (Array.isArray(wn) && wn.length >= 20)      nums = wn.map(Number);
+  }
+  if (!nums && Array.isArray(item.numbers)) nums = item.numbers.map(Number);
+  if (!nums || nums.length < 20) return null;
+  nums = nums.slice(0, 20).filter(n => n >= 1 && n <= 80);
+  if (nums.length < 20) return null;
+  const b  = wn?.bonus ?? item.bonus ?? null;
+  const ts = item.drawTime ?? item.timestamp ?? null;
+  const d  = ts ? drawDateStr(ts) : null;
+  const m  = ts ? drawMinutes(ts) : null;
+  return { id, n: nums.sort((a,b)=>a-b), b, d, m };
+}
+
+function dedupKino(arr) {
+  const seen = new Map();
+  for (const d of arr) seen.set(d.id, d);
+  return [...seen.values()].sort((a,b) => a.id - b.id);
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('ctrlInfo').textContent = '⏳ φόρτωση…';
+
+  // Load from GitHub raw files (last 2 months to cover yesterday)
+  const months = monthsNeeded(2);
+  const kinoAll = [];
+  await Promise.all(months.map(async ym => {
+    const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (!d) return;
+    const arr = d.draws ?? d;
+    if (Array.isArray(arr)) arr.forEach(it => { const p = parseKinoItem(it); if (p) kinoAll.push(p); });
+  }));
+
+  // Also fetch today from OPAP API for freshest data
+  try {
+    const today = todayStr();
+    const items = await fetchDayOpap(today);
+    for (const it of items) { const p = parseKinoItem(it); if (p) kinoAll.push(p); }
+  } catch(_) {}
+
+  kinoDraws = dedupKino(kinoAll);
+  kinoIdx   = kinoDraws.length - 1;
+
+  if (!kinoDraws.length) {
+    document.getElementById('ctrlInfo').textContent = '❌ Δεν φορτώθηκαν δεδομένα';
+    return;
+  }
+
+  render();
+  scheduleRefresh();
+  showToast(`Φορτώθηκαν ${kinoDraws.length} κληρώσεις`);
+}
+
+// ── Auto-fetch today ──────────────────────────────────────────────────────
+async function autoFetch() {
+  if (!kinoDraws.length) return;
+  try {
+    const today = todayStr();
+    const items = await fetchDayOpap(today);
+    const fresh = [];
+    for (const it of items) { const p = parseKinoItem(it); if (p) fresh.push(p); }
+    if (!fresh.length) return;
+    const maxExisting = kinoDraws[kinoDraws.length-1].id;
+    const newOnes = fresh.filter(d => d.id > maxExisting);
+    if (!newOnes.length) return;
+    const wasLast = liveMode;
+    kinoDraws.push(...newOnes);
+    kinoDraws.sort((a,b)=>a.id-b.id);
+    if (wasLast) kinoIdx = kinoDraws.length - 1;
+    render();
+    showToast(`+${newOnes.length} νέα κλήρωση`);
+  } catch(_) {}
+}
+
+function msToNextKino() {
+  const now = athensNow();
+  const mins = now.getUTCHours()*60 + now.getUTCMinutes();
+  const secs = now.getUTCSeconds();
+  const nextMult = Math.ceil((mins+1)/5)*5;
+  return (nextMult - mins)*60000 - secs*1000;
+}
+
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  const ms = msToNextKino();
+  refreshTimer = setTimeout(() => {
+    autoFetch();
+    tickCountdown();
+    scheduleRefresh();
+  }, ms + 12000);
+  tickCountdown();
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────
+let tickTimer = null;
+function tickCountdown() {
+  clearTimeout(tickTimer);
+  const ms = msToNextKino();
+  const tot = Math.ceil(ms / 1000);
+  const m = Math.floor(tot/60), s = tot%60;
+  const el = document.getElementById('cdTimer');
+  const nx = document.getElementById('cdNext');
+  if (el) el.textContent = `${pad(m)}:${pad(s)}`;
+  if (nx) {
+    const nextMs = Date.now() + ms;
+    const nd = athensDate(nextMs);
+    nx.textContent = `→ ${pad(nd.getUTCHours())}:${pad(nd.getUTCMinutes())}`;
+  }
+  tickTimer = setTimeout(tickCountdown, 1000);
+}
+
+// ── Find companion draws ───────────────────────────────────────────────────
+// Yesterday same-time = draw with id closest to (current.id - 288)
+// Yesterday next      = draw with id closest to (current.id - 287)
+function findById(targetId) {
+  // Exact match first
+  const exact = kinoDraws.find(d => d.id === targetId);
+  if (exact) return exact;
+  // Closest by id
+  let best = null, bestDist = Infinity;
+  for (const d of kinoDraws) {
+    const dist = Math.abs(d.id - targetId);
+    if (dist < bestDist) { bestDist = dist; best = d; }
+  }
+  // Only accept if within 5 draws (25 min)
+  return bestDist <= 5 ? best : null;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render() {
+  if (!kinoDraws.length || kinoIdx < 0) return;
+
+  const cur  = kinoDraws[kinoIdx];
+  const yst1 = findById(cur.id - 288); // χθες ίδια ώρα
+  const yst2 = findById(cur.id - 287); // χθες επόμενη
+
+  // Build set membership
+  const inCur  = new Set(cur.n);
+  const inYst1 = yst1 ? new Set(yst1.n) : new Set();
+  const inYst2 = yst2 ? new Set(yst2.n) : new Set();
+
+  // Grid
+  const grid = document.getElementById('kinoGrid');
+  grid.innerHTML = '';
+  for (let n = 1; n <= 80; n++) {
+    const c0 = inCur.has(n), c1 = inYst1.has(n), c2 = inYst2.has(n);
+    const key = (c0?'0':'')+(c1?'1':'')+(c2?'2':'');
+    const cls = key ? `kc c${key}` : 'kc';
+    const cell = document.createElement('div');
+    cell.className = cls;
+    cell.textContent = n;
+    grid.appendChild(cell);
+  }
+
+  // Grid title
+  const hits01 = [...inCur].filter(n => inYst1.has(n)).length;
+  const hits02 = [...inCur].filter(n => inYst2.has(n)).length;
+  const hits12 = [...inYst1].filter(n => inYst2.has(n)).length;
+  const hits012= [...inCur].filter(n => inYst1.has(n) && inYst2.has(n)).length;
+  document.getElementById('gridTitle').textContent =
+    `Overlay · Τρέχ∩Χθ-ίδια: ${hits01} · Τρέχ∩Χθ-επόμ: ${hits02} · Χθ-ίδια∩Χθ-επόμ: ${hits12} · Κοινά 3: ${hits012}`;
+
+  // Info bar
+  document.getElementById('ctrlInfo').textContent = `#${cur.id} · ${kinoIdx+1}/${kinoDraws.length}`;
+  document.getElementById('btnPrev').disabled = kinoIdx <= 0;
+  document.getElementById('btnNext').disabled = kinoIdx >= kinoDraws.length-1;
+
+  // Panel 0 — current
+  renderPanel(0, cur, null);
+  // Panel 1 — yesterday same
+  renderPanel(1, yst1, yst1 ? inCur : null, inYst2);
+  // Panel 2 — yesterday next
+  renderPanel(2, yst2, yst2 ? inCur : null, yst2 ? inYst1 : null);
+}
+
+function renderPanel(idx, draw, highlightA, highlightB) {
+  const idEl   = document.getElementById(`dpId${idx}`);
+  const numsEl = document.getElementById(`dpNums${idx}`);
+
+  if (!draw) {
+    idEl.textContent   = '—';
+    numsEl.innerHTML   = '<span class="dp-empty">δεν βρέθηκε</span>';
+    return;
+  }
+
+  // Label for panels 1 & 2: show expected id
+  const labels = ['','χθες ίδια ώρα','χθες επόμενη'];
+  idEl.textContent = `#${draw.id}${draw.d ? ' · '+draw.d : ''}${draw.m != null ? ' '+pad(Math.floor(draw.m/60))+':'+pad(draw.m%60) : ''}`;
+
+  numsEl.innerHTML = '';
+  for (const n of draw.n) {
+    const sp = document.createElement('span');
+    sp.className = 'dp-num';
+    sp.textContent = n;
+    // Highlight if also in another draw
+    const inA = highlightA && highlightA.has(n);
+    const inB = highlightB && highlightB.has(n);
+    if (inA || inB) sp.classList.add('hit');
+    numsEl.appendChild(sp);
+  }
+  if (draw.b) {
+    const sp = document.createElement('span');
+    sp.className = 'dp-num';
+    sp.style.opacity = '.55';
+    sp.textContent = 'B:'+draw.b;
+    numsEl.appendChild(sp);
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function navDraw(dir) {
+  liveMode = false;
+  kinoIdx  = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir));
+  render();
+}
+function goLast() {
+  liveMode = true;
+  kinoIdx  = kinoDraws.length-1;
+  render();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadData();
+tickCountdown();
+</script>
+</body>
+</html>
