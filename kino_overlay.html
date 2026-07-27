@@ -88,6 +88,26 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
 /* Dim cells not matching active filter */
 .kc.dim{opacity:.07;filter:grayscale(1)}
 
+/* ── Selected numbers ── */
+.kc.sel{outline:2px solid #fff;outline-offset:1px;cursor:pointer;z-index:1;position:relative}
+.kc{cursor:pointer}
+
+/* ── Eval panel ── */
+.eval-wrap{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px}
+.eval-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.eval-title{font-size:.78rem;color:#9e9e9e}
+.eval-sel-nums{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:24px}
+.eval-num{background:#2a2a0a;border:1px solid #666;color:#fff;border-radius:4px;padding:3px 7px;font-size:.75rem;font-weight:bold;cursor:pointer}
+.eval-num:hover{border-color:#f44;color:#f88}
+.eval-num.hit-next{background:#0a2a0a;border-color:#43a047;color:#69f0ae}
+.eval-result{font-size:.82rem;font-weight:bold;padding:6px 10px;border-radius:6px;background:#21262d;text-align:center}
+.eval-result.good{background:#0a2a0a;color:#69f0ae;border:1px solid #43a047}
+.eval-result.meh {background:#1a1a0a;color:#fff176;border:1px solid #888}
+.eval-result.miss{color:#6e7681}
+.eval-next-nums{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.eval-next-num{background:#21262d;border-radius:4px;padding:2px 6px;font-size:.72rem;color:#6e7681}
+.eval-next-num.match{background:#0a2a0a;color:#69f0ae;font-weight:bold}
+
 /* ── Toast ── */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:7px 16px;border-radius:6px;font-size:.78rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
 #toast.show{opacity:1}
@@ -155,6 +175,17 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
     </div>
   </div>
 
+  <!-- Eval panel -->
+  <div class="eval-wrap" id="evalWrap" style="display:none">
+    <div class="eval-header">
+      <span class="eval-title">🎯 Επιλεγμένοι αριθμοί — αξιολόγηση στην <strong>επόμενη κλήρωση</strong></span>
+      <button class="btn" style="font-size:.65rem;padding:3px 8px" onclick="clearSel()">✕ Καθαρισμός</button>
+    </div>
+    <div class="eval-sel-nums" id="evalSelNums"></div>
+    <div class="eval-result miss" id="evalResult">Επίλεξε αριθμούς από το grid</div>
+    <div class="eval-next-nums" id="evalNextNums"></div>
+  </div>
+
 </div><!-- /main -->
 
 <div id="toast"></div>
@@ -175,6 +206,7 @@ let kinoIdx   = -1;
 let liveMode  = true;
 let refreshTimer = null;
 const activeFilters = new Set();
+const selectedNums  = new Set();
 let apiFetchMethod = 0;
 
 // ── Toast ────────────────────────────────────────────────────────────────
@@ -503,11 +535,14 @@ function render() {
     const c0 = inCur.has(n), c1 = inYst1.has(n), c2 = inYst2.has(n);
     const key = (c0?'0':'')+(c1?'1':'')+(c2?'2':'');
     const dim = hasFilter && (!key || !activeFilters.has(key));
+    const sel = selectedNums.has(n);
     const cell = document.createElement('div');
-    cell.className = (key ? `kc c${key}` : 'kc') + (dim ? ' dim' : '');
+    cell.className = (key ? `kc c${key}` : 'kc') + (dim ? ' dim' : '') + (sel ? ' sel' : '');
     cell.textContent = n;
+    cell.onclick = () => toggleNum(n);
     grid.appendChild(cell);
   }
+  renderEval();
 
   // Grid title
   const hits01 = [...inCur].filter(n => inYst1.has(n)).length;
@@ -561,6 +596,84 @@ function renderPanel(idx, draw, highlightA, highlightB) {
     sp.style.opacity = '.55';
     sp.textContent = 'B:'+draw.b;
     numsEl.appendChild(sp);
+  }
+}
+
+// ── Number selection & eval ───────────────────────────────────────────────
+function toggleNum(n) {
+  if (selectedNums.has(n)) selectedNums.delete(n);
+  else selectedNums.add(n);
+  // Re-render grid cell state without full re-render
+  document.querySelectorAll('.kc').forEach((el, i) => {
+    const num = i + 1;
+    if (num === n) el.classList.toggle('sel', selectedNums.has(num));
+  });
+  renderEval();
+  // Show eval panel
+  const wrap = document.getElementById('evalWrap');
+  if (wrap) wrap.style.display = selectedNums.size > 0 ? '' : 'none';
+}
+
+function clearSel() {
+  selectedNums.clear();
+  document.querySelectorAll('.kc.sel').forEach(el => el.classList.remove('sel'));
+  const wrap = document.getElementById('evalWrap');
+  if (wrap) wrap.style.display = 'none';
+}
+
+function renderEval() {
+  if (!selectedNums.size) return;
+  const wrap = document.getElementById('evalWrap');
+  if (wrap) wrap.style.display = '';
+
+  // Selected nums display (click to deselect)
+  const selEl = document.getElementById('evalSelNums');
+  if (selEl) {
+    selEl.innerHTML = '';
+    const sorted = [...selectedNums].sort((a,b)=>a-b);
+    const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+    const inNext   = nextDraw ? new Set(nextDraw.n) : new Set();
+    for (const n of sorted) {
+      const sp = document.createElement('span');
+      sp.className = 'eval-num' + (inNext.has(n) ? ' hit-next' : '');
+      sp.textContent = n;
+      sp.title = 'Κλικ για αφαίρεση';
+      sp.onclick = () => toggleNum(n);
+      selEl.appendChild(sp);
+    }
+  }
+
+  // Result
+  const resEl = document.getElementById('evalResult');
+  const nxtEl = document.getElementById('evalNextNums');
+  const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+
+  if (!nextDraw) {
+    if (resEl) { resEl.className = 'eval-result miss'; resEl.textContent = '⏳ Αναμονή επόμενης κλήρωσης…'; }
+    if (nxtEl) nxtEl.innerHTML = '';
+    return;
+  }
+
+  const inNext = new Set(nextDraw.n);
+  const hits   = [...selectedNums].filter(n => inNext.has(n));
+  const total  = selectedNums.size;
+  const pct    = Math.round(hits.length / total * 100);
+
+  const label = `${hits.length}/${total} επιτυχίες (${pct}%) — κλήρωση #${nextDraw.id}`;
+  if (resEl) {
+    resEl.textContent = label;
+    resEl.className = 'eval-result ' + (hits.length >= Math.ceil(total*0.5) ? 'good' : hits.length > 0 ? 'meh' : 'miss');
+  }
+
+  // Next draw numbers with highlights
+  if (nxtEl) {
+    nxtEl.innerHTML = '';
+    for (const n of nextDraw.n) {
+      const sp = document.createElement('span');
+      sp.className = 'eval-next-num' + (selectedNums.has(n) ? ' match' : '');
+      sp.textContent = n;
+      nxtEl.appendChild(sp);
+    }
   }
 }
 
