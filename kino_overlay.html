@@ -208,6 +208,10 @@ let liveMode  = true;
 let refreshTimer = null;
 const activeFilters = new Set();
 const selectedNums  = new Set();
+// Τελευταία draw sets — για να τα χρησιμοποιεί το toggleFilter
+let lastInCur  = new Set();
+let lastInYst1 = new Set();
+let lastInYst2 = new Set();
 let apiFetchMethod = 0;
 
 // ── Toast ────────────────────────────────────────────────────────────────
@@ -527,6 +531,9 @@ function render() {
   const inCur  = new Set(cur.n);
   const inYst1 = yst1 ? new Set(yst1.n) : new Set();
   const inYst2 = yst2 ? new Set(yst2.n) : new Set();
+  // Αποθήκευση για toggleFilter + αυτόματος συγχρονισμός επιλογής
+  lastInCur = inCur; lastInYst1 = inYst1; lastInYst2 = inYst2;
+  if (activeFilters.size > 0) syncSelFromFilters();
 
   // Grid
   const grid = document.getElementById('kinoGrid');
@@ -684,17 +691,33 @@ function renderEval() {
 }
 
 // ── Filter buttons ────────────────────────────────────────────────────────
+function numKey(n) {
+  const c0 = lastInCur.has(n), c1 = lastInYst1.has(n), c2 = lastInYst2.has(n);
+  return (c0?'0':'') + (c1?'1':'') + (c2?'2':'');
+}
+
+function syncSelFromFilters() {
+  selectedNums.clear();
+  if (activeFilters.size > 0) {
+    for (let n = 1; n <= 80; n++) {
+      if (activeFilters.has(numKey(n))) selectedNums.add(n);
+    }
+  }
+}
+
 function toggleFilter(key) {
   if (activeFilters.has(key)) activeFilters.delete(key);
   else activeFilters.add(key);
-  // Update button states
   document.querySelectorAll('.fbtn[data-k]').forEach(b => {
     b.classList.toggle('on', activeFilters.has(b.dataset.k));
   });
+  syncSelFromFilters();
   render();
 }
+
 function clearFilters() {
   activeFilters.clear();
+  selectedNums.clear();
   document.querySelectorAll('.fbtn[data-k]').forEach(b => b.classList.remove('on'));
   render();
 }
