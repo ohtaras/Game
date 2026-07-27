@@ -73,6 +73,21 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
 .dp-num.hit{outline:2px solid currentColor}
 .dp-empty{color:#444;font-size:.72rem;font-style:italic}
 
+/* ── Filter buttons ── */
+.filter-bar{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px}
+.fbtn{padding:4px 10px;border-radius:14px;border:1px solid #30363d;background:#161b22;color:#6e7681;font-size:.68rem;cursor:pointer;font-family:monospace;transition:all .15s}
+.fbtn:hover{border-color:#555;color:#ccc}
+.fbtn.on{color:#fff;font-weight:bold}
+.fbtn[data-k="0"].on   {background:#0a2a0a;border-color:#43a047;color:#43a047}
+.fbtn[data-k="1"].on   {background:#0a1a3a;border-color:#4fc3f7;color:#4fc3f7}
+.fbtn[data-k="2"].on   {background:#2a1200;border-color:#ef6c00;color:#ef6c00}
+.fbtn[data-k="01"].on  {background:#0a2a3a;border-color:#69f0ae;color:#69f0ae}
+.fbtn[data-k="02"].on  {background:#1a2a00;border-color:#d4e157;color:#d4e157}
+.fbtn[data-k="12"].on  {background:#1a0a3a;border-color:#ce93d8;color:#ce93d8}
+.fbtn[data-k="012"].on {background:#2a2a00;border-color:#fff176;color:#fff176}
+/* Dim cells not matching active filter */
+.kc.dim{opacity:.07;filter:grayscale(1)}
+
 /* ── Toast ── */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:7px 16px;border-radius:6px;font-size:.78rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:99}
 #toast.show{opacity:1}
@@ -109,14 +124,15 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
   <div class="grid-wrap">
     <div class="grid-title" id="gridTitle">Overlay — 3 κληρώσεις</div>
     <div class="kino-grid" id="kinoGrid"></div>
-    <div class="legend">
-      <div class="leg-item"><div class="leg-dot" style="background:#0a2a0a;border:1px solid #2a5a2a"></div>Τρέχουσα</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#0a1a3a;border:1px solid #1a3a6a"></div>Χθες ίδια ώρα</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#2a1200;border:1px solid #5a2a00"></div>Χθες επόμενη</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#0a2a3a;border:1px solid #1a5a6a"></div>Τρέχ+Χθες ίδια</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#1a2a00;border:1px solid #4a5a00"></div>Τρέχ+Χθες επόμ.</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#1a0a3a;border:1px solid #4a1a7a"></div>Χθες ίδια+επόμ.</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#2a2a00;border:1px solid #6a6a00"></div>Και οι 3</div>
+    <div class="filter-bar" id="filterBar">
+      <button class="fbtn" data-k="0"   onclick="toggleFilter('0')"  >🟢 Τρέχουσα</button>
+      <button class="fbtn" data-k="1"   onclick="toggleFilter('1')"  >🔵 Χθες ίδια ώρα</button>
+      <button class="fbtn" data-k="2"   onclick="toggleFilter('2')"  >🟠 Χθες επόμενη</button>
+      <button class="fbtn" data-k="01"  onclick="toggleFilter('01')" >🟢+🔵 Τρέχ+Χθες ίδια</button>
+      <button class="fbtn" data-k="02"  onclick="toggleFilter('02')" >🟢+🟠 Τρέχ+Χθες επόμ.</button>
+      <button class="fbtn" data-k="12"  onclick="toggleFilter('12')" >🔵+🟠 Χθες ίδια+επόμ.</button>
+      <button class="fbtn" data-k="012" onclick="toggleFilter('012')">⭐ Και οι 3</button>
+      <button class="fbtn" style="border-color:#444;color:#888" onclick="clearFilters()">✕ Όλα</button>
     </div>
   </div>
 
@@ -158,6 +174,7 @@ let kinoDraws = [];
 let kinoIdx   = -1;
 let liveMode  = true;
 let refreshTimer = null;
+const activeFilters = new Set();
 let apiFetchMethod = 0;
 
 // ── Toast ────────────────────────────────────────────────────────────────
@@ -481,12 +498,13 @@ function render() {
   // Grid
   const grid = document.getElementById('kinoGrid');
   grid.innerHTML = '';
+  const hasFilter = activeFilters.size > 0;
   for (let n = 1; n <= 80; n++) {
     const c0 = inCur.has(n), c1 = inYst1.has(n), c2 = inYst2.has(n);
     const key = (c0?'0':'')+(c1?'1':'')+(c2?'2':'');
-    const cls = key ? `kc c${key}` : 'kc';
+    const dim = hasFilter && (!key || !activeFilters.has(key));
     const cell = document.createElement('div');
-    cell.className = cls;
+    cell.className = (key ? `kc c${key}` : 'kc') + (dim ? ' dim' : '');
     cell.textContent = n;
     grid.appendChild(cell);
   }
@@ -544,6 +562,22 @@ function renderPanel(idx, draw, highlightA, highlightB) {
     sp.textContent = 'B:'+draw.b;
     numsEl.appendChild(sp);
   }
+}
+
+// ── Filter buttons ────────────────────────────────────────────────────────
+function toggleFilter(key) {
+  if (activeFilters.has(key)) activeFilters.delete(key);
+  else activeFilters.add(key);
+  // Update button states
+  document.querySelectorAll('.fbtn[data-k]').forEach(b => {
+    b.classList.toggle('on', activeFilters.has(b.dataset.k));
+  });
+  render();
+}
+function clearFilters() {
+  activeFilters.clear();
+  document.querySelectorAll('.fbtn[data-k]').forEach(b => b.classList.remove('on'));
+  render();
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────
