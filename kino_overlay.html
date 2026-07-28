@@ -96,10 +96,14 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
 .eval-wrap{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px}
 .eval-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap}
 .eval-title{font-size:.78rem;color:#9e9e9e}
+.eval-pos-nums{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px;min-height:18px}
+.eval-pos-num{min-width:2.2rem;text-align:center;background:transparent;color:#6e7681;font-size:.65rem;padding:2px 7px;border-radius:4px;border:1px solid transparent}
 .eval-sel-nums{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:24px}
-.eval-num{background:#2a2a0a;border:1px solid #666;color:#fff;border-radius:4px;padding:3px 7px;font-size:.75rem;font-weight:bold;cursor:pointer}
+.eval-num{min-width:2.2rem;text-align:center;background:#2a2a0a;border:1px solid #666;color:#fff;border-radius:4px;padding:3px 7px;font-size:.75rem;font-weight:bold;cursor:pointer}
 .eval-num:hover{border-color:#f44;color:#f88}
 .eval-num.hit-next{background:#0a2a0a;border-color:#43a047;color:#69f0ae}
+.btn-lock{font-size:.65rem;padding:3px 9px}
+.btn-lock.locked{border-color:#f9a825;color:#f9a825;background:#1a1500}
 .eval-result{font-size:.82rem;font-weight:bold;padding:6px 10px;border-radius:6px;background:#21262d;text-align:center}
 .eval-result.good{background:#0a2a0a;color:#69f0ae;border:1px solid #43a047}
 .eval-result.meh {background:#1a1a0a;color:#fff176;border:1px solid #888}
@@ -180,8 +184,12 @@ body{background:#0d1117;color:#e0e0e0;font-family:monospace;min-height:100vh}
   <div class="eval-wrap" id="evalWrap" style="display:none">
     <div class="eval-header">
       <span class="eval-title">🎯 Επιλεγμένοι αριθμοί — αξιολόγηση στην <strong>επόμενη κλήρωση</strong></span>
-      <button class="btn" style="font-size:.65rem;padding:3px 8px" onclick="clearSel()">✕ Καθαρισμός</button>
+      <span style="display:flex;gap:5px;align-items:center">
+        <button class="btn btn-lock" id="btnLock" onclick="toggleLock()" title="Κλείδωμα επιλογής κατά την πλοήγηση">🔓 Ξεκλείδωτο</button>
+        <button class="btn" style="font-size:.65rem;padding:3px 8px" onclick="clearSel()">✕ Καθαρισμός</button>
+      </span>
     </div>
+    <div class="eval-pos-nums" id="evalPosNums"></div>
     <div class="eval-sel-nums" id="evalSelNums"></div>
     <div class="eval-result miss" id="evalResult">Επίλεξε αριθμούς από το grid</div>
     <div class="eval-next-nums" id="evalNextNums"></div>
@@ -208,6 +216,7 @@ let liveMode  = true;
 let refreshTimer = null;
 const activeFilters = new Set();
 const selectedNums  = new Set();
+let selLocked = false;
 // Τελευταία draw sets — για να τα χρησιμοποιεί το toggleFilter
 let lastInCur  = new Set();
 let lastInYst1 = new Set();
@@ -618,7 +627,19 @@ function updateSelUI() {
   if (wrap) wrap.style.display = hasAny ? '' : 'none';
 }
 
+function toggleLock() {
+  selLocked = !selLocked;
+  const btn = document.getElementById('btnLock');
+  if (btn) {
+    btn.textContent = selLocked ? '🔒 Κλειδωμένο' : '🔓 Ξεκλείδωτο';
+    btn.classList.toggle('locked', selLocked);
+  }
+  if (selLocked) showToast('🔒 Επιλογή κλειδωμένη — πλοηγήσου ελεύθερα');
+  else showToast('🔓 Επιλογή ξεκλειδώθηκε');
+}
+
 function toggleNum(n) {
+  if (selLocked) return;
   if (selectedNums.has(n)) selectedNums.delete(n);
   else selectedNums.add(n);
   document.querySelectorAll('.kc').forEach((el, i) => {
@@ -629,6 +650,7 @@ function toggleNum(n) {
 }
 
 function clearSel() {
+  if (selLocked) { showToast('🔒 Ξεκλείδωσε πρώτα την επιλογή'); return; }
   selectedNums.clear();
   document.querySelectorAll('.kc.sel').forEach(el => el.classList.remove('sel'));
   updateSelUI();
@@ -639,18 +661,29 @@ function renderEval() {
   const wrap = document.getElementById('evalWrap');
   if (wrap) wrap.style.display = '';
 
-  // Selected nums display (click to deselect)
+  // Position numbers row + selected nums display
+  const posEl = document.getElementById('evalPosNums');
   const selEl = document.getElementById('evalSelNums');
+  const sorted = [...selectedNums].sort((a,b)=>a-b);
+  const nextDrawSel = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  const inNextSel   = nextDrawSel ? new Set(nextDrawSel.n) : new Set();
+
+  if (posEl) {
+    posEl.innerHTML = '';
+    sorted.forEach((_, i) => {
+      const sp = document.createElement('span');
+      sp.className = 'eval-pos-num';
+      sp.textContent = i + 1;
+      posEl.appendChild(sp);
+    });
+  }
   if (selEl) {
     selEl.innerHTML = '';
-    const sorted = [...selectedNums].sort((a,b)=>a-b);
-    const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
-    const inNext   = nextDraw ? new Set(nextDraw.n) : new Set();
     for (const n of sorted) {
       const sp = document.createElement('span');
-      sp.className = 'eval-num' + (inNext.has(n) ? ' hit-next' : '');
+      sp.className = 'eval-num' + (inNextSel.has(n) ? ' hit-next' : '');
       sp.textContent = n;
-      sp.title = 'Κλικ για αφαίρεση';
+      sp.title = selLocked ? '🔒 Κλειδωμένο' : 'Κλικ για αφαίρεση';
       sp.onclick = () => toggleNum(n);
       selEl.appendChild(sp);
     }
@@ -659,7 +692,7 @@ function renderEval() {
   // Result
   const resEl = document.getElementById('evalResult');
   const nxtEl = document.getElementById('evalNextNums');
-  const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  const nextDraw = nextDrawSel;
 
   if (!nextDraw) {
     if (resEl) { resEl.className = 'eval-result miss'; resEl.textContent = '⏳ Αναμονή επόμενης κλήρωσης…'; }
@@ -667,7 +700,7 @@ function renderEval() {
     return;
   }
 
-  const inNext = new Set(nextDraw.n);
+  const inNext = inNextSel;
   const hits   = [...selectedNums].filter(n => inNext.has(n));
   const total  = selectedNums.size;
   const pct    = Math.round(hits.length / total * 100);
@@ -697,6 +730,7 @@ function numKey(n) {
 }
 
 function syncSelFromFilters() {
+  if (selLocked) return;
   selectedNums.clear();
   if (activeFilters.size > 0) {
     for (let n = 1; n <= 80; n++) {
