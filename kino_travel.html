@@ -132,6 +132,32 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
   section h2{font-size:.8rem}
   #dsInfo{font-size:.7rem;padding:0 3px}
 }
+
+/* ── Combo analysis ── */
+#travelSec.combo-disabled{pointer-events:none;opacity:.3;filter:grayscale(.6);transition:opacity .2s}
+.combo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:4px;margin-top:8px;max-height:70vh;overflow-y:auto;padding-right:2px}
+.combo-card{background:#0d0d1a;border:1px solid #1e1e2e;border-radius:7px;padding:7px 9px;transition:border-color .15s}
+.combo-card:hover{border-color:#3949ab}
+.combo-card.combo-dim{opacity:.08;filter:grayscale(1)}
+.cc-label{font-size:.8rem;font-weight:700;color:#c5cae9;margin-bottom:4px;letter-spacing:.02em}
+.cc-freq{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.cc-bar-wrap{flex:1;height:5px;background:#1e1e2e;border-radius:3px;overflow:hidden}
+.cc-bar-fill{height:5px;border-radius:3px;background:#3949ab;transition:width .25s}
+.cc-freq-n{font-size:.68rem;color:#9fa8da;min-width:14px;text-align:right}
+.cc-delay{font-size:.65rem;text-align:right}
+.cc-d0  {color:#dde}
+.cc-d12 {color:#90caf9}
+.cc-d35 {color:#ffe082}
+.cc-d69 {color:#ffb74d}
+.cc-d10p{color:#ef9a9a}
+.combo-ctrls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.combo-filter-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.cl{font-size:.75rem;color:#888;white-space:nowrap}
+.cbtn{padding:5px 11px;border:1px solid #2a2a4a;border-radius:7px;background:#12121e;color:#9fa8da;font-size:.74rem;font-weight:600;cursor:pointer;transition:background .12s}
+.cbtn:hover{background:#1e1e35}
+.cbtn.active{background:#1a237e;border-color:#5c6bc0;color:#e8eaf6}
+.cbtn.cft-active{background:#1b5e20;border-color:#4caf50;color:#a5d6a7}
+@media(max-width:600px){.combo-grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))};}
 </style>
 </head>
 <body>
@@ -159,6 +185,9 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
       <button class="btn" id="dsLockBtn" onclick="dsLockSelection()" disabled>🔒 Καταχώρηση Πρόβλεψης</button>
       <button class="btn" id="dsSoldierBtn" onclick="toggleSoldiers()">⭐ Στρατιώτες</button>
       <button class="btn" id="dsHeatBtn" onclick="toggleHeatMode()" style="margin-left:auto;background:#6a1a1a">🌡 Θερμικός Χάρτης</button>
+      <button class="btn" id="comboPairsBtn"    onclick="activateComboMode('pairs')"    style="background:#121a12;border:1px solid #2a5a2a;color:#a5d6a7">🎲 Δυάδες</button>
+      <button class="btn" id="comboTripletsBtn" onclick="activateComboMode('triplets')" style="background:#12121a;border:1px solid #2a2a5a;color:#9fa8da">🎲 Τριάδες</button>
+      <button class="btn" id="comboQuadsBtn"    onclick="activateComboMode('quads')"    style="background:#1a1212;border:1px solid #5a2a2a;color:#ef9a9a">🎲 Τετράδες</button>
     </div>
     <div id="dsHeatRow" style="display:none;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px">
       <span style="font-size:.78rem;color:#999">Παράθυρο κληρώσεων:</span>
@@ -278,6 +307,50 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <button class="btn" style="margin-bottom:10px;background:#5a1a1a" onclick="resetPredLog()">🗑 Ρίσετ Προβλέψεων</button>
     <div id="predLog"><div style="color:#555;font-size:.82rem">Κάνε κλικ σε αριθμό για να τον επιλέξεις, μετά πάτα 🔒.</div></div>
   </section>
+  <!-- Combo analysis section -->
+  <section id="comboSec" style="display:none">
+    <h2 id="comboTitle">🎲 Ανάλυση Συνδυασμών</h2>
+
+    <!-- Window selector -->
+    <div class="combo-ctrls">
+      <span class="cl">Παράθυρο κληρώσεων:</span>
+      <button class="cbtn" id="cw20"   onclick="setComboWindow(20)">20</button>
+      <button class="cbtn" id="cw50"   onclick="setComboWindow(50)">50</button>
+      <button class="cbtn active" id="cw100"  onclick="setComboWindow(100)">100</button>
+      <button class="cbtn" id="cw288"  onclick="setComboWindow(288)">288</button>
+      <button class="cbtn" id="cw576"  onclick="setComboWindow(576)">576</button>
+      <input id="cwCustom" type="number" min="5" max="9999" placeholder="custom"
+        style="width:68px;padding:4px 7px;font-size:.74rem;background:#1a1a2e;color:#e8e8e8;border:1px solid #3a3a5a;border-radius:7px;outline:none"
+        onchange="setComboWindowCustom(this.value)">
+      <button class="btn" onclick="closeComboMode()" style="margin-left:auto;padding:5px 12px;font-size:.75rem;background:#2a1010;border:1px solid #5a2a2a;color:#ef9a9a">✕ Κλείσιμο</button>
+    </div>
+
+    <!-- Sort -->
+    <div class="combo-ctrls" style="margin-bottom:4px">
+      <span class="cl">Ταξινόμηση:</span>
+      <button class="cbtn active" id="csFreq"  onclick="setComboSort('freq')">↓ Συχνότητα</button>
+      <button class="cbtn"        id="csDelay" onclick="setComboSort('delay')">↑ Καθυστέρηση</button>
+      <button class="cbtn"        id="csLabel" onclick="setComboSort('label')">1-2-3 Σειρά</button>
+    </div>
+
+    <!-- Filter type -->
+    <div class="combo-filter-row">
+      <span class="cl">Φίλτρο:</span>
+      <button class="cbtn cft-active" id="cftFreq"  onclick="setComboFilterType('freq')">Συχνότητα</button>
+      <button class="cbtn"            id="cftDelay" onclick="setComboFilterType('delay')">Καθυστέρηση</button>
+      <button class="cbtn"            onclick="clearComboFilter()" style="border-color:#444;color:#666">✕ Όλα</button>
+    </div>
+
+    <!-- Filter values -->
+    <div class="combo-filter-row" id="comboFilterValRow"></div>
+
+    <!-- Stats line -->
+    <div id="comboStats" style="font-size:.72rem;color:#666;margin-bottom:4px"></div>
+
+    <!-- Grid -->
+    <div class="combo-grid" id="comboGrid"></div>
+  </section>
+
 </main>
 
 <div id="dsToast"></div>
@@ -830,6 +903,8 @@ function renderDrawPanel(draw, isLast = false) {
   document.getElementById('dsDrawMini').innerHTML = cells.join('');
   const label = isLast ? `#${draw.id} · τελευταία` : `#${draw.id} · επόμενη`;
   document.getElementById('dsDrawPanel').querySelector('.dp-title').textContent = label;
+
+  if (comboMode) renderCombos();
 }
 
 function toggleDpOverlay() {
@@ -1340,7 +1415,6 @@ function selectMystRecipe(sortedIdx) {
     nameEl.style.display = 'none';
   }
   renderGrid();
-  // Refresh backtest rows to show active marker (no re-run, just re-render last results)
   const resEl   = document.getElementById('dsMystBtResults');
   const count   = Math.min(20, Math.max(1, parseInt(document.getElementById('dsMystCount').value) || 9));
   const expected = count * 20 / 80;
@@ -1360,6 +1434,201 @@ function selectMystRecipe(sortedIdx) {
     }
   });
   showToast(dsMystActiveRecipe ? `✓ Ενεργή συνταγή: ${dsMystActiveRecipe.name}` : '↩ Επιστροφή στην προεπιλεγμένη συνταγή');
+}
+
+// ── Combo analysis ────────────────────────────────────────────────────────
+let comboMode       = null;   // 'pairs' | 'triplets' | 'quads'
+let comboWindow     = 100;
+let comboFilterType = 'freq'; // 'freq' | 'delay'
+let comboFilterVal  = null;   // null = show all
+let comboSortBy     = 'freq'; // 'freq' | 'delay' | 'label'
+
+function activateComboMode(mode) {
+  if (comboMode === mode) { closeComboMode(); return; }
+  comboMode = mode;
+  ['pairs','triplets','quads'].forEach(m => {
+    const btn = document.getElementById('combo' + m.charAt(0).toUpperCase() + m.slice(1) + 'Btn');
+    if (btn) btn.classList.toggle('active', m === mode);
+  });
+  document.getElementById('travelSec').classList.add('combo-disabled');
+  const sec = document.getElementById('comboSec');
+  sec.style.display = '';
+  const titles = { pairs:'🎲 Δυάδες (1-2 … 79-80)', triplets:'🎲 Τριάδες (1-2-3 … 78-79-80)', quads:'🎲 Τετράδες (1-2-3-4 … 77-78-79-80)' };
+  document.getElementById('comboTitle').textContent = titles[mode];
+  comboFilterVal = null;
+  buildComboFilterValRow();
+  renderCombos();
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeComboMode() {
+  comboMode = null;
+  ['pairs','triplets','quads'].forEach(m => {
+    const btn = document.getElementById('combo' + m.charAt(0).toUpperCase() + m.slice(1) + 'Btn');
+    if (btn) btn.classList.remove('active');
+  });
+  document.getElementById('travelSec').classList.remove('combo-disabled');
+  document.getElementById('comboSec').style.display = 'none';
+}
+
+function setComboWindow(w) {
+  comboWindow = w;
+  ['20','50','100','288','576'].forEach(v => {
+    const b = document.getElementById('cw'+v);
+    if (b) b.classList.toggle('active', +v === w);
+  });
+  document.getElementById('cwCustom').value = '';
+  renderCombos();
+}
+
+function setComboWindowCustom(v) {
+  const n = Math.max(5, Math.min(9999, parseInt(v) || 100));
+  comboWindow = n;
+  ['20','50','100','288','576'].forEach(val => {
+    const b = document.getElementById('cw'+val);
+    if (b) b.classList.remove('active');
+  });
+  renderCombos();
+}
+
+function setComboSort(s) {
+  comboSortBy = s;
+  ['freq','delay','label'].forEach(k => {
+    const b = document.getElementById('cs' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (b) b.classList.toggle('active', k === s);
+  });
+  renderCombos();
+}
+
+function setComboFilterType(t) {
+  comboFilterType = t;
+  comboFilterVal  = null;
+  document.getElementById('cftFreq').classList.toggle('cft-active', t === 'freq');
+  document.getElementById('cftDelay').classList.toggle('cft-active', t === 'delay');
+  buildComboFilterValRow();
+  renderCombos();
+}
+
+function clearComboFilter() {
+  comboFilterVal = null;
+  document.querySelectorAll('#comboFilterValRow .cbtn').forEach(b => b.classList.remove('active'));
+  renderCombos();
+}
+
+function buildComboFilterValRow() {
+  const row = document.getElementById('comboFilterValRow');
+  if (!row) return;
+  const max = comboFilterType === 'freq' ? 15 : 20;
+  let html = '';
+  for (let i = 0; i <= max; i++) {
+    html += `<button class="cbtn${comboFilterVal === i ? ' active' : ''}" onclick="applyComboFilter(${i})">${i}</button>`;
+  }
+  if (comboFilterType === 'delay') {
+    html += `<button class="cbtn${comboFilterVal === 999 ? ' active' : ''}" onclick="applyComboFilter(999)">—</button>`;
+  }
+  row.innerHTML = html;
+}
+
+function applyComboFilter(v) {
+  comboFilterVal = comboFilterVal === v ? null : v;
+  document.querySelectorAll('#comboFilterValRow .cbtn').forEach((b, i) => {
+    b.classList.toggle('active', +b.textContent === v || (b.textContent === '—' && v === 999));
+  });
+  renderCombos();
+}
+
+function computeCombos() {
+  if (!comboMode || !dsDraws || !dsDraws.length) return [];
+  const size = comboMode === 'pairs' ? 2 : comboMode === 'triplets' ? 3 : 4;
+  const maxStart = 82 - size;
+  const endIdx = dsIdx;
+  const startIdx = Math.max(0, endIdx - comboWindow + 1);
+  const window = dsDraws.slice(startIdx, endIdx + 1);
+  const wLen = window.length;
+
+  // Pre-build sets for speed
+  const drawSets = window.map(d => new Set(d.n));
+
+  const combos = [];
+  for (let start = 1; start <= maxStart; start++) {
+    const nums = [];
+    for (let i = 0; i < size; i++) nums.push(start + i);
+
+    let freq = 0;
+    let delay = -1; // -1 = never
+
+    for (let d = wLen - 1; d >= 0; d--) {
+      const s = drawSets[d];
+      if (nums.every(n => s.has(n))) {
+        freq++;
+        if (delay === -1) delay = wLen - 1 - d;
+      }
+    }
+
+    combos.push({
+      nums,
+      label: nums.join('-'),
+      freq,
+      delay: delay === -1 ? 999 : delay  // 999 = never appeared
+    });
+  }
+
+  return combos;
+}
+
+function comboDelayClass(d) {
+  if (d === 999) return 'cc-d10p';
+  if (d === 0)   return 'cc-d0';
+  if (d <= 2)    return 'cc-d12';
+  if (d <= 5)    return 'cc-d35';
+  if (d <= 9)    return 'cc-d69';
+  return 'cc-d10p';
+}
+
+function renderCombos() {
+  if (!comboMode) return;
+  const grid  = document.getElementById('comboGrid');
+  const stats = document.getElementById('comboStats');
+  if (!grid) return;
+
+  const combos = computeCombos();
+  if (!combos.length) { grid.innerHTML = '<span style="color:#555;font-size:.8rem">Φόρτωση δεδομένων…</span>'; return; }
+
+  // Sort
+  const sorted = [...combos];
+  if (comboSortBy === 'freq')  sorted.sort((a,b) => b.freq - a.freq || a.delay - b.delay);
+  if (comboSortBy === 'delay') sorted.sort((a,b) => a.delay - b.delay || b.freq - a.freq);
+  // 'label' keeps natural 1-2, 2-3 order (already in order)
+
+  const maxFreq = sorted.reduce((m, c) => Math.max(m, c.freq), 1);
+  const wLen = Math.min(comboWindow, dsIdx + 1);
+
+  // Stats
+  const appeared = combos.filter(c => c.freq > 0).length;
+  stats.textContent = `${combos.length} συνδυασμοί · παράθυρο ${wLen} κλ. · εμφανίστηκαν: ${appeared} (${Math.round(appeared/combos.length*100)}%)`;
+
+  grid.innerHTML = '';
+  for (const c of sorted) {
+    const isFiltered = comboFilterVal !== null && (
+      comboFilterType === 'freq'  ? c.freq  !== comboFilterVal :
+      comboFilterType === 'delay' ? c.delay !== comboFilterVal : false
+    );
+
+    const barPct = maxFreq > 0 ? Math.round(c.freq / maxFreq * 100) : 0;
+    const dClass = comboDelayClass(c.delay);
+    const delayText = c.delay === 999 ? '—' : `d:${c.delay}`;
+
+    const card = document.createElement('div');
+    card.className = 'combo-card' + (isFiltered ? ' combo-dim' : '');
+    card.innerHTML = `
+      <div class="cc-label">${c.label}</div>
+      <div class="cc-freq">
+        <div class="cc-bar-wrap"><div class="cc-bar-fill" style="width:${barPct}%"></div></div>
+        <span class="cc-freq-n">${c.freq}</span>
+      </div>
+      <div class="cc-delay ${dClass}">${delayText}</div>`;
+    grid.appendChild(card);
+  }
 }
 </script>
 </body>
