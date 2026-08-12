@@ -168,8 +168,27 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
 .cr-num.cr-miss{background:#111;border-color:#2a2a2a;color:#333}
 .cr-num.cr-cur {background:#1a1500;border-color:#ffd700;color:#ffd700;box-shadow:0 0 4px rgba(255,215,0,.3)}
 .cr-nums-wrap{display:flex;flex-wrap:wrap;gap:3px}
-.cr-hist-row{padding:7px 10px;border-radius:7px;background:#0a0a14;border:1px solid #1e1e2e;margin-bottom:4px}
-.cr-hist-meta{font-size:.63rem;color:#4a4a6a;margin-bottom:4px}
+/* History as horizontal columns */
+#crHistScroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;align-items:flex-start}
+#crHistScroll::-webkit-scrollbar{height:5px}
+#crHistScroll::-webkit-scrollbar-track{background:#0a0a14}
+#crHistScroll::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:3px}
+.cr-col{flex:0 0 auto;width:110px;background:#0a0a14;border:1px solid #1e1e2e;border-radius:8px;padding:7px 8px;position:relative}
+.cr-col.cr-col-pending{border-color:#3a3a00;background:#0d0d00}
+.cr-col-del{position:absolute;top:4px;right:4px;background:none;border:none;color:#444;font-size:.75rem;cursor:pointer;line-height:1;padding:0 2px}
+.cr-col-del:hover{color:#ef9a9a}
+.cr-col-meta{font-size:.6rem;color:#3a3a5a;margin-bottom:4px;padding-right:14px;line-height:1.4}
+.cr-col-score{font-size:.78rem;font-weight:700;margin-bottom:5px}
+.cr-col-score.good{color:#a5d6a7}
+.cr-col-score.meh {color:#ffe082}
+.cr-col-score.miss{color:#555}
+.cr-col-score.pend{color:#7c5c00}
+.cr-col-nums{display:flex;flex-wrap:wrap;gap:2px}
+.cr-num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:5px;font-size:.65rem;font-weight:800;border:1px solid #333;flex-shrink:0}
+.cr-num.cr-hit {background:#1a3a1a;border-color:#4caf50;color:#a5d6a7}
+.cr-num.cr-miss{background:#111;border-color:#1e1e1e;color:#2a2a2a}
+.cr-num.cr-cur {background:#1a1500;border-color:#ffd700;color:#ffd700}
+.cr-nums-wrap{display:flex;flex-wrap:wrap;gap:3px}
 .cr-score{font-size:.8rem;font-weight:700}
 .cr-score.good{color:#a5d6a7}
 .cr-score.meh {color:#ffe082}
@@ -315,8 +334,13 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
         <div id="crCurrentNums" class="cr-nums-wrap"><span style="color:#444;font-size:.72rem">—</span></div>
       </div>
       <div id="crHistoryWrap" style="margin-top:10px">
-        <div style="font-size:.72rem;color:#555;margin-bottom:5px">📋 Ιστορικό κύκλων</div>
-        <div id="crHistory"><div style="color:#444;font-size:.75rem">Πλοηγήσου ▶ για να ξεκινήσουν οι αξιολογήσεις</div></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:.72rem;color:#555">📋 Κύκλοι (νεότεροι αριστερά)</span>
+          <button class="btn" onclick="crClearHistory()" style="padding:2px 9px;font-size:.68rem;background:#1a1010;border:1px solid #4a1a1a;color:#ef9a9a;margin-left:auto">🗑 Διαγραφή όλων</button>
+        </div>
+        <div id="crHistScroll">
+          <div style="color:#444;font-size:.75rem;padding:6px">Πλοηγήσου ▶ για να ξεκινήσουν οι κύκλοι</div>
+        </div>
       </div>
     </div>
 
@@ -1540,6 +1564,7 @@ function generateCrPick(toast = true) {
   customRandPick = arr.slice(0, n).sort((a,b) => a-b);
   renderGrid();
   updateCrCurrentDisplay();
+  renderCrHistory();
   if (toast) showToast(`🎲 Νέος κύκλος: ${customRandPick.join(', ')}`);
 }
 
@@ -1569,13 +1594,28 @@ function crEvaluate(evalIdx) {
 }
 
 function renderCrHistory() {
-  const el = document.getElementById('crHistory');
+  const el = document.getElementById('crHistScroll');
   if (!el) return;
-  if (!customRandHistory.length) {
-    el.innerHTML = '<div style="color:#444;font-size:.75rem">Πλοηγήσου ▶ για αξιολογήσεις</div>';
+
+  // Build columns: pending current pick first, then history entries
+  let html = '';
+
+  // Pending column (current pick not yet evaluated)
+  if (customRandPick.length > 0) {
+    const nums = customRandPick.map(n => `<span class="cr-num cr-cur">${n}</span>`).join('');
+    html += `<div class="cr-col cr-col-pending">
+      <div class="cr-col-meta">⏳ #${dsIdx >= 0 && dsDraws[dsIdx] ? dsDraws[dsIdx].id : '?'}<br>Αναμονή →</div>
+      <div class="cr-col-score pend">—/${customRandPick.length}</div>
+      <div class="cr-col-nums">${nums}</div>
+    </div>`;
+  }
+
+  if (!customRandHistory.length && !customRandPick.length) {
+    el.innerHTML = '<div style="color:#444;font-size:.75rem;padding:6px">Πλοηγήσου ▶ για να ξεκινήσουν οι κύκλοι</div>';
     return;
   }
-  el.innerHTML = customRandHistory.map(h => {
+
+  html += customRandHistory.map((h, i) => {
     const total = h.picked.length;
     const nHits = h.hits.length;
     const pct   = Math.round(nHits / total * 100);
@@ -1584,14 +1624,25 @@ function renderCrHistory() {
     const nums  = h.picked.map(n =>
       `<span class="cr-num ${hSet.has(n) ? 'cr-hit' : 'cr-miss'}">${n}</span>`
     ).join('');
-    return `<div class="cr-hist-row">
-      <div class="cr-hist-meta">📌 #${h.pickedAtId} → #${h.evalId}</div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="cr-score ${cls}">${nHits}/${total} (${pct}%)</span>
-        <div class="cr-nums-wrap">${nums}</div>
-      </div>
+    return `<div class="cr-col">
+      <button class="cr-col-del" onclick="crDeleteEntry(${i})" title="Διαγραφή">✕</button>
+      <div class="cr-col-meta">#${h.pickedAtId}<br>→ #${h.evalId}</div>
+      <div class="cr-col-score ${cls}">${nHits}/${total} (${pct}%)</div>
+      <div class="cr-col-nums">${nums}</div>
     </div>`;
   }).join('');
+
+  el.innerHTML = html;
+}
+
+function crDeleteEntry(i) {
+  customRandHistory.splice(i, 1);
+  renderCrHistory();
+}
+
+function crClearHistory() {
+  customRandHistory = [];
+  renderCrHistory();
 }
 
 // ── Combo analysis ────────────────────────────────────────────────────────
