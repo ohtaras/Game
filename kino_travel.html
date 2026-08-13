@@ -1113,6 +1113,7 @@ async function checkNewDraw() {
   try {
     if (!dsDraws.length) return;
     const wasAtLast = dsIdx === dsDraws.length - 1;
+    const oldIdx    = dsIdx;
     const seen = new Set(dsDraws.map(d => d.id));
     const now = new Date();
     const todayStr = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())}`;
@@ -1129,7 +1130,14 @@ async function checkNewDraw() {
     if (!added) return;
     dsDraws.sort((a,b) => a.id - b.id);
     hotStates = computeHotStates(dsDraws);
-    if (wasAtLast) dsIdx = dsDraws.length - 1;
+    if (wasAtLast) {
+      dsIdx = dsDraws.length - 1;
+      // Custom Rand: αξιολόγηση προηγούμενης πρόβλεψης vs νέας κλήρωσης + νέο draw
+      if (customRandMode && customRandPick.length > 0) {
+        crEvaluatePair(oldIdx, dsIdx);
+        if ([...dsSelected].length >= crPickN()) generateCrPick(false);
+      }
+    }
     renderGrid();
     renderPredLog();
     updateStatus();
@@ -1578,12 +1586,16 @@ function updateCrCurrentDisplay() {
 }
 
 function crEvaluate(evalIdx) {
-  if (!dsDraws[evalIdx] || !customRandPick.length || dsIdx < 0) return;
+  crEvaluatePair(dsIdx, evalIdx);
+}
+
+function crEvaluatePair(fromIdx, evalIdx) {
+  if (!dsDraws[evalIdx] || !customRandPick.length || fromIdx < 0 || !dsDraws[fromIdx]) return;
   const evalDraw = dsDraws[evalIdx];
   const actualSet = new Set(evalDraw.n);
   const hits = customRandPick.filter(n => actualSet.has(n));
   customRandHistory.unshift({
-    pickedAtId : dsDraws[dsIdx].id,
+    pickedAtId : dsDraws[fromIdx].id,
     evalId     : evalDraw.id,
     picked     : [...customRandPick],
     actual     : [...evalDraw.n].sort((a,b) => a-b),
