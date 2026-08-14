@@ -357,7 +357,7 @@ section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text
     <div id="dsHeatLegend" style="display:none;gap:8px;flex-wrap:wrap;font-size:.72rem;color:#999;align-items:center;margin-top:6px">
       <span>🌡 Θερμικός: </span>
       <span style="display:inline-flex;align-items:center;gap:4px">
-        <span style="display:inline-block;width:60px;height:14px;border-radius:3px;background:linear-gradient(to right,rgb(18,18,32),rgb(120,8,4),rgb(255,6,0)"></span>
+        <span style="display:inline-block;width:80px;height:14px;border-radius:3px;background:linear-gradient(to right,hsl(240,88%,28%),hsl(180,88%,35%),hsl(120,88%,35%),hsl(60,88%,40%),hsl(0,88%,45%)"></span>
         ψυχρό → καυτό
       </span>
       <span style="color:#888">Αριθμός = εμφανίσεις στο παράθυρο</span>
@@ -820,12 +820,13 @@ function computeHeat(draws, idx, w) {
 }
 
 function heatCellStyle(freq, actualW) {
-  const ratio = freq / Math.max(1, actualW * 0.25);
-  const r = Math.min(255, Math.round(18 + ratio * 210));
-  const g = Math.max(4,  Math.round(18 - ratio * 14));
-  const b = Math.max(0,  Math.round(32 - ratio * 32));
-  const rb = Math.min(255, r + 35);
-  return `background:rgb(${r},${g},${b});border:2px solid rgb(${rb},${g+8},${b+4});color:#fff`;
+  const t   = Math.min(1, freq / Math.max(1, actualW * 0.25));
+  const hue = Math.round((1 - t) * 240);          // 240°=μπλε → 0°=κόκκινο
+  const sat = 88;
+  const lit = Math.round(22 + t * 26);             // σκοτεινό μπλε → φωτεινό κόκκινο
+  const blit = Math.min(75, lit + 18);
+  const textCol = t > 0.25 ? '#fff' : '#6a8aaa';  // λευκό κείμενο πάνω σε ζεστά χρώματα
+  return `background:hsl(${hue},${sat}%,${lit}%);border:2px solid hsl(${hue},${sat}%,${blit}%);color:${textCol}`;
 }
 
 function toggleHeatMode() {
