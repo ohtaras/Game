@@ -819,13 +819,15 @@ function computeHeat(draws, idx, w) {
   return freq;
 }
 
-function heatCellStyle(freq, actualW) {
-  const t   = Math.min(1, freq / Math.max(1, actualW * 0.25));
-  const hue = Math.round((1 - t) * 240);          // 240°=μπλε → 0°=κόκκινο
+function heatCellStyle(freq, minF, maxF) {
+  // min-max normalization: full spectrum always used regardless of window size
+  const range = maxF - minF || 1;
+  const t   = (freq - minF) / range;
+  const hue = Math.round((1 - t) * 240);   // 240°=μπλε (ψυχρό) → 0°=κόκκινο (καυτό)
   const sat = 88;
-  const lit = Math.round(22 + t * 26);             // σκοτεινό μπλε → φωτεινό κόκκινο
-  const blit = Math.min(75, lit + 18);
-  const textCol = t > 0.25 ? '#fff' : '#6a8aaa';  // λευκό κείμενο πάνω σε ζεστά χρώματα
+  const lit = Math.round(22 + t * 28);
+  const blit = Math.min(78, lit + 18);
+  const textCol = t > 0.2 ? '#fff' : '#6a8aaa';
   return `background:hsl(${hue},${sat}%,${lit}%);border:2px solid hsl(${hue},${sat}%,${blit}%);color:${textCol}`;
 }
 
@@ -893,6 +895,15 @@ function renderGrid() {
   const heatFreq = dsHeatMode ? computeHeat(dsDraws, dsIdx, actualW) : null;
 
   const crPickSet = new Set(customRandPick);
+
+  // min-max for heat spectrum
+  let heatMin = 0, heatMax = 1;
+  if (heatFreq) {
+    const vals = Object.values(heatFreq);
+    heatMin = Math.min(...vals);
+    heatMax = Math.max(...vals);
+  }
+
   const cells = [];
   for (let n = 1; n <= 80; n++) {
     const sm = soldierMark(n, hotStates);
@@ -902,7 +913,7 @@ function renderGrid() {
       const heatFaded  = dsHeatFilter.size > 0  && !dsHeatFilter.has(heatFreq[n]);
       const delayFaded = dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n]);
       const faded = (heatFaded || delayFaded) ? ' ds-delay-faded' : '';
-      const inlineStyle = ` style="${heatCellStyle(heatFreq[n], actualW)}"`;
+      const inlineStyle = ` style="${heatCellStyle(heatFreq[n], heatMin, heatMax)}"`;
       cells.push(`<div class="ds-cell${sm.cls}${sel}${crPk}${faded}"${inlineStyle} onclick="dsToggleSelect(${n})">${sm.star}<span class="ds-n">${n}</span><span class="ds-d" style="display:flex;justify-content:space-between;padding:0 1px"><span>${heatFreq[n]}&times;</span><span style="color:${delayColor(delays[n])};font-weight:700;text-shadow:0 0 4px rgba(0,0,0,.8)">${delays[n]}</span></span></div>`);
     } else {
       const faded = (dsDelayFilter.size > 0 && !dsDelayFilter.has(delays[n])) ? ' ds-delay-faded' : '';
