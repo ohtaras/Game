@@ -375,8 +375,9 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <div class="cmp-scroll">
       <table class="cmp-table">
         <thead><tr>
-          <th>Ώρα</th>
+          <th style="color:#ef9a9a">Ώρα S3</th>
           <th style="color:#ef9a9a">Super 3</th>
+          <th style="color:#7986cb">Ώρα PS</th>
           <th style="color:#7986cb">Τρ. 1</th>
           <th style="color:#7986cb">Τρ. 2</th>
           <th style="color:#7986cb">Τρ. 3</th>
@@ -1902,30 +1903,35 @@ function cmpPsVal(v) {
 
 function renderCmp() {
   const dayStr = getCmpDayStr(cmpDayOffset);
-  const psDay  = psDraws.filter(d => d.d === dayStr);
-  const s3Day  = s3Draws.filter(d => d.d === dayStr);
-
-  const byMin = {};
-  for (const d of s3Day) { byMin[d.m] = byMin[d.m] || { m: d.m, s3: null, ps: null }; byMin[d.m].s3 = d; }
-  for (const d of psDay) { byMin[d.m] = byMin[d.m] || { m: d.m, s3: null, ps: null }; byMin[d.m].ps = d; }
-  const rows = Object.values(byMin).sort((a, b) => a.m - b.m);
+  const psDay  = psDraws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
+  const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
 
   const statsEl = document.getElementById('cmpStats');
-  if (statsEl) statsEl.textContent = rows.length
-    ? `${dayStr}  ·  S3: ${s3Day.length} κλ.  ·  PS: ${psDay.length} κλ.`
-    : '';
+  if (statsEl) statsEl.textContent =
+    `${dayStr}  ·  S3: ${s3Day.length} κλ.  ·  PS: ${psDay.length} κλ.`;
+
+  // S3 draws before PS starts → show alone; after → pair by sequential index
+  const psStartM = psDay.length > 0 ? psDay[0].m : 99999;
+  const s3Before = s3Day.filter(d => d.m < psStartM);
+  const s3During = s3Day.filter(d => d.m >= psStartM);
+
+  const rows = [];
+  for (const d of s3Before) rows.push({ s3: d, ps: null });
+  const maxLen = Math.max(s3During.length, psDay.length);
+  for (let i = 0; i < maxLen; i++) rows.push({ s3: s3During[i] || null, ps: psDay[i] || null });
 
   let html = '';
   for (const row of rows) {
-    const time   = minsToTime(row.m);
+    const s3time = row.s3 ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.s3.m)}</span>` : '<span class="cmp-none">—</span>';
+    const pstime = row.ps ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.ps.m)}</span>` : '<span class="cmp-none">—</span>';
     const s3cell = row.s3 ? `<span class="cmp-s3">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
     const w0 = row.ps ? cmpPsVal(row.ps.w[0]) : '<span class="cmp-none">—</span>';
     const w1 = row.ps ? cmpPsVal(row.ps.w[1]) : '<span class="cmp-none">—</span>';
     const w2 = row.ps ? cmpPsVal(row.ps.w[2]) : '<span class="cmp-none">—</span>';
-    html += `<tr><td>${time}</td><td>${s3cell}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
+    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
-    '<tr><td colspan="5" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+    '<tr><td colspan="6" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
 
   if (cmpDayOffset === 0) {
     const scroll = document.querySelector('#cmpTab .cmp-scroll');
