@@ -2017,8 +2017,9 @@ function renderCmp() {
     const rn = row.s3.n;
     const rs = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
     const rd1 = Math.floor(rn / 100);
+    const rd2 = Math.floor((rn % 100) / 10);
     const rs1 = rd1 > 0 ? (rd1 + 1) + (rd1 - 1) : null;
-    const rs2 = rs1 !== null ? (rs1 + 1) + (rs1 - 1) : null;
+    const rs2 = rd2 > 0 ? (rd2 + 1) + (rd2 - 1) : null;
     const sZone = rs >= 1 && rs <= 24 ? PS_COLORS[rs] : null;
     const rNbrs = wheelNeighbors(rs);
     let counted = false;
@@ -2109,7 +2110,9 @@ function renderCmp() {
       const n = row.s3.n;
       sSum = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
       const d1 = Math.floor(n/100);
-      if (d1 > 0) { sSum1 = (d1+1) + (d1-1); sSum2 = (sSum1+1) + (sSum1-1); }
+      const d2 = Math.floor((n%100)/10);
+      if (d1 > 0) sSum1 = (d1+1) + (d1-1);
+      if (d2 > 0) sSum2 = (d2+1) + (d2-1);
       const ws = row.ps ? row.ps.w : [];
       const anyNumMatch  = cmpShowNum  && ws.some(v => v && v >= 1 && v <= 24 && sSum === v);
       sZone = sSum >= 1 && sSum <= 24 ? PS_COLORS[sSum] : null;
