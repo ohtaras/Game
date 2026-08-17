@@ -1900,7 +1900,10 @@ function switchCmpDay(offset) {
 
 function cmpPsVal(v) {
   if (!v) return '<span class="cmp-none">—</span>';
-  if (v <= 24) return `<span class="cmp-ps">${v}</span>`;
+  if (v <= 24) {
+    const c = PS_COLORS[v] === PS_GREEN ? '#66bb6a' : PS_COLORS[v] === PS_RED ? '#ef5350' : '#42a5f5';
+    return `<span style="color:${c};font-weight:700">${v}</span>`;
+  }
   return `<span class="cmp-sym">${SYM_LABELS[v - 25]}</span>`;
 }
 
