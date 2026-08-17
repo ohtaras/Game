@@ -1940,16 +1940,28 @@ function renderCmp() {
     const w2 = row.ps ? cmpPsVal(row.ps.w[2]) : '<span class="cmp-none">—</span>';
     let sumCell = '<span class="cmp-none">—</span>', zoneCell = '<span class="cmp-none">—</span>';
     if (row.s3) {
-      const n = row.s3.n;
+      const n   = row.s3.n;
       const sum = Math.floor(n / 100) + Math.floor((n % 100) / 10) + (n % 10);
-      sumCell = `<span style="color:#ccc;font-weight:700">${sum}</span>`;
+      const w1v = row.ps ? row.ps.w[0] : null;
+      // αντιστοιχία αριθμού: σύνολο == Τρ.1
+      const numMatch  = w1v && w1v >= 1 && w1v <= 24 && sum === w1v;
+      // αντιστοιχία ζώνης: ζώνη(σύνολο) == ζώνη(Τρ.1)
+      const zoneMatch = w1v && w1v >= 1 && w1v <= 24 && sum >= 1 && sum <= 24 &&
+                        PS_COLORS[sum] === PS_COLORS[w1v];
+      if (numMatch)
+        sumCell = `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sum} ✓</span>`;
+      else
+        sumCell = `<span style="color:#ccc;font-weight:700">${sum}</span>`;
       if (sum === 0 || sum >= 25) {
         zoneCell = `<span style="color:#9e9e9e;font-size:.7rem">σύμβολο</span>`;
       } else {
-        const c = PS_COLORS[sum];
-        if (c === PS_GREEN) zoneCell = `<span style="color:#66bb6a;font-weight:700">πράσινο</span>`;
-        else if (c === PS_RED)   zoneCell = `<span style="color:#ef5350;font-weight:700">κόκκινο</span>`;
-        else if (c === PS_BLUE)  zoneCell = `<span style="color:#42a5f5;font-weight:700">μπλε</span>`;
+        const c  = PS_COLORS[sum];
+        const tc = c === PS_GREEN ? '#66bb6a' : c === PS_RED ? '#ef5350' : '#42a5f5';
+        const lb = c === PS_GREEN ? 'πράσινο' : c === PS_RED ? 'κόκκινο' : 'μπλε';
+        if (zoneMatch)
+          zoneCell = `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.09);border-radius:3px;padding:1px 5px">${lb} ✓</span>`;
+        else
+          zoneCell = `<span style="color:${tc};font-weight:700">${lb}</span>`;
       }
     }
     html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
