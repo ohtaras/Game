@@ -97,6 +97,8 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-tog{padding:3px 10px;border:1px solid #2a2a3a;border-radius:6px;background:#131320;color:#444;cursor:pointer;font-size:.68rem;font-weight:600;transition:all .15s}
 .cmp-tog.active{border-color:#3949ab;color:#9fa8da;background:#1a1a2e}
 .cmp-table.hide-nbr .cmp-nbr{display:none}
+.cmp-table.hide-w2 .cmp-w2{display:none}
+.cmp-table.hide-w3 .cmp-w3{display:none}
 .cmp-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .cmp-sum-box{flex:1;min-width:90px;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;text-align:center}
 .cmp-sum-box .csb-val{font-size:1.25rem;font-weight:900;display:block;line-height:1.1}
@@ -381,11 +383,14 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <h2 style="color:#b39ddb">⚖️ Αντιπαραβολή — Power Spin &amp; Super 3</h2>
     <div class="cmp-day-bar" id="cmpDayBar"></div>
     <div class="cmp-toggle-bar">
-      <span style="font-size:.64rem;color:#3a3a5a">Εμφάνιση:</span>
+      <span style="font-size:.64rem;color:#3a3a5a">Συγκρίσεις:</span>
       <button class="cmp-tog active" id="togZone" onclick="toggleCmp('zone')">Ζώνη ✓</button>
       <button class="cmp-tog active" id="togNum"  onclick="toggleCmp('num')">Αριθμός ✓</button>
       <button class="cmp-tog active" id="togNbr"  onclick="toggleCmp('nbr')">Γείτονες</button>
       <button class="cmp-tog" id="togAll" onclick="toggleCmp('all')">Όλα off</button>
+      <span style="font-size:.64rem;color:#3a3a5a;margin-left:6px">Τροχοί:</span>
+      <button class="cmp-tog active" id="togW2" onclick="toggleCmp('w2')">Τρ. 2</button>
+      <button class="cmp-tog active" id="togW3" onclick="toggleCmp('w3')">Τρ. 3</button>
     </div>
     <div id="cmpStats" class="cmp-stats"></div>
     <div id="cmpSummary" class="cmp-summary"></div>
@@ -399,8 +404,8 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <th class="cmp-nbr" style="color:#ef9a9a">Γείτ.</th>
           <th style="color:#7986cb">Ώρα PS</th>
           <th style="color:#7986cb">Τρ. 1</th>
-          <th style="color:#7986cb">Τρ. 2</th>
-          <th style="color:#7986cb">Τρ. 3</th>
+          <th class="cmp-w2" style="color:#7986cb">Τρ. 2</th>
+          <th class="cmp-w3" style="color:#7986cb">Τρ. 3</th>
         </tr></thead>
         <tbody id="cmpBody"></tbody>
       </table>
@@ -1896,7 +1901,7 @@ function tickCountdowns() {
 
 // ── Αντιπαραβολή ──────────────────────────────────────────────────────────
 let cmpDayOffset = 0;
-let cmpShowZone = true, cmpShowNum = true, cmpShowNbr = true;
+let cmpShowZone = true, cmpShowNum = true, cmpShowNbr = true, cmpShowW2 = true, cmpShowW3 = true;
 
 function wheelNeighbors(sum) {
   const idx = CMP_WHEEL.indexOf(sum);
@@ -1919,6 +1924,8 @@ function toggleCmp(type) {
   } else if (type === 'zone') cmpShowZone = !cmpShowZone;
   else if (type === 'num')    cmpShowNum  = !cmpShowNum;
   else if (type === 'nbr')    cmpShowNbr  = !cmpShowNbr;
+  else if (type === 'w2') { cmpShowW2 = !cmpShowW2; document.getElementById('togW2').classList.toggle('active', cmpShowW2); }
+  else if (type === 'w3') { cmpShowW3 = !cmpShowW3; document.getElementById('togW3').classList.toggle('active', cmpShowW3); }
   document.getElementById('togZone').classList.toggle('active', cmpShowZone);
   document.getElementById('togNum').classList.toggle('active', cmpShowNum);
   document.getElementById('togNbr').classList.toggle('active', cmpShowNbr);
@@ -1927,7 +1934,11 @@ function toggleCmp(type) {
   btn.textContent = anyOn ? 'Όλα off' : 'Όλα on';
   btn.classList.toggle('active', !anyOn);
   const tbl = document.querySelector('.cmp-table');
-  if (tbl) tbl.classList.toggle('hide-nbr', !cmpShowNbr);
+  if (tbl) {
+    tbl.classList.toggle('hide-nbr', !cmpShowNbr);
+    tbl.classList.toggle('hide-w2', !cmpShowW2);
+    tbl.classList.toggle('hide-w3', !cmpShowW3);
+  }
   renderCmp();
 }
 
@@ -1988,12 +1999,13 @@ function renderCmp() {
 
   // ── Συγκεντρωτικά (και για τους 3 τροχούς) ────────────────────
   let totalPaired = 0;
-  const zoneM = [0, 0, 0], numM = [0, 0, 0];
+  const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
     const rn = row.s3.n;
     const rs = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
     const sZone = rs >= 1 && rs <= 24 ? PS_COLORS[rs] : null;
+    const rNbrs = wheelNeighbors(rs);
     let counted = false;
     for (let wi = 0; wi < 3; wi++) {
       const wv = row.ps.w[wi];
@@ -2001,6 +2013,7 @@ function renderCmp() {
       if (!counted) { totalPaired++; counted = true; }
       if (rs === wv) numM[wi]++;
       if (sZone && PS_COLORS[wv] === sZone) zoneM[wi]++;
+      if (rNbrs && rNbrs.includes(wv)) nbrM[wi]++;
     }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
@@ -2028,20 +2041,27 @@ function renderCmp() {
             <td style="color:#555;padding:3px 8px 3px 2px">Αριθμός ✓</td>
             ${[0,1,2].map(i => `<td style="text-align:center;color:#ffee58;font-weight:700;padding:3px 8px">${numM[i]} <span style="color:#555;font-weight:400">(${pct(numM[i],totalPaired)})</span></td>`).join('')}
           </tr>
+          <tr>
+            <td style="color:#555;padding:3px 8px 3px 2px">Γείτ. ✓</td>
+            ${[0,1,2].map(i => `<td style="text-align:center;color:#ff9800;font-weight:700;padding:3px 8px">${nbrM[i]} <span style="color:#555;font-weight:400">(${pct(nbrM[i],totalPaired)})</span></td>`).join('')}
+          </tr>
         </tbody>
       </table>
     </div>`;
 
-  // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει με S3 ζώνη ή αριθμό
-  const wheelCell = (wv, sSum, sZone) => {
+  // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει
+  const wheelCell = (wv, sSum, sZone, nbrs) => {
     if (!wv) return '<span class="cmp-none">—</span>';
     if (wv >= 25) return `<span class="cmp-sym">${SYM_LABELS[wv - 25]}</span>`;
     const wc = PS_COLORS[wv];
     const tc = wc === PS_GREEN ? '#66bb6a' : wc === PS_RED ? '#ef5350' : '#42a5f5';
     const numHit  = cmpShowNum  && sSum !== null && sSum === wv;
+    const nbrHit  = cmpShowNbr  && !numHit && nbrs !== null && nbrs.includes(wv);
     const zoneHit = cmpShowZone && sZone !== null && wc === sZone;
     if (numHit)
       return `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+    if (nbrHit)
+      return `<span style="color:#ff9800;font-weight:900;background:rgba(255,152,0,.15);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
     if (zoneHit)
       return `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
     return `<span style="color:${tc};font-weight:700">${wv}</span>`;
@@ -2077,19 +2097,24 @@ function renderCmp() {
       }
     }
     let nbrCell = '<span class="cmp-none">—</span>';
-    if (row.s3 && sSum !== null && cmpShowNbr) {
-      const nbrs = wheelNeighbors(sSum);
-      if (nbrs) nbrCell = nbrs.map(psValSpan).join('<span style="color:#333"> · </span>');
+    let rowNbrs = null;
+    if (row.s3 && sSum !== null) {
+      rowNbrs = wheelNeighbors(sSum);
+      if (rowNbrs && cmpShowNbr) nbrCell = rowNbrs.map(psValSpan).join('<span style="color:#333"> · </span>');
     }
-    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sZone) : '<span class="cmp-none">—</span>';
-    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sZone) : '<span class="cmp-none">—</span>';
-    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sZone) : '<span class="cmp-none">—</span>';
-    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
+    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sZone, rowNbrs) : '<span class="cmp-none">—</span>';
+    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sZone, rowNbrs) : '<span class="cmp-none">—</span>';
+    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sZone, rowNbrs) : '<span class="cmp-none">—</span>';
+    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td class="cmp-w2">${w1}</td><td class="cmp-w3">${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
     '<tr><td colspan="9" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
   const tbl = document.querySelector('.cmp-table');
-  if (tbl) tbl.classList.toggle('hide-nbr', !cmpShowNbr);
+  if (tbl) {
+    tbl.classList.toggle('hide-nbr', !cmpShowNbr);
+    tbl.classList.toggle('hide-w2', !cmpShowW2);
+    tbl.classList.toggle('hide-w3', !cmpShowW3);
+  }
 
   if (cmpDayOffset === 0) {
     const scroll = document.querySelector('#cmpTab .cmp-scroll');
