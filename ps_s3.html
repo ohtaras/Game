@@ -76,6 +76,24 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .ds-legend-item{display:flex;align-items:center;gap:4px}
 .ds-swatch{display:inline-block;width:13px;height:13px;border-radius:3px}
 
+/* ── Αντιπαραβολή ── */
+.cmp-day-bar{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.cmp-day-btn{padding:6px 14px;border:1px solid #2a2a4a;border-radius:7px;background:#1a1a2e;color:#777;cursor:pointer;font-size:.78rem;font-weight:600;transition:background .15s}
+.cmp-day-btn.active{background:#3949ab;color:#fff;border-color:#3949ab}
+.cmp-day-btn:hover:not(.active){background:#222}
+.cmp-scroll{max-height:72vh;overflow-y:auto;border:1px solid #1a1a2e;border-radius:6px}
+.cmp-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.cmp-table th{background:#0d1220;color:#555;font-size:.68rem;text-align:left;padding:5px 8px;position:sticky;top:0;z-index:1;white-space:nowrap;border-bottom:1px solid #1a2540}
+.cmp-table td{padding:5px 8px;border-bottom:1px solid #111820}
+.cmp-table tr:last-child td{border-bottom:none}
+.cmp-table tr:hover td{background:#0d1220}
+.cmp-table td:first-child{color:#666;font-size:.72rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cmp-s3{color:#ef9a9a;font-weight:800;font-size:.85rem;letter-spacing:.1em}
+.cmp-ps{color:#7986cb;font-weight:700}
+.cmp-sym{color:#9e9e9e;font-weight:700}
+.cmp-none{color:#2a2a3a}
+.cmp-stats{font-size:.72rem;color:#555;margin-bottom:8px}
+
 /* ── Settings ── */
 .set-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .set-row label{font-size:.76rem;color:#888;min-width:90px}
@@ -143,6 +161,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <button class="tab-btn active" onclick="switchTab('ps')">🎡 Power Spin</button>
     <button class="tab-btn"        onclick="switchTab('s3')">🔢 Super 3</button>
     <button class="tab-btn"        onclick="switchTab('kino')">🎰 ΚΙΝΟ</button>
+    <button class="tab-btn"        onclick="switchTab('cmp')">⚖️ Αντιπαραβολή</button>
     <button class="tab-btn"        onclick="switchTab('cfg')" style="margin-left:auto">⚙️</button>
   </div>
 
@@ -346,6 +365,25 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       </div>
     </div>
     <div id="kinoComboHits"></div>
+  </section>
+
+  <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
+  <section id="cmpTab" style="display:none">
+    <h2 style="color:#b39ddb">⚖️ Αντιπαραβολή — Power Spin &amp; Super 3</h2>
+    <div class="cmp-day-bar" id="cmpDayBar"></div>
+    <div id="cmpStats" class="cmp-stats"></div>
+    <div class="cmp-scroll">
+      <table class="cmp-table">
+        <thead><tr>
+          <th>Ώρα</th>
+          <th style="color:#ef9a9a">Super 3</th>
+          <th style="color:#7986cb">Τρ. 1</th>
+          <th style="color:#7986cb">Τρ. 2</th>
+          <th style="color:#7986cb">Τρ. 3</th>
+        </tr></thead>
+        <tbody id="cmpBody"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- ═══ SETTINGS ═══ -->
@@ -1776,8 +1814,14 @@ function clearPsHistCache() {
   if (info) info.textContent = `🗑 Διαγράφηκαν ${keys.length} μήνες cache`;
 }
 
-function autoFetchPs() { return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef, psRender, 'PS'); }
-function autoFetchS3() { return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef, s3Render, 'S3'); }
+function autoFetchPs() {
+  return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef,
+    () => { psRender(); if (isCmpActive()) renderCmp(); }, 'PS');
+}
+function autoFetchS3() {
+  return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef,
+    () => { s3Render(); if (isCmpActive()) renderCmp(); }, 'S3');
+}
 
 function tickCountdowns() {
   const psR  = nextDrawSecs(481, 1437, 4);
@@ -1824,13 +1868,79 @@ function tickCountdowns() {
   }
 }
 
+// ── Αντιπαραβολή ──────────────────────────────────────────────────────────
+let cmpDayOffset = 0;
+
+function isCmpActive() { return document.getElementById('cmpTab').style.display !== 'none'; }
+
+function getCmpDayStr(offset) {
+  const dt = athensDate(Date.now() - offset * 86400000);
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+}
+
+function buildCmpDayBar() {
+  let html = '';
+  for (let i = 3; i >= 0; i--) {
+    const dt    = athensDate(Date.now() - i * 86400000);
+    const label = i === 0 ? '🔴 Live' : `${pad(dt.getUTCDate())}/${pad(dt.getUTCMonth()+1)}`;
+    html += `<button class="cmp-day-btn${i === cmpDayOffset ? ' active' : ''}" onclick="switchCmpDay(${i})">${label}</button>`;
+  }
+  document.getElementById('cmpDayBar').innerHTML = html;
+}
+
+function switchCmpDay(offset) {
+  cmpDayOffset = offset;
+  buildCmpDayBar();
+  renderCmp();
+}
+
+function cmpPsVal(v) {
+  if (!v) return '<span class="cmp-none">—</span>';
+  if (v <= 24) return `<span class="cmp-ps">${v}</span>`;
+  return `<span class="cmp-sym">${SYM_LABELS[v - 25]}</span>`;
+}
+
+function renderCmp() {
+  const dayStr = getCmpDayStr(cmpDayOffset);
+  const psDay  = psDraws.filter(d => d.d === dayStr);
+  const s3Day  = s3Draws.filter(d => d.d === dayStr);
+
+  const byMin = {};
+  for (const d of s3Day) { byMin[d.m] = byMin[d.m] || { m: d.m, s3: null, ps: null }; byMin[d.m].s3 = d; }
+  for (const d of psDay) { byMin[d.m] = byMin[d.m] || { m: d.m, s3: null, ps: null }; byMin[d.m].ps = d; }
+  const rows = Object.values(byMin).sort((a, b) => a.m - b.m);
+
+  const statsEl = document.getElementById('cmpStats');
+  if (statsEl) statsEl.textContent = rows.length
+    ? `${dayStr}  ·  S3: ${s3Day.length} κλ.  ·  PS: ${psDay.length} κλ.`
+    : '';
+
+  let html = '';
+  for (const row of rows) {
+    const time   = minsToTime(row.m);
+    const s3cell = row.s3 ? `<span class="cmp-s3">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
+    const w0 = row.ps ? cmpPsVal(row.ps.w[0]) : '<span class="cmp-none">—</span>';
+    const w1 = row.ps ? cmpPsVal(row.ps.w[1]) : '<span class="cmp-none">—</span>';
+    const w2 = row.ps ? cmpPsVal(row.ps.w[2]) : '<span class="cmp-none">—</span>';
+    html += `<tr><td>${time}</td><td>${s3cell}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
+  }
+  document.getElementById('cmpBody').innerHTML = html ||
+    '<tr><td colspan="5" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+
+  if (cmpDayOffset === 0) {
+    const scroll = document.querySelector('#cmpTab .cmp-scroll');
+    if (scroll) setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 30);
+  }
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────
-const TABS = ['ps', 's3', 'kino', 'cfg'];
+const TABS = ['ps', 's3', 'kino', 'cmp', 'cfg'];
 function switchTab(name) {
   TABS.forEach((t, i) => {
     document.getElementById(`${t}Tab`).style.display = t === name ? '' : 'none';
     document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === name);
   });
+  if (name === 'cmp') { buildCmpDayBar(); renderCmp(); }
 }
 
 // ── Keyboard navigation ────────────────────────────────────────────────────
