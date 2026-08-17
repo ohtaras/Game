@@ -93,6 +93,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-sym{color:#9e9e9e;font-weight:700}
 .cmp-none{color:#2a2a3a}
 .cmp-stats{font-size:.72rem;color:#555;margin-bottom:6px}
+.cmp-toggle-bar{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.cmp-tog{padding:3px 10px;border:1px solid #2a2a3a;border-radius:6px;background:#131320;color:#444;cursor:pointer;font-size:.68rem;font-weight:600;transition:all .15s}
+.cmp-tog.active{border-color:#3949ab;color:#9fa8da;background:#1a1a2e}
+.cmp-table.hide-nbr .cmp-nbr{display:none}
 .cmp-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .cmp-sum-box{flex:1;min-width:90px;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;text-align:center}
 .cmp-sum-box .csb-val{font-size:1.25rem;font-weight:900;display:block;line-height:1.1}
@@ -376,6 +380,13 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <section id="cmpTab" style="display:none">
     <h2 style="color:#b39ddb">⚖️ Αντιπαραβολή — Power Spin &amp; Super 3</h2>
     <div class="cmp-day-bar" id="cmpDayBar"></div>
+    <div class="cmp-toggle-bar">
+      <span style="font-size:.64rem;color:#3a3a5a">Εμφάνιση:</span>
+      <button class="cmp-tog active" id="togZone" onclick="toggleCmp('zone')">Ζώνη ✓</button>
+      <button class="cmp-tog active" id="togNum"  onclick="toggleCmp('num')">Αριθμός ✓</button>
+      <button class="cmp-tog active" id="togNbr"  onclick="toggleCmp('nbr')">Γείτονες</button>
+      <button class="cmp-tog" id="togAll" onclick="toggleCmp('all')">Όλα off</button>
+    </div>
     <div id="cmpStats" class="cmp-stats"></div>
     <div id="cmpSummary" class="cmp-summary"></div>
     <div class="cmp-scroll">
@@ -385,6 +396,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <th style="color:#ef9a9a">Super 3</th>
           <th style="color:#ef9a9a">Σύν.</th>
           <th style="color:#ef9a9a">Ζώνη</th>
+          <th class="cmp-nbr" style="color:#ef9a9a">Γείτ.</th>
           <th style="color:#7986cb">Ώρα PS</th>
           <th style="color:#7986cb">Τρ. 1</th>
           <th style="color:#7986cb">Τρ. 2</th>
@@ -457,6 +469,10 @@ const PS_COLORS = {
 
 const S3_GAME_ID   = 2100;
 const KINO_GAME_ID = 1100;
+
+// Σειρά τροχού για Αντιπαραβολή (επαληθευμένη: άθροισμα=8 → 1,8,24,6)
+// 25=★ 26=♦ 27=✦
+const CMP_WHEEL = [26,1,8,24,6,7,21,10,5,15,2,20,27,13,18,3,17,4,23,19,12,25,14,11,16,22,9];
 
 // 200 εννιάδες — φτιαγμένες με βάση συχνότητα + ισορροπία μονά/ζυγά + κατανομή δεκάδων
 const KINO_COMBOS = [
@@ -1880,6 +1896,40 @@ function tickCountdowns() {
 
 // ── Αντιπαραβολή ──────────────────────────────────────────────────────────
 let cmpDayOffset = 0;
+let cmpShowZone = true, cmpShowNum = true, cmpShowNbr = true;
+
+function wheelNeighbors(sum) {
+  const idx = CMP_WHEEL.indexOf(sum);
+  if (idx < 0) return null;
+  const n = CMP_WHEEL.length;
+  return [CMP_WHEEL[(idx-1+n)%n], sum, CMP_WHEEL[(idx+1)%n], CMP_WHEEL[(idx+2)%n]];
+}
+
+function psValSpan(v) {
+  if (v >= 25) return `<span class="cmp-sym">${SYM_LABELS[v-25]}</span>`;
+  const c = PS_COLORS[v];
+  const tc = c===PS_GREEN?'#66bb6a':c===PS_RED?'#ef5350':'#42a5f5';
+  return `<span style="color:${tc};font-weight:700">${v}</span>`;
+}
+
+function toggleCmp(type) {
+  if (type === 'all') {
+    const anyOn = cmpShowZone || cmpShowNum || cmpShowNbr;
+    cmpShowZone = cmpShowNum = cmpShowNbr = !anyOn;
+  } else if (type === 'zone') cmpShowZone = !cmpShowZone;
+  else if (type === 'num')    cmpShowNum  = !cmpShowNum;
+  else if (type === 'nbr')    cmpShowNbr  = !cmpShowNbr;
+  document.getElementById('togZone').classList.toggle('active', cmpShowZone);
+  document.getElementById('togNum').classList.toggle('active', cmpShowNum);
+  document.getElementById('togNbr').classList.toggle('active', cmpShowNbr);
+  const anyOn = cmpShowZone || cmpShowNum || cmpShowNbr;
+  const btn = document.getElementById('togAll');
+  btn.textContent = anyOn ? 'Όλα off' : 'Όλα on';
+  btn.classList.toggle('active', !anyOn);
+  const tbl = document.querySelector('.cmp-table');
+  if (tbl) tbl.classList.toggle('hide-nbr', !cmpShowNbr);
+  renderCmp();
+}
 
 function isCmpActive() { return document.getElementById('cmpTab').style.display !== 'none'; }
 
@@ -1988,8 +2038,8 @@ function renderCmp() {
     if (wv >= 25) return `<span class="cmp-sym">${SYM_LABELS[wv - 25]}</span>`;
     const wc = PS_COLORS[wv];
     const tc = wc === PS_GREEN ? '#66bb6a' : wc === PS_RED ? '#ef5350' : '#42a5f5';
-    const numHit  = sSum !== null && sSum === wv;
-    const zoneHit = sZone !== null && wc === sZone;
+    const numHit  = cmpShowNum  && sSum !== null && sSum === wv;
+    const zoneHit = cmpShowZone && sZone !== null && wc === sZone;
     if (numHit)
       return `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
     if (zoneHit)
@@ -2008,9 +2058,9 @@ function renderCmp() {
       const n = row.s3.n;
       sSum = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
       const ws = row.ps ? row.ps.w : [];
-      const anyNumMatch  = ws.some(v => v && v >= 1 && v <= 24 && sSum === v);
+      const anyNumMatch  = cmpShowNum  && ws.some(v => v && v >= 1 && v <= 24 && sSum === v);
       sZone = sSum >= 1 && sSum <= 24 ? PS_COLORS[sSum] : null;
-      const anyZoneMatch = sZone && ws.some(v => v && v >= 1 && v <= 24 && PS_COLORS[v] === sZone);
+      const anyZoneMatch = cmpShowZone && sZone && ws.some(v => v && v >= 1 && v <= 24 && PS_COLORS[v] === sZone);
       if (anyNumMatch)
         sumCell = `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sSum} ✓</span>`;
       else
@@ -2026,13 +2076,20 @@ function renderCmp() {
           zoneCell = `<span style="color:${tc};font-weight:700">${lb}</span>`;
       }
     }
+    let nbrCell = '<span class="cmp-none">—</span>';
+    if (row.s3 && sSum !== null && cmpShowNbr) {
+      const nbrs = wheelNeighbors(sSum);
+      if (nbrs) nbrCell = nbrs.map(psValSpan).join('<span style="color:#333"> · </span>');
+    }
     const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sZone) : '<span class="cmp-none">—</span>';
     const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sZone) : '<span class="cmp-none">—</span>';
     const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sZone) : '<span class="cmp-none">—</span>';
-    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
+    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
-    '<tr><td colspan="8" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+    '<tr><td colspan="9" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+  const tbl = document.querySelector('.cmp-table');
+  if (tbl) tbl.classList.toggle('hide-nbr', !cmpShowNbr);
 
   if (cmpDayOffset === 0) {
     const scroll = document.querySelector('#cmpTab .cmp-scroll');
