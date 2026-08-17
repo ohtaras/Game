@@ -1911,15 +1911,19 @@ function renderCmp() {
   if (statsEl) statsEl.textContent =
     `${dayStr}  ·  S3: ${s3Day.length} κλ.  ·  PS: ${psDay.length} κλ.`;
 
-  // S3 draws before PS starts → show alone; after → pair by sequential index
+  // S3 τρέχει 2 λεπτά πριν το PS (PS 08:01 ↔ S3 07:59, PS 08:05 ↔ S3 08:03 …)
+  // Η τελευταία S3 πριν αρχίσει το PS ζευγαρώνεται με την πρώτη PS κλήρωση.
   const psStartM = psDay.length > 0 ? psDay[0].m : 99999;
   const s3Before = s3Day.filter(d => d.m < psStartM);
   const s3During = s3Day.filter(d => d.m >= psStartM);
 
   const rows = [];
-  for (const d of s3Before) rows.push({ s3: d, ps: null });
-  const maxLen = Math.max(s3During.length, psDay.length);
-  for (let i = 0; i < maxLen; i++) rows.push({ s3: s3During[i] || null, ps: psDay[i] || null });
+  // Όλες πλην της τελευταίας s3Before → μόνες (χωρίς PS)
+  for (let i = 0; i < s3Before.length - 1; i++) rows.push({ s3: s3Before[i], ps: null });
+  // Τελευταία s3Before + s3During → ζευγαρώνονται διαδοχικά με psDay
+  const pairedS3 = s3Before.length > 0 ? [...s3Before.slice(-1), ...s3During] : s3During;
+  const maxLen = Math.max(pairedS3.length, psDay.length);
+  for (let i = 0; i < maxLen; i++) rows.push({ s3: pairedS3[i] || null, ps: psDay[i] || null });
 
   let html = '';
   for (const row of rows) {
