@@ -1936,71 +1936,99 @@ function renderCmp() {
   const maxLen = Math.max(pairedS3.length, psDay.length);
   for (let i = 0; i < maxLen; i++) rows.push({ s3: pairedS3[i] || null, ps: psDay[i] || null });
 
-  // ── Συγκεντρωτικά ──────────────────────────────────────────────
-  let totalPaired = 0, zoneMatches = 0, numMatches = 0;
+  // ── Συγκεντρωτικά (και για τους 3 τροχούς) ────────────────────
+  let totalPaired = 0;
+  const zoneM = [0, 0, 0], numM = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
-    const rn  = row.s3.n;
-    const rs  = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
-    const rv1 = row.ps.w[0];
-    if (!rv1 || rv1 < 1 || rv1 > 24) continue;
-    totalPaired++;
-    if (rs === rv1) numMatches++;
-    if (rs >= 1 && rs <= 24 && PS_COLORS[rs] === PS_COLORS[rv1]) zoneMatches++;
+    const rn = row.s3.n;
+    const rs = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
+    const sZone = rs >= 1 && rs <= 24 ? PS_COLORS[rs] : null;
+    let counted = false;
+    for (let wi = 0; wi < 3; wi++) {
+      const wv = row.ps.w[wi];
+      if (!wv || wv < 1 || wv > 24) continue;
+      if (!counted) { totalPaired++; counted = true; }
+      if (rs === wv) numM[wi]++;
+      if (sZone && PS_COLORS[wv] === sZone) zoneM[wi]++;
+    }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
   const sumEl = document.getElementById('cmpSummary');
   if (sumEl) sumEl.innerHTML = `
-    <div class="cmp-sum-box">
+    <div class="cmp-sum-box" style="max-width:70px">
       <span class="csb-val" style="color:#7986cb">${totalPaired}</span>
       <span class="csb-pct">&nbsp;</span>
       <span class="csb-lbl">Ζεύγη</span>
     </div>
-    <div class="cmp-sum-box">
-      <span class="csb-val" style="color:#aaa">${zoneMatches}</span>
-      <span class="csb-pct">${pct(zoneMatches, totalPaired)}</span>
-      <span class="csb-lbl">Ζώνη ✓ vs Τρ.1</span>
-    </div>
-    <div class="cmp-sum-box">
-      <span class="csb-val" style="color:#ffee58">${numMatches}</span>
-      <span class="csb-pct">${pct(numMatches, totalPaired)}</span>
-      <span class="csb-lbl">Αριθμός ✓ vs Τρ.1</span>
+    <div style="flex:1;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.72rem;white-space:nowrap">
+        <thead><tr>
+          <th style="color:#444;font-weight:600;padding:2px 8px 4px 2px;text-align:left"></th>
+          <th style="color:#7986cb;font-weight:700;padding:2px 8px 4px;text-align:center">Τρ. 1</th>
+          <th style="color:#7986cb;font-weight:700;padding:2px 8px 4px;text-align:center">Τρ. 2</th>
+          <th style="color:#7986cb;font-weight:700;padding:2px 8px 4px;text-align:center">Τρ. 3</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="color:#555;padding:3px 8px 3px 2px">Ζώνη ✓</td>
+            ${[0,1,2].map(i => `<td style="text-align:center;color:#ccc;font-weight:700;padding:3px 8px">${zoneM[i]} <span style="color:#555;font-weight:400">(${pct(zoneM[i],totalPaired)})</span></td>`).join('')}
+          </tr>
+          <tr>
+            <td style="color:#555;padding:3px 8px 3px 2px">Αριθμός ✓</td>
+            ${[0,1,2].map(i => `<td style="text-align:center;color:#ffee58;font-weight:700;padding:3px 8px">${numM[i]} <span style="color:#555;font-weight:400">(${pct(numM[i],totalPaired)})</span></td>`).join('')}
+          </tr>
+        </tbody>
+      </table>
     </div>`;
+
+  // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει με S3 ζώνη ή αριθμό
+  const wheelCell = (wv, sSum, sZone) => {
+    if (!wv) return '<span class="cmp-none">—</span>';
+    if (wv >= 25) return `<span class="cmp-sym">${SYM_LABELS[wv - 25]}</span>`;
+    const wc = PS_COLORS[wv];
+    const tc = wc === PS_GREEN ? '#66bb6a' : wc === PS_RED ? '#ef5350' : '#42a5f5';
+    const numHit  = sSum !== null && sSum === wv;
+    const zoneHit = sZone !== null && wc === sZone;
+    if (numHit)
+      return `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+    if (zoneHit)
+      return `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+    return `<span style="color:${tc};font-weight:700">${wv}</span>`;
+  };
 
   let html = '';
   for (const row of rows) {
     const s3time = row.s3 ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.s3.m)}</span>` : '<span class="cmp-none">—</span>';
     const pstime = row.ps ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.ps.m)}</span>` : '<span class="cmp-none">—</span>';
     const s3cell = row.s3 ? `<span class="cmp-s3">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
-    const w0 = row.ps ? cmpPsVal(row.ps.w[0]) : '<span class="cmp-none">—</span>';
-    const w1 = row.ps ? cmpPsVal(row.ps.w[1]) : '<span class="cmp-none">—</span>';
-    const w2 = row.ps ? cmpPsVal(row.ps.w[2]) : '<span class="cmp-none">—</span>';
     let sumCell = '<span class="cmp-none">—</span>', zoneCell = '<span class="cmp-none">—</span>';
+    let sSum = null, sZone = null;
     if (row.s3) {
-      const n   = row.s3.n;
-      const sum = Math.floor(n / 100) + Math.floor((n % 100) / 10) + (n % 10);
-      const w1v = row.ps ? row.ps.w[0] : null;
-      // αντιστοιχία αριθμού: σύνολο == Τρ.1
-      const numMatch  = w1v && w1v >= 1 && w1v <= 24 && sum === w1v;
-      // αντιστοιχία ζώνης: ζώνη(σύνολο) == ζώνη(Τρ.1)
-      const zoneMatch = w1v && w1v >= 1 && w1v <= 24 && sum >= 1 && sum <= 24 &&
-                        PS_COLORS[sum] === PS_COLORS[w1v];
-      if (numMatch)
-        sumCell = `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sum} ✓</span>`;
+      const n = row.s3.n;
+      sSum = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
+      const ws = row.ps ? row.ps.w : [];
+      const anyNumMatch  = ws.some(v => v && v >= 1 && v <= 24 && sSum === v);
+      sZone = sSum >= 1 && sSum <= 24 ? PS_COLORS[sSum] : null;
+      const anyZoneMatch = sZone && ws.some(v => v && v >= 1 && v <= 24 && PS_COLORS[v] === sZone);
+      if (anyNumMatch)
+        sumCell = `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sSum} ✓</span>`;
       else
-        sumCell = `<span style="color:#ccc;font-weight:700">${sum}</span>`;
-      if (sum === 0 || sum >= 25) {
+        sumCell = `<span style="color:#ccc;font-weight:700">${sSum}</span>`;
+      if (sSum === 0 || sSum >= 25) {
         zoneCell = `<span style="color:#9e9e9e;font-size:.7rem">σύμβολο</span>`;
       } else {
-        const c  = PS_COLORS[sum];
-        const tc = c === PS_GREEN ? '#66bb6a' : c === PS_RED ? '#ef5350' : '#42a5f5';
-        const lb = c === PS_GREEN ? 'πράσινο' : c === PS_RED ? 'κόκκινο' : 'μπλε';
-        if (zoneMatch)
+        const tc = sZone === PS_GREEN ? '#66bb6a' : sZone === PS_RED ? '#ef5350' : '#42a5f5';
+        const lb = sZone === PS_GREEN ? 'πράσινο' : sZone === PS_RED ? 'κόκκινο' : 'μπλε';
+        if (anyZoneMatch)
           zoneCell = `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.09);border-radius:3px;padding:1px 5px">${lb} ✓</span>`;
         else
           zoneCell = `<span style="color:${tc};font-weight:700">${lb}</span>`;
       }
     }
+    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sZone) : '<span class="cmp-none">—</span>';
+    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sZone) : '<span class="cmp-none">—</span>';
+    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sZone) : '<span class="cmp-none">—</span>';
     html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td>${zoneCell}</td><td>${pstime}</td><td>${w0}</td><td>${w1}</td><td>${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
