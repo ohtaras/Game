@@ -1103,6 +1103,7 @@ async function loadData() {
   if (psDraws.length)   { psRender();   parts.push(`PS: ${psDraws.length} κλ.`); }
   if (s3Draws.length)   { s3Render();   parts.push(`S3: ${s3Draws.length} κλ.`); }
   if (kinoDraws.length) { kinoRender(); parts.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
+  if (isCmpActive()) renderCmp();
 
   sb.textContent = parts.length
     ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
