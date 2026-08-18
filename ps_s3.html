@@ -93,6 +93,11 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-sym{color:#9e9e9e;font-weight:700}
 .cmp-none{color:#2a2a3a}
 .cmp-stats{font-size:.72rem;color:#555;margin-bottom:6px}
+.cmp-fbar{display:flex;align-items:center;gap:8px;font-size:.72rem;color:#9fa8da;background:#1a1a2e;border:1px solid #3949ab;border-radius:6px;padding:4px 10px;margin-bottom:6px}
+.cmp-fbar button{background:none;border:none;color:#546e9a;cursor:pointer;font-size:.72rem;margin-left:auto;padding:2px 6px;border-radius:4px}
+.cmp-fbar button:hover{color:#9fa8da;background:#252540}
+.cmp-cl{cursor:pointer;border-radius:3px}
+.cmp-cl:hover{outline:1px solid rgba(121,134,203,.5)}
 .cmp-toggle-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px}
 .cmp-tog{padding:3px 10px;border:1px solid #2a2a3a;border-radius:6px;background:#131320;color:#444;cursor:pointer;font-size:.68rem;font-weight:600;transition:all .15s}
 .cmp-tog.active{border-color:#3949ab;color:#9fa8da;background:#1a1a2e}
@@ -443,6 +448,11 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <button class="cmp-tog active" id="togCol-s2"  onclick="toggleColVis('s2')">Σ.2</button>
         <button class="cmp-tog active" id="togCol-nbr" onclick="toggleColVis('nbr')">Γείτ.</button>
       </div>
+    </div>
+    <div id="cmpFilterBar" style="display:none" class="cmp-fbar">
+      <span>Φίλτρο:</span>
+      <span id="cmpFilterLabel" style="font-weight:700;color:#fff"></span>
+      <button onclick="setCmpFilter(null,null)">✕ Καθαρισμός</button>
     </div>
     <div id="cmpStats" class="cmp-stats"></div>
     <div id="cmpSummary" class="cmp-summary"></div>
@@ -1955,6 +1965,17 @@ function tickCountdowns() {
 
 // ── Αντιπαραβολή ──────────────────────────────────────────────────────────
 let cmpDayOffset = 0;
+let cmpFilter = null; // { col, val } ή null
+
+function setCmpFilter(col, val) {
+  if (!col || (cmpFilter && cmpFilter.col === col && cmpFilter.val === val)) {
+    cmpFilter = null;
+  } else {
+    cmpFilter = { col, val };
+  }
+  renderCmp();
+}
+
 const cmpMx = {
   num:  [true, true, true],
   s1:   [true, true, true],
@@ -2155,6 +2176,34 @@ function renderCmp() {
       </table>
     </div>`;
 
+  // Φίλτρο
+  const filterBar = document.getElementById('cmpFilterBar');
+  const filterLabel = document.getElementById('cmpFilterLabel');
+  if (filterBar && filterLabel) {
+    if (cmpFilter) {
+      filterBar.style.display = 'flex';
+      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', nbr:'Γείτ.', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
+      filterLabel.textContent = `${colNames[cmpFilter.col] || cmpFilter.col} = ${cmpFilter.col === 's3' ? pad3(cmpFilter.val) : cmpFilter.val}`;
+    } else {
+      filterBar.style.display = 'none';
+    }
+  }
+  const displayRows = cmpFilter ? rows.filter(row => {
+    const rn = row.s3 ? row.s3.n : null;
+    const { col, val } = cmpFilter;
+    if (col === 's3')  return rn === val;
+    if (col === 'w0')  return row.ps && row.ps.w[0] === val;
+    if (col === 'w1')  return row.ps && row.ps.w[1] === val;
+    if (col === 'w2')  return row.ps && row.ps.w[2] === val;
+    if (rn === null) return false;
+    const rSum = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
+    if (col === 'sum' || col === 'nbr') return rSum === val;
+    const rd1 = Math.floor(rn/100), rd2 = Math.floor((rn%100)/10);
+    if (col === 's1') return rd1 > 0 && (rd1-1)+rd1+(rd1+1) === val;
+    if (col === 's2') return rd2 > 0 && (rd2-1)+rd2+(rd2+1) === val;
+    return true;
+  }) : rows;
+
   // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει
   const wheelCell = (wv, sSum, sSum1, sSum2, sZone, nbrs, wi) => {
     if (!wv) return '<span class="cmp-none">—</span>';
@@ -2166,24 +2215,26 @@ function renderCmp() {
     const sum2Hit = cmpMx.s2[wi]   && sSum2 !== null && sSum2 >= 1 && sSum2 <= 24 && sSum2 === wv && !numHit && !sum1Hit;
     const nbrHit  = cmpMx.nbr[wi]  && !numHit && !sum1Hit && !sum2Hit && nbrs !== null && nbrs.includes(wv);
     const zoneHit = cmpMx.zone[wi] && sZone !== null && wc === sZone;
+    const fc = `w${wi}`;
+    const clk = `class="cmp-cl" onclick="setCmpFilter('${fc}',${wv})"`;
     if (numHit)
-      return `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+      return `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (sum1Hit)
-      return `<span style="color:#00bcd4;font-weight:900;background:rgba(0,188,212,.15);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+      return `<span style="color:#00bcd4;font-weight:900;background:rgba(0,188,212,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (sum2Hit)
-      return `<span style="color:#e91e63;font-weight:900;background:rgba(233,30,99,.15);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+      return `<span style="color:#e91e63;font-weight:900;background:rgba(233,30,99,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (nbrHit)
-      return `<span style="color:#ff9800;font-weight:900;background:rgba(255,152,0,.15);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
+      return `<span style="color:#ff9800;font-weight:900;background:rgba(255,152,0,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (zoneHit)
-      return `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 4px">${wv} ✓</span>`;
-    return `<span style="color:${tc};font-weight:700">${wv}</span>`;
+      return `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
+    return `<span style="color:${tc};font-weight:700" ${clk}>${wv}</span>`;
   };
 
   let html = '';
-  for (const row of rows) {
+  for (const row of displayRows) {
     const s3time = row.s3 ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.s3.m)}</span>` : '<span class="cmp-none">—</span>';
     const pstime = row.ps ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.ps.m)}</span>` : '<span class="cmp-none">—</span>';
-    const s3cell = row.s3 ? `<span class="cmp-s3">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
+    const s3cell = row.s3 ? `<span class="cmp-s3 cmp-cl" onclick="setCmpFilter('s3',${row.s3.n})">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
     let sumCell = '<span class="cmp-none">—</span>', zoneCell = '<span class="cmp-none">—</span>';
     let sSum = null, sSum1 = null, sSum2 = null, sZone = null;
     if (row.s3) {
@@ -2198,9 +2249,9 @@ function renderCmp() {
       sZone = sSum >= 1 && sSum <= 24 ? PS_COLORS[sSum] : null;
       const anyZoneMatch = sZone && ws.some((v, wi) => cmpMx.zone[wi] && v && v >= 1 && v <= 24 && PS_COLORS[v] === sZone);
       if (anyNumMatch)
-        sumCell = `<span style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sSum} ✓</span>`;
+        sumCell = `<span class="cmp-cl" onclick="setCmpFilter('sum',${sSum})" style="color:#ffee58;font-weight:900;background:rgba(255,238,88,.2);border-radius:3px;padding:1px 5px">${sSum} ✓</span>`;
       else
-        sumCell = `<span style="color:#ccc;font-weight:700">${sSum}</span>`;
+        sumCell = `<span class="cmp-cl" onclick="setCmpFilter('sum',${sSum})" style="color:#ccc;font-weight:700">${sSum}</span>`;
       if (sSum === 0 || sSum >= 25) {
         zoneCell = `<span style="color:#9e9e9e;font-size:.7rem">σύμβολο</span>`;
       } else {
@@ -2213,24 +2264,25 @@ function renderCmp() {
       }
     }
     // Σ.1 και Σ.2 κελιά
-    const derivedCell = (val, hitColor, bgColor, mxKey) => {
+    const derivedCell = (val, hitColor, bgColor, mxKey, fCol) => {
       if (val === null) return '<span class="cmp-none">—</span>';
       const inRange = val >= 1 && val <= 24;
       const c = inRange ? PS_COLORS[val] : null;
       const tc = c === PS_GREEN ? '#66bb6a' : c === PS_RED ? '#ef5350' : c ? '#42a5f5' : '#9e9e9e';
       const ws = row.ps ? row.ps.w : [];
       const anyMatch = inRange && ws.some((v, wi) => cmpMx[mxKey][wi] && v && v >= 1 && v <= 24 && v === val);
+      const clk = `class="cmp-cl" onclick="setCmpFilter('${fCol}',${val})"`;
       if (anyMatch)
-        return `<span style="color:${hitColor};font-weight:900;background:${bgColor};border-radius:3px;padding:1px 5px">${val} ✓</span>`;
-      return `<span style="color:${tc};font-weight:700">${val}</span>`;
+        return `<span ${clk} style="color:${hitColor};font-weight:900;background:${bgColor};border-radius:3px;padding:1px 5px">${val} ✓</span>`;
+      return `<span ${clk} style="color:${tc};font-weight:700">${val}</span>`;
     };
-    const s1Cell = derivedCell(sSum1, '#00bcd4', 'rgba(0,188,212,.2)', 's1');
-    const s2Cell = derivedCell(sSum2, '#e91e63', 'rgba(233,30,99,.15)', 's2');
+    const s1Cell = derivedCell(sSum1, '#00bcd4', 'rgba(0,188,212,.2)', 's1', 's1');
+    const s2Cell = derivedCell(sSum2, '#e91e63', 'rgba(233,30,99,.15)', 's2', 's2');
     let nbrCell = '<span class="cmp-none">—</span>';
     let rowNbrs = null;
     if (row.s3 && sSum !== null) {
       rowNbrs = wheelNeighbors(sSum);
-      if (rowNbrs) nbrCell = rowNbrs.map(psValSpan).join('<span style="color:#333"> · </span>');
+      if (rowNbrs) nbrCell = `<span class="cmp-cl" onclick="setCmpFilter('nbr',${sSum})">${rowNbrs.map(psValSpan).join('<span style="color:#333"> · </span>')}</span>`;
     }
     const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sSum1, sSum2, sZone, rowNbrs, 0) : '<span class="cmp-none">—</span>';
     const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sSum1, sSum2, sZone, rowNbrs, 1) : '<span class="cmp-none">—</span>';
