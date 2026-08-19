@@ -454,6 +454,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span id="cmpFilterLabel" style="font-weight:700;color:#fff"></span>
       <button onclick="setCmpFilter(null,null)">✕ Καθαρισμός</button>
     </div>
+    <div id="cmpSumNums" style="display:none;background:#06060f;border:1px solid #1a1a2e;border-radius:7px;padding:8px 10px;margin-bottom:6px"></div>
     <div id="cmpStats" class="cmp-stats"></div>
     <div id="cmpSummary" class="cmp-summary"></div>
     <div class="cmp-scroll">
@@ -2182,10 +2183,30 @@ function renderCmp() {
   if (filterBar && filterLabel) {
     if (cmpFilter) {
       filterBar.style.display = 'flex';
-      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', nbr:'Γείτ.', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
-      filterLabel.textContent = `${colNames[cmpFilter.col] || cmpFilter.col} = ${cmpFilter.col === 's3' ? pad3(cmpFilter.val) : cmpFilter.val}`;
+      const zoneLabel = cmpFilter.val === PS_GREEN ? 'πράσινο' : cmpFilter.val === PS_RED ? 'κόκκινο' : 'μπλε';
+      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', nbr:'Γείτ.', zone:'Ζώνη', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
+      filterLabel.textContent = cmpFilter.col === 'zone'
+        ? `Ζώνη = ${zoneLabel}`
+        : `${colNames[cmpFilter.col] || cmpFilter.col} = ${cmpFilter.col === 's3' ? pad3(cmpFilter.val) : cmpFilter.val}`;
     } else {
       filterBar.style.display = 'none';
+    }
+  }
+  // Panel αριθμών S3 για φίλτρο Σύν.
+  const sumNumsEl = document.getElementById('cmpSumNums');
+  if (sumNumsEl) {
+    if (cmpFilter && cmpFilter.col === 'sum') {
+      const target = cmpFilter.val;
+      const matches = [];
+      for (let n = 0; n <= 999; n++) {
+        const d1 = Math.floor(n/100), d2 = Math.floor((n%100)/10), d3 = n%10;
+        if (d1+d2+d3 === target) matches.push(n);
+      }
+      sumNumsEl.innerHTML = `<span style="font-size:.64rem;color:#555;margin-right:6px">S3 με Σύν.=${target} (${matches.length}):</span>`
+        + matches.map(n => `<span class="cmp-cl" onclick="setCmpFilter('s3',${n})" style="display:inline-block;color:#ef9a9a;font-family:monospace;font-size:.68rem;background:#0d0d1a;border:1px solid #1a1a2e;border-radius:3px;padding:1px 5px;margin:1px 2px">${pad3(n)}</span>`).join('');
+      sumNumsEl.style.display = 'block';
+    } else {
+      sumNumsEl.style.display = 'none';
     }
   }
   const displayRows = cmpFilter ? rows.filter(row => {
@@ -2198,6 +2219,7 @@ function renderCmp() {
     if (rn === null) return false;
     const rSum = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
     if (col === 'sum' || col === 'nbr') return rSum === val;
+    if (col === 'zone') return rSum >= 1 && rSum <= 24 && PS_COLORS[rSum] === val;
     const rd1 = Math.floor(rn/100), rd2 = Math.floor((rn%100)/10);
     if (col === 's1') return rd1 > 0 && (rd1-1)+rd1+(rd1+1) === val;
     if (col === 's2') return rd2 > 0 && (rd2-1)+rd2+(rd2+1) === val;
@@ -2257,10 +2279,11 @@ function renderCmp() {
       } else {
         const tc = sZone === PS_GREEN ? '#66bb6a' : sZone === PS_RED ? '#ef5350' : '#42a5f5';
         const lb = sZone === PS_GREEN ? 'πράσινο' : sZone === PS_RED ? 'κόκκινο' : 'μπλε';
+        const zclk = `class="cmp-cl" onclick="setCmpFilter('zone','${sZone}')"`;
         if (anyZoneMatch)
-          zoneCell = `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.09);border-radius:3px;padding:1px 5px">${lb} ✓</span>`;
+          zoneCell = `<span ${zclk} style="color:${tc};font-weight:700;background:rgba(255,255,255,.09);border-radius:3px;padding:1px 5px">${lb} ✓</span>`;
         else
-          zoneCell = `<span style="color:${tc};font-weight:700">${lb}</span>`;
+          zoneCell = `<span ${zclk} style="color:${tc};font-weight:700">${lb}</span>`;
       }
     }
     // Σ.1 και Σ.2 κελιά
