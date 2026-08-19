@@ -2202,8 +2202,16 @@ function renderCmp() {
         const d1 = Math.floor(n/100), d2 = Math.floor((n%100)/10), d3 = n%10;
         if (d1+d2+d3 === target) matches.push(n);
       }
-      sumNumsEl.innerHTML = `<span style="font-size:.64rem;color:#555;margin-right:6px">S3 με Σύν.=${target} (${matches.length}):</span>`
-        + matches.map(n => `<span class="cmp-cl" onclick="setCmpFilter('s3',${n})" style="display:inline-block;color:#ef9a9a;font-family:monospace;font-size:.68rem;background:#0d0d1a;border:1px solid #1a1a2e;border-radius:3px;padding:1px 5px;margin:1px 2px">${pad3(n)}</span>`).join('');
+      const drawnSet = new Set(s3Day.map(d => d.n));
+      const hitCount = matches.filter(n => drawnSet.has(n)).length;
+      sumNumsEl.innerHTML = `<span style="font-size:.64rem;color:#555;margin-right:6px">S3 με Σύν.=${target} — σύνολο: ${matches.length} · εμφανίστηκαν: </span><span style="font-size:.64rem;color:#ffee58;font-weight:700;margin-right:8px">${hitCount}</span>`
+        + matches.map(n => {
+          const hit = drawnSet.has(n);
+          const st = hit
+            ? `color:#ffee58;font-weight:900;background:rgba(255,238,88,.13);border:1px solid rgba(255,238,88,.45);`
+            : `color:#3a3a5a;background:#0d0d1a;border:1px solid #141420;`;
+          return `<span class="cmp-cl" onclick="setCmpFilter('s3',${n})" style="display:inline-block;font-family:monospace;font-size:.68rem;border-radius:3px;padding:1px 5px;margin:1px 2px;${st}">${pad3(n)}${hit ? ' ✓' : ''}</span>`;
+        }).join('');
       sumNumsEl.style.display = 'block';
     } else {
       sumNumsEl.style.display = 'none';
