@@ -1131,7 +1131,7 @@ async function loadData() {
   // Gap-fill previous days missing from monthly files
   const psDays = new Set(psAll.map(d => d.d));
   const s3Days = new Set(s3All.map(d => d.d));
-  for (let dd = Math.min(KEEP_DAYS - 1, 5); dd >= 1; dd--) {
+  for (let dd = Math.min(KEEP_DAYS - 1, 7); dd >= 1; dd--) {
     const dt  = athensDate(now.getTime() - dd * 86400000);
     const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
     if (day < cutoffStr) continue;
