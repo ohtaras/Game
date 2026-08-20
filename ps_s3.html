@@ -77,7 +77,8 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .ds-swatch{display:inline-block;width:13px;height:13px;border-radius:3px}
 
 /* ── Αντιπαραβολή ── */
-.cmp-day-bar{display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.cmp-day-bar{display:flex;gap:5px;flex-wrap:wrap}
+.cmp-top-bar{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .cmp-day-btn{padding:6px 14px;border:1px solid #2a2a4a;border-radius:7px;background:#1a1a2e;color:#777;cursor:pointer;font-size:.78rem;font-weight:600;transition:background .15s}
 .cmp-day-btn.active{background:#3949ab;color:#fff;border-color:#3949ab}
 .cmp-day-btn:hover:not(.active){background:#222}
@@ -395,7 +396,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
   <section id="cmpTab" style="display:none">
     <h2 style="color:#b39ddb">⚖️ Αντιπαραβολή — Power Spin &amp; Super 3</h2>
-    <div class="cmp-day-bar" id="cmpDayBar"></div>
+    <div class="cmp-top-bar">
+      <div class="cmp-day-bar" id="cmpDayBar" style="flex:1"></div>
+      <button onclick="downloadCmpData()" style="padding:4px 12px;background:#0d1220;border:1px solid #1a2540;border-radius:6px;color:#7986cb;font-size:.68rem;cursor:pointer;white-space:nowrap;flex-shrink:0" title="Λήψη δεδομένων 8 ημερών ως CSV">⬇ CSV</button>
+    </div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px">
       <div>
         <table class="cmp-mx-tbl">
@@ -2065,7 +2069,7 @@ function getCmpDayStr(offset) {
 
 function buildCmpDayBar() {
   let html = '';
-  for (let i = 3; i >= 0; i--) {
+  for (let i = 7; i >= 0; i--) {
     const dt    = athensDate(Date.now() - i * 86400000);
     const label = i === 0 ? '🔴 Live' : `${pad(dt.getUTCDate())}/${pad(dt.getUTCMonth()+1)}`;
     html += `<button class="cmp-day-btn${i === cmpDayOffset ? ' active' : ''}" onclick="switchCmpDay(${i})">${label}</button>`;
@@ -2077,6 +2081,51 @@ function switchCmpDay(offset) {
   cmpDayOffset = offset;
   buildCmpDayBar();
   renderCmp();
+}
+
+function downloadCmpData() {
+  const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
+  const lines = [hdrs.join(',')];
+  for (let dayOff = 7; dayOff >= 0; dayOff--) {
+    const dayStr = getCmpDayStr(dayOff);
+    const psDay  = psDraws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
+    const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
+    const psStartM = psDay.length > 0 ? psDay[0].m : 99999;
+    const s3Before = s3Day.filter(d => d.m < psStartM);
+    const s3During = s3Day.filter(d => d.m >= psStartM);
+    const pairedS3 = s3Before.length > 0 ? [...s3Before.slice(-1), ...s3During] : s3During;
+    const maxLen   = Math.max(pairedS3.length, psDay.length);
+    const rows = [];
+    for (let i = 0; i < s3Before.length - 1; i++) rows.push({ s3: s3Before[i], ps: null });
+    for (let i = 0; i < maxLen; i++) rows.push({ s3: pairedS3[i] || null, ps: psDay[i] || null });
+    for (const row of rows) {
+      const s3t = row.s3 ? minsToTime(row.s3.m) : '';
+      const s3n = row.s3 ? pad3(row.s3.n) : '';
+      let sum = '', ss1 = '', ss2 = '', zone = '', nb = ['','','',''];
+      if (row.s3) {
+        const n  = row.s3.n;
+        const s  = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
+        const d1 = Math.floor(n/100), d2 = Math.floor((n%100)/10);
+        sum = s;
+        ss1 = d1 > 0 ? (d1-1)+d1+(d1+1) : '';
+        ss2 = d2 > 0 ? (d2-1)+d2+(d2+1) : '';
+        if (s >= 1 && s <= 24) {
+          const c = PS_COLORS[s];
+          zone = c === PS_GREEN ? 'G' : c === PS_RED ? 'R' : 'B';
+          const wn = wheelNeighbors(s);
+          if (wn) nb = wn.map(v => v >= 25 ? SYM_LABELS[v-25] : v);
+        }
+      }
+      const pst = row.ps ? minsToTime(row.ps.m) : '';
+      const w   = row.ps ? row.ps.w.map(v => !v ? '' : v >= 25 ? SYM_LABELS[v-25] : v) : ['','',''];
+      lines.push([dayStr, s3t, s3n, sum, ss1, ss2, zone, ...nb, pst, ...w].join(','));
+    }
+  }
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `ps_s3_${getCmpDayStr(0)}.csv`; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function cmpPsVal(v) {
