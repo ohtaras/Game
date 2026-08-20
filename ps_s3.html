@@ -115,6 +115,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-table.hide-s1 .cmp-s1{display:none}
 .cmp-table.hide-s2 .cmp-s2{display:none}
 .cmp-table.hide-sg3 .cmp-sg3{display:none}
+.cmp-table.hide-pi1 .cmp-pi1{display:none}
 .cmp-hr-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;font-size:.68rem}
 .cmp-hr-btn{padding:2px 7px;border:1px solid #1e1e2e;border-radius:5px;background:#0a0a14;color:#3a3a5a;cursor:pointer;font-size:.65rem;font-variant-numeric:tabular-nums;transition:all .12s}
 .cmp-hr-btn.active{border-color:#5c6bc0;background:#1a1a3a;color:#9fa8da}
@@ -450,6 +451,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
               <td><button class="cmp-mx-btn active" id="mx-nbr-1" onclick="toggleMxCell('nbr',1)"></button></td>
               <td><button class="cmp-mx-btn active" id="mx-nbr-2" onclick="toggleMxCell('nbr',2)"></button></td>
             </tr>
+            <tr>
+              <th onclick="toggleMxRow('pi1')" style="text-align:right;color:#76ff03">Π.1</th>
+              <td><button class="cmp-mx-btn active" id="mx-pi1-0" onclick="toggleMxCell('pi1',0)"></button></td>
+              <td><button class="cmp-mx-btn active" id="mx-pi1-1" onclick="toggleMxCell('pi1',1)"></button></td>
+              <td><button class="cmp-mx-btn active" id="mx-pi1-2" onclick="toggleMxCell('pi1',2)"></button></td>
+            </tr>
           </tbody>
         </table>
         <button class="cmp-tog" id="togMxAll" onclick="toggleMxAll()" style="margin-top:4px;font-size:.63rem;width:100%;text-align:center">Όλα off</button>
@@ -462,6 +469,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <button class="cmp-tog active" id="togCol-s2"  onclick="toggleColVis('s2')">Σ.2</button>
         <button class="cmp-tog active" id="togCol-sg3" onclick="toggleColVis('sg3')">Σ.3</button>
         <button class="cmp-tog active" id="togCol-nbr" onclick="toggleColVis('nbr')">Γείτ.</button>
+        <button class="cmp-tog active" id="togCol-pi1" onclick="toggleColVis('pi1')">Π.1</button>
       </div>
     </div>
     <div id="cmpHourBar" class="cmp-hr-bar" style="display:none">
@@ -488,6 +496,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <th class="cmp-sg3" style="color:#ce93d8">Σ.3</th>
           <th style="color:#ef9a9a">Ζώνη</th>
           <th class="cmp-nbr" style="color:#ef9a9a">Γείτ.</th>
+          <th class="cmp-pi1" style="color:#76ff03">Π.1</th>
           <th style="color:#7986cb">Ώρα PS</th>
           <th style="color:#7986cb">Τρ. 1</th>
           <th class="cmp-w2" style="color:#7986cb">Τρ. 2</th>
@@ -2005,8 +2014,9 @@ const cmpMx = {
   sg3:  [true, true, true],
   zone: [true, true, true],
   nbr:  [true, true, true],
+  pi1:  [true, true, true],
 };
-const cmpCol = { w2: true, w3: true, s1: true, s2: true, sg3: true, nbr: true };
+const cmpCol = { w2: true, w3: true, s1: true, s2: true, sg3: true, nbr: true, pi1: true };
 let cmpHourFilter = null;
 
 function wheelNeighbors(sum) {
@@ -2057,7 +2067,7 @@ function toggleColVis(key) {
 }
 
 function updateMxUI() {
-  const types = ['num', 's1', 's2', 'sg3', 'zone', 'nbr'];
+  const types = ['num', 's1', 's2', 'sg3', 'zone', 'nbr', 'pi1'];
   for (const t of types) {
     for (let wi = 0; wi < 3; wi++) {
       const btn = document.getElementById(`mx-${t}-${wi}`);
@@ -2078,6 +2088,7 @@ function applyColVis() {
   tbl.classList.toggle('hide-s2',  !cmpCol.s2);
   tbl.classList.toggle('hide-sg3', !cmpCol.sg3);
   tbl.classList.toggle('hide-nbr', !cmpCol.nbr);
+  tbl.classList.toggle('hide-pi1', !cmpCol.pi1);
 }
 
 function setCmpHourFilter(h) {
@@ -2109,7 +2120,8 @@ function switchCmpDay(offset) {
 }
 
 function downloadCmpData() {
-  const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Σ3','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
+  const csvHistTop3 = computeHistFreq();
+  const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Σ3','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Π1α','Π1β','Π1γ','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
   const lines = [hdrs.join(',')];
   for (let dayOff = 7; dayOff >= 0; dayOff--) {
     const dayStr = getCmpDayStr(dayOff);
@@ -2144,7 +2156,10 @@ function downloadCmpData() {
       }
       const pst = row.ps ? minsToTime(row.ps.m) : '';
       const w   = row.ps ? row.ps.w.map(v => !v ? '' : v >= 25 ? SYM_LABELS[v-25] : v) : ['','',''];
-      lines.push([dayStr, s3t, s3n, sum, ss1, ss2, ss3, zone, ...nb, pst, ...w].join(','));
+      const csvSum = row.s3 ? Math.floor(row.s3.n/100)+Math.floor((row.s3.n%100)/10)+(row.s3.n%10) : null;
+      const csvPi1 = csvSum !== null && csvHistTop3[csvSum] ? csvHistTop3[csvSum] : ['','',''];
+      while (csvPi1.length < 3) csvPi1.push('');
+      lines.push([dayStr, s3t, s3n, sum, ss1, ss2, ss3, zone, ...nb, ...csvPi1, pst, ...w].join(','));
     }
   }
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -2163,10 +2178,48 @@ function cmpPsVal(v) {
   return `<span class="cmp-sym">${SYM_LABELS[v - 25]}</span>`;
 }
 
+function computeHistFreq() {
+  // Χρησιμοποιεί ΟΛΑ τα διαθέσιμα δεδομένα (όχι μόνο 8 ημέρες) για μεγαλύτερο δείγμα
+  const freq = {}; // sumVal -> { psVal: count }
+  const allDays = [...new Set(psDraws.map(d => d.d))];
+  for (const dayStr of allDays) {
+    const psDay  = psDraws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
+    const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
+    const psStartM = psDay.length > 0 ? psDay[0].m : 99999;
+    const s3Before = s3Day.filter(d => d.m < psStartM);
+    const s3During = s3Day.filter(d => d.m >= psStartM);
+    const pairedS3 = s3Before.length > 0 ? [...s3Before.slice(-1), ...s3During] : s3During;
+    const maxLen = Math.max(pairedS3.length, psDay.length);
+    for (let i = 0; i < maxLen; i++) {
+      const s3r = pairedS3[i], psr = psDay[i];
+      if (!s3r || !psr) continue;
+      const n = s3r.n;
+      const s = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
+      if (!freq[s]) freq[s] = {};
+      for (let wi = 0; wi < 3; wi++) {
+        const wv = psr.w[wi];
+        if (!wv || wv < 1 || wv > 24) continue;
+        freq[s][wv] = (freq[s][wv] || 0) + 1;
+      }
+    }
+  }
+  // Μετατροπή σε top-3 set ανά sum
+  const top3 = {};
+  for (const [s, counts] of Object.entries(freq)) {
+    top3[s] = Object.entries(counts)
+      .sort((a,b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([v]) => parseInt(v));
+  }
+  return top3;
+}
+
 function renderCmp() {
   const dayStr = getCmpDayStr(cmpDayOffset);
   const psDay  = psDraws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
   const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
+
+  const histTop3 = computeHistFreq();
 
   const statsEl = document.getElementById('cmpStats');
   if (statsEl) statsEl.textContent =
@@ -2203,7 +2256,7 @@ function renderCmp() {
   }
 
   let totalPaired = 0;
-  const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0], sum3M = [0, 0, 0];
+  const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0], sum3M = [0, 0, 0], pi1M = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
     const rn = row.s3.n;
@@ -2227,6 +2280,8 @@ function renderCmp() {
       if (rs1 !== null && rs1 >= 1 && rs1 <= 24 && rs1 === wv) sum1M[wi]++;
       if (rs2 !== null && rs2 >= 1 && rs2 <= 24 && rs2 === wv) sum2M[wi]++;
       if (rs3 !== null && rs3 >= 1 && rs3 <= 24 && rs3 === wv) sum3M[wi]++;
+      const rTop3 = histTop3[rs] || [];
+      if (rTop3.includes(wv)) pi1M[wi]++;
     }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
@@ -2270,6 +2325,10 @@ function renderCmp() {
             <td style="color:#555;padding:3px 8px 3px 2px">Σ.3 ✓</td>
             ${[0,1,2].map(i => `<td style="text-align:center;color:#ce93d8;font-weight:700;padding:3px 8px">${sum3M[i]} <span style="color:#555;font-weight:400">(${pct(sum3M[i],totalPaired)})</span></td>`).join('')}
           </tr>
+          <tr>
+            <td style="color:#555;padding:3px 8px 3px 2px">Π.1 ✓</td>
+            ${[0,1,2].map(i => `<td style="text-align:center;color:#76ff03;font-weight:700;padding:3px 8px">${pi1M[i]} <span style="color:#555;font-weight:400">(${pct(pi1M[i],totalPaired)})</span></td>`).join('')}
+          </tr>
         </tbody>
       </table>
     </div>`;
@@ -2281,7 +2340,7 @@ function renderCmp() {
     if (cmpFilter) {
       filterBar.style.display = 'flex';
       const zoneLabel = cmpFilter.val === PS_GREEN ? 'πράσινο' : cmpFilter.val === PS_RED ? 'κόκκινο' : 'μπλε';
-      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', sg3:'Σ.3', nbr:'Γείτ.', zone:'Ζώνη', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
+      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', sg3:'Σ.3', nbr:'Γείτ.', pi1:'Π.1', zone:'Ζώνη', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
       filterLabel.textContent = cmpFilter.col === 'zone'
         ? `Ζώνη = ${zoneLabel}`
         : `${colNames[cmpFilter.col] || cmpFilter.col} = ${cmpFilter.col === 's3' ? pad3(cmpFilter.val) : cmpFilter.val}`;
@@ -2332,11 +2391,12 @@ function renderCmp() {
     if (col === 's1') return rd1 > 0 && (rd1-1)+rd1+(rd1+1) === val;
     if (col === 's2') return rd2 > 0 && (rd2-1)+rd2+(rd2+1) === val;
     if (col === 'sg3') return rd3 > 0 && (rd3-1)+rd3+(rd3+1) === val;
+    if (col === 'pi1') return row.ps && row.ps.w.some(v => v >= 1 && v <= 24 && (histTop3[rSum] || []).includes(v));
     return true;
   }) : hourFilteredRows;
 
   // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει
-  const wheelCell = (wv, sSum, sSum1, sSum2, sSum3, sZone, nbrs, wi) => {
+  const wheelCell = (wv, sSum, sSum1, sSum2, sSum3, sZone, nbrs, top3, wi) => {
     if (!wv) return '<span class="cmp-none">—</span>';
     if (wv >= 25) return `<span class="cmp-sym">${SYM_LABELS[wv - 25]}</span>`;
     const wc = PS_COLORS[wv];
@@ -2346,6 +2406,7 @@ function renderCmp() {
     const sum2Hit = cmpMx.s2[wi]   && sSum2 !== null && sSum2 >= 1 && sSum2 <= 24 && sSum2 === wv && !numHit && !sum1Hit;
     const sum3Hit = cmpMx.sg3[wi]  && sSum3 !== null && sSum3 >= 1 && sSum3 <= 24 && sSum3 === wv && !numHit && !sum1Hit && !sum2Hit;
     const nbrHit  = cmpMx.nbr[wi]  && !numHit && !sum1Hit && !sum2Hit && !sum3Hit && nbrs !== null && nbrs.includes(wv);
+    const pi1Hit  = cmpMx.pi1[wi]  && !numHit && !sum1Hit && !sum2Hit && !sum3Hit && !nbrHit && top3 !== null && top3.includes(wv);
     const zoneHit = cmpMx.zone[wi] && sZone !== null && wc === sZone;
     const fc = `w${wi}`;
     const clk = `class="cmp-cl" onclick="setCmpFilter('${fc}',${wv})"`;
@@ -2359,6 +2420,8 @@ function renderCmp() {
       return `<span style="color:#ce93d8;font-weight:900;background:rgba(206,147,216,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (nbrHit)
       return `<span style="color:#ff9800;font-weight:900;background:rgba(255,152,0,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
+    if (pi1Hit)
+      return `<span style="color:#76ff03;font-weight:900;background:rgba(118,255,3,.12);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (zoneHit)
       return `<span style="color:${tc};font-weight:700;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     return `<span style="color:${tc};font-weight:700" ${clk}>${wv}</span>`;
@@ -2418,17 +2481,24 @@ function renderCmp() {
     const sg3Cell = derivedCell(sSum3, '#ce93d8', 'rgba(206,147,216,.2)','sg3', 'sg3');
     let nbrCell = '<span class="cmp-none">—</span>';
     let rowNbrs = null;
+    let rowTop3 = null;
+    let pi1Cell = '<span class="cmp-none">—</span>';
     if (row.s3 && sSum !== null) {
       rowNbrs = wheelNeighbors(sSum);
       if (rowNbrs) nbrCell = `<span class="cmp-cl" onclick="setCmpFilter('nbr',${sSum})">${rowNbrs.map(psValSpan).join('<span style="color:#333"> · </span>')}</span>`;
+      rowTop3 = histTop3[sSum] || null;
+      if (rowTop3) {
+        const anyHit = row.ps && row.ps.w.some(v => v >= 1 && v <= 24 && rowTop3.includes(v));
+        pi1Cell = `<span class="cmp-cl" onclick="setCmpFilter('pi1',${sSum})" style="${anyHit ? 'color:#76ff03;font-weight:900' : 'color:#2a4a00'}">${rowTop3.map(v => psValSpan(v)).join('<span style="color:#1a3000"> · </span>')}</span>`;
+      }
     }
-    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 0) : '<span class="cmp-none">—</span>';
-    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 1) : '<span class="cmp-none">—</span>';
-    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 2) : '<span class="cmp-none">—</span>';
-    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td class="cmp-s1">${s1Cell}</td><td class="cmp-s2">${s2Cell}</td><td class="cmp-sg3">${sg3Cell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td class="cmp-w2">${w1}</td><td class="cmp-w3">${w2}</td></tr>`;
+    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, rowTop3, 0) : '<span class="cmp-none">—</span>';
+    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, rowTop3, 1) : '<span class="cmp-none">—</span>';
+    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, rowTop3, 2) : '<span class="cmp-none">—</span>';
+    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td class="cmp-s1">${s1Cell}</td><td class="cmp-s2">${s2Cell}</td><td class="cmp-sg3">${sg3Cell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td class="cmp-pi1">${pi1Cell}</td><td>${pstime}</td><td>${w0}</td><td class="cmp-w2">${w1}</td><td class="cmp-w3">${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
-    '<tr><td colspan="12" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+    '<tr><td colspan="13" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
   applyColVis();
 
   if (cmpDayOffset === 0) {
