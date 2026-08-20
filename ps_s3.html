@@ -114,6 +114,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-table.hide-w3 .cmp-w3{display:none}
 .cmp-table.hide-s1 .cmp-s1{display:none}
 .cmp-table.hide-s2 .cmp-s2{display:none}
+.cmp-table.hide-sg3 .cmp-sg3{display:none}
+.cmp-hr-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;font-size:.68rem}
+.cmp-hr-btn{padding:2px 7px;border:1px solid #1e1e2e;border-radius:5px;background:#0a0a14;color:#3a3a5a;cursor:pointer;font-size:.65rem;font-variant-numeric:tabular-nums;transition:all .12s}
+.cmp-hr-btn.active{border-color:#5c6bc0;background:#1a1a3a;color:#9fa8da}
 .cmp-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .cmp-sum-box{flex:1;min-width:90px;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;text-align:center}
 .cmp-sum-box .csb-val{font-size:1.25rem;font-weight:900;display:block;line-height:1.1}
@@ -429,6 +433,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
               <td><button class="cmp-mx-btn active" id="mx-s2-2" onclick="toggleMxCell('s2',2)"></button></td>
             </tr>
             <tr>
+              <th onclick="toggleMxRow('sg3')" style="text-align:right;color:#6a1b9a">Σ.3</th>
+              <td><button class="cmp-mx-btn active" id="mx-sg3-0" onclick="toggleMxCell('sg3',0)"></button></td>
+              <td><button class="cmp-mx-btn active" id="mx-sg3-1" onclick="toggleMxCell('sg3',1)"></button></td>
+              <td><button class="cmp-mx-btn active" id="mx-sg3-2" onclick="toggleMxCell('sg3',2)"></button></td>
+            </tr>
+            <tr>
               <th onclick="toggleMxRow('zone')" style="text-align:right;color:#546e7a">Ζώνη</th>
               <td><button class="cmp-mx-btn active" id="mx-zone-0" onclick="toggleMxCell('zone',0)"></button></td>
               <td><button class="cmp-mx-btn active" id="mx-zone-1" onclick="toggleMxCell('zone',1)"></button></td>
@@ -450,8 +460,14 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <button class="cmp-tog active" id="togCol-w3"  onclick="toggleColVis('w3')">Τρ. 3</button>
         <button class="cmp-tog active" id="togCol-s1"  onclick="toggleColVis('s1')">Σ.1</button>
         <button class="cmp-tog active" id="togCol-s2"  onclick="toggleColVis('s2')">Σ.2</button>
+        <button class="cmp-tog active" id="togCol-sg3" onclick="toggleColVis('sg3')">Σ.3</button>
         <button class="cmp-tog active" id="togCol-nbr" onclick="toggleColVis('nbr')">Γείτ.</button>
       </div>
+    </div>
+    <div id="cmpHourBar" class="cmp-hr-bar" style="display:none">
+      <span style="color:#3a3a5a">Ώρα:</span>
+      <div id="cmpHourBtns" style="display:flex;gap:3px;flex-wrap:wrap"></div>
+      <button onclick="setCmpHourFilter(null)" style="margin-left:4px;padding:2px 7px;border:none;background:none;color:#546e9a;cursor:pointer;font-size:.65rem">✕</button>
     </div>
     <div id="cmpFilterBar" style="display:none" class="cmp-fbar">
       <span>Φίλτρο:</span>
@@ -469,6 +485,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <th style="color:#ef9a9a">Σύν.</th>
           <th class="cmp-s1" style="color:#80deea">Σ.1</th>
           <th class="cmp-s2" style="color:#f48fb1">Σ.2</th>
+          <th class="cmp-sg3" style="color:#ce93d8">Σ.3</th>
           <th style="color:#ef9a9a">Ζώνη</th>
           <th class="cmp-nbr" style="color:#ef9a9a">Γείτ.</th>
           <th style="color:#7986cb">Ώρα PS</th>
@@ -1985,10 +2002,12 @@ const cmpMx = {
   num:  [true, true, true],
   s1:   [true, true, true],
   s2:   [true, true, true],
+  sg3:  [true, true, true],
   zone: [true, true, true],
   nbr:  [true, true, true],
 };
-const cmpCol = { w2: true, w3: true, s1: true, s2: true, nbr: true };
+const cmpCol = { w2: true, w3: true, s1: true, s2: true, sg3: true, nbr: true };
+let cmpHourFilter = null;
 
 function wheelNeighbors(sum) {
   const idx = CMP_WHEEL.indexOf(sum);
@@ -2038,7 +2057,7 @@ function toggleColVis(key) {
 }
 
 function updateMxUI() {
-  const types = ['num', 's1', 's2', 'zone', 'nbr'];
+  const types = ['num', 's1', 's2', 'sg3', 'zone', 'nbr'];
   for (const t of types) {
     for (let wi = 0; wi < 3; wi++) {
       const btn = document.getElementById(`mx-${t}-${wi}`);
@@ -2057,7 +2076,13 @@ function applyColVis() {
   tbl.classList.toggle('hide-w3',  !cmpCol.w3);
   tbl.classList.toggle('hide-s1',  !cmpCol.s1);
   tbl.classList.toggle('hide-s2',  !cmpCol.s2);
+  tbl.classList.toggle('hide-sg3', !cmpCol.sg3);
   tbl.classList.toggle('hide-nbr', !cmpCol.nbr);
+}
+
+function setCmpHourFilter(h) {
+  cmpHourFilter = (cmpHourFilter === h) ? null : h;
+  renderCmp();
 }
 
 function isCmpActive() { return document.getElementById('cmpTab').style.display !== 'none'; }
@@ -2084,7 +2109,7 @@ function switchCmpDay(offset) {
 }
 
 function downloadCmpData() {
-  const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
+  const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Σ3','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
   const lines = [hdrs.join(',')];
   for (let dayOff = 7; dayOff >= 0; dayOff--) {
     const dayStr = getCmpDayStr(dayOff);
@@ -2101,14 +2126,15 @@ function downloadCmpData() {
     for (const row of rows) {
       const s3t = row.s3 ? minsToTime(row.s3.m) : '';
       const s3n = row.s3 ? pad3(row.s3.n) : '';
-      let sum = '', ss1 = '', ss2 = '', zone = '', nb = ['','','',''];
+      let sum = '', ss1 = '', ss2 = '', ss3 = '', zone = '', nb = ['','','',''];
       if (row.s3) {
         const n  = row.s3.n;
         const s  = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
-        const d1 = Math.floor(n/100), d2 = Math.floor((n%100)/10);
+        const d1 = Math.floor(n/100), d2 = Math.floor((n%100)/10), d3csv = n%10;
         sum = s;
         ss1 = d1 > 0 ? (d1-1)+d1+(d1+1) : '';
         ss2 = d2 > 0 ? (d2-1)+d2+(d2+1) : '';
+        ss3 = d3csv > 0 ? (d3csv-1)+d3csv+(d3csv+1) : '';
         if (s >= 1 && s <= 24) {
           const c = PS_COLORS[s];
           zone = c === PS_GREEN ? 'G' : c === PS_RED ? 'R' : 'B';
@@ -2118,7 +2144,7 @@ function downloadCmpData() {
       }
       const pst = row.ps ? minsToTime(row.ps.m) : '';
       const w   = row.ps ? row.ps.w.map(v => !v ? '' : v >= 25 ? SYM_LABELS[v-25] : v) : ['','',''];
-      lines.push([dayStr, s3t, s3n, sum, ss1, ss2, zone, ...nb, pst, ...w].join(','));
+      lines.push([dayStr, s3t, s3n, sum, ss1, ss2, ss3, zone, ...nb, pst, ...w].join(','));
     }
   }
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -2161,16 +2187,33 @@ function renderCmp() {
   for (let i = 0; i < maxLen; i++) rows.push({ s3: pairedS3[i] || null, ps: psDay[i] || null });
 
   // ── Συγκεντρωτικά (και για τους 3 τροχούς) ────────────────────
+  // ── Φίλτρο ώρας ─────────────────────────────────────────────────────────
+  const hourBarEl = document.getElementById('cmpHourBar');
+  const hourBtnsEl = document.getElementById('cmpHourBtns');
+  if (hourBtnsEl) {
+    const hours = [...new Set(s3Day.map(d => Math.floor(d.m / 60)))].sort((a,b)=>a-b);
+    if (hours.length > 1) {
+      hourBtnsEl.innerHTML = hours.map(h =>
+        `<button class="cmp-hr-btn${cmpHourFilter === h ? ' active' : ''}" onclick="setCmpHourFilter(${h})">${pad(h)}</button>`
+      ).join('');
+      if (hourBarEl) hourBarEl.style.display = 'flex';
+    } else {
+      if (hourBarEl) hourBarEl.style.display = 'none';
+    }
+  }
+
   let totalPaired = 0;
-  const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0];
+  const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0], sum3M = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
     const rn = row.s3.n;
     const rs = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
     const rd1 = Math.floor(rn / 100);
     const rd2 = Math.floor((rn % 100) / 10);
+    const rd3 = rn % 10;
     const rs1 = rd1 > 0 ? (rd1-1) + rd1 + (rd1+1) : null;
     const rs2 = rd2 > 0 ? (rd2-1) + rd2 + (rd2+1) : null;
+    const rs3 = rd3 > 0 ? (rd3-1) + rd3 + (rd3+1) : null;
     const sZone = rs >= 1 && rs <= 24 ? PS_COLORS[rs] : null;
     const rNbrs = wheelNeighbors(rs);
     let counted = false;
@@ -2183,6 +2226,7 @@ function renderCmp() {
       if (rNbrs && rNbrs.includes(wv)) nbrM[wi]++;
       if (rs1 !== null && rs1 >= 1 && rs1 <= 24 && rs1 === wv) sum1M[wi]++;
       if (rs2 !== null && rs2 >= 1 && rs2 <= 24 && rs2 === wv) sum2M[wi]++;
+      if (rs3 !== null && rs3 >= 1 && rs3 <= 24 && rs3 === wv) sum3M[wi]++;
     }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
@@ -2222,6 +2266,10 @@ function renderCmp() {
             <td style="color:#555;padding:3px 8px 3px 2px">Σ.2 ✓</td>
             ${[0,1,2].map(i => `<td style="text-align:center;color:#e91e63;font-weight:700;padding:3px 8px">${sum2M[i]} <span style="color:#555;font-weight:400">(${pct(sum2M[i],totalPaired)})</span></td>`).join('')}
           </tr>
+          <tr>
+            <td style="color:#555;padding:3px 8px 3px 2px">Σ.3 ✓</td>
+            ${[0,1,2].map(i => `<td style="text-align:center;color:#ce93d8;font-weight:700;padding:3px 8px">${sum3M[i]} <span style="color:#555;font-weight:400">(${pct(sum3M[i],totalPaired)})</span></td>`).join('')}
+          </tr>
         </tbody>
       </table>
     </div>`;
@@ -2233,7 +2281,7 @@ function renderCmp() {
     if (cmpFilter) {
       filterBar.style.display = 'flex';
       const zoneLabel = cmpFilter.val === PS_GREEN ? 'πράσινο' : cmpFilter.val === PS_RED ? 'κόκκινο' : 'μπλε';
-      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', nbr:'Γείτ.', zone:'Ζώνη', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
+      const colNames = { s3:'Super 3', sum:'Σύν.', s1:'Σ.1', s2:'Σ.2', sg3:'Σ.3', nbr:'Γείτ.', zone:'Ζώνη', w0:'Τρ.1', w1:'Τρ.2', w2:'Τρ.3' };
       filterLabel.textContent = cmpFilter.col === 'zone'
         ? `Ζώνη = ${zoneLabel}`
         : `${colNames[cmpFilter.col] || cmpFilter.col} = ${cmpFilter.col === 's3' ? pad3(cmpFilter.val) : cmpFilter.val}`;
@@ -2266,7 +2314,10 @@ function renderCmp() {
       sumNumsEl.style.display = 'none';
     }
   }
-  const displayRows = cmpFilter ? rows.filter(row => {
+  const hourFilteredRows = cmpHourFilter !== null
+    ? rows.filter(row => row.s3 && Math.floor(row.s3.m / 60) === cmpHourFilter)
+    : rows;
+  const displayRows = cmpFilter ? hourFilteredRows.filter(row => {
     const rn = row.s3 ? row.s3.n : null;
     const { col, val } = cmpFilter;
     if (col === 's3')  return rn === val;
@@ -2277,14 +2328,15 @@ function renderCmp() {
     const rSum = Math.floor(rn/100) + Math.floor((rn%100)/10) + (rn%10);
     if (col === 'sum' || col === 'nbr') return rSum === val;
     if (col === 'zone') return rSum >= 1 && rSum <= 24 && PS_COLORS[rSum] === val;
-    const rd1 = Math.floor(rn/100), rd2 = Math.floor((rn%100)/10);
+    const rd1 = Math.floor(rn/100), rd2 = Math.floor((rn%100)/10), rd3 = rn%10;
     if (col === 's1') return rd1 > 0 && (rd1-1)+rd1+(rd1+1) === val;
     if (col === 's2') return rd2 > 0 && (rd2-1)+rd2+(rd2+1) === val;
+    if (col === 'sg3') return rd3 > 0 && (rd3-1)+rd3+(rd3+1) === val;
     return true;
-  }) : rows;
+  }) : hourFilteredRows;
 
   // βοηθητική: render τιμή τροχού με χρώμα ζώνης + ✓ αν ταιριάζει
-  const wheelCell = (wv, sSum, sSum1, sSum2, sZone, nbrs, wi) => {
+  const wheelCell = (wv, sSum, sSum1, sSum2, sSum3, sZone, nbrs, wi) => {
     if (!wv) return '<span class="cmp-none">—</span>';
     if (wv >= 25) return `<span class="cmp-sym">${SYM_LABELS[wv - 25]}</span>`;
     const wc = PS_COLORS[wv];
@@ -2292,7 +2344,8 @@ function renderCmp() {
     const numHit  = cmpMx.num[wi]  && sSum  !== null && sSum  === wv;
     const sum1Hit = cmpMx.s1[wi]   && sSum1 !== null && sSum1 >= 1 && sSum1 <= 24 && sSum1 === wv && !numHit;
     const sum2Hit = cmpMx.s2[wi]   && sSum2 !== null && sSum2 >= 1 && sSum2 <= 24 && sSum2 === wv && !numHit && !sum1Hit;
-    const nbrHit  = cmpMx.nbr[wi]  && !numHit && !sum1Hit && !sum2Hit && nbrs !== null && nbrs.includes(wv);
+    const sum3Hit = cmpMx.sg3[wi]  && sSum3 !== null && sSum3 >= 1 && sSum3 <= 24 && sSum3 === wv && !numHit && !sum1Hit && !sum2Hit;
+    const nbrHit  = cmpMx.nbr[wi]  && !numHit && !sum1Hit && !sum2Hit && !sum3Hit && nbrs !== null && nbrs.includes(wv);
     const zoneHit = cmpMx.zone[wi] && sZone !== null && wc === sZone;
     const fc = `w${wi}`;
     const clk = `class="cmp-cl" onclick="setCmpFilter('${fc}',${wv})"`;
@@ -2302,6 +2355,8 @@ function renderCmp() {
       return `<span style="color:#00bcd4;font-weight:900;background:rgba(0,188,212,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (sum2Hit)
       return `<span style="color:#e91e63;font-weight:900;background:rgba(233,30,99,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
+    if (sum3Hit)
+      return `<span style="color:#ce93d8;font-weight:900;background:rgba(206,147,216,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (nbrHit)
       return `<span style="color:#ff9800;font-weight:900;background:rgba(255,152,0,.15);border-radius:3px;padding:1px 4px" ${clk}>${wv} ✓</span>`;
     if (zoneHit)
@@ -2315,14 +2370,16 @@ function renderCmp() {
     const pstime = row.ps ? `<span style="color:#888;font-size:.7rem">${minsToTime(row.ps.m)}</span>` : '<span class="cmp-none">—</span>';
     const s3cell = row.s3 ? `<span class="cmp-s3 cmp-cl" onclick="setCmpFilter('s3',${row.s3.n})">${pad3(row.s3.n)}</span>` : '<span class="cmp-none">—</span>';
     let sumCell = '<span class="cmp-none">—</span>', zoneCell = '<span class="cmp-none">—</span>';
-    let sSum = null, sSum1 = null, sSum2 = null, sZone = null;
+    let sSum = null, sSum1 = null, sSum2 = null, sSum3 = null, sZone = null;
     if (row.s3) {
       const n = row.s3.n;
       sSum = Math.floor(n/100) + Math.floor((n%100)/10) + (n%10);
       const d1 = Math.floor(n/100);
       const d2 = Math.floor((n%100)/10);
+      const d3 = n % 10;
       if (d1 > 0) sSum1 = (d1-1) + d1 + (d1+1);
       if (d2 > 0) sSum2 = (d2-1) + d2 + (d2+1);
+      if (d3 > 0) sSum3 = (d3-1) + d3 + (d3+1);
       const ws = row.ps ? row.ps.w : [];
       const anyNumMatch  = ws.some((v, wi) => cmpMx.num[wi]  && v && v >= 1 && v <= 24 && sSum === v);
       sZone = sSum >= 1 && sSum <= 24 ? PS_COLORS[sSum] : null;
@@ -2356,21 +2413,22 @@ function renderCmp() {
         return `<span ${clk} style="color:${hitColor};font-weight:900;background:${bgColor};border-radius:3px;padding:1px 5px">${val} ✓</span>`;
       return `<span ${clk} style="color:${tc};font-weight:700">${val}</span>`;
     };
-    const s1Cell = derivedCell(sSum1, '#00bcd4', 'rgba(0,188,212,.2)', 's1', 's1');
-    const s2Cell = derivedCell(sSum2, '#e91e63', 'rgba(233,30,99,.15)', 's2', 's2');
+    const s1Cell  = derivedCell(sSum1, '#00bcd4', 'rgba(0,188,212,.2)',  's1',  's1');
+    const s2Cell  = derivedCell(sSum2, '#e91e63', 'rgba(233,30,99,.15)', 's2',  's2');
+    const sg3Cell = derivedCell(sSum3, '#ce93d8', 'rgba(206,147,216,.2)','sg3', 'sg3');
     let nbrCell = '<span class="cmp-none">—</span>';
     let rowNbrs = null;
     if (row.s3 && sSum !== null) {
       rowNbrs = wheelNeighbors(sSum);
       if (rowNbrs) nbrCell = `<span class="cmp-cl" onclick="setCmpFilter('nbr',${sSum})">${rowNbrs.map(psValSpan).join('<span style="color:#333"> · </span>')}</span>`;
     }
-    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sSum1, sSum2, sZone, rowNbrs, 0) : '<span class="cmp-none">—</span>';
-    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sSum1, sSum2, sZone, rowNbrs, 1) : '<span class="cmp-none">—</span>';
-    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sSum1, sSum2, sZone, rowNbrs, 2) : '<span class="cmp-none">—</span>';
-    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td class="cmp-s1">${s1Cell}</td><td class="cmp-s2">${s2Cell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td class="cmp-w2">${w1}</td><td class="cmp-w3">${w2}</td></tr>`;
+    const w0 = row.ps ? wheelCell(row.ps.w[0], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 0) : '<span class="cmp-none">—</span>';
+    const w1 = row.ps ? wheelCell(row.ps.w[1], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 1) : '<span class="cmp-none">—</span>';
+    const w2 = row.ps ? wheelCell(row.ps.w[2], sSum, sSum1, sSum2, sSum3, sZone, rowNbrs, 2) : '<span class="cmp-none">—</span>';
+    html += `<tr><td>${s3time}</td><td>${s3cell}</td><td>${sumCell}</td><td class="cmp-s1">${s1Cell}</td><td class="cmp-s2">${s2Cell}</td><td class="cmp-sg3">${sg3Cell}</td><td>${zoneCell}</td><td class="cmp-nbr">${nbrCell}</td><td>${pstime}</td><td>${w0}</td><td class="cmp-w2">${w1}</td><td class="cmp-w3">${w2}</td></tr>`;
   }
   document.getElementById('cmpBody').innerHTML = html ||
-    '<tr><td colspan="11" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
+    '<tr><td colspan="12" style="text-align:center;color:#333;padding:24px">Δεν υπάρχουν δεδομένα για αυτή την ημέρα</td></tr>';
   applyColVis();
 
   if (cmpDayOffset === 0) {
