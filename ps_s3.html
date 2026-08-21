@@ -2288,7 +2288,7 @@ function renderCmp() {
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
   const pi1AnyPct = totalPaired ? pi1AnyHit / totalPaired : 0;
-  const pi1EV = (pi1AnyPct * 8) - ((1 - pi1AnyPct) * 3);
+  const pi1EV = (pi1AnyPct * 5) - ((1 - pi1AnyPct) * 3);
   const pi1EvColor = pi1EV > 0 ? '#76ff03' : '#ef5350';
   const sumEl = document.getElementById('cmpSummary');
   if (sumEl) sumEl.innerHTML = `
@@ -2305,7 +2305,7 @@ function renderCmp() {
         <span style="font-size:.68rem;color:#3a6a1a">/ ${totalPaired}</span>
       </div>
       <div style="display:flex;gap:10px;font-size:.68rem;margin-top:1px">
-        <span style="color:#555">Break-even: <span style="color:#888">27.3%</span></span>
+        <span style="color:#555">Break-even: <span style="color:#888">37.5%</span></span>
         <span style="color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
       </div>
     </div>
