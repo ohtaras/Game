@@ -2285,10 +2285,13 @@ function renderCmp() {
     }
     const rTop3any = histTop3[rs] || [];
     if (rTop3any.length > 0) {
-      const hitCount = row.ps.w.filter(v => v >= 1 && v <= 24 && rTop3any.includes(v)).length;
-      if (hitCount >= 1) pi1AnyHit++;
-      if (hitCount >= 2) pi1TwoHit++;
-      if (hitCount >= 3) pi1ThreeHit++;
+      const w = row.ps.w;
+      const h0 = w[0] >= 1 && w[0] <= 24 && rTop3any.includes(w[0]);
+      const h1 = w[1] >= 1 && w[1] <= 24 && rTop3any.includes(w[1]);
+      const h2 = w[2] >= 1 && w[2] <= 24 && rTop3any.includes(w[2]);
+      if (h0 || h1 || h2) pi1AnyHit++;
+      if (h0 && h1) pi1TwoHit++;
+      if (h0 && h1 && h2) pi1ThreeHit++;
     }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
@@ -2313,8 +2316,8 @@ function renderCmp() {
           <span style="font-size:.68rem;color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
         </div>
         <div style="display:flex;gap:14px;margin-top:4px;flex-wrap:wrap">
-          <span style="font-size:.68rem;color:#3a6a1a">≥2 τροχοί: <span style="color:#76ff03;font-weight:700">${pi1TwoHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1TwoHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
-          <span style="font-size:.68rem;color:#3a6a1a">3 τροχοί: <span style="color:#76ff03;font-weight:700">${pi1ThreeHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1ThreeHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
+          <span style="font-size:.68rem;color:#3a6a1a">Τρ.1+2: <span style="color:#76ff03;font-weight:700">${pi1TwoHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1TwoHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
+          <span style="font-size:.68rem;color:#3a6a1a">Τρ.1+2+3: <span style="color:#76ff03;font-weight:700">${pi1ThreeHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1ThreeHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
         </div>
       </div>
     </div>
