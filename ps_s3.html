@@ -2255,7 +2255,7 @@ function renderCmp() {
     }
   }
 
-  let totalPaired = 0, pi1AnyHit = 0;
+  let totalPaired = 0, pi1AnyHit = 0, pi1TwoHit = 0, pi1ThreeHit = 0;
   const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0], sum3M = [0, 0, 0], pi1M = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
@@ -2284,7 +2284,12 @@ function renderCmp() {
       if (rTop3.includes(wv)) pi1M[wi]++;
     }
     const rTop3any = histTop3[rs] || [];
-    if (rTop3any.length > 0 && row.ps.w.some(v => v >= 1 && v <= 24 && rTop3any.includes(v))) pi1AnyHit++;
+    if (rTop3any.length > 0) {
+      const hitCount = row.ps.w.filter(v => v >= 1 && v <= 24 && rTop3any.includes(v)).length;
+      if (hitCount >= 1) pi1AnyHit++;
+      if (hitCount >= 2) pi1TwoHit++;
+      if (hitCount >= 3) pi1ThreeHit++;
+    }
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
   const pi1AnyPct = totalPaired ? pi1AnyHit / totalPaired : 0;
@@ -2306,6 +2311,10 @@ function renderCmp() {
           <span style="font-size:.68rem;color:#3a6a1a">/ ${totalPaired}</span>
           <span style="font-size:.68rem;color:#555;margin-left:6px">Break-even: <span style="color:#888">37.5%</span></span>
           <span style="font-size:.68rem;color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:4px;flex-wrap:wrap">
+          <span style="font-size:.68rem;color:#3a6a1a">≥2 τροχοί: <span style="color:#76ff03;font-weight:700">${pi1TwoHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1TwoHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
+          <span style="font-size:.68rem;color:#3a6a1a">3 τροχοί: <span style="color:#76ff03;font-weight:700">${pi1ThreeHit}</span> <span style="color:#2a5a00">(${totalPaired ? (pi1ThreeHit/totalPaired*100).toFixed(1) : '—'}%)</span></span>
         </div>
       </div>
     </div>
