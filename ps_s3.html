@@ -2255,7 +2255,7 @@ function renderCmp() {
     }
   }
 
-  let totalPaired = 0;
+  let totalPaired = 0, pi1AnyHit = 0;
   const zoneM = [0, 0, 0], numM = [0, 0, 0], nbrM = [0, 0, 0], sum1M = [0, 0, 0], sum2M = [0, 0, 0], sum3M = [0, 0, 0], pi1M = [0, 0, 0];
   for (const row of rows) {
     if (!row.s3 || !row.ps) continue;
@@ -2283,14 +2283,31 @@ function renderCmp() {
       const rTop3 = histTop3[rs] || [];
       if (rTop3.includes(wv)) pi1M[wi]++;
     }
+    const rTop3any = histTop3[rs] || [];
+    if (rTop3any.length > 0 && row.ps.w.some(v => v >= 1 && v <= 24 && rTop3any.includes(v))) pi1AnyHit++;
   }
   const pct = (n, t) => t ? `${((n/t)*100).toFixed(1)}%` : '—';
+  const pi1AnyPct = totalPaired ? pi1AnyHit / totalPaired : 0;
+  const pi1EV = (pi1AnyPct * 8) - ((1 - pi1AnyPct) * 3);
+  const pi1EvColor = pi1EV > 0 ? '#76ff03' : '#ef5350';
   const sumEl = document.getElementById('cmpSummary');
   if (sumEl) sumEl.innerHTML = `
     <div class="cmp-sum-box" style="max-width:70px">
       <span class="csb-val" style="color:#7986cb">${totalPaired}</span>
       <span class="csb-pct">&nbsp;</span>
       <span class="csb-lbl">Ζεύγη</span>
+    </div>
+    <div style="background:#071507;border:1px solid #1a3a0a;border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:3px;min-width:160px">
+      <span style="font-size:.6rem;color:#3a6a1a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px">Π.1 — οποιοσδήποτε τροχός</span>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:1.4rem;font-weight:900;color:#76ff03">${pi1AnyHit}</span>
+        <span style="font-size:.85rem;font-weight:700;color:#76ff03">(${(pi1AnyPct*100).toFixed(1)}%)</span>
+        <span style="font-size:.68rem;color:#3a6a1a">/ ${totalPaired}</span>
+      </div>
+      <div style="display:flex;gap:10px;font-size:.68rem;margin-top:1px">
+        <span style="color:#555">Break-even: <span style="color:#888">27.3%</span></span>
+        <span style="color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
+      </div>
     </div>
     <div style="flex:1;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.72rem;white-space:nowrap">
