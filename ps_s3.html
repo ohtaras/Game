@@ -119,7 +119,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-hr-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;font-size:.68rem}
 .cmp-hr-btn{padding:2px 7px;border:1px solid #1e1e2e;border-radius:5px;background:#0a0a14;color:#3a3a5a;cursor:pointer;font-size:.65rem;font-variant-numeric:tabular-nums;transition:all .12s}
 .cmp-hr-btn.active{border-color:#5c6bc0;background:#1a1a3a;color:#9fa8da}
-.cmp-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.cmp-summary{display:flex;flex-direction:column;gap:0;margin-bottom:10px}
 .cmp-sum-box{flex:1;min-width:90px;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;text-align:center}
 .cmp-sum-box .csb-val{font-size:1.25rem;font-weight:900;display:block;line-height:1.1}
 .cmp-sum-box .csb-pct{font-size:.68rem;color:#555;display:block;margin-top:2px}
@@ -2292,24 +2292,24 @@ function renderCmp() {
   const pi1EvColor = pi1EV > 0 ? '#76ff03' : '#ef5350';
   const sumEl = document.getElementById('cmpSummary');
   if (sumEl) sumEl.innerHTML = `
-    <div class="cmp-sum-box" style="max-width:70px">
-      <span class="csb-val" style="color:#7986cb">${totalPaired}</span>
-      <span class="csb-pct">&nbsp;</span>
-      <span class="csb-lbl">Ζεύγη</span>
-    </div>
-    <div style="background:#071507;border:1px solid #1a3a0a;border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:3px;min-width:160px">
-      <span style="font-size:.6rem;color:#3a6a1a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px">Π.1 — οποιοσδήποτε τροχός</span>
-      <div style="display:flex;align-items:baseline;gap:8px">
-        <span style="font-size:1.4rem;font-weight:900;color:#76ff03">${pi1AnyHit}</span>
-        <span style="font-size:.85rem;font-weight:700;color:#76ff03">(${(pi1AnyPct*100).toFixed(1)}%)</span>
-        <span style="font-size:.68rem;color:#3a6a1a">/ ${totalPaired}</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;width:100%;margin-bottom:6px">
+      <div class="cmp-sum-box" style="max-width:70px;flex-shrink:0">
+        <span class="csb-val" style="color:#7986cb">${totalPaired}</span>
+        <span class="csb-pct">&nbsp;</span>
+        <span class="csb-lbl">Ζεύγη</span>
       </div>
-      <div style="display:flex;gap:10px;font-size:.68rem;margin-top:1px">
-        <span style="color:#555">Break-even: <span style="color:#888">37.5%</span></span>
-        <span style="color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
+      <div style="flex:1;min-width:200px;background:#071507;border:1px solid #1a3a0a;border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:3px">
+        <span style="font-size:.6rem;color:#3a6a1a;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1px">Π.1 — οποιοσδήποτε τροχός</span>
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+          <span style="font-size:1.4rem;font-weight:900;color:#76ff03">${pi1AnyHit}</span>
+          <span style="font-size:.85rem;font-weight:700;color:#76ff03">(${(pi1AnyPct*100).toFixed(1)}%)</span>
+          <span style="font-size:.68rem;color:#3a6a1a">/ ${totalPaired}</span>
+          <span style="font-size:.68rem;color:#555;margin-left:6px">Break-even: <span style="color:#888">37.5%</span></span>
+          <span style="font-size:.68rem;color:#555">EV/ποντ.: <span style="color:${pi1EvColor};font-weight:700">${pi1EV >= 0 ? '+' : ''}${pi1EV.toFixed(2)}€</span></span>
+        </div>
       </div>
     </div>
-    <div style="flex:1;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;overflow-x:auto">
+    <div style="width:100%;background:#0d1220;border:1px solid #1a2540;border-radius:8px;padding:8px 10px;overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.72rem;white-space:nowrap">
         <thead><tr>
           <th style="color:#444;font-weight:600;padding:2px 8px 4px 2px;text-align:left"></th>
