@@ -2120,11 +2120,11 @@ function switchCmpDay(offset) {
 }
 
 function downloadCmpData() {
-  const csvHistTop3 = computeHistFreq();
   const hdrs = ['Ημέρα','Ώρα_S3','Super3','Σύν','Σ1','Σ2','Σ3','Ζώνη','Γείτ1','Γείτ2','Γείτ3','Γείτ4','Π1α','Π1β','Π1γ','Ώρα_PS','Τρ1','Τρ2','Τρ3'];
   const lines = [hdrs.join(',')];
   for (let dayOff = 7; dayOff >= 0; dayOff--) {
     const dayStr = getCmpDayStr(dayOff);
+    const csvHistTop3 = computeHistFreq(dayStr);
     const psDay  = psDraws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
     const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
     const psStartM = psDay.length > 0 ? psDay[0].m : 99999;
@@ -2178,10 +2178,10 @@ function cmpPsVal(v) {
   return `<span class="cmp-sym">${SYM_LABELS[v - 25]}</span>`;
 }
 
-function computeHistFreq() {
-  // Χρησιμοποιεί ΟΛΑ τα διαθέσιμα δεδομένα (όχι μόνο 8 ημέρες) για μεγαλύτερο δείγμα
+function computeHistFreq(excludeDay) {
+  // Εξαιρεί την επιλεγμένη ημέρα ώστε τα Π.1 να βασίζονται μόνο σε προηγούμενες ημέρες
   const freq = {}; // sumVal -> { psVal: count }
-  const allDays = [...new Set(psDraws.map(d => d.d))];
+  const allDays = [...new Set(psDraws.map(d => d.d))].filter(d => d !== excludeDay);
   for (const dayStr of allDays) {
     const psDay  = psDraws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
     const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a,b) => a.m - b.m);
@@ -2219,7 +2219,7 @@ function renderCmp() {
   const psDay  = psDraws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
   const s3Day  = s3Draws.filter(d => d.d === dayStr).sort((a, b) => a.m - b.m);
 
-  const histTop3 = computeHistFreq();
+  const histTop3 = computeHistFreq(dayStr);
 
   const statsEl = document.getElementById('cmpStats');
   if (statsEl) statsEl.textContent =
