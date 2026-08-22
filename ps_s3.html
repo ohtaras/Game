@@ -116,6 +116,17 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-table.hide-s2 .cmp-s2{display:none}
 .cmp-table.hide-sg3 .cmp-sg3{display:none}
 .cmp-table.hide-pi1 .cmp-pi1{display:none}
+.hot-win-btn{padding:3px 10px;border:1px solid #2a2a3a;border-radius:6px;background:#111;color:#555;cursor:pointer;font-size:.72rem;transition:all .12s}
+.hot-win-btn.active{border-color:#ff8a65;background:#1a0d00;color:#ff8a65}
+.hot-wheel-card{background:#0d0d1a;border:1px solid #1a1a2e;border-radius:10px;padding:12px 14px}
+.hot-wheel-title{font-size:.78rem;font-weight:700;margin-bottom:10px;letter-spacing:.04em}
+.hot-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.hot-cell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;border-radius:6px;cursor:default}
+.hot-val{font-size:.78rem;font-weight:800;font-variant-numeric:tabular-nums}
+.hot-bar-wrap{width:100%;height:36px;display:flex;align-items:flex-end;justify-content:center}
+.hot-bar{width:70%;border-radius:3px 3px 0 0;min-height:2px;transition:height .3s}
+.hot-pct{font-size:.58rem;color:#444;margin-top:1px}
+.hot-legend{display:flex;gap:14px;font-size:.66rem;color:#555;margin-top:8px}
 .cmp-hr-bar{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;font-size:.68rem}
 .cmp-hr-btn{padding:2px 7px;border:1px solid #1e1e2e;border-radius:5px;background:#0a0a14;color:#3a3a5a;cursor:pointer;font-size:.65rem;font-variant-numeric:tabular-nums;transition:all .12s}
 .cmp-hr-btn.active{border-color:#5c6bc0;background:#1a1a3a;color:#9fa8da}
@@ -193,6 +204,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <button class="tab-btn"        onclick="switchTab('s3')">🔢 Super 3</button>
     <button class="tab-btn"        onclick="switchTab('kino')">🎰 ΚΙΝΟ</button>
     <button class="tab-btn"        onclick="switchTab('cmp')">⚖️ Αντιπαραβολή</button>
+    <button class="tab-btn"        onclick="switchTab('hot')">🔥 Θερμά</button>
     <button class="tab-btn"        onclick="switchTab('cfg')" style="margin-left:auto">⚙️</button>
   </div>
 
@@ -505,6 +517,20 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <tbody id="cmpBody"></tbody>
       </table>
     </div>
+  </section>
+
+  <!-- ═══ ΘΕΡΜΑ ═══ -->
+  <section id="hotTab" style="display:none">
+    <h2 style="color:#ff8a65">🔥 Θερμές / Ψυχρές Τιμές — Power Spin</h2>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:.75rem;color:#555">Παράθυρο:</span>
+      <button class="hot-win-btn active" onclick="setHotWindow(10)">10 κλ.</button>
+      <button class="hot-win-btn"        onclick="setHotWindow(20)">20 κλ.</button>
+      <button class="hot-win-btn"        onclick="setHotWindow(50)">50 κλ.</button>
+      <button class="hot-win-btn"        onclick="setHotWindow(0)">Όλες (σήμερα)</button>
+      <span id="hotInfo" style="font-size:.68rem;color:#444;margin-left:8px"></span>
+    </div>
+    <div id="hotCharts" style="display:flex;flex-direction:column;gap:16px"></div>
   </section>
 
   <!-- ═══ SETTINGS ═══ -->
@@ -2536,14 +2562,118 @@ function renderCmp() {
   }
 }
 
+// ── Θερμά / Ψυχρά ─────────────────────────────────────────────────────────
+let hotWindow = 10;
+
+function setHotWindow(n) {
+  hotWindow = n;
+  document.querySelectorAll('.hot-win-btn').forEach((b, i) => {
+    b.classList.toggle('active', [10, 20, 50, 0][i] === n);
+  });
+  renderHot();
+}
+
+function renderHot() {
+  const today = getCmpDayStr(0);
+  // Κληρώσεις PS της σημερινής μέρας με 3 αριθμητικούς τροχούς
+  const todayPS = psDraws
+    .filter(d => d.d === today)
+    .sort((a, b) => a.m - b.m)
+    .filter(d => d.w && d.w.filter(v => v >= 1 && v <= 24).length === 3);
+
+  const pool = hotWindow > 0 ? todayPS.slice(-hotWindow) : todayPS;
+  const info = document.getElementById('hotInfo');
+  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} · ${today}`;
+
+  const container = document.getElementById('hotCharts');
+  if (!container) return;
+
+  const BLUE  = new Set([1,8,9,11,14,16,22,24]);
+  const RED   = new Set([2,5,6,7,10,15,20,21]);
+  const GREEN = new Set([3,4,12,13,17,18,19,23]);
+  const zoneOf = v => BLUE.has(v) ? '#1565c0' : RED.has(v) ? '#c62828' : GREEN.has(v) ? '#2e7d32' : '#555';
+  const zoneName = v => BLUE.has(v) ? 'BLUE' : RED.has(v) ? 'RED' : GREEN.has(v) ? 'GREEN' : '—';
+
+  const expected = pool.length > 0 ? pool.length / 24 : 0; // αναμενόμενος αριθμός εμφανίσεων
+
+  let html = '';
+  const wheelNames = ['Τροχός 1', 'Τροχός 2', 'Τροχός 3'];
+  const wheelColors = ['#ff8a65', '#ffb74d', '#fff176'];
+
+  for (let wi = 0; wi < 3; wi++) {
+    // Μέτρηση εμφανίσεων
+    const cnt = {};
+    for (let v = 1; v <= 24; v++) cnt[v] = 0;
+    for (const d of pool) {
+      const v = d.w[wi];
+      if (v >= 1 && v <= 24) cnt[v]++;
+    }
+
+    const counts = Object.entries(cnt).map(([v, c]) => ({ v: +v, c }));
+    const maxC = Math.max(...counts.map(x => x.c), 1);
+
+    // Ταξινόμηση: 1-24
+    counts.sort((a, b) => a.v - b.v);
+
+    // Θερμά top-5, ψυχρά bottom-5
+    const sorted = [...counts].sort((a, b) => b.c - a.c);
+    const hotSet  = new Set(sorted.slice(0, 5).map(x => x.v));
+    const coldSet = new Set(sorted.slice(-5).map(x => x.v));
+
+    html += `<div class="hot-wheel-card">
+      <div class="hot-wheel-title" style="color:${wheelColors[wi]}">${wheelNames[wi]}</div>
+      <div class="hot-grid">`;
+
+    for (const { v, c } of counts) {
+      const isHot  = hotSet.has(v);
+      const isCold = coldSet.has(v);
+      const barH   = Math.round((c / maxC) * 36);
+      const zc     = zoneOf(v);
+      const diff   = c - expected;
+      const diffStr = expected > 0 ? (diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)) : '';
+
+      // Χρώμα bar: θερμό=πορτοκαλί, ψυχρό=μπλε-σκούρο, κανονικό=ζώνη
+      const barColor = isHot ? '#ff6d00' : isCold ? '#1a237e' : zc + 'aa';
+      const bgColor  = isHot ? 'rgba(255,109,0,.10)' : isCold ? 'rgba(26,35,126,.12)' : 'transparent';
+      const label    = isHot ? '🔥' : isCold ? '❄️' : '';
+
+      html += `<div class="hot-cell" style="background:${bgColor}" title="${zoneName(v)} · ${c}/${pool.length} εμφ. · αναμ. ${expected.toFixed(1)} · ${diffStr}">
+        <div class="hot-bar-wrap"><div class="hot-bar" style="height:${barH}px;background:${barColor}"></div></div>
+        <div class="hot-val" style="color:${zc}">${v}</div>
+        <div class="hot-pct">${pool.length > 0 ? (c/pool.length*100).toFixed(0) : 0}%${label}</div>
+      </div>`;
+    }
+
+    html += `</div>
+      <div class="hot-legend">
+        <span>🔥 Θερμά top-5</span>
+        <span>❄️ Ψυχρά bottom-5</span>
+        <span style="color:#1565c0">■</span><span>BLUE</span>
+        <span style="color:#c62828">■</span><span>RED</span>
+        <span style="color:#2e7d32">■</span><span>GREEN</span>
+        <span style="margin-left:8px;color:#333">αναμ. ${expected.toFixed(1)} εμφ. (${pool.length > 0 ? (1/24*100).toFixed(1) : 0}%)</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${sorted.slice(0,5).map(x => `<span style="font-size:.7rem;background:#1a0a00;border:1px solid #ff6d00;border-radius:4px;padding:2px 7px;color:#ff8a65;font-weight:700">${x.v} <span style="color:#777;font-weight:400">${x.c}×</span></span>`).join('')}
+        <span style="font-size:.7rem;color:#333;align-self:center">↑ θερμά</span>
+        <span style="font-size:.7rem;color:#333;align-self:center;margin-left:8px">↓ ψυχρά</span>
+        ${sorted.slice(-5).reverse().map(x => `<span style="font-size:.7rem;background:#00001a;border:1px solid #1a237e;border-radius:4px;padding:2px 7px;color:#5c6bc0;font-weight:700">${x.v} <span style="color:#333;font-weight:400">${x.c}×</span></span>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
 // ── Tab switching ──────────────────────────────────────────────────────────
-const TABS = ['ps', 's3', 'kino', 'cmp', 'cfg'];
+const TABS = ['ps', 's3', 'kino', 'cmp', 'hot', 'cfg'];
 function switchTab(name) {
   TABS.forEach((t, i) => {
     document.getElementById(`${t}Tab`).style.display = t === name ? '' : 'none';
     document.querySelectorAll('.tab-btn')[i].classList.toggle('active', t === name);
   });
   if (name === 'cmp') { buildCmpDayBar(); renderCmp(); }
+  if (name === 'hot') { renderHot(); }
 }
 
 // ── Keyboard navigation ────────────────────────────────────────────────────
