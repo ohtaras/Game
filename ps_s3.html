@@ -2580,7 +2580,7 @@ function renderHot() {
   const todayPS = psDraws
     .filter(d => d.d === today)
     .sort((a, b) => a.m - b.m)
-    .filter(d => d.w && d.w.filter(v => v >= 1 && v <= 24).length === 3);
+    .filter(d => d.w && d.w.every(v => v >= 1 && v <= 27));
 
   const pool = hotWindow > 0 ? todayPS.slice(-hotWindow) : todayPS;
   const info = document.getElementById('hotInfo');
