@@ -2646,18 +2646,46 @@ function renderHot() {
 
     html += `</div>
       <div class="hot-legend">
-        <span>🔥 Θερμά top-5</span>
-        <span>❄️ Ψυχρά bottom-5</span>
+        <span>🔥 Θερμά top-5</span><span>❄️ Ψυχρά bottom-5</span>
         <span style="color:#1565c0">■</span><span>BLUE</span>
         <span style="color:#c62828">■</span><span>RED</span>
         <span style="color:#2e7d32">■</span><span>GREEN</span>
-        <span style="margin-left:8px;color:#333">αναμ. ${expected.toFixed(1)} εμφ. (${pool.length > 0 ? (1/24*100).toFixed(1) : 0}%)</span>
+        <span style="margin-left:8px;color:#333">αναμ. ${expected.toFixed(1)} εμφ./τιμή</span>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-        ${sorted.slice(0,5).map(x => `<span style="font-size:.7rem;background:#1a0a00;border:1px solid #ff6d00;border-radius:4px;padding:2px 7px;color:#ff8a65;font-weight:700">${x.v} <span style="color:#777;font-weight:400">${x.c}×</span></span>`).join('')}
-        <span style="font-size:.7rem;color:#333;align-self:center">↑ θερμά</span>
-        <span style="font-size:.7rem;color:#333;align-self:center;margin-left:8px">↓ ψυχρά</span>
-        ${sorted.slice(-5).reverse().map(x => `<span style="font-size:.7rem;background:#00001a;border:1px solid #1a237e;border-radius:4px;padding:2px 7px;color:#5c6bc0;font-weight:700">${x.v} <span style="color:#333;font-weight:400">${x.c}×</span></span>`).join('')}
+      <div style="overflow-x:auto;margin-top:10px">
+        <table style="width:100%;border-collapse:collapse;font-size:.72rem;font-variant-numeric:tabular-nums">
+          <thead>
+            <tr style="color:#444;font-size:.65rem;border-bottom:1px solid #1a1a2e">
+              <th style="text-align:left;padding:4px 6px;white-space:nowrap">Αριθμός</th>
+              <th style="text-align:center;padding:4px 6px">Εμφ.</th>
+              <th style="text-align:center;padding:4px 6px">Αναμ.</th>
+              <th style="text-align:center;padding:4px 6px">Απόκλιση</th>
+              <th style="text-align:center;padding:4px 6px">%</th>
+              <th style="text-align:left;padding:4px 6px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.map(({v, c}) => {
+              const diff = c - expected;
+              const isHot  = hotSet.has(v);
+              const isCold = coldSet.has(v);
+              const zc = zoneOf(v);
+              const diffColor = diff > 0 ? '#ef6c00' : diff < 0 ? '#3949ab' : '#444';
+              const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
+              const pct = pool.length > 0 ? (c / pool.length * 100).toFixed(1) : '0.0';
+              const flag = isHot ? '🔥' : isCold ? '❄️' : '';
+              const rowBg = isHot ? 'rgba(255,109,0,.07)' : isCold ? 'rgba(26,35,126,.09)' : '';
+              return `<tr style="border-bottom:1px solid #0d0d1a;background:${rowBg}">
+                <td style="padding:3px 6px;font-weight:700;color:${zc}">${v}</td>
+                <td style="text-align:center;padding:3px 6px;color:#ccc;font-weight:${isHot||isCold?'700':'400'}">${c}</td>
+                <td style="text-align:center;padding:3px 6px;color:#444">${expected.toFixed(1)}</td>
+                <td style="text-align:center;padding:3px 6px;color:${diffColor};font-weight:700">${diffStr}</td>
+                <td style="text-align:center;padding:3px 6px;color:#555">${pct}%</td>
+                <td style="padding:3px 6px">${flag}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
     </div>`;
   }
