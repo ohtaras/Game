@@ -2585,7 +2585,8 @@ function renderHot() {
   const pool = hotWindow > 0 ? todayPS.slice(-hotWindow) : todayPS;
   const lastDraw = todayPS.length > 0 ? todayPS[todayPS.length - 1] : null;
   const info = document.getElementById('hotInfo');
-  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} · ${today}`;
+  const nowStr = new Date().toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} · ${today} · ανανέωση ${nowStr}`;
 
   const container = document.getElementById('hotCharts');
   if (!container) return;
@@ -2739,6 +2740,7 @@ setInterval(tickCountdowns, 1000);
 schedulePs();
 scheduleS3();
 scheduleKino();
+setInterval(() => { if (isHotActive()) renderHot(); }, 30000);
 loadData();
 </script>
 </body>
