@@ -2583,6 +2583,7 @@ function renderHot() {
     .filter(d => d.w && d.w.every(v => v >= 1 && v <= 27));
 
   const pool = hotWindow > 0 ? todayPS.slice(-hotWindow) : todayPS;
+  const lastDraw = todayPS.length > 0 ? todayPS[todayPS.length - 1] : null;
   const info = document.getElementById('hotInfo');
   if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} · ${today}`;
 
@@ -2604,6 +2605,7 @@ function renderHot() {
   for (let wi = 0; wi < 3; wi++) {
     // Μέτρηση εμφανίσεων (αριθμοί 1-24 + σύμβολα 25-27)
     const SYM_MAP = { 25: '★', 26: '♦', 27: '✦' };
+    const lastVal = lastDraw ? lastDraw.w[wi] : null;
     const cnt = {};
     for (let v = 1; v <= 27; v++) cnt[v] = 0;
     for (const d of pool) {
@@ -2636,14 +2638,16 @@ function renderHot() {
       const diffStr = expectedAll > 0 ? (diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1)) : '';
       const lbl    = SYM_MAP[v] || String(v);
 
-      const barColor = isHot ? '#ff6d00' : isCold ? '#1a237e' : zc + 'aa';
-      const bgColor  = isHot ? 'rgba(255,109,0,.10)' : isCold ? 'rgba(26,35,126,.12)' : 'transparent';
-      const flag     = isHot ? '🔥' : isCold ? '❄️' : '';
+      const isLast   = v === lastVal;
+      const barColor = isLast ? '#ffffff' : isHot ? '#ff6d00' : isCold ? '#1a237e' : zc + 'aa';
+      const bgColor  = isLast ? 'rgba(255,255,255,.13)' : isHot ? 'rgba(255,109,0,.10)' : isCold ? 'rgba(26,35,126,.12)' : 'transparent';
+      const border   = isLast ? 'border:1.5px solid #fff;border-radius:7px' : '';
+      const flag     = isLast ? '◄' : isHot ? '🔥' : isCold ? '❄️' : '';
 
-      html += `<div class="hot-cell" style="background:${bgColor}" title="${zoneName(v)} · ${c}/${pool.length} εμφ. · αναμ. ${expectedAll.toFixed(1)} · ${diffStr}">
+      html += `<div class="hot-cell" style="background:${bgColor};${border}" title="${zoneName(v)} · ${c}/${pool.length} εμφ. · αναμ. ${expectedAll.toFixed(1)} · ${diffStr}${isLast?' · ◄ ΤΕΛΕΥΤΑΙΟ':''}">
         <div class="hot-bar-wrap"><div class="hot-bar" style="height:${barH}px;background:${barColor}"></div></div>
-        <div class="hot-val" style="color:${zc};font-size:${v>24?'.68rem':'.78rem'}">${lbl}</div>
-        <div class="hot-pct">${pool.length > 0 ? (c/pool.length*100).toFixed(0) : 0}%${flag}</div>
+        <div class="hot-val" style="color:${isLast?'#fff':zc};font-size:${v>24?'.68rem':'.78rem'};font-weight:${isLast?'900':'400'}">${lbl}</div>
+        <div class="hot-pct" style="color:${isLast?'#fff':'inherit'}">${pool.length > 0 ? (c/pool.length*100).toFixed(0) : 0}%${flag}</div>
       </div>`;
     }
 
@@ -2672,20 +2676,21 @@ function renderHot() {
               const diff = c - expectedAll;
               const isHot  = hotSet.has(v);
               const isCold = coldSet.has(v);
+              const isLast = v === lastVal;
               const zc = zoneOf(v);
               const diffColor = diff > 1 ? '#ef6c00' : diff < -1 ? '#3949ab' : '#555';
               const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
               const pct = pool.length > 0 ? (c / pool.length * 100).toFixed(1) : '0.0';
-              const flag = isHot ? '🔥' : isCold ? '❄️' : '';
-              const rowBg = isHot ? 'rgba(255,109,0,.07)' : isCold ? 'rgba(26,35,126,.09)' : '';
+              const flag = isLast ? '◄ τελ.' : isHot ? '🔥' : isCold ? '❄️' : '';
+              const rowBg = isLast ? 'rgba(255,255,255,.08)' : isHot ? 'rgba(255,109,0,.07)' : isCold ? 'rgba(26,35,126,.09)' : '';
               const lbl = SYM_MAP[v] || String(v);
               return `<tr style="border-bottom:1px solid #0d0d1a;background:${rowBg}">
-                <td style="padding:3px 6px;font-weight:700;color:${zc}">${lbl}</td>
-                <td style="text-align:center;padding:3px 6px;color:#ccc;font-weight:${isHot||isCold?'700':'400'}">${c}</td>
+                <td style="padding:3px 6px;font-weight:700;color:${isLast?'#fff':zc}">${lbl}</td>
+                <td style="text-align:center;padding:3px 6px;color:#ccc;font-weight:${isHot||isCold||isLast?'700':'400'}">${c}</td>
                 <td style="text-align:center;padding:3px 6px;color:#444">${expectedAll.toFixed(1)}</td>
                 <td style="text-align:center;padding:3px 6px;color:${diffColor};font-weight:700">${diffStr}</td>
                 <td style="text-align:center;padding:3px 6px;color:#555">${pct}%</td>
-                <td style="padding:3px 6px">${flag}</td>
+                <td style="padding:3px 6px;color:${isLast?'#fff':'inherit'};font-weight:${isLast?'700':'400'}">${flag}</td>
               </tr>`;
             }).join('')}
           </tbody>
