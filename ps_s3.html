@@ -117,6 +117,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 .cmp-table.hide-sg3 .cmp-sg3{display:none}
 .cmp-table.hide-pi1 .cmp-pi1{display:none}
 .hot-win-btn{padding:3px 10px;border:1px solid #2a2a3a;border-radius:6px;background:#111;color:#555;cursor:pointer;font-size:.72rem;transition:all .12s}
+.nav-btn{padding:4px 12px;border:1px solid #2a2a3a;border-radius:6px;background:#111;color:#888;cursor:pointer;font-size:.72rem;transition:all .12s}.nav-btn:active{background:#1a1a2e;color:#ccc}
 .hot-win-btn.active{border-color:#ff8a65;background:#1a0d00;color:#ff8a65}
 .hot-wheel-card{background:#0d0d1a;border:1px solid #1a1a2e;border-radius:10px;padding:12px 14px}
 .hot-wheel-title{font-size:.78rem;font-weight:700;margin-bottom:10px;letter-spacing:.04em}
@@ -522,14 +523,25 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
   <!-- ═══ ΘΕΡΜΑ ═══ -->
   <section id="hotTab" style="display:none">
     <h2 style="color:#ff8a65">🔥 Θερμές / Ψυχρές Τιμές — Power Spin</h2>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <span style="font-size:.75rem;color:#555">Παράθυρο:</span>
+    <!-- Day navigation -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="nav-btn" onclick="hotNavDay(+1)">◀ Μέρα</button>
+      <span id="hotDayLabel" style="font-size:.78rem;color:#ccc;min-width:100px;text-align:center"></span>
+      <button class="nav-btn" onclick="hotNavDay(-1)">Μέρα ▶</button>
+      <button class="nav-btn" onclick="hotGoLive()" id="hotLiveBtn" style="margin-left:8px;color:#4caf50;border-color:#2e7d32">● Live</button>
+    </div>
+    <!-- Draw navigation -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="nav-btn" onclick="hotNavDraw(-1)">◀ Κλ.</button>
+      <span id="hotDrawLabel" style="font-size:.72rem;color:#888;min-width:80px;text-align:center"></span>
+      <button class="nav-btn" onclick="hotNavDraw(+1)">Κλ. ▶</button>
+      <span style="font-size:.75rem;color:#555;margin-left:8px">Παράθυρο:</span>
       <button class="hot-win-btn active" onclick="setHotWindow(10)">10 κλ.</button>
       <button class="hot-win-btn"        onclick="setHotWindow(20)">20 κλ.</button>
       <button class="hot-win-btn"        onclick="setHotWindow(50)">50 κλ.</button>
-      <button class="hot-win-btn"        onclick="setHotWindow(0)">Όλες (σήμερα)</button>
-      <span id="hotInfo" style="font-size:.68rem;color:#444;margin-left:8px"></span>
+      <button class="hot-win-btn"        onclick="setHotWindow(0)">Όλες</button>
     </div>
+    <div id="hotInfo" style="font-size:.65rem;color:#444;margin-bottom:8px"></div>
     <div id="hotCharts" style="display:flex;flex-direction:column;gap:16px"></div>
   </section>
 
@@ -1968,7 +1980,7 @@ function clearPsHistCache() {
 
 function autoFetchPs() {
   return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef,
-    () => { psRender(); if (isCmpActive()) renderCmp(); if (isHotActive()) renderHot(); }, 'PS');
+    () => { psRender(); if (isCmpActive()) renderCmp(); if (isHotActive() && hotDayOffset === 0 && hotDrawCutoff === null) renderHot(); }, 'PS');
 }
 function autoFetchS3() {
   return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef,
@@ -2564,7 +2576,9 @@ function renderCmp() {
 }
 
 // ── Θερμά / Ψυχρά ─────────────────────────────────────────────────────────
-let hotWindow = 10;
+let hotWindow    = 10;
+let hotDayOffset = 0;   // 0 = σήμερα, 1 = χθες, κ.λπ.
+let hotDrawCutoff = null; // null = όλες, αριθμός = δείκτης τελευταίας κλήρωσης που βλέπουμε
 
 function setHotWindow(n) {
   hotWindow = n;
@@ -2574,19 +2588,61 @@ function setHotWindow(n) {
   renderHot();
 }
 
-function renderHot() {
-  const today = getCmpDayStr(0);
-  // Κληρώσεις PS της σημερινής μέρας με 3 αριθμητικούς τροχούς
-  const todayPS = psDraws
-    .filter(d => d.d === today)
-    .sort((a, b) => a.m - b.m)
-    .filter(d => d.w && d.w.every(v => v >= 1 && v <= 27));
+function hotNavDay(dir) {
+  const newOff = hotDayOffset + dir;
+  if (newOff < 0) return; // δεν πάμε μπροστά από σήμερα
+  hotDayOffset  = newOff;
+  hotDrawCutoff = null;   // reset σε "όλες" για τη νέα μέρα
+  renderHot();
+}
 
-  const pool = hotWindow > 0 ? todayPS.slice(-hotWindow) : todayPS;
-  const lastDraw = todayPS.length > 0 ? todayPS[todayPS.length - 1] : null;
+function hotGoLive() {
+  hotDayOffset  = 0;
+  hotDrawCutoff = null;
+  renderHot();
+}
+
+function hotNavDraw(dir) {
+  const dayStr  = getCmpDayStr(hotDayOffset);
+  const dayDraws = psDraws
+    .filter(d => d.d === dayStr && d.w && d.w.every(v => v >= 1 && v <= 27))
+    .sort((a, b) => a.m - b.m);
+  if (dayDraws.length === 0) return;
+  const maxIdx = dayDraws.length - 1;
+  if (hotDrawCutoff === null) hotDrawCutoff = maxIdx;
+  hotDrawCutoff = Math.max(0, Math.min(maxIdx, hotDrawCutoff + dir));
+  renderHot();
+}
+
+function renderHot() {
+  const dayStr  = getCmpDayStr(hotDayOffset);
+  const isLiveDay = hotDayOffset === 0;
+
+  // Κληρώσεις της επιλεγμένης ημέρας
+  const dayDraws = psDraws
+    .filter(d => d.d === dayStr && d.w && d.w.every(v => v >= 1 && v <= 27))
+    .sort((a, b) => a.m - b.m);
+
+  // Κόφτης κλήρωσης
+  const cutIdx = hotDrawCutoff !== null ? hotDrawCutoff : dayDraws.length - 1;
+  const visibleDraws = dayDraws.slice(0, cutIdx + 1);
+
+  const pool = hotWindow > 0 ? visibleDraws.slice(-hotWindow) : visibleDraws;
+  const lastDraw = visibleDraws.length > 0 ? visibleDraws[visibleDraws.length - 1] : null;
+
+  // Labels
+  const dayLbl = document.getElementById('hotDayLabel');
+  if (dayLbl) dayLbl.textContent = isLiveDay ? '🟢 Σήμερα' : dayStr;
+  const drawLbl = document.getElementById('hotDrawLabel');
+  if (drawLbl) drawLbl.textContent = dayDraws.length > 0
+    ? `${cutIdx + 1} / ${dayDraws.length}`
+    : '—';
+  const livBtn = document.getElementById('hotLiveBtn');
+  if (livBtn) livBtn.style.opacity = isLiveDay && hotDrawCutoff === null ? '1' : '0.4';
+
   const info = document.getElementById('hotInfo');
   const nowStr = new Date().toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} · ${today} · ανανέωση ${nowStr}`;
+  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} στο παράθυρο · ${dayStr} · ανανέωση ${nowStr}`;
 
   const container = document.getElementById('hotCharts');
   if (!container) return;
@@ -2740,7 +2796,7 @@ setInterval(tickCountdowns, 1000);
 schedulePs();
 scheduleS3();
 scheduleKino();
-setInterval(() => { if (isHotActive()) renderHot(); }, 30000);
+setInterval(() => { if (isHotActive() && hotDayOffset === 0) renderHot(); }, 30000);
 loadData();
 </script>
 </body>
