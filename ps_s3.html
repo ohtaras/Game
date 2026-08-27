@@ -364,6 +364,32 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       </div>
     </div>
     <div id="kinoComboHits"></div>
+
+    <!-- ── Σύστημα Κάλυψης Τετράδας ── -->
+    <div style="margin-top:16px;border-top:1px solid #1a1a2e;padding-top:12px">
+      <div style="color:#7c4dff;font-weight:700;font-size:.82rem;margin-bottom:8px">🎯 Σύστημα Κάλυψης Τετράδας</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.72rem;color:#666;margin-bottom:8px">
+        <span>Hot αριθμοί:</span>
+        <select id="coverNSel" style="background:#0d0d1a;color:#ccc;border:1px solid #1a1a2e;border-radius:4px;padding:2px 6px">
+          <option value="10">10</option>
+          <option value="12">12</option>
+          <option value="15" selected>15</option>
+        </select>
+        <span>από τελ.</span>
+        <select id="coverWinSel" style="background:#0d0d1a;color:#ccc;border:1px solid #1a1a2e;border-radius:4px;padding:2px 6px">
+          <option value="20">20 κλ.</option>
+          <option value="50" selected>50 κλ.</option>
+          <option value="0">όλες</option>
+        </select>
+        <span>· Δελτίο:</span>
+        <select id="coverKSel" style="background:#0d0d1a;color:#ccc;border:1px solid #1a1a2e;border-radius:4px;padding:2px 6px">
+          <option value="10">10 αρ.</option>
+          <option value="12" selected>12 αρ.</option>
+        </select>
+        <button class="btn" onclick="runCover()" style="font-size:.7rem;padding:4px 12px;background:#1a0a2e;border-color:#7c4dff;color:#cf9fff">▶ Υπολόγισε</button>
+      </div>
+      <div id="kinoCoverResult" style="font-size:.72rem"></div>
+    </div>
   </section>
 
   <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
@@ -1930,6 +1956,130 @@ function renderCmp() {
     const scroll = document.querySelector('#cmpTab .cmp-scroll');
     if (scroll) setTimeout(() => { scroll.scrollTop = scroll.scrollHeight; }, 30);
   }
+}
+
+// ── Σύστημα Κάλυψης Τετράδας ──────────────────────────────────────────────
+
+function logC(n, k) {
+  if (k < 0 || k > n) return -Infinity;
+  k = Math.min(k, n - k);
+  let s = 0;
+  for (let i = 0; i < k; i++) s += Math.log(n - i) - Math.log(i + 1);
+  return s;
+}
+
+function pGeq4(N) {
+  // P(≥4 hits) Hypergeometric(80, N, 20)
+  let pLess = 0;
+  for (let j = 0; j < 4; j++) {
+    const lp = logC(N, j) + logC(80 - N, 20 - j) - logC(80, 20);
+    if (isFinite(lp)) pLess += Math.exp(lp);
+  }
+  return Math.max(0, 1 - pLess);
+}
+
+function genCovering(nums, k) {
+  const n = nums.length;
+  if (n <= k) return { tickets: [nums.slice()], uncovered: 0, total: 1 };
+
+  // Build all 4-subset keys
+  const unc = new Set();
+  for (let a=0;a<n;a++) for (let b=a+1;b<n;b++) for (let c=b+1;c<n;c++) for (let d=c+1;d<n;d++)
+    unc.add((a<<18)|(b<<12)|(c<<6)|d);
+  const total = unc.size;
+
+  // All k-subsets (as index arrays)
+  const allKSubs = [];
+  (function pick(start, cur) {
+    if (cur.length === k) { allKSubs.push(cur.slice()); return; }
+    if (n - start < k - cur.length) return;
+    for (let i = start; i < n; i++) { cur.push(i); pick(i+1, cur); cur.pop(); }
+  })(0, []);
+
+  const tickets = [];
+  while (unc.size > 0 && tickets.length < 10) {
+    let best = null, bestCnt = -1;
+    for (const sub of allKSubs) {
+      let cnt = 0;
+      for (let a=0;a<sub.length;a++) for (let b=a+1;b<sub.length;b++)
+      for (let c=b+1;c<sub.length;c++) for (let d=c+1;d<sub.length;d++)
+        if (unc.has((sub[a]<<18)|(sub[b]<<12)|(sub[c]<<6)|sub[d])) cnt++;
+      if (cnt > bestCnt) { bestCnt = cnt; best = sub; }
+    }
+    if (!best || bestCnt === 0) break;
+    for (let a=0;a<best.length;a++) for (let b=a+1;b<best.length;b++)
+    for (let c=b+1;c<best.length;c++) for (let d=c+1;d<best.length;d++)
+      unc.delete((best[a]<<18)|(best[b]<<12)|(best[c]<<6)|best[d]);
+    tickets.push(best.map(i => nums[i]));
+  }
+  return { tickets, uncovered: unc.size, total };
+}
+
+function runCover() {
+  const el = document.getElementById('kinoCoverResult');
+  if (!el) return;
+  if (!kinoDraws.length) { el.textContent = 'Δεν υπάρχουν δεδομένα ΚΙΝΟ.'; return; }
+
+  const N   = +document.getElementById('coverNSel').value;
+  const K   = +document.getElementById('coverKSel').value;
+  const win = +document.getElementById('coverWinSel').value;
+
+  el.innerHTML = '<span style="color:#555">⏳ Υπολογισμός…</span>';
+
+  setTimeout(() => {
+    // Hot numbers from last `win` draws (0 = all)
+    const startIdx = win === 0 ? 0 : Math.max(0, kinoDraws.length - win);
+    const freq = new Array(81).fill(0);
+    for (let i = startIdx; i < kinoDraws.length; i++)
+      kinoDraws[i].n.forEach(x => freq[x]++);
+    const hotNums = Array.from({length:80}, (_,i) => i+1)
+      .sort((a,b) => freq[b]-freq[a]).slice(0, N);
+    hotNums.sort((a,b) => a-b);
+
+    const { tickets, uncovered, total } = genCovering(hotNums, K);
+    const pDraw = pGeq4(N);
+    const p10   = 1 - Math.pow(1 - pDraw, 10);
+
+    // Historical check: in last 50 draws, how many times ≥4 of hotNums appeared?
+    const hotSet   = new Set(hotNums);
+    const histFrom = Math.max(0, kinoDraws.length - 50);
+    let histHit = 0;
+    for (let i = histFrom; i < kinoDraws.length; i++)
+      if (kinoDraws[i].n.filter(x => hotSet.has(x)).length >= 4) histHit++;
+    const histTotal = kinoDraws.length - histFrom;
+
+    const covPct = total > 0 ? Math.round((total - uncovered) / total * 100) : 100;
+    const colors  = ['#69f0ae','#ff8a65','#80d8ff','#ffd740','#cf9fff','#f48fb1','#a5d6a7','#ffcc80','#b0bec5','#80cbc4'];
+
+    const ticketsHtml = tickets.map((t, i) =>
+      `<div style="margin:3px 0;padding:4px 8px;background:#0a0a18;border-radius:5px">
+        <span style="color:${colors[i]};font-weight:700">Δελτίο ${i+1}</span>
+        <span style="color:#777;font-size:.65rem"> (${t.length} αρ.)</span>
+        <span style="color:#ccc;margin-left:6px">${t.join(' — ')}</span>
+      </div>`
+    ).join('');
+
+    const guaranteed = uncovered === 0;
+    const coverBadge = guaranteed
+      ? `<span style="color:#69f0ae">✅ 100% κάλυψη — εγγυημένη τετράδα αν ≥4/${N} βγουν</span>`
+      : `<span style="color:#ffd740">⚠️ ${covPct}% κάλυψη (${total-uncovered}/${total} — ${uncovered} ακάλυπτες τετράδες)</span>`;
+
+    el.innerHTML = `
+      <div style="margin-bottom:6px;color:#80d8ff;font-size:.7rem">
+        🔢 Hot ${N}: <strong style="color:#fff;letter-spacing:.5px">${hotNums.join('  ')}</strong>
+      </div>
+      ${ticketsHtml}
+      <div style="margin-top:8px;padding:8px 10px;background:#0a140a;border:1px solid #1a3a1a;border-radius:7px;line-height:1.9">
+        <div>${coverBadge}</div>
+        <div style="color:#888;margin-top:4px">
+          📊 P(≥4 από ${N} βγουν): <strong style="color:#ff8a65">${(pDraw*100).toFixed(1)}%</strong> / κλήρωση &nbsp;·&nbsp;
+          Σε 10 κλ.: <strong style="color:#ffd740">${(p10*100).toFixed(1)}%</strong>
+        </div>
+        <div style="color:#555;font-size:.68rem;margin-top:2px">
+          📅 Ιστορικά τελ. ${histTotal} κλ.: <strong style="color:#69f0ae">${histHit}/${histTotal}</strong> (${histTotal>0?(histHit/histTotal*100).toFixed(0):0}% πραγματικό)
+        </div>
+      </div>`;
+  }, 30);
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
