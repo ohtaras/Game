@@ -441,6 +441,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <button class="btn" onclick="runCover()" style="font-size:.7rem;padding:4px 12px;background:#1a0a2e;border-color:#7c4dff;color:#cf9fff">▶ Υπολόγισε</button>
       </div>
       <div id="kinoCoverResult" style="font-size:.72rem"></div>
+      <div id="kinoCoverEval" style="margin-top:8px;font-size:.72rem"></div>
     </div>
   </section>
 
@@ -1165,6 +1166,8 @@ function kinoRender() {
 
   document.getElementById('kinoPrevBtn').disabled = kinoIdx <= 0;
   document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
+
+  renderCoverEval();
 }
 
 function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
@@ -2844,6 +2847,75 @@ function genCovering(nums, k) {
     tickets.push(best.map(i => nums[i]));
   }
   return { tickets, uncovered: unc.size, total };
+}
+
+// Cache για να μην ξαναϋπολογίζουμε όταν δεν άλλαξαν οι hot αριθμοί
+let _coverCacheKey = '';
+let _coverCacheResult = null;
+
+function getCoverForDraw(idx) {
+  const N   = +(document.getElementById('coverNSel')?.value   || 15);
+  const K   = +(document.getElementById('coverKSel')?.value   || 12);
+  const win = +(document.getElementById('coverWinSel')?.value || 50);
+
+  const startIdx = win === 0 ? 0 : Math.max(0, idx - win);
+  const freq = new Array(81).fill(0);
+  for (let i = startIdx; i < idx; i++)
+    kinoDraws[i].n.forEach(x => freq[x]++);
+  const hotNums = Array.from({length:80}, (_,i) => i+1)
+    .sort((a,b) => freq[b]-freq[a]).slice(0, N);
+  hotNums.sort((a,b) => a-b);
+
+  const key = `${N},${K},${win},${idx},${hotNums.join(',')}`;
+  if (key !== _coverCacheKey) {
+    _coverCacheResult = { hotNums, N, K, ...genCovering(hotNums, K) };
+    _coverCacheKey = key;
+  }
+  return _coverCacheResult;
+}
+
+function renderCoverEval() {
+  const el = document.getElementById('kinoCoverEval');
+  if (!el) return;
+  if (!kinoDraws.length || kinoIdx <= 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const { hotNums, N, K, tickets, uncovered, total } = getCoverForDraw(kinoIdx);
+  const draw     = kinoDraws[kinoIdx];
+  const drawnSet = new Set(draw.n);
+
+  const hotHits    = hotNums.filter(n => drawnSet.has(n)).length;
+  const ticketHits = tickets.map(t => t.filter(n => drawnSet.has(n)).length);
+  const maxHits    = tickets.length ? Math.max(...ticketHits) : 0;
+  const bestIdx    = ticketHits.indexOf(maxHits);
+  const activated  = hotHits >= 4;
+  const fullCover  = uncovered === 0;
+
+  const hotDisplay = hotNums.map(n =>
+    drawnSet.has(n)
+      ? `<span style="color:#69f0ae;font-weight:900">${n}</span>`
+      : `<span style="color:#2a2a3a">${n}</span>`
+  ).join(' ');
+
+  let badge;
+  if (activated && fullCover)
+    badge = `<span style="color:#69f0ae">✅ ${hotHits}/${N} hot βγήκαν → εγγυημένη τετράδα! (best: ${maxHits} hits στο Δελτίο ${bestIdx+1})</span>`;
+  else if (activated && !fullCover)
+    badge = `<span style="color:#ffd740">⚡ ${hotHits}/${N} hot βγήκαν → συνθήκη OK · κάλυψη μερική (best: ${maxHits} hits)</span>`;
+  else
+    badge = `<span style="color:#444">❌ ${hotHits}/${N} hot βγήκαν → κάτω από 4, δεν ενεργοποιήθηκε η εγγύηση</span>`;
+
+  el.innerHTML = `
+    <div style="padding:6px 10px;background:#08080f;border:1px solid #151525;border-radius:7px">
+      <div style="color:#7c4dff;font-size:.68rem;font-weight:700;margin-bottom:4px">
+        🎯 Αξιολόγηση · Hot ${N} · ${tickets.length} δελτία · ${K} αρ./δελτίο
+      </div>
+      <div style="margin-bottom:5px;letter-spacing:.3px">${hotDisplay}</div>
+      <div>${badge}</div>
+      ${tickets.length > 1 ? `<div style="color:#333;font-size:.65rem;margin-top:3px">${ticketHits.map((h,i)=>`Δ${i+1}:${h}`).join(' · ')}</div>` : ''}
+    </div>`;
 }
 
 function runCover() {
