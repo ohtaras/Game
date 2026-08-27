@@ -428,7 +428,14 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         </select>
         <span>· Δελτίο:</span>
         <select id="coverKSel" style="background:#0d0d1a;color:#ccc;border:1px solid #1a1a2e;border-radius:4px;padding:2px 6px">
+          <option value="4">4 αρ.</option>
+          <option value="5">5 αρ.</option>
+          <option value="6">6 αρ.</option>
+          <option value="7">7 αρ.</option>
+          <option value="8">8 αρ.</option>
+          <option value="9">9 αρ.</option>
           <option value="10">10 αρ.</option>
+          <option value="11">11 αρ.</option>
           <option value="12" selected>12 αρ.</option>
         </select>
         <button class="btn" onclick="runCover()" style="font-size:.7rem;padding:4px 12px;background:#1a0a2e;border-color:#7c4dff;color:#cf9fff">▶ Υπολόγισε</button>
@@ -2881,9 +2888,10 @@ function runCover() {
       </div>`
     ).join('');
 
+    const minTickets = Math.ceil(total / (function(){ let c=1; for(let i=0;i<4;i++) c=c*(K-i)/(i+1); return c; }()));
     const coverBadge = uncovered === 0
       ? `<span style="color:#69f0ae">✅ 100% κάλυψη — αν ≥4 από τους ${N} hot αριθμούς βγουν → εγγυημένη τετράδα</span>`
-      : `<span style="color:#ffd740">⚠️ ${covPct}% κάλυψη (${total-uncovered}/${total} — ${uncovered} ακάλυπτες τετράδες)</span>`;
+      : `<span style="color:#ffd740">⚠️ ${covPct}% κάλυψη με ${tickets.length} δελτία (${total-uncovered}/${total} τετράδες) · χρειάζονται ≥${minTickets} για 100%</span>`;
 
     el.innerHTML = `
       <div style="margin-bottom:6px;color:#80d8ff;font-size:.7rem">
