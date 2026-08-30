@@ -443,6 +443,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <div id="kinoCoverResult" style="font-size:.72rem"></div>
       <div id="kinoCoverEval" style="margin-top:8px;font-size:.72rem"></div>
     </div>
+
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
+      <div id="kinoPatternHeat" style="min-height:30px"></div>
+    </div>
   </section>
 
   <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
@@ -817,6 +821,16 @@ async function fetchDayOpap(gameId, dayStr) {
   return items;
 }
 
+// ── GitHub raw binary fetch ────────────────────────────────────────────────
+async function ghGetBin(path) {
+  const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}?_=${Date.now()}`;
+  try {
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (r.ok) return r.arrayBuffer();
+  } catch(_) {}
+  return null;
+}
+
 // ── GitHub raw file fetch ──────────────────────────────────────────────────
 async function ghGet(path) {
   const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}?_=${Date.now()}`;
@@ -1168,6 +1182,7 @@ function kinoRender() {
   document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
 
   renderCoverEval();
+  schedulePatternMatch(draw.n);
 }
 
 function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
@@ -2872,6 +2887,167 @@ function getCoverForDraw(idx) {
     _coverCacheKey = key;
   }
   return _coverCacheResult;
+}
+
+// ── Pattern matching (Web Worker) ─────────────────────────────────────────
+let _patWorker = null;
+let _patBuf    = null;   // ArrayBuffer of kino_patterns.bin
+let _patLoading = false;
+let _patPendingCb = null;
+
+const WORKER_SRC = `
+const POP = new Uint8Array(256);
+for (let i=1;i<256;i++) POP[i]=POP[i>>1]+(i&1);
+
+function popcount10(b,off){
+  let s=0;
+  for(let i=0;i<10;i++) s+=POP[b[off+i]];
+  return s;
+}
+
+function makeShiftedMask(qmask, dr, dc) {
+  // qmask: 80 bits in 10 bytes (row-major 8×10, col-major bits within byte)
+  // returns new 10-byte mask shifted by (dr,dc) in the 8×10 grid
+  const out = new Uint8Array(10);
+  for (let r=0;r<8;r++) {
+    const nr = r + dr;
+    if (nr<0||nr>=8) continue;
+    for (let c=0;c<10;c++) {
+      const nc = c + dc;
+      if (nc<0||nc>=10) continue;
+      const srcBit = r*10+c;
+      const dstBit = nr*10+nc;
+      const srcByte = srcBit>>3, srcBitOff = srcBit&7;
+      const dstByte = dstBit>>3, dstBitOff = dstBit&7;
+      if (qmask[srcByte] & (1<<srcBitOff))
+        out[dstByte] |= (1<<dstBitOff);
+    }
+  }
+  return out;
+}
+
+self.onmessage = function(e) {
+  const {buf, qbytes, minMatch, N} = e.data;
+  const data = new Uint8Array(buf);
+  const heat = new Int32Array(80);
+  const matchIds = [];
+
+  const q = new Uint8Array(qbytes);
+  const best = new Uint8Array(N);
+
+  // For each valid translation compute overlap, track max per draw
+  for (let dr=-7;dr<=7;dr++) {
+    for (let dc=-9;dc<=9;dc++) {
+      const rSpan = 8-Math.abs(dr);
+      const cSpan = 10-Math.abs(dc);
+      if (rSpan*cSpan < minMatch) continue;
+      const shifted = makeShiftedMask(q, dr, dc);
+      for (let i=0;i<N;i++) {
+        const off = i*10;
+        let ov=0;
+        for (let b=0;b<10;b++) ov += POP[data[off+b] & shifted[b]];
+        if (ov > best[i]) best[i] = ov;
+      }
+    }
+  }
+
+  // Collect matches and build heat of the NEXT draw
+  for (let i=0;i<N-1;i++) {
+    if (best[i] >= minMatch) {
+      matchIds.push(i);
+      const nextOff = (i+1)*10;
+      // count bits set in next draw's mask
+      for (let b=0;b<10;b++) {
+        let byte = data[nextOff+b];
+        while (byte) {
+          const lsb = byte & (-byte);
+          const bitIdx = b*8 + Math.log2(lsb)|0;
+          if (bitIdx < 80) heat[bitIdx]++;
+          byte ^= lsb;
+        }
+      }
+    }
+  }
+  self.postMessage({heat: Array.from(heat), matchCount: matchIds.length});
+};
+`;
+
+function ensurePatWorker() {
+  if (_patWorker) return;
+  const blob = new Blob([WORKER_SRC], {type:'application/javascript'});
+  _patWorker = new Worker(URL.createObjectURL(blob));
+}
+
+async function loadPatternBuf() {
+  if (_patBuf) return _patBuf;
+  if (_patLoading) return null;
+  _patLoading = true;
+  const ab = await ghGetBin('data/kino_patterns.bin');
+  _patLoading = false;
+  if (!ab) return null;
+  _patBuf = ab;
+  return _patBuf;
+}
+
+let _patMatchTimer = null;
+function schedulePatternMatch(nums) {
+  clearTimeout(_patMatchTimer);
+  _patMatchTimer = setTimeout(() => runPatternMatch(nums), 100);
+}
+
+async function runPatternMatch(nums) {
+  const el = document.getElementById('kinoPatternHeat');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#888;font-size:.65rem;padding:4px">⏳ Φορτώνω μοτίβα…</div>';
+
+  const buf = await loadPatternBuf();
+  if (!buf) { el.innerHTML = '<div style="color:#555;font-size:.65rem">Αδύνατη φόρτωση μοτίβων.</div>'; return; }
+
+  const view = new DataView(buf);
+  const N = view.getUint32(0, true);
+  const data = new Uint8Array(buf, 4);
+
+  // Build 10-byte mask for current draw
+  const qbytes = new Uint8Array(10);
+  for (const n of nums) { const b=n-1; qbytes[b>>3]|=(1<<(b&7)); }
+
+  el.innerHTML = '<div style="color:#888;font-size:.65rem;padding:4px">⏳ Ψάχνω ' + N.toLocaleString() + ' κληρώσεις…</div>';
+
+  ensurePatWorker();
+  // Transfer a copy of the data (keep original)
+  const bufCopy = buf.slice(4, 4 + N*10);
+  _patWorker.onmessage = function(e) {
+    const {heat, matchCount} = e.data;
+    renderPatternHeat(el, heat, matchCount, nums);
+  };
+  _patWorker.postMessage({buf: bufCopy, qbytes: Array.from(qbytes), minMatch: 12, N}, [bufCopy]);
+}
+
+function renderPatternHeat(el, heat, matchCount, drawnNums) {
+  const drawnSet = new Set(drawnNums);
+  const maxH = Math.max(...heat, 1);
+  // Top 20 predicted numbers
+  const ranked = heat.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
+  const top20 = new Set(ranked.slice(0,20).map(x=>x.n));
+
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:4px">🔮 Πρόβλεψη επόμενης (${matchCount} ιστορικά ταιριάσματα, ≥12 θέσεις)</div>`;
+  html += '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px">';
+  for (let n=1;n<=80;n++) {
+    const h = heat[n-1];
+    const pct = h/maxH;
+    const isDrawn = drawnSet.has(n);
+    const isTop   = top20.has(n);
+    const bg = isTop
+      ? `rgba(0,200,100,${0.25+pct*0.75})`
+      : `rgba(80,80,120,${pct*0.5})`;
+    const border = isDrawn ? '1px solid #ef6c00' : '1px solid #1a2030';
+    const color  = isTop ? '#c8ffdd' : '#888';
+    const fw     = isTop ? 'bold' : 'normal';
+    html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${fw}" title="${h} φορές">${n}</div>`;
+  }
+  html += '</div>';
+  if (matchCount === 0) html = '<div style="color:#666;font-size:.65rem">Δεν βρέθηκαν ιστορικά ταιριάσματα (≥12 θέσεις).</div>';
+  el.innerHTML = html;
 }
 
 function renderCoverEval() {
