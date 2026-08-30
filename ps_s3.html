@@ -2930,12 +2930,13 @@ self.onmessage = function(e) {
   const {buf, qbytes, minMatch, N} = e.data;
   const data = new Uint8Array(buf);
   const heat = new Int32Array(80);
-  const matchIds = [];
 
   const q = new Uint8Array(qbytes);
-  const best = new Uint8Array(N);
+  const best   = new Uint8Array(N);   // max overlap per draw
+  const bestDr = new Int8Array(N);    // translation that gave max overlap
+  const bestDc = new Int8Array(N);
 
-  // For each valid translation compute overlap, track max per draw
+  // Pass 1: find best translation per historical draw
   for (let dr=-7;dr<=7;dr++) {
     for (let dc=-9;dc<=9;dc++) {
       const rSpan = 8-Math.abs(dr);
@@ -2946,29 +2947,36 @@ self.onmessage = function(e) {
         const off = i*10;
         let ov=0;
         for (let b=0;b<10;b++) ov += POP[data[off+b] & shifted[b]];
-        if (ov > best[i]) best[i] = ov;
+        if (ov > best[i]) { best[i]=ov; bestDr[i]=dr; bestDc[i]=dc; }
       }
     }
   }
 
-  // Collect matches and build heat of the NEXT draw
+  // Pass 2: for each match, inverse-translate next draw back to current frame
+  let matchCount = 0;
   for (let i=0;i<N-1;i++) {
-    if (best[i] >= minMatch) {
-      matchIds.push(i);
-      const nextOff = (i+1)*10;
-      // count bits set in next draw's mask
-      for (let b=0;b<10;b++) {
-        let byte = data[nextOff+b];
-        while (byte) {
-          const lsb = byte & (-byte);
-          const bitIdx = b*8 + Math.log2(lsb)|0;
-          if (bitIdx < 80) heat[bitIdx]++;
-          byte ^= lsb;
+    if (best[i] < minMatch) continue;
+    matchCount++;
+    const dr = bestDr[i], dc = bestDc[i];
+    const nextOff = (i+1)*10;
+    // Enumerate bits set in next draw
+    for (let b=0;b<10;b++) {
+      let byte = data[nextOff+b];
+      while (byte) {
+        const lsb = byte & (-byte);
+        const bitIdx = b*8 + (31 - Math.clz32(lsb));
+        if (bitIdx < 80) {
+          // bitIdx = r*10+c in the historical frame
+          // inverse translate: subtract (dr,dc) to get back to query frame
+          const r = (bitIdx/10)|0, c = bitIdx%10;
+          const nr = r - dr, nc = c - dc;
+          if (nr>=0 && nr<8 && nc>=0 && nc<10) heat[nr*10+nc]++;
         }
+        byte ^= lsb;
       }
     }
   }
-  self.postMessage({heat: Array.from(heat), matchCount: matchIds.length});
+  self.postMessage({heat: Array.from(heat), matchCount});
 };
 `;
 
