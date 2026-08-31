@@ -448,6 +448,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <div id="kinoClusterGrid" style="min-height:30px"></div>
     </div>
 
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #172030;border-radius:6px;padding:8px">
+      <div id="kinoPredEval" style="min-height:10px"></div>
+    </div>
+
     <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
       <div id="kinoPatternHeat" style="min-height:30px"></div>
     </div>
@@ -1205,6 +1209,7 @@ function kinoRender() {
   renderCoverEval();
   const prevDraw = kinoIdx > 0 ? kinoDraws[kinoIdx - 1] : null;
   renderClusterGrid(draw.n, prevDraw ? prevDraw.n : null, draw.id);
+  renderPredictionEval(draw.n, draw.id);
   schedulePatternMatch(draw.n);
   scheduleAnalysisMatch(draw.n);
 }
@@ -3068,6 +3073,8 @@ function applyStructuralBoosts(heat, nums) {
   return boosted.map(v => Math.max(0, v));
 }
 
+const _predictions = {};   // drawId → [9 αριθμοί]
+
 let _patMatchTimer = null;
 function schedulePatternMatch(nums) {
   clearTimeout(_patMatchTimer);
@@ -3099,35 +3106,97 @@ async function runPatternMatch(nums) {
   _patWorker.onmessage = function(e) {
     const {heat, matchCount} = e.data;
     const boosted = applyStructuralBoosts(heat, nums);
-    renderPatternHeat(el, boosted, matchCount, nums, drawId);
+    // Αποθήκευση top9 για αξιολόγηση στην επόμενη κλήρωση
+    const top9 = boosted.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v)
+                        .slice(0,9).map(x=>x.n).sort((a,b)=>a-b);
+    _predictions[drawId] = top9;
+    renderPatternHeat(el, boosted, matchCount, nums, drawId, top9);
+    // Αν η επόμενη κλήρωση είναι ήδη φορτωμένη, ξαναζωγραφίζουμε αξιολόγηση
+    const nextDraw = kinoDraws[kinoIdx + 1];
+    if (nextDraw && kinoIdx === kinoDraws.indexOf(kinoDraws.find(d=>d.id===drawId))) {
+      // ακριβώς στη σωστή θέση — αξιολόγηση θα φανεί στο επόμενο navigate
+    }
   };
   _patWorker.postMessage({buf: bufCopy, qbytes: Array.from(qbytes), minMatch: 12, N}, [bufCopy]);
 }
 
-function renderPatternHeat(el, heat, matchCount, drawnNums, drawId) {
+function renderPatternHeat(el, heat, matchCount, drawnNums, drawId, top9) {
   const drawnSet = new Set(drawnNums);
   const maxH = Math.max(...heat, 1);
-  // Top 20 predicted numbers
   const ranked = heat.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
   const top20 = new Set(ranked.slice(0,20).map(x=>x.n));
+  const top9Set = new Set(top9 || []);
+  const nextDraw = kinoDraws[kinoIdx + 1];
+  const nextId = nextDraw ? nextDraw.id : '—';
 
-  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:4px">🔮 Πρόβλεψη επόμενης <span style="color:#546e7a">#${drawId}</span> &nbsp;<span style="color:#555">(${matchCount} ταιριάσματα · cluster+balance boosts)</span></div>`;
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px">🔮 Πρόβλεψη επόμενης <span style="color:#546e7a">#${drawId}</span> <span style="color:#444">(${matchCount} ταιριάσματα · cluster+balance)</span></div>`;
+
+  // ── Κάρτα top9 ──
+  if (top9 && top9.length) {
+    html += `<div style="background:#0d1a10;border:1px solid #2e7d52;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
+    html += `<div style="font-size:.6rem;color:#69f0ae;margin-bottom:5px;letter-spacing:.04em">🎯 ΠΑΙΞΕ 9 ΓΙΑ #${nextId}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
+    for (const n of top9) {
+      const isDrawn = drawnSet.has(n);
+      html += `<span style="background:#1b5e20;border:${isDrawn?'2px solid #ef6c00':'1px solid #43a047'};border-radius:4px;
+        padding:3px 7px;font-size:.8rem;font-weight:bold;color:#69f0ae">${n}</span>`;
+    }
+    html += `</div></div>`;
+  }
+
+  // ── Grid 80 ──
   html += '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px">';
   for (let n=1;n<=80;n++) {
     const h = heat[n-1];
     const pct = h/maxH;
     const isDrawn = drawnSet.has(n);
-    const isTop   = top20.has(n);
-    const bg = isTop
-      ? `rgba(0,200,100,${0.25+pct*0.75})`
-      : `rgba(80,80,120,${pct*0.5})`;
-    const border = isDrawn ? '1px solid #ef6c00' : '1px solid #1a2030';
-    const color  = isTop ? '#c8ffdd' : '#888';
-    const fw     = isTop ? 'bold' : 'normal';
-    html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${fw}" title="${h} φορές">${n}</div>`;
+    const isTop9  = top9Set.has(n);
+    const isTop20 = top20.has(n);
+    const bg = isTop9
+      ? `rgba(0,230,80,${0.35+pct*0.65})`
+      : isTop20
+        ? `rgba(0,160,60,${0.2+pct*0.6})`
+        : `rgba(80,80,120,${pct*0.45})`;
+    const border = isDrawn ? '2px solid #ef6c00' : isTop9 ? '1px solid #43a047' : '1px solid #1a2030';
+    const color  = isTop9 ? '#fff' : isTop20 ? '#c8ffdd' : '#666';
+    const fw     = isTop9 ? '900' : isTop20 ? 'bold' : 'normal';
+    html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${fw}" title="${h}">${n}</div>`;
   }
   html += '</div>';
   if (matchCount === 0) html = '<div style="color:#666;font-size:.65rem">Δεν βρέθηκαν ιστορικά ταιριάσματα (≥12 θέσεις).</div>';
+  el.innerHTML = html;
+}
+
+function renderPredictionEval(drawnNums, drawId) {
+  const el = document.getElementById('kinoPredEval');
+  if (!el) return;
+  if (kinoIdx <= 0) { el.innerHTML = ''; return; }
+
+  const prevId = kinoDraws[kinoIdx - 1] ? kinoDraws[kinoIdx - 1].id : null;
+  const pred   = prevId ? _predictions[prevId] : null;
+
+  if (!pred) {
+    el.innerHTML = `<div style="font-size:.6rem;color:#444;padding:2px">📋 Αξιολόγηση: πλοηγήσου στην κλήρωση #${kinoDraws[kinoIdx-1]?.id||'—'} πρώτα για να παραχθεί πρόβλεψη.</div>`;
+    return;
+  }
+
+  const actual = new Set(drawnNums);
+  const hits   = pred.filter(n => actual.has(n));
+  const score  = hits.length;
+  const expRand = (9 * 20 / 80).toFixed(2);  // 2.25
+  const scoreColor = score >= 4 ? '#69f0ae' : score >= 3 ? '#ffd740' : score >= 2 ? '#ffab40' : '#ef5350';
+
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:5px">📊 Αξιολόγηση πρόβλεψης #${prevId} → <span style="color:#546e7a">#${drawId}</span></div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">`;
+  for (const n of pred) {
+    const hit = actual.has(n);
+    html += `<span style="background:${hit?'#1b5e20':'#120808'};border:1px solid ${hit?'#69f0ae':'#2a1010'};
+      border-radius:4px;padding:3px 7px;font-size:.75rem;font-weight:${hit?'bold':'normal'};
+      color:${hit?'#69f0ae':'#444'}">${n}${hit?' ✓':''}</span>`;
+  }
+  html += `</div>`;
+  html += `<div style="font-size:.7rem">Αποτέλεσμα: <b style="color:${scoreColor};font-size:.9rem">${score}/9</b>
+    <span style="color:#555;font-size:.6rem"> &nbsp;(τυχαίο αναμ. ~${expRand})</span></div>`;
   el.innerHTML = html;
 }
 
