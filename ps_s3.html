@@ -445,6 +445,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
 
     <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
+      <div id="kinoClusterGrid" style="min-height:30px"></div>
+    </div>
+
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
       <div id="kinoPatternHeat" style="min-height:30px"></div>
     </div>
 
@@ -1199,6 +1203,8 @@ function kinoRender() {
   if (nb2) nb2.disabled = kinoIdx >= kinoDraws.length - 1;
 
   renderCoverEval();
+  const prevDraw = kinoIdx > 0 ? kinoDraws[kinoIdx - 1] : null;
+  renderClusterGrid(draw.n, prevDraw ? prevDraw.n : null, draw.id);
   schedulePatternMatch(draw.n);
   scheduleAnalysisMatch(draw.n);
 }
@@ -3279,6 +3285,125 @@ function renderAnalysisBlock(el, d, drawnNums, drawId) {
   for (const n of cold20) {
     const isDrawn = drawnSet.has(n);
     html += `<span style="background:#1a0a0a;border:1px solid ${isDrawn?'#ef6c00':'#3a1010'};border-radius:3px;padding:1px 4px;font-size:.6rem;color:${isDrawn?'#ef9a9a':'#555'}">${n}</span>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+
+// ── Cluster Grid & Φίλτρα ────────────────────────────────────────────────────
+
+function clusterNeighbors8(n) {
+  const r = (n-1) / 10 | 0, c = (n-1) % 10;
+  const nb = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+    if (dr===0 && dc===0) continue;
+    const nr=r+dr, nc=c+dc;
+    if (nr>=0&&nr<8&&nc>=0&&nc<10) nb.push(nr*10+nc+1);
+  }
+  return nb;
+}
+
+function findClusters8(nums) {
+  const s = new Set(nums);
+  const visited = new Set();
+  const clusters = [];
+  for (const n of nums) {
+    if (visited.has(n)) continue;
+    const comp = [];
+    const stack = [n];
+    while (stack.length) {
+      const cur = stack.pop();
+      if (visited.has(cur)) continue;
+      visited.add(cur); comp.push(cur);
+      for (const nb of clusterNeighbors8(cur))
+        if (s.has(nb) && !visited.has(nb)) stack.push(nb);
+    }
+    clusters.push(comp.sort((a,b)=>a-b));
+  }
+  return clusters.sort((a,b)=>b.length-a.length);
+}
+
+function renderClusterGrid(nums, prevNums, drawId) {
+  const el = document.getElementById('kinoClusterGrid');
+  if (!el) return;
+
+  const s = new Set(nums);
+  const prevSet = prevNums ? new Set(prevNums) : null;
+
+  // Clusters
+  const clusters = findClusters8(nums);
+  const numToCluster = {};
+  clusters.forEach((cl, ci) => cl.forEach(n => numToCluster[n] = ci));
+
+  // Χρώματα ανά cluster (κατά μέγεθος)
+  const PAL = ['#69f0ae','#ffd740','#e040fb','#40c4ff','#ff6e40','#b2ff59','#ff80ab','#80cbc4'];
+  const clusterColor = (ci, sz) => sz === 1 ? '#546e7a' : (PAL[ci] || '#90a4ae');
+
+  // Φίλτρα
+  const small = nums.filter(n => n <= 40).length;
+  const odd   = nums.filter(n => n % 2 === 1).length;
+  const top   = nums.filter(n => ((n-1)/10|0) < 4).length;
+  const left  = nums.filter(n => (n-1)%10 < 5).length;
+
+  // Grid-γειτονικά ζεύγη (4-conn)
+  const s4nb = n => { const r=(n-1)/10|0,c=(n-1)%10; const a=[]; if(r>0)a.push((r-1)*10+c+1); if(r<7)a.push((r+1)*10+c+1); if(c>0)a.push(n-1); if(c<9)a.push(n+1); return a; };
+  const adjPairs = nums.reduce((acc,n) => acc + s4nb(n).filter(nb=>s.has(nb)).length, 0) / 2;
+
+  // Επαναλήψεις
+  const reps = prevSet ? nums.filter(n => prevSet.has(n)).length : null;
+
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:5px;border-bottom:1px solid #1a2540;padding-bottom:4px">
+    🔗 Δομή Κλήρωσης <span style="color:#546e7a">#${drawId}</span></div>`;
+
+  // ── Φίλτρα ──
+  const pill = (label, val, total, col) =>
+    `<span style="background:#0d1220;border:1px solid #1a2540;border-radius:10px;padding:2px 7px;font-size:.6rem;color:#aaa">
+      ${label}: <b style="color:${col}">${val}</b><span style="color:#555">/${total}</span></span>`;
+
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">`;
+  html += pill('Μικρά 1-40', small, 20, small >= 10 ? '#69f0ae' : '#ffd740');
+  html += pill('Μεγάλα 41-80', 20-small, 20, (20-small) >= 10 ? '#69f0ae' : '#ffd740');
+  html += pill('Μονά', odd, 20, '#cf9fff');
+  html += pill('Ζυγά', 20-odd, 20, '#80d8ff');
+  html += pill('Πάνω', top, 20, '#ffab40');
+  html += pill('Κάτω', 20-top, 20, '#80cbc4');
+  html += pill('Αριστ.', left, 20, '#f48fb1');
+  html += pill('Δεξ.', 20-left, 20, '#b39ddb');
+  if (reps !== null) html += pill('Επαναλήψεις', reps, 20, reps >= 7 ? '#ff6e40' : '#aaa');
+  html += `<span style="background:#0d1220;border:1px solid #1a2540;border-radius:10px;padding:2px 7px;font-size:.6rem;color:#aaa">
+    Grid-ζεύγη: <b style="color:#ffd740">${adjPairs}</b></span>`;
+  html += `</div>`;
+
+  // ── Legend clusters ──
+  html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">`;
+  clusters.forEach((cl, ci) => {
+    const col = clusterColor(ci, cl.length);
+    const label = cl.length === 1 ? `Μοναχικός` : `Cluster ${ci+1}`;
+    if (cl.length === 1 && ci > 0) return; // μαζεύω τους μοναχικούς σε ένα
+    html += `<span style="background:${col}22;border:1px solid ${col}55;border-radius:10px;padding:2px 7px;font-size:.58rem;color:${col}">
+      ${label}: ${cl.length} αρ.</span>`;
+  });
+  const loners = clusters.filter(c=>c.length===1).length;
+  if (loners > 0) html += `<span style="background:#54607a22;border:1px solid #546e7a55;border-radius:10px;padding:2px 7px;font-size:.58rem;color:#546e7a">Μοναχικοί: ${loners}</span>`;
+  html += `</div>`;
+
+  // ── Grid με χρώματα clusters ──
+  html += `<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px">`;
+  for (let n = 1; n <= 80; n++) {
+    if (s.has(n)) {
+      const ci  = numToCluster[n];
+      const cl  = clusters[ci];
+      const col = clusterColor(ci, cl.length);
+      const sz  = cl.length;
+      const alpha = sz === 1 ? '55' : sz <= 3 ? '88' : sz <= 6 ? 'aa' : 'cc';
+      const isRepeat = prevSet && prevSet.has(n);
+      const border = isRepeat ? '2px solid #ff6e40' : `1px solid ${col}`;
+      html += `<div style="background:${col}${alpha};border:${border};border-radius:3px;text-align:center;
+        font-size:.58rem;padding:1px 0;color:#fff;font-weight:bold" title="Cluster ${ci+1}, μέγ.${sz}${isRepeat?' ↩επανάληψη':''}">${n}</div>`;
+    } else {
+      html += `<div style="background:#080c18;border:1px solid #111820;border-radius:3px;text-align:center;font-size:.58rem;padding:1px 0;color:#222">${n}</div>`;
+    }
   }
   html += `</div>`;
 
