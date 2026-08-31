@@ -451,6 +451,13 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
       <div id="kinoAnalysis" style="min-height:30px"></div>
     </div>
+
+    <div class="ctrl-bar" style="margin-top:10px">
+      <button class="btn" id="kinoPrevBtn2" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
+      <button class="btn" id="kinoNextBtn2" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
+      <button class="btn" onclick="kinoGoLast()" style="font-size:.7rem;padding:5px 10px">▶▶ Live</button>
+      <span class="ctrl-info" id="kinoInfo2">—</span>
+    </div>
   </section>
 
   <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
@@ -1066,6 +1073,8 @@ function kinoRender() {
   // Info
   const info = document.getElementById('kinoInfo');
   if (info) info.textContent = `#${draw.id} · ${kinoIdx + 1}/${kinoDraws.length}`;
+  const info2 = document.getElementById('kinoInfo2');
+  if (info2) info2.textContent = `#${draw.id} · ${kinoIdx + 1}/${kinoDraws.length}`;
 
   // Πλέγμα τρέχουσας κλήρωσης
   const nextDraw0   = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
@@ -1184,6 +1193,10 @@ function kinoRender() {
 
   document.getElementById('kinoPrevBtn').disabled = kinoIdx <= 0;
   document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
+  const pb2 = document.getElementById('kinoPrevBtn2');
+  const nb2 = document.getElementById('kinoNextBtn2');
+  if (pb2) pb2.disabled = kinoIdx <= 0;
+  if (nb2) nb2.disabled = kinoIdx >= kinoDraws.length - 1;
 
   renderCoverEval();
   schedulePatternMatch(draw.n);
