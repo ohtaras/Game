@@ -3073,7 +3073,19 @@ function applyStructuralBoosts(heat, nums) {
   return boosted.map(v => Math.max(0, v));
 }
 
-const _predictions = {};   // drawId → [9 αριθμοί]
+const _predictions = {};   // drawId → [K αριθμοί]
+let _predCount = 9;        // ρυθμιζόμενο πλήθος (5–15)
+
+function setPredCount(k) {
+  _predCount = k;
+  document.querySelectorAll('.pred-cnt-btn').forEach(b => {
+    b.style.background = parseInt(b.dataset.k) === k ? '#1b5e20' : '#0d1220';
+    b.style.borderColor = parseInt(b.dataset.k) === k ? '#43a047' : '#1a2540';
+    b.style.color = parseInt(b.dataset.k) === k ? '#69f0ae' : '#666';
+  });
+  // Ξανατρέχουμε ανάλυση για να παραχθεί νέα πρόβλεψη
+  if (kinoDraws[kinoIdx]) scheduleAnalysisMatch(kinoDraws[kinoIdx].n);
+}
 
 let _patMatchTimer = null;
 function schedulePatternMatch(nums) {
@@ -3106,43 +3118,18 @@ async function runPatternMatch(nums) {
   _patWorker.onmessage = function(e) {
     const {heat, matchCount} = e.data;
     const boosted = applyStructuralBoosts(heat, nums);
-    // Αποθήκευση top9 για αξιολόγηση στην επόμενη κλήρωση
-    const top9 = boosted.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v)
-                        .slice(0,9).map(x=>x.n).sort((a,b)=>a-b);
-    _predictions[drawId] = top9;
-    renderPatternHeat(el, boosted, matchCount, nums, drawId, top9);
-    // Αν η επόμενη κλήρωση είναι ήδη φορτωμένη, ξαναζωγραφίζουμε αξιολόγηση
-    const nextDraw = kinoDraws[kinoIdx + 1];
-    if (nextDraw && kinoIdx === kinoDraws.indexOf(kinoDraws.find(d=>d.id===drawId))) {
-      // ακριβώς στη σωστή θέση — αξιολόγηση θα φανεί στο επόμενο navigate
-    }
+    renderPatternHeat(el, boosted, matchCount, nums, drawId);
   };
   _patWorker.postMessage({buf: bufCopy, qbytes: Array.from(qbytes), minMatch: 12, N}, [bufCopy]);
 }
 
-function renderPatternHeat(el, heat, matchCount, drawnNums, drawId, top9) {
+function renderPatternHeat(el, heat, matchCount, drawnNums, drawId) {
   const drawnSet = new Set(drawnNums);
   const maxH = Math.max(...heat, 1);
   const ranked = heat.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
   const top20 = new Set(ranked.slice(0,20).map(x=>x.n));
-  const top9Set = new Set(top9 || []);
-  const nextDraw = kinoDraws[kinoIdx + 1];
-  const nextId = nextDraw ? nextDraw.id : '—';
 
-  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px">🔮 Πρόβλεψη επόμενης <span style="color:#546e7a">#${drawId}</span> <span style="color:#444">(${matchCount} ταιριάσματα · cluster+balance)</span></div>`;
-
-  // ── Κάρτα top9 ──
-  if (top9 && top9.length) {
-    html += `<div style="background:#0d1a10;border:1px solid #2e7d52;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
-    html += `<div style="font-size:.6rem;color:#69f0ae;margin-bottom:5px;letter-spacing:.04em">🎯 ΠΑΙΞΕ 9 ΓΙΑ #${nextId}</div>`;
-    html += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
-    for (const n of top9) {
-      const isDrawn = drawnSet.has(n);
-      html += `<span style="background:#1b5e20;border:${isDrawn?'2px solid #ef6c00':'1px solid #43a047'};border-radius:4px;
-        padding:3px 7px;font-size:.8rem;font-weight:bold;color:#69f0ae">${n}</span>`;
-    }
-    html += `</div></div>`;
-  }
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px">🔮 Pattern Heat <span style="color:#546e7a">#${drawId}</span> <span style="color:#444">(${matchCount} ταιριάσματα · cluster+balance)</span></div>`;
 
   // ── Grid 80 ──
   html += '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px">';
@@ -3150,16 +3137,13 @@ function renderPatternHeat(el, heat, matchCount, drawnNums, drawId, top9) {
     const h = heat[n-1];
     const pct = h/maxH;
     const isDrawn = drawnSet.has(n);
-    const isTop9  = top9Set.has(n);
     const isTop20 = top20.has(n);
-    const bg = isTop9
-      ? `rgba(0,230,80,${0.35+pct*0.65})`
-      : isTop20
-        ? `rgba(0,160,60,${0.2+pct*0.6})`
-        : `rgba(80,80,120,${pct*0.45})`;
-    const border = isDrawn ? '2px solid #ef6c00' : isTop9 ? '1px solid #43a047' : '1px solid #1a2030';
-    const color  = isTop9 ? '#fff' : isTop20 ? '#c8ffdd' : '#666';
-    const fw     = isTop9 ? '900' : isTop20 ? 'bold' : 'normal';
+    const bg = isTop20
+      ? `rgba(0,160,60,${0.2+pct*0.6})`
+      : `rgba(80,80,120,${pct*0.45})`;
+    const border = isDrawn ? '2px solid #ef6c00' : '1px solid #1a2030';
+    const color  = isTop20 ? '#c8ffdd' : '#666';
+    const fw     = isTop20 ? 'bold' : 'normal';
     html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${fw}" title="${h}">${n}</div>`;
   }
   html += '</div>';
@@ -3183,8 +3167,10 @@ function renderPredictionEval(drawnNums, drawId) {
   const actual = new Set(drawnNums);
   const hits   = pred.filter(n => actual.has(n));
   const score  = hits.length;
-  const expRand = (9 * 20 / 80).toFixed(2);  // 2.25
-  const scoreColor = score >= 4 ? '#69f0ae' : score >= 3 ? '#ffd740' : score >= 2 ? '#ffab40' : '#ef5350';
+  const K      = pred.length;
+  const expRand = (K * 20 / 80).toFixed(2);
+  const threshold = Math.ceil(K * 0.35);
+  const scoreColor = score >= threshold+1 ? '#69f0ae' : score >= threshold ? '#ffd740' : score >= threshold-1 ? '#ffab40' : '#ef5350';
 
   let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:5px">📊 Αξιολόγηση πρόβλεψης #${prevId} → <span style="color:#546e7a">#${drawId}</span></div>`;
   html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">`;
@@ -3195,7 +3181,7 @@ function renderPredictionEval(drawnNums, drawId) {
       color:${hit?'#69f0ae':'#444'}">${n}${hit?' ✓':''}</span>`;
   }
   html += `</div>`;
-  html += `<div style="font-size:.7rem">Αποτέλεσμα: <b style="color:${scoreColor};font-size:.9rem">${score}/9</b>
+  html += `<div style="font-size:.7rem">Αποτέλεσμα: <b style="color:${scoreColor};font-size:.9rem">${score}/${K}</b>
     <span style="color:#555;font-size:.6rem"> &nbsp;(τυχαίο αναμ. ~${expRand})</span></div>`;
   el.innerHTML = html;
 }
@@ -3311,14 +3297,26 @@ async function runAnalysisMatch(nums) {
   const drawId = kinoDraws[kinoIdx] ? kinoDraws[kinoIdx].id : '?';
 
   _pat2Worker.onmessage = function(e) {
-    renderAnalysisBlock(el, e.data, nums, drawId);
+    // Συνδυασμός heat1 + cluster/balance boosts = ο ενοποιημένος αλγόριθμος
+    const boosted = applyStructuralBoosts(e.data.heat1, nums);
+    const K = _predCount;
+    const topK = boosted.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v)
+                        .slice(0,K).map(x=>x.n).sort((a,b)=>a-b);
+    _predictions[drawId] = topK;
+    // Αξιολόγηση — ξαναζωγράφισε αν είμαστε σε επόμενη κλήρωση
+    renderPredictionEval(nums, drawId);
+    renderAnalysisBlock(el, e.data, nums, drawId, boosted, topK);
   };
   _pat2Worker.postMessage({buf:bufCopy, qbytes:Array.from(qbytes), N}, [bufCopy]);
 }
 
-function renderAnalysisBlock(el, d, drawnNums, drawId) {
+function renderAnalysisBlock(el, d, drawnNums, drawId, boosted, topK) {
   const {heat1,cnt1,heat2,cnt2,heat3,cnt3,heatS,cntS} = d;
   const drawnSet = new Set(drawnNums);
+  const topKSet  = new Set(topK || []);
+  const nextDraw = kinoDraws[kinoIdx + 1];
+  const nextId   = nextDraw ? nextDraw.id : '—';
+  const K = topK ? topK.length : _predCount;
 
   // ── Zone analysis (4 quadrants of 8×10 grid) ──
   const zones = [
@@ -3339,6 +3337,32 @@ function renderAnalysisBlock(el, d, drawnNums, drawId) {
 
   let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px;border-bottom:1px solid #1a2540;padding-bottom:4px">
     📊 Εκτεταμένη Ανάλυση Μοτίβων — <span style="color:#546e7a">#${drawId}</span></div>`;
+
+  // ── Κάρτα πρόβλεψης (ενοποιημένος αλγόριθμος) ──
+  html += `<div style="background:#0d1a10;border:1px solid #2e7d52;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
+  html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">`;
+  html += `<span style="font-size:.6rem;color:#69f0ae">🎯 ΠΑΙΞΕ ${K} ΓΙΑ #${nextId}</span>`;
+  // Selector αριθμών
+  html += `<div style="display:flex;gap:3px">`;
+  for (const k of [5,6,7,8,9,10,12,15]) {
+    const sel = k === _predCount;
+    html += `<button class="pred-cnt-btn" data-k="${k}" onclick="setPredCount(${k})"
+      style="background:${sel?'#1b5e20':'#0d1220'};border:1px solid ${sel?'#43a047':'#1a2540'};
+      border-radius:3px;padding:1px 4px;font-size:.58rem;color:${sel?'#69f0ae':'#555'};cursor:pointer">${k}</button>`;
+  }
+  html += `</div></div>`;
+  if (topK && topK.length) {
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
+    for (const n of topK) {
+      const isDrawn = drawnSet.has(n);
+      html += `<span style="background:#1b5e20;border:${isDrawn?'2px solid #ef6c00':'1px solid #43a047'};
+        border-radius:4px;padding:3px 8px;font-size:.85rem;font-weight:bold;color:#69f0ae">${n}</span>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<span style="color:#555;font-size:.6rem">Υπολογισμός…</span>`;
+  }
+  html += `</div>`;
 
   // Zone bars
   html += `<div style="font-size:.62rem;color:#aaa;margin-bottom:3px">Θερμές ζώνες (επόμενη κλήρωση):</div>`;
