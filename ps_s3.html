@@ -447,6 +447,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
       <div id="kinoPatternHeat" style="min-height:30px"></div>
     </div>
+
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
+      <div id="kinoAnalysis" style="min-height:30px"></div>
+    </div>
   </section>
 
   <!-- ═══ ΑΝΤΙΠΑΡΑΒΟΛΗ ═══ -->
@@ -1183,6 +1187,7 @@ function kinoRender() {
 
   renderCoverEval();
   schedulePatternMatch(draw.n);
+  scheduleAnalysisMatch(draw.n);
 }
 
 function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
@@ -3056,6 +3061,214 @@ function renderPatternHeat(el, heat, matchCount, drawnNums, drawId) {
   }
   html += '</div>';
   if (matchCount === 0) html = '<div style="color:#666;font-size:.65rem">Δεν βρέθηκαν ιστορικά ταιριάσματα (≥12 θέσεις).</div>';
+  el.innerHTML = html;
+}
+
+// ── Ανάλυση πολλαπλών οριζόντων & ισχυρών ταιριασμάτων ──────────────────────
+
+const WORKER2_SRC = `
+const POP = new Uint8Array(256);
+for(let i=1;i<256;i++) POP[i]=POP[i>>1]+(i&1);
+
+function makeShiftedMask(q,dr,dc){
+  const out=new Uint8Array(10);
+  for(let r=0;r<8;r++){
+    const nr=r+dr; if(nr<0||nr>=8) continue;
+    for(let c=0;c<10;c++){
+      const nc=c+dc; if(nc<0||nc>=10) continue;
+      const sb=r*10+c, db=nr*10+nc;
+      if(q[sb>>3]&(1<<(sb&7))) out[db>>3]|=(1<<(db&7));
+    }
+  }
+  return out;
+}
+
+function invTranslate(data,off,dr,dc,heat){
+  for(let b=0;b<10;b++){
+    let byte=data[off+b];
+    while(byte){
+      const lsb=byte&(-byte);
+      const bit=b*8+(31-Math.clz32(lsb));
+      if(bit<80){
+        const r=(bit/10)|0, c=bit%10;
+        const nr=r-dr, nc=c-dc;
+        if(nr>=0&&nr<8&&nc>=0&&nc<10) heat[nr*10+nc]++;
+      }
+      byte^=lsb;
+    }
+  }
+}
+
+self.onmessage=function(e){
+  const {buf,qbytes,N}=e.data;
+  const data=new Uint8Array(buf);
+  const q=new Uint8Array(qbytes);
+  const best=new Uint8Array(N);
+  const bestDr=new Int8Array(N);
+  const bestDc=new Int8Array(N);
+
+  for(let dr=-7;dr<=7;dr++){
+    for(let dc=-9;dc<=9;dc++){
+      if((8-Math.abs(dr))*(10-Math.abs(dc))<12) continue;
+      const sh=makeShiftedMask(q,dr,dc);
+      for(let i=0;i<N;i++){
+        const off=i*10; let ov=0;
+        for(let b=0;b<10;b++) ov+=POP[data[off+b]&sh[b]];
+        if(ov>best[i]){best[i]=ov;bestDr[i]=dr;bestDc[i]=dc;}
+      }
+    }
+  }
+
+  const heat1=new Int32Array(80);
+  const heat2=new Int32Array(80);
+  const heat3=new Int32Array(80);
+  const heatS=new Int32Array(80);
+  let cnt1=0,cnt2=0,cnt3=0,cntS=0;
+
+  for(let i=0;i<N-3;i++){
+    if(best[i]<12) continue;
+    const dr=bestDr[i], dc=bestDc[i];
+    invTranslate(data,(i+1)*10,dr,dc,heat1); cnt1++;
+    invTranslate(data,(i+2)*10,dr,dc,heat2); cnt2++;
+    invTranslate(data,(i+3)*10,dr,dc,heat3); cnt3++;
+    if(best[i]>=14){ invTranslate(data,(i+1)*10,dr,dc,heatS); cntS++; }
+  }
+
+  self.postMessage({
+    heat1:Array.from(heat1),cnt1,
+    heat2:Array.from(heat2),cnt2,
+    heat3:Array.from(heat3),cnt3,
+    heatS:Array.from(heatS),cntS
+  });
+};
+`;
+
+let _pat2Worker = null;
+let _pat2Timer  = null;
+
+function ensurePat2Worker() {
+  if (_pat2Worker) return;
+  const blob = new Blob([WORKER2_SRC], {type:'application/javascript'});
+  _pat2Worker = new Worker(URL.createObjectURL(blob));
+}
+
+function scheduleAnalysisMatch(nums) {
+  clearTimeout(_pat2Timer);
+  _pat2Timer = setTimeout(() => runAnalysisMatch(nums), 200);
+}
+
+async function runAnalysisMatch(nums) {
+  const el = document.getElementById('kinoAnalysis');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#888;font-size:.65rem;padding:4px">⏳ Εκτεταμένη ανάλυση…</div>';
+
+  const buf = await loadPatternBuf();
+  if (!buf) { el.innerHTML = ''; return; }
+
+  const view = new DataView(buf);
+  const N = view.getUint32(0, true);
+  const qbytes = new Uint8Array(10);
+  for (const n of nums) { const b=n-1; qbytes[b>>3]|=(1<<(b&7)); }
+
+  ensurePat2Worker();
+  const bufCopy = buf.slice(4, 4+N*10);
+  const drawId = kinoDraws[kinoIdx] ? kinoDraws[kinoIdx].id : '?';
+
+  _pat2Worker.onmessage = function(e) {
+    renderAnalysisBlock(el, e.data, nums, drawId);
+  };
+  _pat2Worker.postMessage({buf:bufCopy, qbytes:Array.from(qbytes), N}, [bufCopy]);
+}
+
+function renderAnalysisBlock(el, d, drawnNums, drawId) {
+  const {heat1,cnt1,heat2,cnt2,heat3,cnt3,heatS,cntS} = d;
+  const drawnSet = new Set(drawnNums);
+
+  // ── Zone analysis (4 quadrants of 8×10 grid) ──
+  const zones = [
+    {label:'↖ Πάνω-Αρ', rows:[0,1,2,3], cols:[0,1,2,3,4], v:0},
+    {label:'↗ Πάνω-Δε', rows:[0,1,2,3], cols:[5,6,7,8,9], v:0},
+    {label:'↙ Κάτω-Αρ', rows:[4,5,6,7], cols:[0,1,2,3,4], v:0},
+    {label:'↘ Κάτω-Δε', rows:[4,5,6,7], cols:[5,6,7,8,9], v:0},
+  ];
+  let totalZone = 0;
+  for (let idx=0; idx<heat1.length; idx++) {
+    const r=(idx/10)|0, c=idx%10;
+    for (const z of zones) {
+      if (z.rows.includes(r) && z.cols.includes(c)) { z.v += heat1[idx]; totalZone += heat1[idx]; break; }
+    }
+  }
+  const maxZ = Math.max(...zones.map(z=>z.v), 1);
+  const bestZone = zones.reduce((a,b)=>b.v>a.v?b:a);
+
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px;border-bottom:1px solid #1a2540;padding-bottom:4px">
+    📊 Εκτεταμένη Ανάλυση Μοτίβων — <span style="color:#546e7a">#${drawId}</span></div>`;
+
+  // Zone bars
+  html += `<div style="font-size:.62rem;color:#aaa;margin-bottom:3px">Θερμές ζώνες (επόμενη κλήρωση):</div>`;
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px">`;
+  for (const z of zones) {
+    const pct = totalZone>0 ? Math.round(z.v/totalZone*100) : 0;
+    const barW = Math.round(z.v/maxZ*100);
+    const isBest = z === bestZone;
+    const col = isBest ? '#69f0ae' : '#546e7a';
+    html += `<div style="background:#0d1220;border:1px solid ${isBest?'#2e7d52':'#1a2540'};border-radius:4px;padding:3px 5px">
+      <div style="font-size:.6rem;color:${col};margin-bottom:2px">${z.label} ${isBest?'⭐':''}</div>
+      <div style="background:#1a2540;border-radius:2px;height:6px;width:100%">
+        <div style="background:${col};height:6px;border-radius:2px;width:${barW}%"></div>
+      </div>
+      <div style="font-size:.58rem;color:#888;margin-top:1px">${pct}% θερμότητας</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Strong matches (≥14)
+  html += `<div style="font-size:.62rem;color:#aaa;margin-bottom:3px">Ισχυρά ταιριάσματα ≥14 θέσεις (${cntS} αντιστοιχίες):</div>`;
+  if (cntS < 5) {
+    html += `<div style="font-size:.6rem;color:#555;margin-bottom:8px">Πολύ λίγα ισχυρά ταιριάσματα για αξιόπιστη πρόβλεψη.</div>`;
+  } else {
+    const rankedS = heatS.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
+    const top20S = new Set(rankedS.slice(0,20).map(x=>x.n));
+    const maxHS = Math.max(...heatS, 1);
+    html += `<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px;margin-bottom:8px">`;
+    for (let n=1;n<=80;n++) {
+      const h=heatS[n-1], pct=h/maxHS;
+      const isDrawn=drawnSet.has(n), isTop=top20S.has(n);
+      const bg=isTop?`rgba(255,160,0,${0.25+pct*0.75})`:`rgba(80,80,120,${pct*0.4})`;
+      const border=isDrawn?'1px solid #ef6c00':'1px solid #1a2030';
+      const color=isTop?'#ffe082':'#888';
+      html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${isTop?'bold':'normal'}" title="${h}×">${n}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // +2 draw prediction
+  const maxH2 = Math.max(...heat2, 1);
+  const ranked2 = heat2.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
+  const top20_2 = new Set(ranked2.slice(0,20).map(x=>x.n));
+  html += `<div style="font-size:.62rem;color:#aaa;margin-bottom:3px">Τάση +2 κληρώσεις μετά (${cnt2} δείγματα):</div>`;
+  html += `<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px;margin-bottom:8px">`;
+  for (let n=1;n<=80;n++) {
+    const h=heat2[n-1], pct=h/maxH2;
+    const isDrawn=drawnSet.has(n), isTop=top20_2.has(n);
+    const bg=isTop?`rgba(100,180,255,${0.25+pct*0.75})`:`rgba(80,80,120,${pct*0.4})`;
+    const border=isDrawn?'1px solid #ef6c00':'1px solid #1a2030';
+    const color=isTop?'#b3d9ff':'#888';
+    html += `<div style="background:${bg};border:${border};border-radius:3px;text-align:center;font-size:.6rem;padding:1px 0;color:${color};font-weight:${isTop?'bold':'normal'}" title="${h}×">${n}</div>`;
+  }
+  html += `</div>`;
+
+  // Cold numbers (bottom 20 from heat1 — "αποφύγετε")
+  const ranked1 = heat1.map((v,i)=>({n:i+1,v})).sort((a,b)=>a.v-b.v);
+  const cold20 = ranked1.slice(0,20).map(x=>x.n).sort((a,b)=>a-b);
+  html += `<div style="font-size:.62rem;color:#aaa;margin-bottom:3px">Πιθανά "κρύοι" — χαμηλή θερμότητα (αποφύγετε):</div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:3px;max-width:340px">`;
+  for (const n of cold20) {
+    const isDrawn = drawnSet.has(n);
+    html += `<span style="background:#1a0a0a;border:1px solid ${isDrawn?'#ef6c00':'#3a1010'};border-radius:3px;padding:1px 4px;font-size:.6rem;color:${isDrawn?'#ef9a9a':'#555'}">${n}</span>`;
+  }
+  html += `</div>`;
+
   el.innerHTML = html;
 }
 
