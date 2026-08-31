@@ -3021,6 +3021,53 @@ async function loadPatternBuf() {
   return _patBuf;
 }
 
+function applyStructuralBoosts(heat, nums) {
+  const s = new Set(nums);
+  const boosted = heat.map(v => v);  // copy
+  const maxH = Math.max(...heat, 1);
+
+  // ── 1. Cluster border boost ──────────────────────────────────────────────
+  // Βρες το μεγαλύτερο cluster της τρέχουσας κλήρωσης
+  const clusters = findClusters8(nums);
+  const bigCluster = new Set(clusters[0] || []);
+
+  // Για κάθε αριθμό: πόσοι 8-γείτονές του ανήκουν στο μεγαλύτερο cluster
+  for (let n = 1; n <= 80; n++) {
+    const borderCount = clusterNeighbors8(n).filter(nb => bigCluster.has(nb)).length;
+    if (borderCount > 0) {
+      // bonus ανάλογο με το πλήθος cluster-γειτόνων (max 8)
+      boosted[n-1] += (borderCount / 8) * maxH * 0.25;
+    }
+  }
+
+  // ── 2. Balance boost ─────────────────────────────────────────────────────
+  // Αν η τρέχουσα κλήρωση έχει ανισορροπία, ενίσχυσε τα νούμερα που τη διορθώνουν
+  const small  = nums.filter(n => n <= 40).length;          // αναμενόμενο 10
+  const odd    = nums.filter(n => n % 2 === 1).length;      // αναμενόμενο 10
+  const top    = nums.filter(n => ((n-1)/10|0) < 4).length; // αναμενόμενο 10
+  const leftH  = nums.filter(n => (n-1)%10 < 5).length;    // αναμενόμενο 10
+
+  const defSmall = 10 - small;   // >0: χρειαζόμαστε περισσότερα μικρά
+  const defOdd   = 10 - odd;
+  const defTop   = 10 - top;
+  const defLeft  = 10 - leftH;
+
+  const balWeight = maxH * 0.12;  // μικρό βάρος
+
+  for (let n = 1; n <= 80; n++) {
+    let adj = 0;
+    adj += (n <= 40)              ?  defSmall : -defSmall;
+    adj += (n % 2 === 1)          ?  defOdd   : -defOdd;
+    adj += (((n-1)/10|0) < 4)    ?  defTop   : -defTop;
+    adj += ((n-1)%10 < 5)        ?  defLeft  : -defLeft;
+    // adj ∈ [-40, +40] — κανονικοποίηση
+    boosted[n-1] += (adj / 40) * balWeight;
+  }
+
+  // Κλαμπάρισμα σε 0+
+  return boosted.map(v => Math.max(0, v));
+}
+
 let _patMatchTimer = null;
 function schedulePatternMatch(nums) {
   clearTimeout(_patMatchTimer);
@@ -3051,7 +3098,8 @@ async function runPatternMatch(nums) {
   const drawId = kinoDraws[kinoIdx] ? kinoDraws[kinoIdx].id : '?';
   _patWorker.onmessage = function(e) {
     const {heat, matchCount} = e.data;
-    renderPatternHeat(el, heat, matchCount, nums, drawId);
+    const boosted = applyStructuralBoosts(heat, nums);
+    renderPatternHeat(el, boosted, matchCount, nums, drawId);
   };
   _patWorker.postMessage({buf: bufCopy, qbytes: Array.from(qbytes), minMatch: 12, N}, [bufCopy]);
 }
@@ -3063,7 +3111,7 @@ function renderPatternHeat(el, heat, matchCount, drawnNums, drawId) {
   const ranked = heat.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v);
   const top20 = new Set(ranked.slice(0,20).map(x=>x.n));
 
-  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:4px">🔮 Πρόβλεψη επόμενης <span style="color:#546e7a">#${drawId}</span> &nbsp;(${matchCount} ιστορικά ταιριάσματα, ≥12 θέσεις)</div>`;
+  let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:4px">🔮 Πρόβλεψη επόμενης <span style="color:#546e7a">#${drawId}</span> &nbsp;<span style="color:#555">(${matchCount} ταιριάσματα · cluster+balance boosts)</span></div>`;
   html += '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:340px">';
   for (let n=1;n<=80;n++) {
     const h = heat[n-1];
