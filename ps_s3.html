@@ -3331,56 +3331,51 @@ function renderAnalysisBlock(el, d, drawnNums, drawId, boosted, topK) {
   let html = `<div style="font-size:.65rem;color:#9e9e9e;margin-bottom:6px;border-bottom:1px solid #1a2540;padding-bottom:4px">
     📊 Εκτεταμένη Ανάλυση Μοτίβων — <span style="color:#546e7a">#${drawId}</span></div>`;
 
-  // ── Κάρτα πρόβλεψης (ενοποιημένος αλγόριθμος) ──
-  html += `<div style="background:#0d1a10;border:1px solid #2e7d52;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
+  // ── Block 1: Αξιολόγηση πρόβλεψης για ΑΥΤΗ την κλήρωση ──
+  const thisPred = _predictions[drawId];
+  if (thisPred && thisPred.length) {
+    const hits  = thisPred.filter(n => drawnSet.has(n));
+    const Kev   = thisPred.length;
+    const expR  = (Kev * 20 / 80).toFixed(2);
+    const sc    = hits.length;
+    const thr   = Math.ceil(Kev * 0.35);
+    const scCol = sc >= thr+1 ? '#69f0ae' : sc >= thr ? '#ffd740' : sc >= thr-1 ? '#ffab40' : '#ef5350';
+    html += `<div style="background:#0d1a10;border:1px solid #2e7d52;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
+    html += `<div style="font-size:.6rem;color:#9e9e9e;margin-bottom:5px">📊 Αξιολόγηση πρόβλεψης για #${drawId}:
+      <b style="color:${scCol};font-size:.85rem"> ${sc}/${Kev}</b>
+      <span style="color:#444;font-size:.58rem"> (τυχαίο αναμ. ~${expR})</span></div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:4px">`;
+    for (const n of thisPred) {
+      const hit = drawnSet.has(n);
+      html += `<span style="background:${hit?'#1b5e20':'#100808'};border:1px solid ${hit?'#69f0ae':'#2a1010'};
+        border-radius:4px;padding:3px 7px;font-size:.8rem;font-weight:${hit?'bold':'normal'};
+        color:${hit?'#69f0ae':'#444'}">${n}${hit?' ✓':''}</span>`;
+    }
+    html += `</div></div>`;
+  }
+
+  // ── Block 2: Νέα πρόβλεψη για την ΕΠΟΜΕΝΗ κλήρωση ──
+  html += `<div style="background:#0d1220;border:1px solid #1a3a6a;border-radius:6px;padding:6px 8px;margin-bottom:8px">`;
   html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">`;
-  html += `<span style="font-size:.6rem;color:#69f0ae">🎯 ΠΑΙΞΕ ${K} ΓΙΑ #${nextId}</span>`;
-  // Selector αριθμών
+  html += `<span style="font-size:.6rem;color:#90caf9">🎯 ΠΑΙΞΕ ${K} ΓΙΑ #${nextId}</span>`;
   html += `<div style="display:flex;gap:3px">`;
   for (const k of [5,6,7,8,9,10,12,15]) {
     const sel = k === _predCount;
     html += `<button class="pred-cnt-btn" data-k="${k}" onclick="setPredCount(${k})"
-      style="background:${sel?'#1b5e20':'#0d1220'};border:1px solid ${sel?'#43a047':'#1a2540'};
-      border-radius:3px;padding:1px 4px;font-size:.58rem;color:${sel?'#69f0ae':'#555'};cursor:pointer">${k}</button>`;
+      style="background:${sel?'#0d2a5e':'#0d1220'};border:1px solid ${sel?'#1565c0':'#1a2540'};
+      border-radius:3px;padding:1px 4px;font-size:.58rem;color:${sel?'#90caf9':'#555'};cursor:pointer">${k}</button>`;
   }
   html += `</div></div>`;
   if (topK && topK.length) {
-    html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
     for (const n of topK) {
-      const isDrawn = drawnSet.has(n);
-      html += `<span style="background:#1b5e20;border:${isDrawn?'2px solid #ef6c00':'1px solid #43a047'};
-        border-radius:4px;padding:3px 8px;font-size:.85rem;font-weight:bold;color:#69f0ae">${n}</span>`;
+      html += `<span style="background:#0d2a5e;border:1px solid #1565c0;
+        border-radius:4px;padding:3px 8px;font-size:.85rem;font-weight:bold;color:#90caf9">${n}</span>`;
     }
     html += `</div>`;
   } else {
     html += `<span style="color:#555;font-size:.6rem">Υπολογισμός…</span>`;
   }
-
-  // ── Αξιολόγηση προηγούμενης πρόβλεψης (inline) ──
-  const prevDrawEv  = kinoIdx > 0 ? kinoDraws[kinoIdx - 1] : null;
-  const prevIdEv    = prevDrawEv ? prevDrawEv.id : null;
-  const prevPred    = prevIdEv ? _predictions[prevIdEv] : null;
-  if (prevPred && prevPred.length) {
-    const hits    = prevPred.filter(n => drawnSet.has(n));
-    const Kp      = prevPred.length;
-    const expR    = (Kp * 20 / 80).toFixed(2);
-    const thr     = Math.ceil(Kp * 0.35);
-    const sc      = hits.length;
-    const scCol   = sc >= thr+1 ? '#69f0ae' : sc >= thr ? '#ffd740' : sc >= thr-1 ? '#ffab40' : '#ef5350';
-    html += `<div style="border-top:1px solid #1a3a20;margin-top:4px;padding-top:5px">`;
-    html += `<div style="font-size:.6rem;color:#555;margin-bottom:3px">📊 Αξιολόγηση #${prevIdEv} → <b style="color:${scCol}">${sc}/${Kp}</b> <span style="color:#333">(αναμ. ~${expR})</span></div>`;
-    html += `<div style="display:flex;flex-wrap:wrap;gap:3px">`;
-    for (const n of prevPred) {
-      const hit = drawnSet.has(n);
-      html += `<span style="background:${hit?'#1b5e20':'#100808'};border:1px solid ${hit?'#69f0ae':'#2a1010'};
-        border-radius:3px;padding:2px 5px;font-size:.7rem;font-weight:${hit?'bold':'normal'};
-        color:${hit?'#69f0ae':'#444'}">${n}${hit?' ✓':''}</span>`;
-    }
-    html += `</div></div>`;
-  } else if (prevIdEv) {
-    html += `<div style="border-top:1px solid #1a3a20;margin-top:4px;padding-top:4px;font-size:.58rem;color:#333">📋 Αξιολόγηση: άνοιξε πρώτα την κλήρωση #${prevIdEv}</div>`;
-  }
-
   html += `</div>`;
 
   // Zone bars
