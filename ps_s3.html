@@ -448,10 +448,6 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <div id="kinoClusterGrid" style="min-height:30px"></div>
     </div>
 
-    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #172030;border-radius:6px;padding:8px">
-      <div id="kinoPredEval" style="min-height:10px"></div>
-    </div>
-
     <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
       <div id="kinoPatternHeat" style="min-height:30px"></div>
     </div>
@@ -1209,7 +1205,6 @@ function kinoRender() {
   renderCoverEval();
   const prevDraw = kinoIdx > 0 ? kinoDraws[kinoIdx - 1] : null;
   renderClusterGrid(draw.n, prevDraw ? prevDraw.n : null, draw.id);
-  renderPredictionEval(draw.n, draw.id);
   schedulePatternMatch(draw.n);
   scheduleAnalysisMatch(draw.n);
 }
@@ -3303,8 +3298,6 @@ async function runAnalysisMatch(nums) {
     const topK = boosted.map((v,i)=>({n:i+1,v})).sort((a,b)=>b.v-a.v)
                         .slice(0,K).map(x=>x.n).sort((a,b)=>a-b);
     _predictions[drawId] = topK;
-    // Αξιολόγηση — ξαναζωγράφισε αν είμαστε σε επόμενη κλήρωση
-    renderPredictionEval(nums, drawId);
     renderAnalysisBlock(el, e.data, nums, drawId, boosted, topK);
   };
   _pat2Worker.postMessage({buf:bufCopy, qbytes:Array.from(qbytes), N}, [bufCopy]);
@@ -3352,7 +3345,7 @@ function renderAnalysisBlock(el, d, drawnNums, drawId, boosted, topK) {
   }
   html += `</div></div>`;
   if (topK && topK.length) {
-    html += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
     for (const n of topK) {
       const isDrawn = drawnSet.has(n);
       html += `<span style="background:#1b5e20;border:${isDrawn?'2px solid #ef6c00':'1px solid #43a047'};
@@ -3362,6 +3355,32 @@ function renderAnalysisBlock(el, d, drawnNums, drawId, boosted, topK) {
   } else {
     html += `<span style="color:#555;font-size:.6rem">Υπολογισμός…</span>`;
   }
+
+  // ── Αξιολόγηση προηγούμενης πρόβλεψης (inline) ──
+  const prevDrawEv  = kinoIdx > 0 ? kinoDraws[kinoIdx - 1] : null;
+  const prevIdEv    = prevDrawEv ? prevDrawEv.id : null;
+  const prevPred    = prevIdEv ? _predictions[prevIdEv] : null;
+  if (prevPred && prevPred.length) {
+    const hits    = prevPred.filter(n => drawnSet.has(n));
+    const Kp      = prevPred.length;
+    const expR    = (Kp * 20 / 80).toFixed(2);
+    const thr     = Math.ceil(Kp * 0.35);
+    const sc      = hits.length;
+    const scCol   = sc >= thr+1 ? '#69f0ae' : sc >= thr ? '#ffd740' : sc >= thr-1 ? '#ffab40' : '#ef5350';
+    html += `<div style="border-top:1px solid #1a3a20;margin-top:4px;padding-top:5px">`;
+    html += `<div style="font-size:.6rem;color:#555;margin-bottom:3px">📊 Αξιολόγηση #${prevIdEv} → <b style="color:${scCol}">${sc}/${Kp}</b> <span style="color:#333">(αναμ. ~${expR})</span></div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:3px">`;
+    for (const n of prevPred) {
+      const hit = drawnSet.has(n);
+      html += `<span style="background:${hit?'#1b5e20':'#100808'};border:1px solid ${hit?'#69f0ae':'#2a1010'};
+        border-radius:3px;padding:2px 5px;font-size:.7rem;font-weight:${hit?'bold':'normal'};
+        color:${hit?'#69f0ae':'#444'}">${n}${hit?' ✓':''}</span>`;
+    }
+    html += `</div></div>`;
+  } else if (prevIdEv) {
+    html += `<div style="border-top:1px solid #1a3a20;margin-top:4px;padding-top:4px;font-size:.58rem;color:#333">📋 Αξιολόγηση: άνοιξε πρώτα την κλήρωση #${prevIdEv}</div>`;
+  }
+
   html += `</div>`;
 
   // Zone bars
