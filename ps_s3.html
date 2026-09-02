@@ -482,8 +482,11 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <span style="color:#666">κλ.</span>
           </div>
 
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="color:#ffb74d">🔥 Τουλ.</span>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcHotToggle" onclick="lcToggleHot()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#3a1a00;border:1px solid #e65100;color:#ffb74d">🔥 ΟΝ</button>
+            <span style="color:#aaa">Τουλ.</span>
             <div style="display:flex;gap:2px" id="lcHotPctBtns"></div>
             <span style="color:#666">% hot από τελ.</span>
             <div style="display:flex;gap:2px" id="lcHotMBtns"></div>
@@ -3234,6 +3237,7 @@ let _lcColdM   = 5;   // από πόσες τελευταίες κληρώσει
 let _lcUniqN   = 200; // μοναδικότητα στις τελευταίες N κληρώσεις
 let _lcHotPct  = 10;  // ελάχ. % hot αριθμοί στον συνδυασμό
 let _lcHotM    = 5;   // hot = βγήκε σε τελευταίες M κληρώσεις
+let _lcHotOn   = true; // φίλτρο hot ενεργό
 
 function lcInitButtons() {
   function mkGroup(id, vals, cur, fn) {
@@ -3257,6 +3261,24 @@ function lcInitButtons() {
   mkGroup('lcUniqNBtns',  [50,100,200,500],       _lcUniqN,  v => { _lcUniqN = v; });
   mkGroup('lcHotPctBtns', [1,2,3,4,5,10,20,30,40,50], _lcHotPct, v => { _lcHotPct = v; });
   mkGroup('lcHotMBtns',   [3,5,10,20],            _lcHotM,   v => { _lcHotM = v; });
+  // Εμφάνιση toggle
+  const tog = document.getElementById('lcHotToggle');
+  if (tog) {
+    tog.textContent = _lcHotOn ? '🔥 ΟΝ' : '🔥 OFF';
+    tog.style.background = _lcHotOn ? '#3a1a00' : '#1a1a1a';
+    tog.style.borderColor = _lcHotOn ? '#e65100' : '#333';
+    tog.style.color       = _lcHotOn ? '#ffb74d' : '#555';
+    // Εμφάνιση/απόκρυψη selectors hot
+    ['lcHotPctBtns','lcHotMBtns'].forEach(id => {
+      const el2 = document.getElementById(id);
+      if (el2) el2.style.opacity = _lcHotOn ? '1' : '0.25';
+    });
+  }
+}
+
+function lcToggleHot() {
+  _lcHotOn = !_lcHotOn;
+  lcInitButtons();
 }
 
 function lcGenerate() {
@@ -3305,9 +3327,11 @@ function lcGenerate() {
     }
     const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
 
-    // Φίλτρο hot: τουλάχιστον minHot αριθμοί να είναι hot
-    const hotCount = candidate.filter(n => hotSet.has(n)).length;
-    if (hotCount < minHot) continue;
+    // Φίλτρο hot (αν είναι ενεργό)
+    if (_lcHotOn) {
+      const hotCount = candidate.filter(n => hotSet.has(n)).length;
+      if (hotCount < minHot) continue;
+    }
 
     // Φίλτρο μοναδικότητας: κανένα draw δεν περιέχει ΟΛΑ τα candidate
     let unique = true;
