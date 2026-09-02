@@ -481,6 +481,14 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <div style="display:flex;gap:2px" id="lcUniqNBtns"></div>
             <span style="color:#666">κλ.</span>
           </div>
+
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:#ffb74d">🔥 Τουλ.</span>
+            <div style="display:flex;gap:2px" id="lcHotPctBtns"></div>
+            <span style="color:#666">% hot από τελ.</span>
+            <div style="display:flex;gap:2px" id="lcHotMBtns"></div>
+            <span style="color:#666">κλ.</span>
+          </div>
         </div>
 
         <button onclick="lcGenerate()"
@@ -3220,10 +3228,12 @@ function renderPredictionEval(drawnNums, drawId) {
 
 // ── Last Chance ───────────────────────────────────────────────────────────────
 
-let _lcK      = 9;   // πόσοι αριθμοί
-let _lcColdN  = 20;  // πόσα κρύα να αποκλείσει
-let _lcColdM  = 5;   // από πόσες τελευταίες κληρώσεις (για κρύα)
-let _lcUniqN  = 200; // μοναδικότητα στις τελευταίες N κληρώσεις
+let _lcK       = 9;   // πόσοι αριθμοί
+let _lcColdN   = 20;  // πόσα κρύα να αποκλείσει
+let _lcColdM   = 5;   // από πόσες τελευταίες κληρώσεις (για κρύα)
+let _lcUniqN   = 200; // μοναδικότητα στις τελευταίες N κληρώσεις
+let _lcHotPct  = 10;  // ελάχ. % hot αριθμοί στον συνδυασμό
+let _lcHotM    = 5;   // hot = βγήκε σε τελευταίες M κληρώσεις
 
 function lcInitButtons() {
   function mkGroup(id, vals, cur, fn) {
@@ -3241,10 +3251,12 @@ function lcInitButtons() {
       el.appendChild(b);
     }
   }
-  mkGroup('lcKBtns',     [5,6,7,8,9,10,12,15], _lcK,     v => { _lcK = v; });
-  mkGroup('lcColdNBtns', [10,15,20,25,30],      _lcColdN, v => { _lcColdN = v; });
-  mkGroup('lcColdMBtns', [3,5,10,20],           _lcColdM, v => { _lcColdM = v; });
-  mkGroup('lcUniqNBtns', [50,100,200,500],       _lcUniqN, v => { _lcUniqN = v; });
+  mkGroup('lcKBtns',      [5,6,7,8,9,10,12,15], _lcK,      v => { _lcK = v; });
+  mkGroup('lcColdNBtns',  [10,15,20,25,30],      _lcColdN,  v => { _lcColdN = v; });
+  mkGroup('lcColdMBtns',  [3,5,10,20],           _lcColdM,  v => { _lcColdM = v; });
+  mkGroup('lcUniqNBtns',  [50,100,200,500],       _lcUniqN,  v => { _lcUniqN = v; });
+  mkGroup('lcHotPctBtns', [10,20,30,40,50],       _lcHotPct, v => { _lcHotPct = v; });
+  mkGroup('lcHotMBtns',   [3,5,10,20],            _lcHotM,   v => { _lcHotM = v; });
 }
 
 function lcGenerate() {
@@ -3254,30 +3266,34 @@ function lcGenerate() {
     return;
   }
 
-  const recent = kinoDraws.slice(-Math.max(_lcColdM, _lcUniqN));
-
-  // Συχνότητα αριθμών στις τελευταίες _lcColdM κληρώσεις
+  // Συχνότητα αριθμών στις τελευταίες _lcColdM κληρώσεις (για κρύα)
   const coldSlice = kinoDraws.slice(-_lcColdM);
-  const freq = new Array(81).fill(0);
-  for (const d of coldSlice) for (const n of d.n) freq[n]++;
+  const freqCold = new Array(81).fill(0);
+  for (const d of coldSlice) for (const n of d.n) freqCold[n]++;
+
+  // Hot = εμφανίστηκε τουλάχιστον μία φορά στις τελευταίες _lcHotM κληρώσεις
+  const hotSlice = kinoDraws.slice(-_lcHotM);
+  const hotSet = new Set();
+  for (const d of hotSlice) for (const n of d.n) hotSet.add(n);
 
   // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα
-  const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[a]-freq[b]);
+  const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freqCold[a]-freqCold[b]);
   const coldSet = new Set(ranked.slice(0, _lcColdN));
-  const pool    = ranked.slice(_lcColdN); // διαθέσιμοι αριθμοί
+  const pool    = ranked.slice(_lcColdN); // διαθέσιμοι αριθμοί (χωρίς τα κρύα)
 
   if (pool.length < _lcK) {
     el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν αρκούν διαθέσιμοι αριθμοί (${pool.length} < ${_lcK}). Μείωσε τα κρύα.</span>`;
     return;
   }
 
+  const minHot = Math.ceil(_lcK * _lcHotPct / 100); // ελάχ. hot αριθμοί
+
   // Τελευταίες _lcUniqN κληρώσεις ως sets για έλεγχο μοναδικότητας
   const uniqSlice = kinoDraws.slice(-_lcUniqN).map(d => new Set(d.n));
 
-  // Δημιουργία τυχαίου συνδυασμού που να ΜΗΝ εμφανίστηκε ως υποσύνολο σε καμία από τις τελευταίες _lcUniqN
   let combo = null;
   let attempts = 0;
-  const MAX_TRIES = 500;
+  const MAX_TRIES = 2000;
 
   while (attempts < MAX_TRIES) {
     attempts++;
@@ -3289,7 +3305,11 @@ function lcGenerate() {
     }
     const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
 
-    // Έλεγχος: κανένα από τα _lcUniqN draws δεν περιέχει ΟΛΑ τα candidate
+    // Φίλτρο hot: τουλάχιστον minHot αριθμοί να είναι hot
+    const hotCount = candidate.filter(n => hotSet.has(n)).length;
+    if (hotCount < minHot) continue;
+
+    // Φίλτρο μοναδικότητας: κανένα draw δεν περιέχει ΟΛΑ τα candidate
     let unique = true;
     for (const ds of uniqSlice) {
       if (candidate.every(n => ds.has(n))) { unique = false; break; }
@@ -3298,21 +3318,26 @@ function lcGenerate() {
   }
 
   if (!combo) {
-    el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν βρέθηκε μοναδικός συνδυασμός σε ${MAX_TRIES} προσπάθειες. Δοκίμασε λιγότερα Κ ή μικρότερο N μοναδικότητας.</span>`;
+    el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν βρέθηκε συνδυασμός σε ${MAX_TRIES} προσπάθειες. Χαλάρωσε τα φίλτρα (λιγότερο hot%, λιγότερα κρύα, μικρότερο N).</span>`;
     return;
   }
 
   // Εμφάνιση αποτελέσματος
+  const hotCount = combo.filter(n => hotSet.has(n)).length;
   let html = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
   for (const n of combo) {
-    html += `<span style="background:#2d0a4e;border:1px solid #7b1fa2;border-radius:4px;
-      padding:4px 9px;font-size:.88rem;font-weight:bold;color:#ce93d8">${n}</span>`;
+    const isHot = hotSet.has(n);
+    html += `<span style="background:${isHot?'#3a1a00':'#2d0a4e'};border:1px solid ${isHot?'#e65100':'#7b1fa2'};
+      border-radius:4px;padding:4px 9px;font-size:.88rem;font-weight:bold;
+      color:${isHot?'#ffb74d':'#ce93d8'}" title="${isHot?'🔥 Hot':''}">
+      ${n}${isHot?'🔥':''}</span>`;
   }
   html += `</div>`;
   html += `<div style="font-size:.6rem;color:#555;margin-bottom:4px">
-    Προσπάθειες: <b style="color:#888">${attempts}</b> &nbsp;·&nbsp;
-    Αποκλείστηκαν <b style="color:#888">${_lcColdN}</b> κρύα από τελ. <b style="color:#888">${_lcColdM}</b> κλ. &nbsp;·&nbsp;
-    Μοναδικός στις τελ. <b style="color:#888">${_lcUniqN}</b> κλ.
+    🔥 Hot: <b style="color:#ffb74d">${hotCount}/${_lcK}</b> (≥${_lcHotPct}% από τελ. ${_lcHotM} κλ.)
+    &nbsp;·&nbsp; Προσπάθειες: <b style="color:#888">${attempts}</b>
+    &nbsp;·&nbsp; Αποκλ. <b style="color:#888">${_lcColdN}</b> κρύα / τελ. <b style="color:#888">${_lcColdM}</b> κλ.
+    &nbsp;·&nbsp; Μοναδικός / τελ. <b style="color:#888">${_lcUniqN}</b> κλ.
   </div>`;
 
   // Τα κρύα νούμερα
@@ -3321,7 +3346,7 @@ function lcGenerate() {
   html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν:</span>`;
   for (const n of coldArr) {
     html += `<span style="background:#1a0a2e;border:1px solid #2a1540;border-radius:3px;
-      padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freq[n]})</span>`;
+      padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freqCold[n]})</span>`;
   }
   html += `</div>`;
 
