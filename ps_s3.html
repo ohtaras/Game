@@ -456,6 +456,43 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <div id="kinoAnalysis" style="min-height:30px"></div>
     </div>
 
+    <!-- ── Last Chance ── -->
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #4a1a6e;border-radius:6px;padding:10px">
+      <div id="kinoLastChance">
+        <div style="font-size:.75rem;font-weight:700;color:#ce93d8;margin-bottom:8px;letter-spacing:.06em">🎲 LAST CHANCE — Τελευταία Ευκαιρία</div>
+        <!-- Παράμετροι -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:.62rem;color:#888">
+
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:#aaa">Αριθμοί:</span>
+            <div style="display:flex;gap:2px" id="lcKBtns"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:#aaa">Αποκλεισμός</span>
+            <div style="display:flex;gap:2px" id="lcColdNBtns"></div>
+            <span style="color:#666">κρύων από τελ.</span>
+            <div style="display:flex;gap:2px" id="lcColdMBtns"></div>
+            <span style="color:#666">κλ.</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:#aaa">Μοναδικός σε τελ.</span>
+            <div style="display:flex;gap:2px" id="lcUniqNBtns"></div>
+            <span style="color:#666">κλ.</span>
+          </div>
+        </div>
+
+        <button onclick="lcGenerate()"
+          style="padding:5px 14px;background:#4a1a6e;border:1px solid #7b1fa2;border-radius:6px;
+          color:#ce93d8;font-size:.72rem;font-weight:700;cursor:pointer;margin-bottom:8px">
+          🎲 Δημιούργησε
+        </button>
+
+        <div id="lcResult" style="min-height:20px"></div>
+      </div>
+    </div>
+
     <div class="ctrl-bar" style="margin-top:10px">
       <button class="btn" id="kinoPrevBtn2" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
       <button class="btn" id="kinoNextBtn2" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
@@ -1339,7 +1376,7 @@ async function loadData() {
   const parts = [];
   if (psDraws.length)   { psRender();   parts.push(`PS: ${psDraws.length} κλ.`); }
   if (s3Draws.length)   { s3Render();   parts.push(`S3: ${s3Draws.length} κλ.`); }
-  if (kinoDraws.length) { kinoRender(); parts.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
+  if (kinoDraws.length) { kinoRender(); lcInitButtons(); parts.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
   if (isCmpActive()) renderCmp();
 
   sb.textContent = parts.length
@@ -3180,6 +3217,119 @@ function renderPredictionEval(drawnNums, drawId) {
     <span style="color:#555;font-size:.6rem"> &nbsp;(τυχαίο αναμ. ~${expRand})</span></div>`;
   el.innerHTML = html;
 }
+
+// ── Last Chance ───────────────────────────────────────────────────────────────
+
+let _lcK      = 9;   // πόσοι αριθμοί
+let _lcColdN  = 20;  // πόσα κρύα να αποκλείσει
+let _lcColdM  = 5;   // από πόσες τελευταίες κληρώσεις (για κρύα)
+let _lcUniqN  = 200; // μοναδικότητα στις τελευταίες N κληρώσεις
+
+function lcInitButtons() {
+  function mkGroup(id, vals, cur, fn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    for (const v of vals) {
+      const b = document.createElement('button');
+      b.textContent = v;
+      b.dataset.v = v;
+      const sel = v === cur;
+      b.style.cssText = `background:${sel?'#4a1a6e':'#0d1220'};border:1px solid ${sel?'#7b1fa2':'#1a2540'};
+        border-radius:3px;padding:1px 5px;font-size:.6rem;color:${sel?'#ce93d8':'#555'};cursor:pointer`;
+      b.onclick = () => { fn(v); lcInitButtons(); };
+      el.appendChild(b);
+    }
+  }
+  mkGroup('lcKBtns',     [5,6,7,8,9,10,12,15], _lcK,     v => { _lcK = v; });
+  mkGroup('lcColdNBtns', [10,15,20,25,30],      _lcColdN, v => { _lcColdN = v; });
+  mkGroup('lcColdMBtns', [3,5,10,20],           _lcColdM, v => { _lcColdM = v; });
+  mkGroup('lcUniqNBtns', [50,100,200,500],       _lcUniqN, v => { _lcUniqN = v; });
+}
+
+function lcGenerate() {
+  const el = document.getElementById('lcResult');
+  if (!kinoDraws || kinoDraws.length < 2) {
+    el.innerHTML = '<span style="color:#555;font-size:.62rem">Δεν υπάρχουν δεδομένα.</span>';
+    return;
+  }
+
+  const recent = kinoDraws.slice(-Math.max(_lcColdM, _lcUniqN));
+
+  // Συχνότητα αριθμών στις τελευταίες _lcColdM κληρώσεις
+  const coldSlice = kinoDraws.slice(-_lcColdM);
+  const freq = new Array(81).fill(0);
+  for (const d of coldSlice) for (const n of d.n) freq[n]++;
+
+  // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα
+  const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[a]-freq[b]);
+  const coldSet = new Set(ranked.slice(0, _lcColdN));
+  const pool    = ranked.slice(_lcColdN); // διαθέσιμοι αριθμοί
+
+  if (pool.length < _lcK) {
+    el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν αρκούν διαθέσιμοι αριθμοί (${pool.length} < ${_lcK}). Μείωσε τα κρύα.</span>`;
+    return;
+  }
+
+  // Τελευταίες _lcUniqN κληρώσεις ως sets για έλεγχο μοναδικότητας
+  const uniqSlice = kinoDraws.slice(-_lcUniqN).map(d => new Set(d.n));
+
+  // Δημιουργία τυχαίου συνδυασμού που να ΜΗΝ εμφανίστηκε ως υποσύνολο σε καμία από τις τελευταίες _lcUniqN
+  let combo = null;
+  let attempts = 0;
+  const MAX_TRIES = 500;
+
+  while (attempts < MAX_TRIES) {
+    attempts++;
+    // Fisher-Yates shuffle στο pool, παίρνουμε τα πρώτα _lcK
+    const tmp = pool.slice();
+    for (let i = tmp.length-1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i+1));
+      [tmp[i], tmp[j]] = [tmp[j], tmp[i]];
+    }
+    const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
+
+    // Έλεγχος: κανένα από τα _lcUniqN draws δεν περιέχει ΟΛΑ τα candidate
+    let unique = true;
+    for (const ds of uniqSlice) {
+      if (candidate.every(n => ds.has(n))) { unique = false; break; }
+    }
+    if (unique) { combo = candidate; break; }
+  }
+
+  if (!combo) {
+    el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν βρέθηκε μοναδικός συνδυασμός σε ${MAX_TRIES} προσπάθειες. Δοκίμασε λιγότερα Κ ή μικρότερο N μοναδικότητας.</span>`;
+    return;
+  }
+
+  // Εμφάνιση αποτελέσματος
+  let html = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+  for (const n of combo) {
+    html += `<span style="background:#2d0a4e;border:1px solid #7b1fa2;border-radius:4px;
+      padding:4px 9px;font-size:.88rem;font-weight:bold;color:#ce93d8">${n}</span>`;
+  }
+  html += `</div>`;
+  html += `<div style="font-size:.6rem;color:#555;margin-bottom:4px">
+    Προσπάθειες: <b style="color:#888">${attempts}</b> &nbsp;·&nbsp;
+    Αποκλείστηκαν <b style="color:#888">${_lcColdN}</b> κρύα από τελ. <b style="color:#888">${_lcColdM}</b> κλ. &nbsp;·&nbsp;
+    Μοναδικός στις τελ. <b style="color:#888">${_lcUniqN}</b> κλ.
+  </div>`;
+
+  // Τα κρύα νούμερα
+  const coldArr = [...coldSet].sort((a,b)=>a-b);
+  html += `<div style="font-size:.58rem;color:#444;display:flex;flex-wrap:wrap;gap:2px;align-items:center">`;
+  html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν:</span>`;
+  for (const n of coldArr) {
+    html += `<span style="background:#1a0a2e;border:1px solid #2a1540;border-radius:3px;
+      padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freq[n]})</span>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+}
+
+// Αρχικοποίηση buttons όταν φορτωθεί το DOM
+document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); });
 
 // ── Ανάλυση πολλαπλών οριζόντων & ισχυρών ταιριασμάτων ──────────────────────
 
