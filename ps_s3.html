@@ -410,6 +410,16 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
     <div id="kinoComboHits"></div>
 
+    <!-- ── Καρφιτσωμένες Εννιάδες (πάντα ορατές) ── -->
+    <div id="pinnedNinesPanel" style="margin-top:10px;display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="color:#ffd54f;font-weight:700;font-size:.8rem">📌 Καρφιτσωμένες Εννιάδες</span>
+        <span id="pinnedNinesInfo" style="color:#555;font-size:.7rem"></span>
+        <button onclick="clearPinnedNines()" style="margin-left:auto;background:transparent;border:1px solid #333;color:#666;border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">✕ Καθαρισμός</button>
+      </div>
+      <div id="pinnedNinesBody"></div>
+    </div>
+
     <!-- ── Live Monitor Ιστορικών Εννιάδων ── -->
     <div id="topNinesMonitor" style="margin-top:10px;background:#0d0d1a;border:1px solid #1a1a3a;border-radius:6px;padding:8px 10px;display:none">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
@@ -1902,6 +1912,7 @@ function kinoRender() {
   schedulePatternMatch(draw.n);
   scheduleAnalysisMatch(draw.n);
   renderTopNinesMonitor(draw);
+  renderPinnedNines(draw);
 }
 
 function renderTopNinesMonitor(draw) {
@@ -1974,7 +1985,10 @@ function renderTopNinesMonitor(draw) {
         h += ` <span style="color:#ff9800;font-size:.65rem">${hotInCombo}🔥</span>`;
       if (overdue)
         h += ` <span style="color:#ef5350;font-size:.65rem">⏳ ${overdueMonths.toFixed(1)} μήνες</span>`;
+      const key    = nums.join(',');
+      const pinned = pinnedNinesKeys.has(key);
       h += `<br><span style="color:#555;font-size:.65rem">Τελευταία: #${lastId} · ${lastDt}</span>`;
+      h += ` <button onclick="togglePin('${key}')" style="float:right;margin-top:2px;background:${pinned?'#3a2a00':'transparent'};border:1px solid ${pinned?'#ffd54f':'#333'};color:${pinned?'#ffd54f':'#555'};border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">${pinned?'📌 Καρφ.':'📌 Pin'}</button>`;
       h += `</div>`;
     }
     return h;
@@ -1983,6 +1997,81 @@ function renderTopNinesMonitor(draw) {
   body.innerHTML =
     renderGroup(hits5, '#ce93d8', '🎯 5+ κοινά') +
     renderGroup(hits4, '#80cbc4', '⚡ 4 κοινά');
+}
+
+// ── Pinned Nines ──────────────────────────────────────────────────────────────
+let pinnedNinesKeys = new Set();
+try {
+  const saved = JSON.parse(localStorage.getItem('pinnedNines') || '[]');
+  pinnedNinesKeys = new Set(saved);
+} catch(_) {}
+
+function savePinnedNines() {
+  try { localStorage.setItem('pinnedNines', JSON.stringify([...pinnedNinesKeys])); } catch(_) {}
+}
+
+function togglePin(key) {
+  if (pinnedNinesKeys.has(key)) pinnedNinesKeys.delete(key);
+  else pinnedNinesKeys.add(key);
+  savePinnedNines();
+  const draw = kinoDraws[kinoIdx];
+  if (draw) { renderTopNinesMonitor(draw); renderPinnedNines(draw); }
+}
+
+function clearPinnedNines() {
+  pinnedNinesKeys.clear();
+  savePinnedNines();
+  const draw = kinoDraws[kinoIdx];
+  if (draw) { renderTopNinesMonitor(draw); renderPinnedNines(draw); }
+}
+
+function renderPinnedNines(draw) {
+  const panel = document.getElementById('pinnedNinesPanel');
+  const body  = document.getElementById('pinnedNinesBody');
+  const info  = document.getElementById('pinnedNinesInfo');
+  if (!panel || !body) return;
+
+  if (!pinnedNinesKeys.size) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  info.textContent = `(${pinnedNinesKeys.size})`;
+
+  const drawnSet = draw ? new Set(draw.n) : new Set();
+
+  // Βρες τις καρφιτσωμένες από το TOP_NINES lookup
+  const numsMap = new Map();
+  for (const [nums, cnt, draws] of TOP_NINES) {
+    numsMap.set(nums.join(','), {nums, cnt, draws});
+  }
+
+  let html = '';
+  for (const key of pinnedNinesKeys) {
+    const entry = numsMap.get(key);
+    if (!entry) continue;
+    const {nums, cnt, draws} = entry;
+    const matched  = draw ? nums.filter(n => drawnSet.has(n)).length : 0;
+    const lastId   = draws[draws.length - 1];
+    const lastDt   = drawIdToDateStr(lastId);
+    const DRAWS_PER_MONTH = 8640;
+    const overdueM = draw ? (draw.id - lastId) / DRAWS_PER_MONTH : 0;
+    const overdue  = overdueM >= 6;
+    const tier     = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
+    const hitColor = matched >= 5 ? '#ce93d8' : matched === 4 ? '#80cbc4' : matched === 3 ? '#ffd54f' : '#555';
+    const borderC  = overdue ? '#5a1a1a' : '#2a2a00';
+
+    html += `<div style="background:#0f0f00;border:1px solid ${borderC};border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
+    html += `<span style="color:#888;font-size:.65rem">${tier}</span> `;
+    html += nums.map(n => {
+      const hit = drawnSet.has(n);
+      return `<span style="color:${hit?hitColor:'#444'};font-weight:${hit?'bold':'normal'}">${n}</span>`;
+    }).join(' · ');
+    html += ` <span style="color:${hitColor};font-weight:bold">(${matched}/9)</span>`;
+    if (overdue)
+      html += ` <span style="color:#ef5350;font-size:.65rem">⏳${overdueM.toFixed(1)}μ</span>`;
+    html += `<br><span style="color:#555;font-size:.65rem">Τελευταία: #${lastId} · ${lastDt}</span>`;
+    html += ` <button onclick="togglePin('${key}')" style="float:right;margin-top:2px;background:#3a2a00;border:1px solid #ffd54f;color:#ffd54f;border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">📌 Αφαίρεση</button>`;
+    html += `</div>`;
+  }
+  body.innerHTML = html;
 }
 
 function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
