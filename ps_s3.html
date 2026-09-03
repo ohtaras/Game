@@ -1922,13 +1922,21 @@ function renderTopNinesMonitor(draw) {
   const sorted80 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]);
   const hotSet = new Set(sorted80.slice(0, 20));
 
-  // Βρες εννιάδες με 4+ hits
+  // Βρες εννιάδες με 4+ hits — υπολογίζουμε hotInCombo εδώ για το sort
   const hits5 = [], hits4 = [];
   for (const [nums, cnt, draws] of TOP_NINES) {
     const matched = nums.filter(n => drawnSet.has(n)).length;
-    if (matched >= 5) hits5.push({nums, cnt, draws, matched});
-    else if (matched === 4) hits4.push({nums, cnt, draws, matched});
+    if (matched >= 5 || matched === 4) {
+      const hotInCombo = nums.filter(n => hotSet.has(n)).length;
+      const entry = {nums, cnt, draws, matched, hotInCombo};
+      if (matched >= 5) hits5.push(entry);
+      else hits4.push(entry);
+    }
   }
+  // Ταξινόμηση: πρώτα τα με περισσότερα hot, δευτερευόντως matched
+  const byhot = (a, b) => b.hotInCombo - a.hotInCombo || b.matched - a.matched;
+  hits5.sort(byhot);
+  hits4.sort(byhot);
 
   if (!hits5.length && !hits4.length) {
     panel.style.display = 'none';
@@ -1944,7 +1952,6 @@ function renderTopNinesMonitor(draw) {
       const lastId = draws[draws.length - 1];
       const lastDt = drawIdToDateStr(lastId);
       const tier = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
-      const hotInCombo = nums.filter(n => hotSet.has(n)).length;
       h += `<div style="background:#0a0a1a;border:1px solid #222244;border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
       h += `<span style="color:#888;font-size:.65rem">${tier}</span> `;
       h += nums.map(n => {
