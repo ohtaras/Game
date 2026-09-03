@@ -412,9 +412,16 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 
     <!-- ── Live Monitor Ιστορικών Εννιάδων ── -->
     <div id="topNinesMonitor" style="margin-top:10px;background:#0d0d1a;border:1px solid #1a1a3a;border-radius:6px;padding:8px 10px;display:none">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <span style="color:#ce93d8;font-weight:700;font-size:.8rem">🔍 Εννιάδες-Ρεκόρ στην κλήρωση</span>
         <span id="topNinesMonitorInfo" style="color:#555;font-size:.7rem"></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:.68rem;color:#666">
+          🔥 Hot από
+          <input type="range" id="topNinesHotSlider" min="5" max="50" value="20" step="5"
+            style="width:70px;accent-color:#ce93d8"
+            oninput="document.getElementById('topNinesHotVal').textContent=this.value;renderTopNinesMonitor(kinoDraws[kinoIdx])">
+          <span id="topNinesHotVal">20</span> κλ.
+        </span>
       </div>
       <div id="topNinesMonitorBody"></div>
     </div>
@@ -1901,9 +1908,20 @@ function renderTopNinesMonitor(draw) {
   const panel = document.getElementById('topNinesMonitor');
   const body  = document.getElementById('topNinesMonitorBody');
   const info  = document.getElementById('topNinesMonitorInfo');
-  if (!panel || !body) return;
+  if (!panel || !body || !draw) return;
 
   const drawnSet = new Set(draw.n);
+
+  // Υπολογισμός hot αριθμών από τις τελευταίες hotWin κληρώσεις
+  const hotWin = +(document.getElementById('topNinesHotSlider')?.value || 20);
+  const winStart = Math.max(0, kinoIdx - hotWin);
+  const freq = new Array(81).fill(0);
+  for (let i = winStart; i < kinoIdx; i++)
+    kinoDraws[i].n.forEach(n => freq[n]++);
+  // Threshold: top-20 αριθμοί είναι "hot"
+  const sorted80 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]);
+  const hotSet = new Set(sorted80.slice(0, 20));
+
   // Βρες εννιάδες με 4+ hits
   const hits5 = [], hits4 = [];
   for (const [nums, cnt, draws] of TOP_NINES) {
@@ -1926,10 +1944,19 @@ function renderTopNinesMonitor(draw) {
       const lastId = draws[draws.length - 1];
       const lastDt = drawIdToDateStr(lastId);
       const tier = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
+      const hotInCombo = nums.filter(n => hotSet.has(n)).length;
       h += `<div style="background:#0a0a1a;border:1px solid #222244;border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
       h += `<span style="color:#888;font-size:.65rem">${tier}</span> `;
-      h += nums.map(n => `<span style="color:${drawnSet.has(n)?color:'#444'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' · ');
+      h += nums.map(n => {
+        const hit  = drawnSet.has(n);
+        const hot  = hotSet.has(n);
+        let style = `color:${hit ? color : hot ? '#ff9800' : '#444'};font-weight:${hit ? 'bold' : 'normal'}`;
+        if (hot) style += ';text-decoration:underline;text-underline-offset:2px';
+        return `<span style="${style}">${n}${hot ? '🔥' : ''}</span>`;
+      }).join(' · ');
       h += ` <span style="color:${color};font-weight:bold">(${matched}/9)</span>`;
+      if (hotInCombo > 0)
+        h += ` <span style="color:#ff9800;font-size:.65rem">${hotInCombo} hot</span>`;
       h += `<br><span style="color:#555;font-size:.65rem">Τελευταία εμφάνιση: #${lastId} · ${lastDt}</span>`;
       h += `</div>`;
     }
