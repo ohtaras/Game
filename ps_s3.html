@@ -1948,7 +1948,7 @@ function renderTopNinesMonitor(draw) {
   function renderGroup(list, color, label) {
     if (!list.length) return '';
     let h = `<div style="color:${color};font-size:.72rem;font-weight:700;margin-bottom:4px">${label} (${list.length}):</div>`;
-    for (const {nums, cnt, draws, matched} of list) {
+    for (const {nums, cnt, draws, matched, hotInCombo} of list) {
       const lastId = draws[draws.length - 1];
       const lastDt = drawIdToDateStr(lastId);
       const tier = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
