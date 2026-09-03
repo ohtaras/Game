@@ -3390,13 +3390,16 @@ function lcGenerate() {
     const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
     const K = candidate.length;
 
+    // Με K≥70 τα φίλτρα παρακάμπτονται (αδύνατο να ικανοποιηθούν)
+    const bigK = K >= 70;
+
     // Φίλτρο hot
-    if (_lcHotOn) {
+    if (!bigK && _lcHotOn) {
       if (candidate.filter(n => hotSet.has(n)).length < minHot) continue;
     }
 
     // Φίλτρο ισορροπία (±1 για μονό K)
-    if (_lcBalOn) {
+    if (!bigK && _lcBalOn) {
       const sm = candidate.filter(n => n <= 40).length;
       const od = candidate.filter(n => n % 2 === 1).length;
       const tp = candidate.filter(n => ((n-1)/10|0) < 4).length;
@@ -3405,15 +3408,17 @@ function lcGenerate() {
     }
 
     // Φίλτρο επαναλήψεις από προηγούμενη
-    const reps = candidate.filter(n => prevDrawNums.has(n)).length;
-    if (reps < _lcRepMin || reps > _lcRepMax) continue;
+    if (!bigK) {
+      const reps = candidate.filter(n => prevDrawNums.has(n)).length;
+      if (reps < _lcRepMin || reps > _lcRepMax) continue;
+    }
 
     // Φίλτρο grid ζεύγη
-    if (_lcPairsOn) {
+    if (!bigK && _lcPairsOn) {
       if (lcCountPairs(candidate) < _lcPairsMin) continue;
     }
 
-    // Φίλτρο κύβων (ποτέ 2×2 τετράγωνο)
+    // Φίλτρο κύβων (ποτέ 2×2 τετράγωνο) — ισχύει και για μεγάλο K
     if (lcHasCube(candidate)) continue;
 
     // Φίλτρο μοναδικότητας
