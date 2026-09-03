@@ -3318,20 +3318,17 @@ function lcToggleBal()   { _lcBalOn   = !_lcBalOn;   lcInitButtons(); }
 function lcTogglePairs() { _lcPairsOn = !_lcPairsOn; lcInitButtons(); }
 
 function lcCountPairs(combo) {
+  // 4-connectivity (πάνω/κάτω/αριστ./δεξ.) — ίδιο με cluster block
   const s = new Set(combo);
-  let pairs = 0;
-  for (const n of combo) {
+  return combo.reduce((acc, n) => {
     const r = (n-1)/10|0, c = (n-1)%10;
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-      if (dr===0 && dc===0) continue;
-      const nr = r+dr, nc = c+dc;
-      if (nr>=0&&nr<8&&nc>=0&&nc<10) {
-        const nb = nr*10+nc+1;
-        if (nb > n && s.has(nb)) pairs++;
-      }
-    }
-  }
-  return pairs;
+    const nb4 = [];
+    if (r > 0) nb4.push((r-1)*10+c+1);
+    if (r < 7) nb4.push((r+1)*10+c+1);
+    if (c > 0) nb4.push(n-1);
+    if (c < 9) nb4.push(n+1);
+    return acc + nb4.filter(nb => s.has(nb)).length;
+  }, 0) / 2;
 }
 
 function lcGenerate() {
@@ -3363,9 +3360,9 @@ function lcGenerate() {
 
   const minHot = Math.ceil(_lcK * _lcHotPct / 100);
 
-  // Προηγούμενη κλήρωση για φίλτρο επαναλήψεων
-  const prevDrawNums = kinoIdx > 0 ? new Set(kinoDraws[kinoIdx - 1]?.n || []) :
-                       kinoDraws.length > 1 ? new Set(kinoDraws[kinoDraws.length - 2].n) : new Set();
+  // Τρέχουσα κλήρωση = "προηγούμενη" για τη νέα πρόβλεψη
+  const curDraw = kinoDraws[kinoIdx] || kinoDraws[kinoDraws.length - 1];
+  const prevDrawNums = new Set(curDraw ? curDraw.n : []);
 
   // Τελευταίες _lcUniqN κληρώσεις ως sets για έλεγχο μοναδικότητας
   const uniqSlice = kinoDraws.slice(-_lcUniqN).map(d => new Set(d.n));
