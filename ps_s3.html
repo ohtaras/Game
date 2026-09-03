@@ -492,6 +492,29 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <div style="display:flex;gap:2px" id="lcHotMBtns"></div>
             <span style="color:#666">κλ.</span>
           </div>
+
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcBalToggle" onclick="lcToggleBal()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#0d2040;border:1px solid #1565c0;color:#90caf9">⚖️ ΟΝ</button>
+            <span style="color:#666;font-size:.58rem">Ισορροπία μικρά/μεγάλα · μονά/ζυγά · πάνω/κάτω · αριστ./δεξ. (±1)</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <span style="color:#aaa">🔁 Επαναλήψεις από προηγ.:</span>
+            <span style="color:#666">από</span>
+            <div style="display:flex;gap:2px" id="lcRepMinBtns"></div>
+            <span style="color:#666">έως</span>
+            <div style="display:flex;gap:2px" id="lcRepMaxBtns"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcPairsToggle" onclick="lcTogglePairs()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#1a2a1a;border:1px solid #388e3c;color:#81c784">⬛ ΟΝ</button>
+            <span style="color:#aaa">Grid ζεύγη τουλ.</span>
+            <div style="display:flex;gap:2px" id="lcPairsBtns"></div>
+          </div>
         </div>
 
         <button onclick="lcGenerate()"
@@ -3238,6 +3261,11 @@ let _lcUniqN   = 200; // μοναδικότητα στις τελευταίες 
 let _lcHotPct  = 10;  // ελάχ. % hot αριθμοί στον συνδυασμό
 let _lcHotM    = 5;   // hot = βγήκε σε τελευταίες M κληρώσεις
 let _lcHotOn   = true; // φίλτρο hot ενεργό
+let _lcBalOn   = true; // φίλτρο ισορροπία ενεργό
+let _lcRepMin  = 0;    // ελάχ. επαναλήψεις από προηγ. κλήρωση
+let _lcRepMax  = 3;    // μέγ. επαναλήψεις από προηγ. κλήρωση
+let _lcPairsOn = true; // φίλτρο grid ζεύγη ενεργό
+let _lcPairsMin= 5;    // ελάχ. πλήθος grid ζευγών
 
 function lcInitButtons() {
   function mkGroup(id, vals, cur, fn) {
@@ -3260,25 +3288,50 @@ function lcInitButtons() {
   mkGroup('lcColdMBtns',  [3,5,10,20],           _lcColdM,  v => { _lcColdM = v; });
   mkGroup('lcUniqNBtns',  [50,100,200,500],       _lcUniqN,  v => { _lcUniqN = v; });
   mkGroup('lcHotPctBtns', [1,2,3,4,5,10,20,30,40,50], _lcHotPct, v => { _lcHotPct = v; });
-  mkGroup('lcHotMBtns',   [3,5,10,20],            _lcHotM,   v => { _lcHotM = v; });
-  // Εμφάνιση toggle
-  const tog = document.getElementById('lcHotToggle');
-  if (tog) {
-    tog.textContent = _lcHotOn ? '🔥 ΟΝ' : '🔥 OFF';
-    tog.style.background = _lcHotOn ? '#3a1a00' : '#1a1a1a';
-    tog.style.borderColor = _lcHotOn ? '#e65100' : '#333';
-    tog.style.color       = _lcHotOn ? '#ffb74d' : '#555';
-    // Εμφάνιση/απόκρυψη selectors hot
-    ['lcHotPctBtns','lcHotMBtns'].forEach(id => {
-      const el2 = document.getElementById(id);
-      if (el2) el2.style.opacity = _lcHotOn ? '1' : '0.25';
-    });
+  mkGroup('lcHotMBtns',   [3,5,10,20],                _lcHotM,   v => { _lcHotM = v; });
+  mkGroup('lcRepMinBtns', [0,1,2,3],                  _lcRepMin, v => { _lcRepMin = Math.min(v, _lcRepMax); });
+  mkGroup('lcRepMaxBtns', [0,1,2,3],                  _lcRepMax, v => { _lcRepMax = Math.max(v, _lcRepMin); });
+  mkGroup('lcPairsBtns',  [1,2,3,4,5,6,7,8],         _lcPairsMin, v => { _lcPairsMin = v; });
+
+  function applyToggle(id, on, onBg, onBorder, onColor, offLabel, onLabel) {
+    const t = document.getElementById(id);
+    if (!t) return;
+    t.textContent = on ? onLabel : offLabel;
+    t.style.background  = on ? onBg  : '#1a1a1a';
+    t.style.borderColor = on ? onBorder : '#333';
+    t.style.color       = on ? onColor  : '#555';
   }
+  applyToggle('lcHotToggle',   _lcHotOn,   '#3a1a00','#e65100','#ffb74d','🔥 OFF','🔥 ΟΝ');
+  applyToggle('lcBalToggle',   _lcBalOn,   '#0d2040','#1565c0','#90caf9','⚖️ OFF','⚖️ ΟΝ');
+  applyToggle('lcPairsToggle', _lcPairsOn, '#1a2a1a','#388e3c','#81c784','⬛ OFF','⬛ ΟΝ');
+
+  ['lcHotPctBtns','lcHotMBtns'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.opacity = _lcHotOn ? '1' : '0.25';
+  });
+  ['lcPairsBtns'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.opacity = _lcPairsOn ? '1' : '0.25';
+  });
 }
 
-function lcToggleHot() {
-  _lcHotOn = !_lcHotOn;
-  lcInitButtons();
+function lcToggleHot()   { _lcHotOn   = !_lcHotOn;   lcInitButtons(); }
+function lcToggleBal()   { _lcBalOn   = !_lcBalOn;   lcInitButtons(); }
+function lcTogglePairs() { _lcPairsOn = !_lcPairsOn; lcInitButtons(); }
+
+function lcCountPairs(combo) {
+  const s = new Set(combo);
+  let pairs = 0;
+  for (const n of combo) {
+    const r = (n-1)/10|0, c = (n-1)%10;
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      if (dr===0 && dc===0) continue;
+      const nr = r+dr, nc = c+dc;
+      if (nr>=0&&nr<8&&nc>=0&&nc<10) {
+        const nb = nr*10+nc+1;
+        if (nb > n && s.has(nb)) pairs++;
+      }
+    }
+  }
+  return pairs;
 }
 
 function lcGenerate() {
@@ -3308,32 +3361,53 @@ function lcGenerate() {
     return;
   }
 
-  const minHot = Math.ceil(_lcK * _lcHotPct / 100); // ελάχ. hot αριθμοί
+  const minHot = Math.ceil(_lcK * _lcHotPct / 100);
+
+  // Προηγούμενη κλήρωση για φίλτρο επαναλήψεων
+  const prevDrawNums = kinoIdx > 0 ? new Set(kinoDraws[kinoIdx - 1]?.n || []) :
+                       kinoDraws.length > 1 ? new Set(kinoDraws[kinoDraws.length - 2].n) : new Set();
 
   // Τελευταίες _lcUniqN κληρώσεις ως sets για έλεγχο μοναδικότητας
   const uniqSlice = kinoDraws.slice(-_lcUniqN).map(d => new Set(d.n));
 
   let combo = null;
   let attempts = 0;
-  const MAX_TRIES = 2000;
+  const MAX_TRIES = 5000;
 
   while (attempts < MAX_TRIES) {
     attempts++;
-    // Fisher-Yates shuffle στο pool, παίρνουμε τα πρώτα _lcK
     const tmp = pool.slice();
     for (let i = tmp.length-1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i+1));
       [tmp[i], tmp[j]] = [tmp[j], tmp[i]];
     }
     const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
+    const K = candidate.length;
 
-    // Φίλτρο hot (αν είναι ενεργό)
+    // Φίλτρο hot
     if (_lcHotOn) {
-      const hotCount = candidate.filter(n => hotSet.has(n)).length;
-      if (hotCount < minHot) continue;
+      if (candidate.filter(n => hotSet.has(n)).length < minHot) continue;
     }
 
-    // Φίλτρο μοναδικότητας: κανένα draw δεν περιέχει ΟΛΑ τα candidate
+    // Φίλτρο ισορροπία (±1 για μονό K)
+    if (_lcBalOn) {
+      const sm = candidate.filter(n => n <= 40).length;
+      const od = candidate.filter(n => n % 2 === 1).length;
+      const tp = candidate.filter(n => ((n-1)/10|0) < 4).length;
+      const lf = candidate.filter(n => (n-1)%10 < 5).length;
+      if (Math.abs(sm*2-K)>1 || Math.abs(od*2-K)>1 || Math.abs(tp*2-K)>1 || Math.abs(lf*2-K)>1) continue;
+    }
+
+    // Φίλτρο επαναλήψεις από προηγούμενη
+    const reps = candidate.filter(n => prevDrawNums.has(n)).length;
+    if (reps < _lcRepMin || reps > _lcRepMax) continue;
+
+    // Φίλτρο grid ζεύγη
+    if (_lcPairsOn) {
+      if (lcCountPairs(candidate) < _lcPairsMin) continue;
+    }
+
+    // Φίλτρο μοναδικότητας
     let unique = true;
     for (const ds of uniqSlice) {
       if (candidate.every(n => ds.has(n))) { unique = false; break; }
@@ -3347,22 +3421,34 @@ function lcGenerate() {
   }
 
   // Εμφάνιση αποτελέσματος
-  const hotCount = combo.filter(n => hotSet.has(n)).length;
+  const hotCount  = combo.filter(n => hotSet.has(n)).length;
+  const repCount  = combo.filter(n => prevDrawNums.has(n)).length;
+  const pairsCount= lcCountPairs(combo);
+  const sm = combo.filter(n => n<=40).length, lg = combo.length-sm;
+  const od = combo.filter(n => n%2===1).length, ev = combo.length-od;
+  const tp = combo.filter(n => ((n-1)/10|0)<4).length, bt = combo.length-tp;
+  const lf = combo.filter(n => (n-1)%10<5).length,     rt = combo.length-lf;
+
   let html = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
   for (const n of combo) {
     const isHot = hotSet.has(n);
-    html += `<span style="background:${isHot?'#3a1a00':'#2d0a4e'};border:1px solid ${isHot?'#e65100':'#7b1fa2'};
+    const isRep = prevDrawNums.has(n);
+    html += `<span style="background:${isHot?'#3a1a00':'#2d0a4e'};
+      border:2px solid ${isRep?'#fdd835':isHot?'#e65100':'#7b1fa2'};
       border-radius:4px;padding:4px 9px;font-size:.88rem;font-weight:bold;
-      color:${isHot?'#ffb74d':'#ce93d8'}" title="${isHot?'🔥 Hot':''}">
-      ${n}${isHot?'🔥':''}</span>`;
+      color:${isHot?'#ffb74d':'#ce93d8'}" title="${isRep?'🔁 Επανάληψη':''}${isHot?'🔥':''}">
+      ${n}${isHot?'🔥':''}${isRep?'🔁':''}</span>`;
   }
   html += `</div>`;
-  html += `<div style="font-size:.6rem;color:#555;margin-bottom:4px">
-    🔥 Hot: <b style="color:#ffb74d">${hotCount}/${_lcK}</b> (≥${_lcHotPct}% από τελ. ${_lcHotM} κλ.)
-    &nbsp;·&nbsp; Προσπάθειες: <b style="color:#888">${attempts}</b>
-    &nbsp;·&nbsp; Αποκλ. <b style="color:#888">${_lcColdN}</b> κρύα / τελ. <b style="color:#888">${_lcColdM}</b> κλ.
-    &nbsp;·&nbsp; Μοναδικός / τελ. <b style="color:#888">${_lcUniqN}</b> κλ.
-  </div>`;
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:.58rem;color:#666;margin-bottom:5px">`;
+  html += `<span>🔥 Hot: <b style="color:#ffb74d">${hotCount}/${_lcK}</b></span>`;
+  html += `<span>⚖️ Μικρά/Μεγ.: <b style="color:#90caf9">${sm}/${lg}</b></span>`;
+  html += `<span>🔁 Επαναλήψεις: <b style="color:#fdd835">${repCount}</b></span>`;
+  html += `<span>⚖️ Μονά/Ζυγά: <b style="color:#90caf9">${od}/${ev}</b></span>`;
+  html += `<span>⬛ Grid ζεύγη: <b style="color:#81c784">${pairsCount}</b></span>`;
+  html += `<span>⚖️ Πάνω/Κάτω: <b style="color:#90caf9">${tp}/${bt}</b> · Αριστ./Δεξ.: <b style="color:#90caf9">${lf}/${rt}</b></span>`;
+  html += `</div>`;
+  html += `<div style="font-size:.58rem;color:#444">Προσπάθειες: <b style="color:#888">${attempts}</b></div>`;
 
   // Τα κρύα νούμερα
   const coldArr = [...coldSet].sort((a,b)=>a-b);
