@@ -3283,7 +3283,7 @@ function lcInitButtons() {
       el.appendChild(b);
     }
   }
-  mkGroup('lcKBtns',      [1,2,3,4,5,6,7,8,9,10,11,12], _lcK, v => { _lcK = v; });
+  mkGroup('lcKBtns',      [1,2,3,4,5,6,7,8,9,10,11,12,70], _lcK, v => { _lcK = v; });
   mkGroup('lcColdNBtns',  [10,15,20,25,30],      _lcColdN,  v => { _lcColdN = v; });
   mkGroup('lcColdMBtns',  [3,5,10,20],           _lcColdM,  v => { _lcColdM = v; });
   mkGroup('lcUniqNBtns',  [50,100,200,500],       _lcUniqN,  v => { _lcUniqN = v; });
@@ -3361,15 +3361,11 @@ function lcGenerate() {
   const hotSet = new Set();
   for (const d of hotSlice) for (const n of d.n) hotSet.add(n);
 
-  // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα
+  // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα (cap ώστε pool ≥ K)
   const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freqCold[a]-freqCold[b]);
-  const coldSet = new Set(ranked.slice(0, _lcColdN));
-  const pool    = ranked.slice(_lcColdN); // διαθέσιμοι αριθμοί (χωρίς τα κρύα)
-
-  if (pool.length < _lcK) {
-    el.innerHTML = `<span style="color:#ef5350;font-size:.62rem">Δεν αρκούν διαθέσιμοι αριθμοί (${pool.length} < ${_lcK}). Μείωσε τα κρύα.</span>`;
-    return;
-  }
+  const effectiveColdN = Math.min(_lcColdN, 80 - _lcK);
+  const coldSet = new Set(ranked.slice(0, effectiveColdN));
+  const pool    = ranked.slice(effectiveColdN); // διαθέσιμοί (χωρίς τα κρύα)
 
   const minHot = Math.ceil(_lcK * _lcHotPct / 100);
 
@@ -3463,10 +3459,22 @@ function lcGenerate() {
   html += `</div>`;
   html += `<div style="font-size:.58rem;color:#444">Προσπάθειες: <b style="color:#888">${attempts}</b></div>`;
 
+  // Ποιοι δεν επιλέχθηκαν (1-80 εκτός combo)
+  const comboSet = new Set(combo);
+  const notPicked = Array.from({length:80},(_,i)=>i+1).filter(n=>!comboSet.has(n));
+  html += `<div style="margin-top:6px;font-size:.58rem;color:#555;font-weight:600">Ποιοι δεν επιλέχθηκαν:</div>`;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">`;
+  for (const n of notPicked) {
+    const isCold = coldSet.has(n);
+    html += `<span style="background:${isCold?'#1a0a2e':'#222'};border:1px solid ${isCold?'#3a1558':'#444'};
+      border-radius:3px;padding:2px 5px;font-size:.7rem;color:${isCold?'#5a3a8e':'#888'}">${n}</span>`;
+  }
+  html += `</div>`;
+
   // Τα κρύα νούμερα
   const coldArr = [...coldSet].sort((a,b)=>a-b);
-  html += `<div style="font-size:.58rem;color:#444;display:flex;flex-wrap:wrap;gap:2px;align-items:center">`;
-  html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν:</span>`;
+  html += `<div style="font-size:.58rem;color:#444;display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:5px">`;
+  html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν κρύα:</span>`;
   for (const n of coldArr) {
     html += `<span style="background:#1a0a2e;border:1px solid #2a1540;border-radius:3px;
       padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freqCold[n]})</span>`;
