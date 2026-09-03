@@ -3317,6 +3317,19 @@ function lcToggleHot()   { _lcHotOn   = !_lcHotOn;   lcInitButtons(); }
 function lcToggleBal()   { _lcBalOn   = !_lcBalOn;   lcInitButtons(); }
 function lcTogglePairs() { _lcPairsOn = !_lcPairsOn; lcInitButtons(); }
 
+function lcHasCube(combo) {
+  // Ελέγχει αν υπάρχει 2×2 τετράγωνο (κύβος) στο grid
+  const s = new Set(combo);
+  for (const n of combo) {
+    const r = (n-1)/10|0, c = (n-1)%10;
+    if (r < 7 && c < 9) {
+      // Αριστερή-πάνω γωνία του 2×2: n, n+1, n+10, n+11
+      if (s.has(n+1) && s.has(n+10) && s.has(n+11)) return true;
+    }
+  }
+  return false;
+}
+
 function lcCountPairs(combo) {
   // 4-connectivity (πάνω/κάτω/αριστ./δεξ.) — ίδιο με cluster block
   const s = new Set(combo);
@@ -3403,6 +3416,9 @@ function lcGenerate() {
     if (_lcPairsOn) {
       if (lcCountPairs(candidate) < _lcPairsMin) continue;
     }
+
+    // Φίλτρο κύβων (ποτέ 2×2 τετράγωνο)
+    if (lcHasCube(candidate)) continue;
 
     // Φίλτρο μοναδικότητας
     let unique = true;
