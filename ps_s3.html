@@ -1922,21 +1922,27 @@ function renderTopNinesMonitor(draw) {
   const sorted80 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]);
   const hotSet = new Set(sorted80.slice(0, 20));
 
-  // Βρες εννιάδες με 4+ hits — υπολογίζουμε hotInCombo εδώ για το sort
+  // Μήνες από την τελευταία εμφάνιση (κλήρωση 5 λεπτά, 288/μέρα, ~8640/μήνα)
+  const DRAWS_PER_MONTH = 8640;
+  const curId = draw.id;
+
+  // Βρες εννιάδες με 4+ hits — υπολογίζουμε hotInCombo + overdueMonths για sort
   const hits5 = [], hits4 = [];
   for (const [nums, cnt, draws] of TOP_NINES) {
     const matched = nums.filter(n => drawnSet.has(n)).length;
     if (matched >= 5 || matched === 4) {
-      const hotInCombo = nums.filter(n => hotSet.has(n)).length;
-      const entry = {nums, cnt, draws, matched, hotInCombo};
+      const hotInCombo    = nums.filter(n => hotSet.has(n)).length;
+      const lastId        = draws[draws.length - 1];
+      const overdueMonths = (curId - lastId) / DRAWS_PER_MONTH;
+      // Σκορ: hot (βάρος 3) + μήνες αναμονής (βάρος 1, cap 12) + matched
+      const score = hotInCombo * 3 + Math.min(overdueMonths, 12) + matched * 0.1;
+      const entry = {nums, cnt, draws, matched, hotInCombo, overdueMonths, score};
       if (matched >= 5) hits5.push(entry);
       else hits4.push(entry);
     }
   }
-  // Ταξινόμηση: πρώτα τα με περισσότερα hot, δευτερευόντως matched
-  const byhot = (a, b) => b.hotInCombo - a.hotInCombo || b.matched - a.matched;
-  hits5.sort(byhot);
-  hits4.sort(byhot);
+  hits5.sort((a, b) => b.score - a.score);
+  hits4.sort((a, b) => b.score - a.score);
 
   if (!hits5.length && !hits4.length) {
     panel.style.display = 'none';
@@ -1948,11 +1954,13 @@ function renderTopNinesMonitor(draw) {
   function renderGroup(list, color, label) {
     if (!list.length) return '';
     let h = `<div style="color:${color};font-size:.72rem;font-weight:700;margin-bottom:4px">${label} (${list.length}):</div>`;
-    for (const {nums, cnt, draws, matched, hotInCombo} of list) {
-      const lastId = draws[draws.length - 1];
-      const lastDt = drawIdToDateStr(lastId);
-      const tier = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
-      h += `<div style="background:#0a0a1a;border:1px solid #222244;border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
+    for (const {nums, cnt, draws, matched, hotInCombo, overdueMonths} of list) {
+      const lastId   = draws[draws.length - 1];
+      const lastDt   = drawIdToDateStr(lastId);
+      const tier     = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
+      const overdue  = overdueMonths >= 6;
+      const borderC  = overdue ? '#5a1a1a' : '#222244';
+      h += `<div style="background:#0a0a1a;border:1px solid ${borderC};border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
       h += `<span style="color:#888;font-size:.65rem">${tier}</span> `;
       h += nums.map(n => {
         const hit  = drawnSet.has(n);
@@ -1963,8 +1971,10 @@ function renderTopNinesMonitor(draw) {
       }).join(' · ');
       h += ` <span style="color:${color};font-weight:bold">(${matched}/9)</span>`;
       if (hotInCombo > 0)
-        h += ` <span style="color:#ff9800;font-size:.65rem">${hotInCombo} hot</span>`;
-      h += `<br><span style="color:#555;font-size:.65rem">Τελευταία εμφάνιση: #${lastId} · ${lastDt}</span>`;
+        h += ` <span style="color:#ff9800;font-size:.65rem">${hotInCombo}🔥</span>`;
+      if (overdue)
+        h += ` <span style="color:#ef5350;font-size:.65rem">⏳ ${overdueMonths.toFixed(1)} μήνες</span>`;
+      h += `<br><span style="color:#555;font-size:.65rem">Τελευταία: #${lastId} · ${lastDt}</span>`;
       h += `</div>`;
     }
     return h;
