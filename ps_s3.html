@@ -3455,53 +3455,79 @@ function lcGenerate() {
   const lf = combo.filter(n => (n-1)%10<5).length,     rt = combo.length-lf;
 
   const isB = combo.length >= 70;
-  let html = isB
-    ? `<div style="font-size:.6rem;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:3px 8px;margin-bottom:6px;letter-spacing:.03em">
-        ⚠️ K=70 — <b style="color:#aaa">Φίλτρα OFF</b> (hot, ισορροπία, επαναλήψεις, ζεύγη, κύβος δεν ισχύουν)
-       </div>`
-    : '';
-  html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
-  for (const n of combo) {
-    const isHot = hotSet.has(n);
-    const isRep = prevDrawNums.has(n);
-    html += `<span style="background:${isHot?'#3a1a00':'#2d0a4e'};
-      border:2px solid ${isRep?'#fdd835':isHot?'#e65100':'#7b1fa2'};
-      border-radius:4px;padding:4px 9px;font-size:.88rem;font-weight:bold;
-      color:${isHot?'#ffb74d':'#ce93d8'}" title="${isRep?'🔁 Επανάληψη':''}${isHot?'🔥':''}">
-      ${n}${isHot?'🔥':''}${isRep?'🔁':''}</span>`;
-  }
-  html += `</div>`;
-  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:.58rem;color:#666;margin-bottom:5px">`;
-  html += `<span>🔥 Hot: <b style="color:#ffb74d">${hotCount}/${_lcK}</b></span>`;
-  html += `<span>⚖️ Μικρά/Μεγ.: <b style="color:#90caf9">${sm}/${lg}</b></span>`;
-  html += `<span>🔁 Επαναλήψεις: <b style="color:#fdd835">${repCount}</b></span>`;
-  html += `<span>⚖️ Μονά/Ζυγά: <b style="color:#90caf9">${od}/${ev}</b></span>`;
-  html += `<span>⬛ Grid ζεύγη: <b style="color:#81c784">${pairsCount}</b></span>`;
-  html += `<span>⚖️ Πάνω/Κάτω: <b style="color:#90caf9">${tp}/${bt}</b> · Αριστ./Δεξ.: <b style="color:#90caf9">${lf}/${rt}</b></span>`;
-  html += `</div>`;
-  html += `<div style="font-size:.58rem;color:#444">Προσπάθειες: <b style="color:#888">${attempts}</b></div>`;
-
-  // Ποιοι δεν επιλέχθηκαν (1-80 εκτός combo)
   const comboSet = new Set(combo);
   const notPicked = Array.from({length:80},(_,i)=>i+1).filter(n=>!comboSet.has(n));
-  html += `<div style="margin-top:6px;font-size:.58rem;color:#555;font-weight:600">Ποιοι δεν επιλέχθηκαν:</div>`;
-  html += `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">`;
-  for (const n of notPicked) {
-    const isCold = coldSet.has(n);
-    html += `<span style="background:${isCold?'#1a0a2e':'#222'};border:1px solid ${isCold?'#3a1558':'#444'};
-      border-radius:3px;padding:2px 5px;font-size:.7rem;color:${isCold?'#5a3a8e':'#888'}">${n}</span>`;
+
+  let html = '';
+
+  if (isB) {
+    // ── K=70: πρώτα οι αποκλεισμένοι, μεγάλοι και ευανάγνωστοι ──
+    html += `<div style="font-size:.6rem;color:#888;background:#1a1a1a;border:1px solid #333;
+      border-radius:4px;padding:3px 8px;margin-bottom:8px">
+      ⚠️ K=70 — <b style="color:#aaa">Φίλτρα OFF</b>
+    </div>`;
+    html += `<div style="font-size:.72rem;color:#ce93d8;font-weight:700;margin-bottom:5px">
+      ❌ Δεν επιλέχθηκαν (${notPicked.length}):
+    </div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">`;
+    for (const n of notPicked) {
+      html += `<span style="background:#3a0a5e;border:2px solid #9c27b0;border-radius:6px;
+        padding:6px 14px;font-size:1.1rem;font-weight:900;color:#e040fb">${n}</span>`;
+    }
+    html += `</div>`;
+    // τα 70 σε μικρό grid
+    html += `<details style="margin-bottom:6px"><summary style="font-size:.6rem;color:#555;cursor:pointer">Εμφάνιση 70 επιλεγμένων</summary>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">`;
+    for (const n of combo) {
+      html += `<span style="background:#1e1e1e;border:1px solid #333;border-radius:3px;
+        padding:2px 5px;font-size:.65rem;color:#777">${n}</span>`;
+    }
+    html += `</div></details>`;
+  } else {
+    // ── Κανονική εμφάνιση ──
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+    for (const n of combo) {
+      const isHot = hotSet.has(n);
+      const isRep = prevDrawNums.has(n);
+      html += `<span style="background:${isHot?'#3a1a00':'#2d0a4e'};
+        border:2px solid ${isRep?'#fdd835':isHot?'#e65100':'#7b1fa2'};
+        border-radius:4px;padding:4px 9px;font-size:.88rem;font-weight:bold;
+        color:${isHot?'#ffb74d':'#ce93d8'}" title="${isRep?'🔁 Επανάληψη':''}${isHot?'🔥':''}">
+        ${n}${isHot?'🔥':''}${isRep?'🔁':''}</span>`;
+    }
+    html += `</div>`;
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:.58rem;color:#666;margin-bottom:5px">`;
+    html += `<span>🔥 Hot: <b style="color:#ffb74d">${hotCount}/${_lcK}</b></span>`;
+    html += `<span>⚖️ Μικρά/Μεγ.: <b style="color:#90caf9">${sm}/${lg}</b></span>`;
+    html += `<span>🔁 Επαναλήψεις: <b style="color:#fdd835">${repCount}</b></span>`;
+    html += `<span>⚖️ Μονά/Ζυγά: <b style="color:#90caf9">${od}/${ev}</b></span>`;
+    html += `<span>⬛ Grid ζεύγη: <b style="color:#81c784">${pairsCount}</b></span>`;
+    html += `<span>⚖️ Πάνω/Κάτω: <b style="color:#90caf9">${tp}/${bt}</b> · Αριστ./Δεξ.: <b style="color:#90caf9">${lf}/${rt}</b></span>`;
+    html += `</div>`;
+    // Ποιοι δεν επιλέχθηκαν (για μικρό K)
+    html += `<div style="margin-top:5px;font-size:.58rem;color:#555;font-weight:600">Ποιοι δεν επιλέχθηκαν:</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">`;
+    for (const n of notPicked) {
+      const isCold = coldSet.has(n);
+      html += `<span style="background:${isCold?'#1a0a2e':'#222'};border:1px solid ${isCold?'#3a1558':'#444'};
+        border-radius:3px;padding:2px 5px;font-size:.7rem;color:${isCold?'#5a3a8e':'#888'}">${n}</span>`;
+    }
+    html += `</div>`;
   }
-  html += `</div>`;
+
+  html += `<div style="font-size:.55rem;color:#333;margin-top:4px">Προσπάθειες: <b style="color:#555">${attempts}</b></div>`;
 
   // Τα κρύα νούμερα
   const coldArr = [...coldSet].sort((a,b)=>a-b);
-  html += `<div style="font-size:.58rem;color:#444;display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:5px">`;
-  html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν κρύα:</span>`;
-  for (const n of coldArr) {
-    html += `<span style="background:#1a0a2e;border:1px solid #2a1540;border-radius:3px;
-      padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freqCold[n]})</span>`;
+  if (coldArr.length) {
+    html += `<div style="font-size:.58rem;color:#444;display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-top:5px">`;
+    html += `<span style="color:#4a2a6e;margin-right:2px">Αποκλείστηκαν κρύα:</span>`;
+    for (const n of coldArr) {
+      html += `<span style="background:#1a0a2e;border:1px solid #2a1540;border-radius:3px;
+        padding:1px 4px;font-size:.58rem;color:#4a2a6e">${n}(${freqCold[n]})</span>`;
+    }
+    html += `</div>`;
   }
-  html += `</div>`;
 
   el.innerHTML = html;
 }
