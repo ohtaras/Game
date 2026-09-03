@@ -1986,7 +1986,7 @@ function renderTopNinesMonitor(draw) {
       if (overdue)
         h += ` <span style="color:#ef5350;font-size:.65rem">⏳ ${overdueMonths.toFixed(1)} μήνες</span>`;
       const key    = nums.join(',');
-      const pinned = pinnedNinesKeys.has(key);
+      const pinned = !!pinnedNinesData[key];
       h += `<br><span style="color:#555;font-size:.65rem">Τελευταία: #${lastId} · ${lastDt}</span>`;
       h += ` <button onclick="togglePin('${key}')" style="float:right;margin-top:2px;background:${pinned?'#3a2a00':'transparent'};border:1px solid ${pinned?'#ffd54f':'#333'};color:${pinned?'#ffd54f':'#555'};border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">${pinned?'📌 Καρφ.':'📌 Pin'}</button>`;
       h += `</div>`;
@@ -2000,30 +2000,38 @@ function renderTopNinesMonitor(draw) {
 }
 
 // ── Pinned Nines ──────────────────────────────────────────────────────────────
-let pinnedNinesKeys = new Set();
+// pinnedNinesData: { "n1,n2,...": { pinnedAt: drawId } }
+let pinnedNinesData = {};
 try {
-  const saved = JSON.parse(localStorage.getItem('pinnedNines') || '[]');
-  pinnedNinesKeys = new Set(saved);
+  pinnedNinesData = JSON.parse(localStorage.getItem('pinnedNines2') || '{}');
 } catch(_) {}
 
 function savePinnedNines() {
-  try { localStorage.setItem('pinnedNines', JSON.stringify([...pinnedNinesKeys])); } catch(_) {}
+  try { localStorage.setItem('pinnedNines2', JSON.stringify(pinnedNinesData)); } catch(_) {}
 }
 
 function togglePin(key) {
-  if (pinnedNinesKeys.has(key)) pinnedNinesKeys.delete(key);
-  else pinnedNinesKeys.add(key);
+  if (pinnedNinesData[key]) {
+    delete pinnedNinesData[key];
+  } else {
+    const draw = kinoDraws[kinoIdx];
+    pinnedNinesData[key] = { pinnedAt: draw ? draw.id : 0 };
+  }
   savePinnedNines();
   const draw = kinoDraws[kinoIdx];
   if (draw) { renderTopNinesMonitor(draw); renderPinnedNines(draw); }
 }
 
 function clearPinnedNines() {
-  pinnedNinesKeys.clear();
+  pinnedNinesData = {};
   savePinnedNines();
   const draw = kinoDraws[kinoIdx];
   if (draw) { renderTopNinesMonitor(draw); renderPinnedNines(draw); }
 }
+
+// Lookup map: key → {nums, cnt, draws}
+const _topNinesMap = new Map();
+for (const [nums, cnt, draws] of TOP_NINES) _topNinesMap.set(nums.join(','), {nums, cnt, draws});
 
 function renderPinnedNines(draw) {
   const panel = document.getElementById('pinnedNinesPanel');
@@ -2031,44 +2039,73 @@ function renderPinnedNines(draw) {
   const info  = document.getElementById('pinnedNinesInfo');
   if (!panel || !body) return;
 
-  if (!pinnedNinesKeys.size) { panel.style.display = 'none'; return; }
+  const keys = Object.keys(pinnedNinesData);
+  if (!keys.length) { panel.style.display = 'none'; return; }
   panel.style.display = '';
-  info.textContent = `(${pinnedNinesKeys.size})`;
+  info.textContent = `(${keys.length})`;
 
   const drawnSet = draw ? new Set(draw.n) : new Set();
-
-  // Βρες τις καρφιτσωμένες από το TOP_NINES lookup
-  const numsMap = new Map();
-  for (const [nums, cnt, draws] of TOP_NINES) {
-    numsMap.set(nums.join(','), {nums, cnt, draws});
-  }
+  const DRAWS_PER_MONTH = 8640;
 
   let html = '';
-  for (const key of pinnedNinesKeys) {
-    const entry = numsMap.get(key);
+  for (const key of keys) {
+    const entry = _topNinesMap.get(key);
     if (!entry) continue;
-    const {nums, cnt, draws} = entry;
-    const matched  = draw ? nums.filter(n => drawnSet.has(n)).length : 0;
-    const lastId   = draws[draws.length - 1];
-    const lastDt   = drawIdToDateStr(lastId);
-    const DRAWS_PER_MONTH = 8640;
-    const overdueM = draw ? (draw.id - lastId) / DRAWS_PER_MONTH : 0;
-    const overdue  = overdueM >= 6;
-    const tier     = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
-    const hitColor = matched >= 5 ? '#ce93d8' : matched === 4 ? '#80cbc4' : matched === 3 ? '#ffd54f' : '#555';
-    const borderC  = overdue ? '#5a1a1a' : '#2a2a00';
+    const {nums, cnt, draws: histDraws} = entry;
+    const pinnedAt = pinnedNinesData[key].pinnedAt || 0;
+    const pinnedDt = drawIdToDateStr(pinnedAt);
 
-    html += `<div style="background:#0f0f00;border:1px solid ${borderC};border-radius:4px;padding:5px 8px;margin-bottom:4px;font-size:.73rem">`;
+    // Κληρώσεις από pinnedAt και μετά (από τα φορτωμένα kinoDraws)
+    const trackedDraws = kinoDraws.filter(d => d.id >= pinnedAt);
+
+    // Αξιολόγηση κάθε κλήρωσης
+    const history = trackedDraws.map(d => ({
+      id: d.id,
+      dt: d.d + (d.m !== undefined ? ` ${String(Math.floor(d.m/60)).padStart(2,'0')}:${String(d.m%60).padStart(2,'0')}` : ''),
+      hits: nums.filter(n => d.n.includes(n)).length
+    }));
+
+    const curHits   = draw ? nums.filter(n => drawnSet.has(n)).length : 0;
+    const lastHistId = histDraws[histDraws.length - 1];
+    const overdueM  = draw ? (draw.id - lastHistId) / DRAWS_PER_MONTH : 0;
+    const overdue   = overdueM >= 6;
+    const tier      = cnt >= 6 ? '🏆6x' : cnt >= 5 ? '⭐5x' : '🔸4x';
+    const hitColor  = curHits >= 5 ? '#ce93d8' : curHits === 4 ? '#80cbc4' : curHits === 3 ? '#ffd54f' : '#555';
+    const borderC   = overdue ? '#5a1a1a' : '#2a2a00';
+    const best      = history.reduce((m, r) => r.hits > m ? r.hits : m, 0);
+
+    html += `<div style="background:#0f0f00;border:1px solid ${borderC};border-radius:5px;padding:6px 8px;margin-bottom:6px;font-size:.73rem">`;
+
+    // Header row
+    html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px">`;
     html += `<span style="color:#888;font-size:.65rem">${tier}</span> `;
     html += nums.map(n => {
       const hit = drawnSet.has(n);
       return `<span style="color:${hit?hitColor:'#444'};font-weight:${hit?'bold':'normal'}">${n}</span>`;
     }).join(' · ');
-    html += ` <span style="color:${hitColor};font-weight:bold">(${matched}/9)</span>`;
-    if (overdue)
-      html += ` <span style="color:#ef5350;font-size:.65rem">⏳${overdueM.toFixed(1)}μ</span>`;
-    html += `<br><span style="color:#555;font-size:.65rem">Τελευταία: #${lastId} · ${lastDt}</span>`;
-    html += ` <button onclick="togglePin('${key}')" style="float:right;margin-top:2px;background:#3a2a00;border:1px solid #ffd54f;color:#ffd54f;border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">📌 Αφαίρεση</button>`;
+    html += ` <span style="color:${hitColor};font-weight:bold">(${curHits}/9)</span>`;
+    if (overdue) html += ` <span style="color:#ef5350;font-size:.65rem">⏳${overdueM.toFixed(1)}μ</span>`;
+    html += `<button onclick="togglePin('${key}')" style="margin-left:auto;background:#3a2a00;border:1px solid #ffd54f;color:#ffd54f;border-radius:3px;padding:1px 7px;font-size:.65rem;cursor:pointer">📌 Αφαίρεση</button>`;
+    html += `</div>`;
+
+    // Sub-header
+    html += `<div style="color:#444;font-size:.63rem;margin-bottom:4px">📌 από #${pinnedAt} (${pinnedDt}) · ${history.length} κλ. · max ${best}/9`;
+    if (overdueM > 0) html += ` · τελ. εμφάνιση: ${drawIdToDateStr(lastHistId)}`;
+    html += `</div>`;
+
+    // Ιστορικό κληρώσεων — compact chips
+    if (history.length) {
+      html += `<div style="display:flex;flex-wrap:wrap;gap:2px;max-height:80px;overflow-y:auto">`;
+      for (const r of history) {
+        const c = r.hits >= 5 ? '#ce93d8' : r.hits === 4 ? '#80cbc4' : r.hits === 3 ? '#ffd54f' : r.hits === 2 ? '#555' : '#222';
+        const bg = r.id === (draw && draw.id) ? '#1a1a00' : 'transparent';
+        html += `<span title="#${r.id} ${r.dt}" style="background:${bg};border:1px solid ${c};color:${c};border-radius:3px;padding:0 4px;font-size:.62rem;white-space:nowrap">${r.hits}/9</span>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div style="color:#333;font-size:.65rem">Δεν υπάρχουν κληρώσεις από το pin ακόμα.</div>`;
+    }
+
     html += `</div>`;
   }
   body.innerHTML = html;
