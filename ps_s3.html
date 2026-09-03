@@ -3382,16 +3382,27 @@ function lcGenerate() {
 
   while (attempts < MAX_TRIES) {
     attempts++;
-    const tmp = pool.slice();
-    for (let i = tmp.length-1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i+1));
-      [tmp[i], tmp[j]] = [tmp[j], tmp[i]];
+    // Για K≥70 επιλέγουμε τυχαία ποιους (80-K) να ΑΠΟΚΛΕΙΣΟΥΜΕ από το 1-80
+    // (shuffle όλου του pool δεν δουλεύει γιατί παίρνουμε πάντα τα ίδια)
+    let candidate;
+    const bigK = _lcK >= 70;
+    if (bigK) {
+      const all80 = Array.from({length:80},(_,i)=>i+1);
+      for (let i = all80.length-1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i+1));
+        [all80[i], all80[j]] = [all80[j], all80[i]];
+      }
+      const excluded = new Set(all80.slice(0, 80 - _lcK));
+      candidate = Array.from({length:80},(_,i)=>i+1).filter(n => !excluded.has(n));
+    } else {
+      const tmp = pool.slice();
+      for (let i = tmp.length-1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i+1));
+        [tmp[i], tmp[j]] = [tmp[j], tmp[i]];
+      }
+      candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
     }
-    const candidate = tmp.slice(0, _lcK).sort((a,b)=>a-b);
     const K = candidate.length;
-
-    // Με K≥70 τα φίλτρα παρακάμπτονται (αδύνατο να ικανοποιηθούν)
-    const bigK = K >= 70;
 
     // Φίλτρο hot
     if (!bigK && _lcHotOn) {
@@ -3418,8 +3429,8 @@ function lcGenerate() {
       if (lcCountPairs(candidate) < _lcPairsMin) continue;
     }
 
-    // Φίλτρο κύβων (ποτέ 2×2 τετράγωνο) — ισχύει και για μεγάλο K
-    if (lcHasCube(candidate)) continue;
+    // Φίλτρο κύβων (για K≥70 αδύνατο να αποφύγεις, παρακάμπτεται)
+    if (!bigK && lcHasCube(candidate)) continue;
 
     // Φίλτρο μοναδικότητας
     let unique = true;
@@ -3443,7 +3454,13 @@ function lcGenerate() {
   const tp = combo.filter(n => ((n-1)/10|0)<4).length, bt = combo.length-tp;
   const lf = combo.filter(n => (n-1)%10<5).length,     rt = combo.length-lf;
 
-  let html = `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+  const isB = combo.length >= 70;
+  let html = isB
+    ? `<div style="font-size:.6rem;color:#888;background:#1a1a1a;border:1px solid #333;border-radius:4px;padding:3px 8px;margin-bottom:6px;letter-spacing:.03em">
+        ⚠️ K=70 — <b style="color:#aaa">Φίλτρα OFF</b> (hot, ισορροπία, επαναλήψεις, ζεύγη, κύβος δεν ισχύουν)
+       </div>`
+    : '';
+  html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
   for (const n of combo) {
     const isHot = hotSet.has(n);
     const isRep = prevDrawNums.has(n);
