@@ -500,16 +500,30 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <div style="display:flex;gap:2px" id="lcKBtns"></div>
           </div>
 
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="color:#aaa">Αποκλεισμός</span>
+          <!-- Master toggle -->
+          <div style="display:flex;align-items:center;gap:6px;width:100%;border-bottom:1px solid #1a1a2e;padding-bottom:6px;margin-bottom:2px">
+            <button id="lcAllToggle" onclick="lcToggleAll()"
+              style="padding:2px 10px;border-radius:4px;font-size:.65rem;font-weight:700;cursor:pointer;
+              background:#1a1a40;border:1px solid #3949ab;color:#9fa8da">⚙️ ΟΛΑ ON</button>
+            <span style="color:#333;font-size:.58rem">— ή ενεργοποίησε μεμονωμένα:</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcColdToggle" onclick="lcToggleCold()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#1a2a2a;border:1px solid #00695c;color:#80cbc4">❄️ ΟΝ</button>
+            <span style="color:#666">Αποκλεισμός</span>
             <div style="display:flex;gap:2px" id="lcColdNBtns"></div>
             <span style="color:#666">κρύων από τελ.</span>
             <div style="display:flex;gap:2px" id="lcColdMBtns"></div>
             <span style="color:#666">κλ.</span>
           </div>
 
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="color:#aaa">Μοναδικός σε τελ.</span>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcUniqToggle" onclick="lcToggleUniq()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#1a1a2a;border:1px solid #4527a0;color:#b39ddb">🆕 ΟΝ</button>
+            <span style="color:#666">Μοναδικός σε τελ.</span>
             <div style="display:flex;gap:2px" id="lcUniqNBtns"></div>
             <span style="color:#666">κλ.</span>
           </div>
@@ -518,7 +532,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <button id="lcHotToggle" onclick="lcToggleHot()"
               style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
               background:#3a1a00;border:1px solid #e65100;color:#ffb74d">🔥 ΟΝ</button>
-            <span style="color:#aaa">Τουλ.</span>
+            <span style="color:#666">Τουλ.</span>
             <div style="display:flex;gap:2px" id="lcHotPctBtns"></div>
             <span style="color:#666">% hot από τελ.</span>
             <div style="display:flex;gap:2px" id="lcHotMBtns"></div>
@@ -533,8 +547,10 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           </div>
 
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-            <span style="color:#aaa">🔁 Επαναλήψεις από προηγ.:</span>
-            <span style="color:#666">από</span>
+            <button id="lcRepToggle" onclick="lcToggleRep()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#2a1a00;border:1px solid #f57f17;color:#ffcc02">🔁 ΟΝ</button>
+            <span style="color:#666">Επαναλήψεις από προηγ.: από</span>
             <div style="display:flex;gap:2px" id="lcRepMinBtns"></div>
             <span style="color:#666">έως</span>
             <div style="display:flex;gap:2px" id="lcRepMaxBtns"></div>
@@ -544,8 +560,15 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
             <button id="lcPairsToggle" onclick="lcTogglePairs()"
               style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
               background:#1a2a1a;border:1px solid #388e3c;color:#81c784">⬛ ΟΝ</button>
-            <span style="color:#aaa">Grid ζεύγη τουλ.</span>
+            <span style="color:#666">Grid ζεύγη τουλ.</span>
             <div style="display:flex;gap:2px" id="lcPairsBtns"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <button id="lcCubeToggle" onclick="lcToggleCube()"
+              style="padding:1px 7px;border-radius:3px;font-size:.6rem;font-weight:700;cursor:pointer;
+              background:#2a1a2a;border:1px solid #880e4f;color:#f48fb1">🟥 ΟΝ</button>
+            <span style="color:#666;font-size:.58rem">Αποκλεισμός 2×2 τετραγώνων στο grid</span>
           </div>
         </div>
 
@@ -556,6 +579,17 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         </button>
 
         <div id="lcResult" style="min-height:20px"></div>
+
+        <!-- Live tracking του ενεργού LC combo -->
+        <div id="lcLivePanel" style="display:none;margin-top:8px;border-top:1px solid #2a1a3a;padding-top:8px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="color:#ce93d8;font-size:.72rem;font-weight:700">📊 Live αξιολόγηση combo</span>
+            <span id="lcLiveInfo" style="color:#555;font-size:.65rem"></span>
+            <button onclick="lcClearLive()" style="margin-left:auto;background:transparent;border:1px solid #333;color:#555;border-radius:3px;padding:1px 6px;font-size:.6rem;cursor:pointer">✕</button>
+          </div>
+          <div id="lcLiveNums" style="font-size:.75rem;color:#aaa;margin-bottom:4px"></div>
+          <div id="lcLiveHistory" style="display:flex;flex-wrap:wrap;gap:2px;max-height:72px;overflow-y:auto"></div>
+        </div>
       </div>
     </div>
 
@@ -1919,6 +1953,7 @@ function kinoRender() {
   scheduleAnalysisMatch(draw.n);
   renderTopNinesMonitor(draw);
   renderPinnedNines(draw);
+  renderLcLive(draw);
 }
 
 function renderTopNinesMonitor(draw) {
@@ -4100,12 +4135,16 @@ let _lcColdM   = 5;   // από πόσες τελευταίες κληρώσει
 let _lcUniqN   = 200; // μοναδικότητα στις τελευταίες N κληρώσεις
 let _lcHotPct  = 10;  // ελάχ. % hot αριθμοί στον συνδυασμό
 let _lcHotM    = 5;   // hot = βγήκε σε τελευταίες M κληρώσεις
+let _lcColdOn  = true; // φίλτρο κρύων ενεργό
+let _lcUniqOn  = true; // φίλτρο μοναδικότητας ενεργό
 let _lcHotOn   = true; // φίλτρο hot ενεργό
 let _lcBalOn   = true; // φίλτρο ισορροπία ενεργό
+let _lcRepOn   = true; // φίλτρο επαναλήψεων ενεργό
 let _lcRepMin  = 0;    // ελάχ. επαναλήψεις από προηγ. κλήρωση
 let _lcRepMax  = 3;    // μέγ. επαναλήψεις από προηγ. κλήρωση
 let _lcPairsOn = true; // φίλτρο grid ζεύγη ενεργό
 let _lcPairsMin= 5;    // ελάχ. πλήθος grid ζευγών
+let _lcCubeOn  = true; // φίλτρο 2×2 κύβων ενεργό
 
 function lcInitButtons() {
   function mkGroup(id, vals, cur, fn) {
@@ -4163,21 +4202,55 @@ function lcInitButtons() {
     t.style.borderColor = on ? onBorder : '#333';
     t.style.color       = on ? onColor  : '#555';
   }
+  applyToggle('lcColdToggle',  _lcColdOn,  '#1a2a2a','#00695c','#80cbc4','❄️ OFF','❄️ ΟΝ');
+  applyToggle('lcUniqToggle',  _lcUniqOn,  '#1a1a2a','#4527a0','#b39ddb','🆕 OFF','🆕 ΟΝ');
   applyToggle('lcHotToggle',   _lcHotOn,   '#3a1a00','#e65100','#ffb74d','🔥 OFF','🔥 ΟΝ');
   applyToggle('lcBalToggle',   _lcBalOn,   '#0d2040','#1565c0','#90caf9','⚖️ OFF','⚖️ ΟΝ');
+  applyToggle('lcRepToggle',   _lcRepOn,   '#2a1a00','#f57f17','#ffcc02','🔁 OFF','🔁 ΟΝ');
   applyToggle('lcPairsToggle', _lcPairsOn, '#1a2a1a','#388e3c','#81c784','⬛ OFF','⬛ ΟΝ');
+  applyToggle('lcCubeToggle',  _lcCubeOn,  '#2a1a2a','#880e4f','#f48fb1','🟥 OFF','🟥 ΟΝ');
 
+  // Master toggle state
+  const allOn = _lcColdOn && _lcUniqOn && _lcHotOn && _lcBalOn && _lcRepOn && _lcPairsOn && _lcCubeOn;
+  const allOff = !_lcColdOn && !_lcUniqOn && !_lcHotOn && !_lcBalOn && !_lcRepOn && !_lcPairsOn && !_lcCubeOn;
+  const master = document.getElementById('lcAllToggle');
+  if (master) {
+    master.textContent = allOff ? '⚙️ ΟΛΑ OFF' : allOn ? '⚙️ ΟΛΑ ON' : '⚙️ ΜΕΙΚΤΑ';
+    master.style.background  = allOff ? '#1a0000' : allOn ? '#1a1a40' : '#1a1a20';
+    master.style.borderColor = allOff ? '#c62828' : allOn ? '#3949ab' : '#555';
+    master.style.color       = allOff ? '#ef9a9a' : allOn ? '#9fa8da' : '#aaa';
+  }
+
+  ['lcColdNBtns','lcColdMBtns'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.opacity = _lcColdOn ? '1' : '0.25';
+  });
+  ['lcUniqNBtns'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.opacity = _lcUniqOn ? '1' : '0.25';
+  });
   ['lcHotPctBtns','lcHotMBtns'].forEach(id => {
     const e = document.getElementById(id); if (e) e.style.opacity = _lcHotOn ? '1' : '0.25';
+  });
+  ['lcRepMinBtns','lcRepMaxBtns'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.style.opacity = _lcRepOn ? '1' : '0.25';
   });
   ['lcPairsBtns'].forEach(id => {
     const e = document.getElementById(id); if (e) e.style.opacity = _lcPairsOn ? '1' : '0.25';
   });
 }
 
+function lcToggleCold()  { _lcColdOn  = !_lcColdOn;  lcInitButtons(); }
+function lcToggleUniq()  { _lcUniqOn  = !_lcUniqOn;  lcInitButtons(); }
 function lcToggleHot()   { _lcHotOn   = !_lcHotOn;   lcInitButtons(); }
 function lcToggleBal()   { _lcBalOn   = !_lcBalOn;   lcInitButtons(); }
+function lcToggleRep()   { _lcRepOn   = !_lcRepOn;   lcInitButtons(); }
 function lcTogglePairs() { _lcPairsOn = !_lcPairsOn; lcInitButtons(); }
+function lcToggleCube()  { _lcCubeOn  = !_lcCubeOn;  lcInitButtons(); }
+function lcToggleAll() {
+  const allOn = _lcColdOn && _lcUniqOn && _lcHotOn && _lcBalOn && _lcRepOn && _lcPairsOn && _lcCubeOn;
+  const v = !allOn;
+  _lcColdOn = _lcUniqOn = _lcHotOn = _lcBalOn = _lcRepOn = _lcPairsOn = _lcCubeOn = v;
+  lcInitButtons();
+}
 
 function lcPoolNums() {
   // Επιστρέφει τους αριθμούς του pool βάσει επιλεγμένων στηλών
@@ -4239,7 +4312,7 @@ function lcGenerate() {
 
   // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα (cap ώστε pool ≥ K)
   const ranked = basePool.slice().sort((a,b)=>freqCold[a]-freqCold[b]);
-  const effectiveColdN = Math.min(_lcColdN, poolSize - _lcK);
+  const effectiveColdN = _lcColdOn ? Math.min(_lcColdN, poolSize - _lcK) : 0;
   const coldSet = new Set(ranked.slice(0, effectiveColdN));
   const pool    = ranked.slice(effectiveColdN); // διαθέσιμοί (χωρίς τα κρύα)
 
@@ -4295,7 +4368,7 @@ function lcGenerate() {
     }
 
     // Φίλτρο επαναλήψεις από προηγούμενη
-    if (!bigK) {
+    if (!bigK && _lcRepOn) {
       const reps = candidate.filter(n => prevDrawNums.has(n)).length;
       if (reps < _lcRepMin || reps > _lcRepMax) continue;
     }
@@ -4305,15 +4378,18 @@ function lcGenerate() {
       if (lcCountPairs(candidate) < _lcPairsMin) continue;
     }
 
-    // Φίλτρο κύβων (για K≥70 αδύνατο να αποφύγεις, παρακάμπτεται)
-    if (!bigK && lcHasCube(candidate)) continue;
+    // Φίλτρο κύβων
+    if (!bigK && _lcCubeOn && lcHasCube(candidate)) continue;
 
     // Φίλτρο μοναδικότητας
-    let unique = true;
-    for (const ds of uniqSlice) {
-      if (candidate.every(n => ds.has(n))) { unique = false; break; }
+    if (_lcUniqOn) {
+      let unique = true;
+      for (const ds of uniqSlice) {
+        if (candidate.every(n => ds.has(n))) { unique = false; break; }
+      }
+      if (!unique) continue;
     }
-    if (unique) { combo = candidate; break; }
+    combo = candidate; break;
   }
 
   if (!combo) {
@@ -4406,6 +4482,64 @@ function lcGenerate() {
   }
 
   el.innerHTML = html;
+
+  // Ενεργοποίηση live tracking
+  lcLiveCombo = combo.slice();
+  lcLivePinnedAtId = curDraw ? curDraw.id : 0;
+  lcLivePinnedAtIdx = kinoIdx;
+  renderLcLive(kinoDraws[kinoIdx]);
+}
+
+// ── LC Live Tracking ──────────────────────────────────────────────────────────
+let lcLiveCombo       = null;  // τρέχον combo
+let lcLivePinnedAtId  = 0;     // draw ID κατά τη δημιουργία
+let lcLivePinnedAtIdx = -1;    // kinoIdx κατά τη δημιουργία
+
+function lcClearLive() {
+  lcLiveCombo = null;
+  document.getElementById('lcLivePanel').style.display = 'none';
+}
+
+function renderLcLive(draw) {
+  const panel = document.getElementById('lcLivePanel');
+  if (!panel || !lcLiveCombo) return;
+  panel.style.display = '';
+
+  const combo    = lcLiveCombo;
+  const drawnSet = draw ? new Set(draw.n) : new Set();
+  const curHits  = draw ? combo.filter(n => drawnSet.has(n)).length : 0;
+  const K        = combo.length;
+
+  // Εμφάνιση αριθμών combo με highlight τρέχουσας κλήρωσης
+  const hitColor = curHits >= 5 ? '#ce93d8' : curHits === 4 ? '#80cbc4' : curHits === 3 ? '#ffd54f' : '#aaa';
+  const numsEl = document.getElementById('lcLiveNums');
+  if (numsEl) {
+    numsEl.innerHTML = combo.map(n => {
+      const hit = drawnSet.has(n);
+      return `<span style="color:${hit?hitColor:'#444'};font-weight:${hit?'bold':'normal'}">${n}</span>`;
+    }).join(' · ') + ` <span style="color:${hitColor};font-weight:bold">(${curHits}/${K})</span>`;
+  }
+
+  // Ιστορικό κληρώσεων από pinnedAt
+  const tracked = kinoDraws.filter(d => d.id > lcLivePinnedAtId);
+  const info = document.getElementById('lcLiveInfo');
+  if (info) {
+    const best = tracked.reduce((m, d) => {
+      const h = combo.filter(n => d.n.includes(n)).length;
+      return h > m ? h : m;
+    }, 0);
+    info.textContent = `${tracked.length} κλ. παρακολούθησης · max ${best}/${K}`;
+  }
+
+  const hist = document.getElementById('lcLiveHistory');
+  if (hist) {
+    hist.innerHTML = tracked.map(d => {
+      const h = combo.filter(n => d.n.includes(n)).length;
+      const c = h >= 5 ? '#ce93d8' : h === 4 ? '#80cbc4' : h === 3 ? '#ffd54f' : h === 2 ? '#555' : '#222';
+      const isCur = draw && d.id === draw.id;
+      return `<span title="#${d.id} ${d.d||''}" style="background:${isCur?'#1a1a00':'transparent'};border:1px solid ${c};color:${c};border-radius:3px;padding:0 4px;font-size:.62rem">${h}/${K}</span>`;
+    }).join('');
+  }
 }
 
 // Αρχικοποίηση buttons όταν φορτωθεί το DOM
