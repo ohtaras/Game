@@ -489,6 +489,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <!-- Παράμετροι -->
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:.62rem;color:#888">
 
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <span style="color:#aaa">Στήλες pool:</span>
+            <div style="display:flex;gap:2px" id="lcColBtns"></div>
+            <span id="lcPoolInfo" style="color:#555;font-size:.58rem"></span>
+          </div>
+
           <div style="display:flex;align-items:center;gap:4px">
             <span style="color:#aaa">Αριθμοί:</span>
             <div style="display:flex;gap:2px" id="lcKBtns"></div>
@@ -4085,6 +4091,9 @@ function renderPredictionEval(drawnNums, drawId) {
 
 // ── Last Chance ───────────────────────────────────────────────────────────────
 
+// Επιλεγμένες στήλες pool (1-10). Άδειο Set = όλες οι στήλες (80 αριθμοί)
+let _lcCols = new Set(); // empty = all columns
+
 let _lcK       = 9;   // πόσοι αριθμοί
 let _lcColdN   = 20;  // πόσα κρύα να αποκλείσει
 let _lcColdM   = 5;   // από πόσες τελευταίες κληρώσεις (για κρύα)
@@ -4114,6 +4123,28 @@ function lcInitButtons() {
       el.appendChild(b);
     }
   }
+  // Στήλες pool — multi-select toggle
+  const colEl = document.getElementById('lcColBtns');
+  if (colEl) {
+    colEl.innerHTML = '';
+    for (let c = 1; c <= 10; c++) {
+      const sel = _lcCols.has(c);
+      const b = document.createElement('button');
+      b.textContent = c;
+      b.style.cssText = `background:${sel?'#1a3a1a':'#0d1220'};border:1px solid ${sel?'#388e3c':'#1a2540'};
+        border-radius:3px;padding:1px 5px;font-size:.6rem;color:${sel?'#81c784':'#555'};cursor:pointer`;
+      b.onclick = () => {
+        if (_lcCols.has(c)) _lcCols.delete(c); else _lcCols.add(c);
+        lcInitButtons();
+      };
+      colEl.appendChild(b);
+    }
+    // Pool info
+    const poolNums = lcPoolNums();
+    const info = document.getElementById('lcPoolInfo');
+    if (info) info.textContent = _lcCols.size ? `(pool: ${poolNums.length} αριθμοί)` : '(pool: 80 αριθμοί)';
+  }
+
   mkGroup('lcKBtns',      [1,2,3,4,5,6,7,8,9,10,11,12,70], _lcK, v => { _lcK = v; });
   mkGroup('lcColdNBtns',  [10,15,20,25,30],      _lcColdN,  v => { _lcColdN = v; });
   mkGroup('lcColdMBtns',  [3,5,10,20],           _lcColdM,  v => { _lcColdM = v; });
@@ -4147,6 +4178,16 @@ function lcInitButtons() {
 function lcToggleHot()   { _lcHotOn   = !_lcHotOn;   lcInitButtons(); }
 function lcToggleBal()   { _lcBalOn   = !_lcBalOn;   lcInitButtons(); }
 function lcTogglePairs() { _lcPairsOn = !_lcPairsOn; lcInitButtons(); }
+
+function lcPoolNums() {
+  // Επιστρέφει τους αριθμούς του pool βάσει επιλεγμένων στηλών
+  // Στήλη c (1-10): c, c+10, c+20, ..., c+70
+  if (!_lcCols.size) return Array.from({length:80}, (_, i) => i + 1);
+  const nums = [];
+  for (const c of [..._lcCols].sort((a,b)=>a-b))
+    for (let row = 0; row < 8; row++) nums.push(c + row * 10);
+  return nums;
+}
 
 function lcHasCube(combo) {
   // Ελέγχει αν υπάρχει 2×2 τετράγωνο (κύβος) στο grid
@@ -4192,9 +4233,13 @@ function lcGenerate() {
   const hotSet = new Set();
   for (const d of hotSlice) for (const n of d.n) hotSet.add(n);
 
+  // Βάση pool: επιλεγμένες στήλες (ή 80 αν δεν έχει επιλεγεί καμία)
+  const basePool = lcPoolNums();
+  const poolSize = basePool.length;
+
   // Κρύα = οι _lcColdN με τη μικρότερη συχνότητα (cap ώστε pool ≥ K)
-  const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freqCold[a]-freqCold[b]);
-  const effectiveColdN = Math.min(_lcColdN, 80 - _lcK);
+  const ranked = basePool.slice().sort((a,b)=>freqCold[a]-freqCold[b]);
+  const effectiveColdN = Math.min(_lcColdN, poolSize - _lcK);
   const coldSet = new Set(ranked.slice(0, effectiveColdN));
   const pool    = ranked.slice(effectiveColdN); // διαθέσιμοί (χωρίς τα κρύα)
 
@@ -4216,15 +4261,15 @@ function lcGenerate() {
     // Για K≥70 επιλέγουμε τυχαία ποιους (80-K) να ΑΠΟΚΛΕΙΣΟΥΜΕ από το 1-80
     // (shuffle όλου του pool δεν δουλεύει γιατί παίρνουμε πάντα τα ίδια)
     let candidate;
-    const bigK = _lcK >= 70;
+    const bigK = _lcK >= poolSize * 0.85; // bigK αν K ≥ 85% του pool
     if (bigK) {
-      const all80 = Array.from({length:80},(_,i)=>i+1);
-      for (let i = all80.length-1; i > 0; i--) {
+      const allPool = basePool.slice();
+      for (let i = allPool.length-1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i+1));
-        [all80[i], all80[j]] = [all80[j], all80[i]];
+        [allPool[i], allPool[j]] = [allPool[j], allPool[i]];
       }
-      const excluded = new Set(all80.slice(0, 80 - _lcK));
-      candidate = Array.from({length:80},(_,i)=>i+1).filter(n => !excluded.has(n));
+      const excluded = new Set(allPool.slice(0, poolSize - _lcK));
+      candidate = basePool.filter(n => !excluded.has(n));
     } else {
       const tmp = pool.slice();
       for (let i = tmp.length-1; i > 0; i--) {
