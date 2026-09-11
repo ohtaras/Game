@@ -492,6 +492,9 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
             <span style="color:#aaa">Στήλες pool:</span>
             <div style="display:flex;gap:2px" id="lcColBtns"></div>
+            <span style="color:#555;font-size:.58rem">🔥=top-2 σε τελ.</span>
+            <div style="display:flex;gap:2px" id="lcHotColMBtns"></div>
+            <span style="color:#555;font-size:.58rem">κλ.</span>
             <span id="lcPoolInfo" style="color:#555;font-size:.58rem"></span>
           </div>
 
@@ -1954,6 +1957,7 @@ function kinoRender() {
   renderTopNinesMonitor(draw);
   renderPinnedNines(draw);
   renderLcLive(draw);
+  lcInitButtons();
 }
 
 function renderTopNinesMonitor(draw) {
@@ -4128,6 +4132,7 @@ function renderPredictionEval(drawnNums, drawId) {
 
 // Επιλεγμένες στήλες pool (1-10). Άδειο Set = όλες οι στήλες (80 αριθμοί)
 let _lcCols = new Set(); // empty = all columns
+let _lcHotColM = 20;    // τελευταίες X κληρώσεις για hot-column highlight
 
 let _lcK       = 9;   // πόσοι αριθμοί
 let _lcColdN   = 20;  // πόσα κρύα να αποκλείσει
@@ -4162,16 +4167,34 @@ function lcInitButtons() {
       el.appendChild(b);
     }
   }
-  // Στήλες pool — multi-select toggle
+  // Στήλες pool — multi-select toggle + hot-column highlight
   const colEl = document.getElementById('lcColBtns');
   if (colEl) {
+    // Υπολόγισε συχνότητα στηλών από τελευταίες _lcHotColM κληρώσεις
+    const hotColFreq = new Array(11).fill(0); // idx 1-10
+    if (kinoDraws && kinoDraws.length) {
+      const refIdx = typeof kinoIdx !== 'undefined' ? kinoIdx : kinoDraws.length - 1;
+      const slice = kinoDraws.slice(Math.max(0, refIdx - _lcHotColM + 1), refIdx + 1);
+      for (const d of slice)
+        for (const n of d.n)
+          hotColFreq[(n - 1) % 10 + 1]++;
+    }
+    // Βρες top-2 στήλες
+    const sorted = Array.from({length:10}, (_,i)=>i+1).sort((a,b)=>hotColFreq[b]-hotColFreq[a]);
+    const hotCols = new Set([sorted[0], sorted[1]]);
+
     colEl.innerHTML = '';
     for (let c = 1; c <= 10; c++) {
-      const sel = _lcCols.has(c);
+      const sel  = _lcCols.has(c);
+      const hot  = hotCols.has(c);
       const b = document.createElement('button');
-      b.textContent = c;
-      b.style.cssText = `background:${sel?'#1a3a1a':'#0d1220'};border:1px solid ${sel?'#388e3c':'#1a2540'};
-        border-radius:3px;padding:1px 5px;font-size:.6rem;color:${sel?'#81c784':'#555'};cursor:pointer`;
+      b.textContent = hot ? `${c}🔥` : `${c}`;
+      b.style.cssText = `background:${sel?'#1a3a1a':'#0d1220'};
+        border:1px solid ${hot?'#ff8f00':sel?'#388e3c':'#1a2540'};
+        border-radius:3px;padding:1px 5px;font-size:.6rem;
+        color:${hot?'#ffca28':sel?'#81c784':'#555'};
+        font-weight:${hot?'bold':'normal'};cursor:pointer`;
+      b.title = `Στήλη ${c}: ${hotColFreq[c]} εμφ. σε τελ. ${_lcHotColM} κλ.`;
       b.onclick = () => {
         if (_lcCols.has(c)) _lcCols.delete(c); else _lcCols.add(c);
         lcInitButtons();
@@ -4183,6 +4206,8 @@ function lcInitButtons() {
     const info = document.getElementById('lcPoolInfo');
     if (info) info.textContent = _lcCols.size ? `(pool: ${poolNums.length} αριθμοί)` : '(pool: 80 αριθμοί)';
   }
+  // Selector για hot-column window
+  mkGroup('lcHotColMBtns', [10,20,50,100,288], _lcHotColM, v => { _lcHotColM = v; });
 
   mkGroup('lcKBtns',      [1,2,3,4,5,6,7,8,9,10,11,12,70], _lcK, v => { _lcK = v; });
   mkGroup('lcColdNBtns',  [10,15,20,25,30],      _lcColdN,  v => { _lcColdN = v; });
