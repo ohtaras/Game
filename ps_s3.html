@@ -596,6 +596,23 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       </div>
     </div>
 
+    <!-- ── Αντίστροφη Μηχανική ── -->
+    <div id="revEngSection" style="margin-top:10px;background:#0a0f1a;border:1px solid #1a2a1a;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="revEngToggle()">
+        <span style="color:#66bb6a;font-size:.78rem;font-weight:700">🔬 Αντίστροφη Μηχανική</span>
+        <span style="color:#555;font-size:.6rem">— ανάλυση τελ. 100 κλ. → πρόταση combo</span>
+        <span id="revEngChevron" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="revEngBody" style="display:none">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="color:#4a6a4a;font-size:.58rem">Παράθυρο:</span>
+          <div id="revEngWinBtns" style="display:flex;gap:2px"></div>
+          <button onclick="revEngRun()" style="margin-left:6px;padding:2px 10px;background:#0d2010;border:1px solid #2e7d32;border-radius:4px;color:#66bb6a;font-size:.65rem;font-weight:700;cursor:pointer">▶ Ανάλυσε</button>
+        </div>
+        <div id="revEngOut" style="font-size:.7rem;color:#888">Πάτα «Ανάλυσε» για να εκτελεστεί η ανάλυση.</div>
+      </div>
+    </div>
+
     <div class="ctrl-bar" style="margin-top:10px">
       <button class="btn" id="kinoPrevBtn2" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
       <button class="btn" id="kinoNextBtn2" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
@@ -4594,7 +4611,318 @@ function renderLcLive(draw) {
 }
 
 // Αρχικοποίηση buttons όταν φορτωθεί το DOM
-document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); });
+document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); revEngInitBtns(); });
+
+// ── Αντίστροφη Μηχανική ───────────────────────────────────────────────────────
+let _revEngWin = 100;
+let _revEngOpen = false;
+
+function revEngInitBtns() {
+  const el = document.getElementById('revEngWinBtns');
+  if (!el) return;
+  el.innerHTML = '';
+  [50, 100, 200, 288].forEach(v => {
+    const b = document.createElement('button');
+    b.textContent = v;
+    const sel = v === _revEngWin;
+    b.style.cssText = `padding:1px 7px;border-radius:3px;font-size:.6rem;cursor:pointer;
+      background:${sel?'#1b4020':'#080e08'};border:1px solid ${sel?'#2e7d32':'#1a2a1a'};
+      color:${sel?'#a5d6a7':'#3a5a3a'}`;
+    b.onclick = () => { _revEngWin = v; revEngInitBtns(); };
+    el.appendChild(b);
+  });
+}
+
+function revEngToggle() {
+  _revEngOpen = !_revEngOpen;
+  document.getElementById('revEngBody').style.display = _revEngOpen ? '' : 'none';
+  document.getElementById('revEngChevron').textContent = _revEngOpen ? '▲' : '▼';
+}
+
+function revEngRun() {
+  if (!kinoDraws || !kinoDraws.length) return;
+  const N = _revEngWin;
+  // Slice: τελευταίες N κληρώσεις ΠΡΙΝ την τρέχουσα (δεν περιλαμβάνεται η τρέχουσα)
+  const endIdx = kinoIdx; // τρέχουσα θέση
+  const slice = kinoDraws.slice(Math.max(0, endIdx - N), endIdx);
+  if (!slice.length) return;
+
+  const actual = Math.min(N, slice.length);
+
+  // 1. Συχνότητα ανά αριθμό
+  const freq = new Array(81).fill(0);
+  for (const d of slice) for (const n of d.n) freq[n]++;
+
+  // 2. Συχνότητα ανά στήλη (col 1-10, n % 10 || 10)
+  const colFreq = new Array(11).fill(0);
+  for (let n = 1; n <= 80; n++) {
+    const col = ((n - 1) % 10) + 1;
+    colFreq[col] += freq[n];
+  }
+  // Ταξινόμηση στηλών κατά συχνότητα (μέσος αριθμός hits ανά κλ.)
+  const colsSorted = Array.from({length:10}, (_,i) => i+1)
+    .sort((a,b) => colFreq[b] - colFreq[a]);
+
+  // 3. Exclusive columns: top-3 στήλες
+  const topCols = colsSorted.slice(0, 3);
+  const topColSet = new Set(topCols);
+
+  // 4. Άγκυρα: ο αριθμός με τη μεγαλύτερη συχνότητα από τις top στήλες
+  let anchor = -1, anchorFreq = 0;
+  for (let n = 1; n <= 80; n++) {
+    const col = ((n - 1) % 10) + 1;
+    if (topColSet.has(col) && freq[n] > anchorFreq) { anchorFreq = freq[n]; anchor = n; }
+  }
+
+  // 5. Επιτάχυνση: τελευταίες 20 vs πρώτες (actual-20)
+  const ACCEL_WIN = Math.min(20, Math.floor(actual / 2));
+  const recentSlice = slice.slice(-ACCEL_WIN);
+  const oldSlice    = slice.slice(0, slice.length - ACCEL_WIN);
+  const recentColFreq = new Array(11).fill(0);
+  const oldColFreq    = new Array(11).fill(0);
+  for (const d of recentSlice) for (const n of d.n) recentColFreq[((n-1)%10)+1]++;
+  for (const d of oldSlice)    for (const n of d.n) oldColFreq   [((n-1)%10)+1]++;
+  const recentRate = topCols.reduce((s,c) => s + recentColFreq[c], 0) / (recentSlice.length || 1);
+  const oldRate    = topCols.reduce((s,c) => s + oldColFreq[c],    0) / (oldSlice.length    || 1);
+  const accelPct   = oldRate > 0 ? ((recentRate - oldRate) / oldRate * 100) : 0;
+
+  // 6. Clusters: ομάδες αριθμών ανά row μέσα στις top στήλες
+  // row = ((n-1) // 10) + 1
+  const rowGroups = {};  // row -> [nums sorted by freq desc]
+  for (let n = 1; n <= 80; n++) {
+    const col = ((n - 1) % 10) + 1;
+    if (!topColSet.has(col)) continue;
+    const row = Math.floor((n - 1) / 10) + 1;
+    if (!rowGroups[row]) rowGroups[row] = [];
+    rowGroups[row].push(n);
+  }
+  // Βρίσκουμε τις 2 ομάδες rows με τα περισσότερα hits (clusters)
+  const rowScores = Object.entries(rowGroups).map(([row, nums]) => ({
+    row: +row,
+    nums,
+    score: nums.reduce((s, n) => s + freq[n], 0)
+  })).sort((a, b) => b.score - a.score);
+
+  // Top-2 clusters (οι 2 rows με τα περισσότερα hits)
+  const clusterA = rowScores[0] || null;
+  const clusterB = rowScores[1] || null;
+
+  // Γέφυρα: row ανάμεσα στα 2 clusters με τη μεγαλύτερη συχνότητα
+  let bridge = null, bridgeFreq = 0;
+  if (clusterA && clusterB) {
+    const minRow = Math.min(clusterA.row, clusterB.row);
+    const maxRow = Math.max(clusterA.row, clusterB.row);
+    for (let row = minRow + 1; row < maxRow; row++) {
+      const g = rowGroups[row];
+      if (!g) continue;
+      for (const n of g) {
+        if (freq[n] > bridgeFreq) { bridgeFreq = freq[n]; bridge = n; }
+      }
+    }
+    // Αν δεν βρήκε bridge ανάμεσα, πάρε τον καλύτερο από row εκτός cluster
+    if (!bridge) {
+      for (const rs of rowScores.slice(2)) {
+        const best = rs.nums.reduce((b, n) => freq[n] > freq[b] ? n : b, rs.nums[0]);
+        if (freq[best] > bridgeFreq) { bridgeFreq = freq[best]; bridge = best; }
+        break;
+      }
+    }
+  }
+
+  // 7. Ψυχρό-Ζεστό pattern: rolling 10-draw hit score στα top 3 cols
+  const roll10 = [];
+  for (let i = 0; i < slice.length; i++) {
+    const w = Math.min(i + 1, 10);
+    const sub = slice.slice(Math.max(0, i - 9), i + 1);
+    const score = sub.reduce((s, d) => {
+      return s + d.n.filter(n => topColSet.has(((n-1)%10)+1)).length;
+    }, 0) / w;
+    roll10.push(score);
+  }
+  const lastAvg  = roll10[roll10.length - 1] || 0;
+  const peakAvg  = Math.max(...roll10);
+  const pct2peak = peakAvg > 0 ? (lastAvg / peakAvg * 100) : 0;
+  const isWarm   = pct2peak >= 75;
+  const isCool   = pct2peak < 50;
+
+  // 8. Πρόταση combo (9 αριθμοί):
+  // - Anchor
+  // - Top-3 αριθμοί από clusterA (εκτός anchor)
+  // - Bridge
+  // - Top-3 αριθμοί από clusterB (εκτός anchor, bridge)
+  // - Συμπλήρωση αν χρειαστεί από τους υπόλοιπους top στις top cols
+  const used = new Set();
+  const proposal = [];
+
+  function addNum(n) {
+    if (n && !used.has(n)) { used.add(n); proposal.push(n); }
+  }
+
+  addNum(anchor);
+  if (clusterA) {
+    [...clusterA.nums].sort((a,b) => freq[b]-freq[a]).slice(0,3).forEach(addNum);
+  }
+  addNum(bridge);
+  if (clusterB) {
+    [...clusterB.nums].sort((a,b) => freq[b]-freq[a]).slice(0,3).forEach(addNum);
+  }
+  // Συμπλήρωση μέχρι 9
+  if (proposal.length < 9) {
+    const remaining = Array.from({length:80}, (_,i) => i+1)
+      .filter(n => topColSet.has(((n-1)%10)+1) && !used.has(n))
+      .sort((a,b) => freq[b]-freq[a]);
+    for (const n of remaining) {
+      if (proposal.length >= 9) break;
+      addNum(n);
+    }
+  }
+  const finalCombo = proposal.slice(0, 9).sort((a, b) => a - b);
+
+  // 9. Σκορ εμπιστοσύνης (0-100): πολλοί παράγοντες
+  let conf = 50;
+  if (accelPct > 10) conf += Math.min(20, accelPct);
+  if (isWarm) conf += 15;
+  if (isCool) conf -= 15;
+  if (anchorFreq / actual > 0.35) conf += 10;
+  conf = Math.max(10, Math.min(95, Math.round(conf)));
+
+  // Εμφάνιση αποτελεσμάτων
+  revEngRender({
+    actual, topCols, colFreq, anchor, anchorFreq,
+    accelPct, recentRate, oldRate, ACCEL_WIN,
+    clusterA, clusterB, bridge, bridgeFreq,
+    isWarm, isCool, pct2peak, lastAvg,
+    finalCombo, freq, conf, topColSet
+  });
+}
+
+function revEngRender(r) {
+  const el = document.getElementById('revEngOut');
+  if (!el) return;
+
+  // Χρώμα στήλης
+  function colC(c) {
+    const isTop = r.topCols.includes(c);
+    const rank  = r.topCols.indexOf(c);
+    if (rank === 0) return '#f5a623';
+    if (rank === 1) return '#ef5350';
+    if (rank === 2) return '#42a5f5';
+    return '#2a3a2a';
+  }
+
+  // Επιτάχυνση label
+  const accelLabel = r.accelPct > 20 ? `<span style="color:#ef5350">🔥 +${r.accelPct.toFixed(0)}%</span>`
+    : r.accelPct > 5 ? `<span style="color:#ffa726">↑ +${r.accelPct.toFixed(0)}%</span>`
+    : r.accelPct < -10 ? `<span style="color:#42a5f5">❄ ${r.accelPct.toFixed(0)}%</span>`
+    : `<span style="color:#78909c">≈ ${r.accelPct.toFixed(0)}%</span>`;
+
+  // Phase label
+  const phaseLabel = r.isWarm
+    ? `<span style="color:#ffa726">🟠 Ζεστό (${r.pct2peak.toFixed(0)}% του peak)</span>`
+    : r.isCool
+    ? `<span style="color:#42a5f5">❄️ Ψυχρό (${r.pct2peak.toFixed(0)}% του peak)</span>`
+    : `<span style="color:#78909c">⚪ Ουδέτερο (${r.pct2peak.toFixed(0)}% του peak)</span>`;
+
+  // Σκορ εμπιστοσύνης χρώμα
+  const confColor = r.conf >= 70 ? '#66bb6a' : r.conf >= 50 ? '#ffa726' : '#ef5350';
+
+  let html = `
+  <div style="display:flex;flex-direction:column;gap:8px">
+
+    <!-- Row 1: Hot columns -->
+    <div>
+      <div style="color:#3a5a3a;font-size:.58rem;letter-spacing:.08em;margin-bottom:3px">ΣΤΗΛΕΣ (${r.actual} κλ.)</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap">
+        ${Array.from({length:10}, (_,i) => i+1).map(c => {
+          const hits = r.colFreq[c];
+          const pct  = (hits / (r.actual * 20) * 100).toFixed(0); // ~20 nums/col hit per draw on avg base
+          const rank = r.topCols.indexOf(c);
+          const cc   = colC(c);
+          const bg   = rank === 0 ? '#1a0e00' : rank === 1 ? '#1a0808' : rank === 2 ? '#080d1a' : '#080e08';
+          const bd   = rank >= 0 && rank <= 2 ? cc : '#1a2a1a';
+          const rankBadge = rank === 0 ? ' #1' : rank === 1 ? ' #2' : rank === 2 ? ' #3' : '';
+          return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 5px;min-width:30px">
+            <div style="font-family:monospace;font-size:.65rem;font-weight:bold;color:${cc}">C${c}${rankBadge}</div>
+            <div style="font-size:.55rem;color:${cc};opacity:.8">${hits}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Row 2: Anchor + Acceleration + Phase -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+      <div style="background:#1a0e00;border:1px solid #7a4a00;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.55rem;color:#7a4a00;letter-spacing:.08em">ΑΓΚΥΡΑ</div>
+        <div style="font-family:monospace;font-size:1rem;font-weight:bold;color:#f5a623">${r.anchor}</div>
+        <div style="font-size:.55rem;color:#7a4a00">${r.anchorFreq}/${r.actual} (${(r.anchorFreq/r.actual*100).toFixed(0)}%)</div>
+      </div>
+      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.55rem;color:#3a5a7a;letter-spacing:.08em">ΕΠΙΤΑΧΥΝΣΗ (τελ.${r.ACCEL_WIN} κλ.)</div>
+        <div style="font-size:.75rem;font-weight:bold;margin-top:1px">${accelLabel}</div>
+        <div style="font-size:.55rem;color:#3a5a7a">${r.recentRate.toFixed(2)} vs ${r.oldRate.toFixed(2)} hits/κλ.</div>
+      </div>
+      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.55rem;color:#3a5a7a;letter-spacing:.08em">ΦΑΣΗ</div>
+        <div style="font-size:.72rem;font-weight:bold;margin-top:1px">${phaseLabel}</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Clusters + Bridge -->
+    <div>
+      <div style="color:#3a5a3a;font-size:.58rem;letter-spacing:.08em;margin-bottom:3px">CLUSTERS & ΓΕΦΥΡΑ</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${r.clusterA ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
+          <div style="font-size:.55rem;color:#3a6a3a">Cluster A · γρ.${r.clusterA.row}</div>
+          <div style="font-family:monospace;font-size:.7rem;color:#a5d6a7;font-weight:bold">
+            ${[...r.clusterA.nums].sort((a,b)=>r.freq[b]-r.freq[a]).map(n =>
+              `<span style="opacity:${0.5+r.freq[n]/r.actual}">${n}</span>`).join(' ')}
+          </div>
+        </div>` : ''}
+        ${r.bridge ? `<div style="color:#ce93d8;font-size:.7rem;font-weight:bold;padding:3px 6px;border:1px solid #4a2a6a;border-radius:4px;background:#0d080d">
+          <div style="font-size:.55rem;color:#6a3a8a">ΓΕΦΥΡΑ</div>
+          <span style="font-family:monospace;font-size:.8rem">${r.bridge}</span>
+          <div style="font-size:.55rem;color:#6a3a8a">${r.bridgeFreq}/${r.actual}</div>
+        </div>` : ''}
+        ${r.clusterB ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
+          <div style="font-size:.55rem;color:#3a6a3a">Cluster B · γρ.${r.clusterB.row}</div>
+          <div style="font-family:monospace;font-size:.7rem;color:#a5d6a7;font-weight:bold">
+            ${[...r.clusterB.nums].sort((a,b)=>r.freq[b]-r.freq[a]).map(n =>
+              `<span style="opacity:${0.5+r.freq[n]/r.actual}">${n}</span>`).join(' ')}
+          </div>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <!-- Row 4: Proposed combo -->
+    <div style="background:#080f08;border:1px solid #2e7d32;border-radius:4px;padding:6px 10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:.58rem;color:#3a6a3a;letter-spacing:.08em">ΠΡΟΤΕΙΝΟΜΕΝΗ ΕΝΝΙΑΔΑ</span>
+        <span style="font-family:monospace;font-size:.6rem;color:${confColor};margin-left:auto">
+          ⚡ Εμπιστοσύνη: ${r.conf}%
+        </span>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${r.finalCombo.map(n => {
+          const col = ((n-1)%10)+1;
+          const rank = r.topCols.indexOf(col);
+          const isAnc = n === r.anchor;
+          const isBrg = n === r.bridge;
+          const cc = rank === 0 ? '#f5a623' : rank === 1 ? '#ef5350' : rank === 2 ? '#42a5f5' : '#66bb6a';
+          const bg = isAnc ? '#1a0e00' : isBrg ? '#0d080d' : '#0d1a0d';
+          const bd = isAnc ? '#c07800' : isBrg ? '#6a3a8a' : cc;
+          const prefix = isAnc ? '⚓' : isBrg ? '🔗' : '';
+          return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 7px">
+            <div style="font-size:.5rem;color:${cc};height:10px">${prefix}</div>
+            <div style="font-family:monospace;font-size:.78rem;font-weight:bold;color:${cc}">${n}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+  </div>`;
+
+  el.innerHTML = html;
+}
 
 // ── Ανάλυση πολλαπλών οριζόντων & ισχυρών ταιριασμάτων ──────────────────────
 
