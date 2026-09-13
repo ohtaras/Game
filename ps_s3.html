@@ -492,7 +492,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
             <span style="color:#aaa">Στήλες pool:</span>
             <div style="display:flex;gap:2px" id="lcColBtns"></div>
-            <span style="color:#555;font-size:.58rem">🔥=top-2 σε τελ.</span>
+            <span style="color:#555;font-size:.58rem">χρώμα=hits τελ.</span>
             <div style="display:flex;gap:2px" id="lcHotColMBtns"></div>
             <span style="color:#555;font-size:.58rem">κλ.</span>
             <span id="lcPoolInfo" style="color:#555;font-size:.58rem"></span>
@@ -4179,22 +4179,38 @@ function lcInitButtons() {
         for (const n of d.n)
           hotColFreq[(n - 1) % 10 + 1]++;
     }
-    // Βρες top-2 στήλες
-    const sorted = Array.from({length:10}, (_,i)=>i+1).sort((a,b)=>hotColFreq[b]-hotColFreq[a]);
-    const hotCols = new Set([sorted[0], sorted[1]]);
+    // Κανονικοποίηση 0→1 για διαβάθμιση χρώματος
+    const freqs = Array.from({length:10}, (_,i) => hotColFreq[i+1]);
+    const fMin = Math.min(...freqs), fMax = Math.max(...freqs);
+    // t=0 → κρύο (μπλε), t=1 → καυτό (κόκκινο-πορτοκαλί) — HSL interpolation
+    function colHeatColor(t) {
+      // hue: 220 (μπλε) → 30 (πορτοκαλί): hue = 220 - t*190
+      const h = Math.round(220 - t * 190);
+      const s = Math.round(30  + t * 65);   // 30% → 95%
+      const l = Math.round(20  + t * 38);   // 20% → 58%
+      return `hsl(${h},${s}%,${l}%)`;
+    }
+    function colHeatText(t) {
+      const h = Math.round(220 - t * 190);
+      const s = Math.round(25  + t * 70);
+      const l = Math.round(35  + t * 45);   // 35% → 80%
+      return `hsl(${h},${s}%,${l}%)`;
+    }
 
     colEl.innerHTML = '';
     for (let c = 1; c <= 10; c++) {
-      const sel  = _lcCols.has(c);
-      const hot  = hotCols.has(c);
+      const sel = _lcCols.has(c);
+      const f   = hotColFreq[c];
+      const t   = fMax > fMin ? (f - fMin) / (fMax - fMin) : 0.5;
+      const borderC = sel ? '#81c784' : colHeatColor(t);
+      const textC   = sel ? '#b9f6ca' : colHeatText(t);
+      const bgC     = sel ? '#0f2a0f' : `hsl(${Math.round(220-t*190)},20%,8%)`;
       const b = document.createElement('button');
-      b.textContent = hot ? `${c}🔥` : `${c}`;
-      b.style.cssText = `background:${sel?'#1a3a1a':'#0d1220'};
-        border:1px solid ${hot?'#ff8f00':sel?'#388e3c':'#1a2540'};
+      b.textContent = `${c}`;
+      b.style.cssText = `background:${bgC};border:2px solid ${borderC};
         border-radius:3px;padding:1px 5px;font-size:.6rem;
-        color:${hot?'#ffca28':sel?'#81c784':'#555'};
-        font-weight:${hot?'bold':'normal'};cursor:pointer`;
-      b.title = `Στήλη ${c}: ${hotColFreq[c]} εμφ. σε τελ. ${_lcHotColM} κλ.`;
+        color:${textC};font-weight:${t>0.7?'bold':'normal'};cursor:pointer`;
+      b.title = `Στήλη ${c}: ${f} εμφ. σε τελ. ${_lcHotColM} κλ.`;
       b.onclick = () => {
         if (_lcCols.has(c)) _lcCols.delete(c); else _lcCols.add(c);
         lcInitButtons();
