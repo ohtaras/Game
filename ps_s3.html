@@ -610,6 +610,17 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <button onclick="revEngRun()" style="margin-left:6px;padding:2px 10px;background:#0d2010;border:1px solid #2e7d32;border-radius:4px;color:#66bb6a;font-size:.65rem;font-weight:700;cursor:pointer">▶ Ανάλυσε</button>
         </div>
         <div id="revEngOut" style="font-size:.7rem;color:#888">Πάτα «Ανάλυσε» για να εκτελεστεί η ανάλυση.</div>
+
+        <!-- Live tracking combo από αντίστροφη μηχανική -->
+        <div id="revEngLivePanel" style="display:none;margin-top:8px;border-top:1px solid #1a2a1a;padding-top:8px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="color:#66bb6a;font-size:.72rem;font-weight:700">📊 Live αξιολόγηση combo</span>
+            <span id="revEngLiveInfo" style="color:#555;font-size:.65rem"></span>
+            <button onclick="revEngClearLive()" style="margin-left:auto;background:transparent;border:1px solid #1a3a1a;color:#3a6a3a;border-radius:3px;padding:1px 6px;font-size:.6rem;cursor:pointer">✕</button>
+          </div>
+          <div id="revEngLiveNums" style="font-size:.75rem;color:#aaa;margin-bottom:4px"></div>
+          <div id="revEngLiveHistory" style="display:flex;flex-wrap:wrap;gap:2px;max-height:72px;overflow-y:auto"></div>
+        </div>
       </div>
     </div>
 
@@ -1974,6 +1985,7 @@ function kinoRender() {
   renderTopNinesMonitor(draw);
   renderPinnedNines(draw);
   renderLcLive(draw);
+  renderRevEngLive(draw);
   lcInitButtons();
 }
 
@@ -4563,6 +4575,10 @@ let lcLiveCombo       = null;  // τρέχον combo
 let lcLivePinnedAtId  = 0;     // draw ID κατά τη δημιουργία
 let lcLivePinnedAtIdx = -1;    // kinoIdx κατά τη δημιουργία
 
+let revEngLiveCombo      = null;
+let revEngLivePinnedAtId  = 0;
+let revEngLivePinnedAtIdx = -1;
+
 function lcClearLive() {
   lcLiveCombo = null;
   document.getElementById('lcLivePanel').style.display = 'none';
@@ -4895,11 +4911,16 @@ function revEngRender(r) {
 
     <!-- Row 4: Proposed combo -->
     <div style="background:#080f08;border:1px solid #2e7d32;border-radius:4px;padding:6px 10px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:.58rem;color:#3a6a3a;letter-spacing:.08em">ΠΡΟΤΕΙΝΟΜΕΝΗ ΕΝΝΙΑΔΑ</span>
-        <span style="font-family:monospace;font-size:.6rem;color:${confColor};margin-left:auto">
+        <span style="font-family:monospace;font-size:.6rem;color:${confColor}">
           ⚡ Εμπιστοσύνη: ${r.conf}%
         </span>
+        <button onclick="revEngPinLive([${r.finalCombo.join(',')}])"
+          style="margin-left:auto;padding:2px 9px;background:#0d200d;border:1px solid #2e7d32;
+          border-radius:3px;color:#66bb6a;font-size:.6rem;font-weight:700;cursor:pointer">
+          📊 Παρακολούθηση
+        </button>
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap">
         ${r.finalCombo.map(n => {
@@ -4922,6 +4943,64 @@ function revEngRender(r) {
   </div>`;
 
   el.innerHTML = html;
+}
+
+function revEngPinLive(combo) {
+  const curDraw = kinoDraws && kinoDraws.length ? kinoDraws[kinoIdx] : null;
+  revEngLiveCombo      = combo.slice();
+  revEngLivePinnedAtId  = curDraw ? curDraw.id : 0;
+  revEngLivePinnedAtIdx = kinoIdx;
+  renderRevEngLive(curDraw);
+}
+
+function revEngClearLive() {
+  revEngLiveCombo = null;
+  const panel = document.getElementById('revEngLivePanel');
+  if (panel) panel.style.display = 'none';
+}
+
+function renderRevEngLive(draw) {
+  const panel = document.getElementById('revEngLivePanel');
+  if (!panel || !revEngLiveCombo) return;
+  panel.style.display = '';
+
+  const combo    = revEngLiveCombo;
+  const drawnSet = draw ? new Set(draw.n) : new Set();
+  const curHits  = draw ? combo.filter(n => drawnSet.has(n)).length : 0;
+  const K        = combo.length;
+
+  const hitColor = curHits >= 5 ? '#66bb6a' : curHits === 4 ? '#80cbc4' : curHits === 3 ? '#ffd54f' : '#aaa';
+  const numsEl   = document.getElementById('revEngLiveNums');
+  if (numsEl) {
+    numsEl.innerHTML = combo.map(n => {
+      const hit = drawnSet.has(n);
+      return `<span style="color:${hit?hitColor:'#444'};font-weight:${hit?'bold':'normal'}">${n}</span>`;
+    }).join(' · ') + ` <span style="color:${hitColor};font-weight:bold">(${curHits}/${K})</span>`;
+  }
+
+  const tracked = kinoDraws.filter(d => d.id > revEngLivePinnedAtId);
+  const info = document.getElementById('revEngLiveInfo');
+  if (info) {
+    const best = tracked.reduce((m, d) => {
+      const h = combo.filter(n => d.n.includes(n)).length;
+      return h > m ? h : m;
+    }, 0);
+    const wins4 = tracked.filter(d => combo.filter(n => d.n.includes(n)).length >= 4).length;
+    info.textContent = tracked.length
+      ? `${tracked.length} κλ. | best ${best}/${K} | wins(≥4): ${wins4}`
+      : 'αναμένεται κλήρωση…';
+  }
+
+  const histEl = document.getElementById('revEngLiveHistory');
+  if (histEl) {
+    const curDraw = kinoDraws[kinoIdx];
+    histEl.innerHTML = tracked.map(d => {
+      const h    = combo.filter(n => d.n.includes(n)).length;
+      const isCur = curDraw && d.id === curDraw.id;
+      const c    = h >= 5 ? '#66bb6a' : h === 4 ? '#80cbc4' : h === 3 ? '#ffd54f' : '#333';
+      return `<span title="#${d.id} ${d.d||''}" style="background:${isCur?'#0a1a0a':'transparent'};border:1px solid ${c};color:${c};border-radius:3px;padding:0 4px;font-size:.62rem">${h}/${K}</span>`;
+    }).join('');
+  }
 }
 
 // ── Ανάλυση πολλαπλών οριζόντων & ισχυρών ταιριασμάτων ──────────────────────
