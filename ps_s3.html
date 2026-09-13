@@ -4202,14 +4202,24 @@ function lcInitButtons() {
       const sel = _lcCols.has(c);
       const f   = hotColFreq[c];
       const t   = fMax > fMin ? (f - fMin) / (fMax - fMin) : 0.5;
-      const borderC = sel ? '#81c784' : colHeatColor(t);
-      const textC   = sel ? '#b9f6ca' : colHeatText(t);
-      const bgC     = sel ? '#0f2a0f' : `hsl(${Math.round(220-t*190)},20%,8%)`;
+      const heatBorder = colHeatColor(t);
+      const heatText   = colHeatText(t);
       const b = document.createElement('button');
-      b.textContent = `${c}`;
-      b.style.cssText = `background:${bgC};border:2px solid ${borderC};
-        border-radius:3px;padding:1px 5px;font-size:.6rem;
-        color:${textC};font-weight:${t>0.7?'bold':'normal'};cursor:pointer`;
+      if (sel) {
+        // Επιλεγμένο: φωτεινό πράσινο background — ξεκάθαρο ανεξαρτήτως heat
+        b.textContent = `✓${c}`;
+        b.style.cssText = `background:#1b4620;border:2px solid #66bb6a;
+          border-radius:3px;padding:1px 5px;font-size:.6rem;
+          color:#b9f6ca;font-weight:bold;cursor:pointer;
+          box-shadow:0 0 0 1px ${heatBorder} inset`;
+      } else {
+        // Μη-επιλεγμένο: heat gradient, σκούρο background
+        b.textContent = `${c}`;
+        b.style.cssText = `background:hsl(${Math.round(220-t*190)},20%,8%);
+          border:2px solid ${heatBorder};
+          border-radius:3px;padding:1px 5px;font-size:.6rem;
+          color:${heatText};font-weight:${t>0.7?'bold':'normal'};cursor:pointer`;
+      }
       b.title = `Στήλη ${c}: ${f} εμφ. σε τελ. ${_lcHotColM} κλ.`;
       b.onclick = () => {
         if (_lcCols.has(c)) _lcCols.delete(c); else _lcCols.add(c);
