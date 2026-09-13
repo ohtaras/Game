@@ -4658,157 +4658,186 @@ function revEngToggle() {
 function revEngRun() {
   if (!kinoDraws || !kinoDraws.length) return;
   const N = _revEngWin;
-  // Slice: τελευταίες N κληρώσεις ΠΡΙΝ την τρέχουσα (δεν περιλαμβάνεται η τρέχουσα)
-  const endIdx = kinoIdx; // τρέχουσα θέση
+  const endIdx = kinoIdx;
   const slice = kinoDraws.slice(Math.max(0, endIdx - N), endIdx);
   if (!slice.length) return;
-
   const actual = Math.min(N, slice.length);
 
   // 1. Συχνότητα ανά αριθμό
   const freq = new Array(81).fill(0);
   for (const d of slice) for (const n of d.n) freq[n]++;
 
-  // 2. Συχνότητα ανά στήλη (col 1-10, n % 10 || 10)
-  const colFreq = new Array(11).fill(0);
-  for (let n = 1; n <= 80; n++) {
-    const col = ((n - 1) % 10) + 1;
-    colFreq[col] += freq[n];
+  // 2. Co-occurrence score: πόσες φορές εμφανίζεται κάθε αριθμός
+  //    σε κληρώσεις όπου ≥3 από τους top-20 hot αριθμούς βγήκαν.
+  //    Μετρά "ποιοτικές" εμφανίσεις — όχι απλή συχνότητα.
+  const top20 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]).slice(0,20);
+  const top20Set = new Set(top20);
+  const coFreq = new Array(81).fill(0);
+  for (const d of slice) {
+    if (d.n.filter(n => top20Set.has(n)).length >= 3)
+      for (const n of d.n) if (top20Set.has(n)) coFreq[n]++;
   }
-  // Ταξινόμηση στηλών κατά συχνότητα (μέσος αριθμός hits ανά κλ.)
-  const colsSorted = Array.from({length:10}, (_,i) => i+1)
-    .sort((a,b) => colFreq[b] - colFreq[a]);
 
-  // 3. Exclusive columns: top-3 στήλες
-  const topCols = colsSorted.slice(0, 3);
+  // 3. Στήλη-συχνότητα (col 1-10)
+  const colFreq = new Array(11).fill(0);
+  for (let n = 1; n <= 80; n++) colFreq[((n-1)%10)+1] += freq[n];
+  const topCols = [1,2,3,4,5,6,7,8,9,10].sort((a,b)=>colFreq[b]-colFreq[a]).slice(0,3);
   const topColSet = new Set(topCols);
 
-  // 4. Άγκυρα: ο αριθμός με τη μεγαλύτερη συχνότητα από τις top στήλες
-  let anchor = -1, anchorFreq = 0;
+  // 4. Γραμμή-συχνότητα (row 1-8) — νέο
+  const rowFreq = new Array(9).fill(0);
+  for (let n = 1; n <= 80; n++) rowFreq[Math.floor((n-1)/10)+1] += freq[n];
+  const topRows = [1,2,3,4,5,6,7,8].sort((a,b)=>rowFreq[b]-rowFreq[a]).slice(0,3);
+  const topRowSet = new Set(topRows);
+
+  // 5. Κυρίαρχος τρόπος: columns ή rows?
+  //    Υπολογίζουμε το excess πάνω από τον τυχαίο μέσο.
+  //    Expected: top-3 από 10 cols = 30% hits, top-3 από 8 rows = 37.5% hits
+  const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
+  const colConc = topCols.reduce((s,c)=>s+colFreq[c],0) / (totalHits||1);
+  const rowConc = topRows.reduce((s,r)=>s+rowFreq[r],0) / (totalHits||1);
+  const useRowMode = (rowConc - 0.375) > (colConc - 0.30);
+
+  // 6. Σημεία σύγκλισης: αριθμοί σε hot row ΚΑΙ hot col ταυτόχρονα
+  const convergence = [];
   for (let n = 1; n <= 80; n++) {
-    const col = ((n - 1) % 10) + 1;
-    if (topColSet.has(col) && freq[n] > anchorFreq) { anchorFreq = freq[n]; anchor = n; }
+    if (topColSet.has(((n-1)%10)+1) && topRowSet.has(Math.floor((n-1)/10)+1))
+      convergence.push(n);
   }
 
-  // 5. Επιτάχυνση: τελευταίες 20 vs πρώτες (actual-20)
-  const ACCEL_WIN = Math.min(20, Math.floor(actual / 2));
-  const recentSlice = slice.slice(-ACCEL_WIN);
-  const oldSlice    = slice.slice(0, slice.length - ACCEL_WIN);
-  const recentColFreq = new Array(11).fill(0);
-  const oldColFreq    = new Array(11).fill(0);
-  for (const d of recentSlice) for (const n of d.n) recentColFreq[((n-1)%10)+1]++;
-  for (const d of oldSlice)    for (const n of d.n) oldColFreq   [((n-1)%10)+1]++;
-  const recentRate = topCols.reduce((s,c) => s + recentColFreq[c], 0) / (recentSlice.length || 1);
-  const oldRate    = topCols.reduce((s,c) => s + oldColFreq[c],    0) / (oldSlice.length    || 1);
-  const accelPct   = oldRate > 0 ? ((recentRate - oldRate) / oldRate * 100) : 0;
-
-  // 6. Clusters: ομάδες αριθμών ανά row μέσα στις top στήλες
-  // row = ((n-1) // 10) + 1
-  const rowGroups = {};  // row -> [nums sorted by freq desc]
-  for (let n = 1; n <= 80; n++) {
-    const col = ((n - 1) % 10) + 1;
-    if (!topColSet.has(col)) continue;
-    const row = Math.floor((n - 1) / 10) + 1;
-    if (!rowGroups[row]) rowGroups[row] = [];
-    rowGroups[row].push(n);
+  // 7. Άγκυρα: υψηλότερο weighted score στη ζώνη σύγκλισης (ή στη dominant zone)
+  //    Score = coFreq * 2 + freq (ποιοτική co-occurrence πλέον απλής συχνότητας)
+  const anchorPool = convergence.length >= 2 ? convergence
+    : useRowMode
+      ? Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet.has(Math.floor((n-1)/10)+1))
+      : Array.from({length:80},(_,i)=>i+1).filter(n=>topColSet.has(((n-1)%10)+1));
+  let anchor = -1, anchorScore = -1;
+  for (const n of anchorPool) {
+    const s = coFreq[n]*2 + freq[n];
+    if (s > anchorScore) { anchorScore = s; anchor = n; }
   }
-  // Βρίσκουμε τις 2 ομάδες rows με τα περισσότερα hits (clusters)
-  const rowScores = Object.entries(rowGroups).map(([row, nums]) => ({
-    row: +row,
-    nums,
-    score: nums.reduce((s, n) => s + freq[n], 0)
-  })).sort((a, b) => b.score - a.score);
+  const anchorFreq = anchor > 0 ? freq[anchor] : 0;
 
-  // Top-2 clusters (οι 2 rows με τα περισσότερα hits)
-  const clusterA = rowScores[0] || null;
-  const clusterB = rowScores[1] || null;
+  // 8. Συνεχόμενα ζεύγη: n και n+1 και οι δύο hot (≥22% εμφάνιση)
+  const hotThresh = actual * 0.22;
+  const consePairs = [];
+  for (let n = 1; n <= 79; n++)
+    if (freq[n] >= hotThresh && freq[n+1] >= hotThresh)
+      consePairs.push([n, n+1]);
 
-  // Γέφυρα: row ανάμεσα στα 2 clusters με τη μεγαλύτερη συχνότητα
-  let bridge = null, bridgeFreq = 0;
+  // 9. Cluster detection — adaptive (row ή col mode)
+  //    Όλες οι γραμμές (για row mode) ή γραμμές μέσα στις top cols
+  const allRowGroups = {};
+  for (let n = 1; n <= 80; n++) {
+    const row = Math.floor((n-1)/10)+1;
+    if (!allRowGroups[row]) allRowGroups[row] = [];
+    allRowGroups[row].push(n);
+  }
+  function rowScore(nums) { return nums.reduce((s,n)=>s+coFreq[n]*2+freq[n],0); }
+
+  let clusterCandidates;
+  if (useRowMode) {
+    clusterCandidates = Object.entries(allRowGroups)
+      .map(([row,nums])=>({ row:+row, nums, score:rowScore(nums) }))
+      .sort((a,b)=>b.score-a.score);
+  } else {
+    const colRowGroups = {};
+    for (let n = 1; n <= 80; n++) {
+      if (!topColSet.has(((n-1)%10)+1)) continue;
+      const row = Math.floor((n-1)/10)+1;
+      if (!colRowGroups[row]) colRowGroups[row] = [];
+      colRowGroups[row].push(n);
+    }
+    clusterCandidates = Object.entries(colRowGroups)
+      .map(([row,nums])=>({ row:+row, nums, score:rowScore(nums) }))
+      .sort((a,b)=>b.score-a.score);
+  }
+  const clusterA = clusterCandidates[0] || null;
+  const clusterB = clusterCandidates[1] || null;
+
+  // 10. Γέφυρα: καλύτερος αριθμός σε row ανάμεσα στα clusters
+  let bridge = null, bridgeFreqVal = 0;
   if (clusterA && clusterB) {
     const minRow = Math.min(clusterA.row, clusterB.row);
     const maxRow = Math.max(clusterA.row, clusterB.row);
-    for (let row = minRow + 1; row < maxRow; row++) {
-      const g = rowGroups[row];
+    for (let row = minRow+1; row < maxRow; row++) {
+      const g = allRowGroups[row];
       if (!g) continue;
-      for (const n of g) {
-        if (freq[n] > bridgeFreq) { bridgeFreq = freq[n]; bridge = n; }
+      const pool = useRowMode ? g : g.filter(n=>topColSet.has(((n-1)%10)+1));
+      for (const n of (pool.length ? pool : g)) {
+        const s = coFreq[n]*2 + freq[n];
+        if (s > bridgeFreqVal) { bridgeFreqVal = freq[n]; bridge = n; }
       }
     }
-    // Αν δεν βρήκε bridge ανάμεσα, πάρε τον καλύτερο από row εκτός cluster
-    if (!bridge) {
-      for (const rs of rowScores.slice(2)) {
-        const best = rs.nums.reduce((b, n) => freq[n] > freq[b] ? n : b, rs.nums[0]);
-        if (freq[best] > bridgeFreq) { bridgeFreq = freq[best]; bridge = best; }
-        break;
-      }
+    if (!bridge && clusterCandidates.length > 2) {
+      const rs = clusterCandidates[2];
+      const best = [...rs.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a]))[0];
+      bridgeFreqVal = freq[best]; bridge = best;
     }
   }
 
-  // 7. Ψυχρό-Ζεστό pattern: rolling 10-draw hit score στα top 3 cols
+  // 11. Επιτάχυνση
+  const ACCEL_WIN = Math.min(20, Math.floor(actual/2));
+  const recentSlice = slice.slice(-ACCEL_WIN);
+  const oldSlice    = slice.slice(0, slice.length - ACCEL_WIN);
+  function zoneHits(draws) {
+    return draws.reduce((s,d)=>s+d.n.filter(n=>
+      useRowMode ? topRowSet.has(Math.floor((n-1)/10)+1) : topColSet.has(((n-1)%10)+1)
+    ).length,0);
+  }
+  const recentRate = zoneHits(recentSlice) / (recentSlice.length||1);
+  const oldRate    = zoneHits(oldSlice)    / (oldSlice.length||1);
+  const accelPct   = oldRate > 0 ? ((recentRate - oldRate) / oldRate * 100) : 0;
+
+  // 12. Ψυχρό-Ζεστό phase
   const roll10 = [];
   for (let i = 0; i < slice.length; i++) {
-    const w = Math.min(i + 1, 10);
-    const sub = slice.slice(Math.max(0, i - 9), i + 1);
-    const score = sub.reduce((s, d) => {
-      return s + d.n.filter(n => topColSet.has(((n-1)%10)+1)).length;
-    }, 0) / w;
-    roll10.push(score);
+    const sub = slice.slice(Math.max(0,i-9),i+1);
+    roll10.push(zoneHits(sub) / sub.length);
   }
-  const lastAvg  = roll10[roll10.length - 1] || 0;
+  const lastAvg  = roll10[roll10.length-1] || 0;
   const peakAvg  = Math.max(...roll10);
-  const pct2peak = peakAvg > 0 ? (lastAvg / peakAvg * 100) : 0;
+  const pct2peak = peakAvg > 0 ? (lastAvg/peakAvg*100) : 0;
   const isWarm   = pct2peak >= 75;
   const isCool   = pct2peak < 50;
 
-  // 8. Πρόταση combo (9 αριθμοί):
-  // - Anchor
-  // - Top-3 αριθμοί από clusterA (εκτός anchor)
-  // - Bridge
-  // - Top-3 αριθμοί από clusterB (εκτός anchor, bridge)
-  // - Συμπλήρωση αν χρειαστεί από τους υπόλοιπους top στις top cols
+  // 13. Πρόταση combo (9 αριθμοί)
   const used = new Set();
   const proposal = [];
-
-  function addNum(n) {
-    if (n && !used.has(n)) { used.add(n); proposal.push(n); }
-  }
+  function addNum(n) { if (n && !used.has(n)) { used.add(n); proposal.push(n); } }
 
   addNum(anchor);
-  if (clusterA) {
-    [...clusterA.nums].sort((a,b) => freq[b]-freq[a]).slice(0,3).forEach(addNum);
-  }
+  // Συνεχόμενα ζεύγη πρώτα (σπάνιο pattern — υψηλή αξία)
+  for (const [a,b] of consePairs.slice(0,2)) { addNum(a); addNum(b); }
+  if (clusterA) [...clusterA.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
   addNum(bridge);
-  if (clusterB) {
-    [...clusterB.nums].sort((a,b) => freq[b]-freq[a]).slice(0,3).forEach(addNum);
-  }
-  // Συμπλήρωση μέχρι 9
+  if (clusterB) [...clusterB.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
+  // Συμπλήρωση από convergence, μετά γενικά hot
   if (proposal.length < 9) {
-    const remaining = Array.from({length:80}, (_,i) => i+1)
-      .filter(n => topColSet.has(((n-1)%10)+1) && !used.has(n))
-      .sort((a,b) => freq[b]-freq[a]);
-    for (const n of remaining) {
-      if (proposal.length >= 9) break;
-      addNum(n);
-    }
+    [...convergence, ...Array.from({length:80},(_,i)=>i+1)]
+      .filter(n=>!used.has(n))
+      .sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a]))
+      .forEach(n => { if (proposal.length < 9) addNum(n); });
   }
-  const finalCombo = proposal.slice(0, 9).sort((a, b) => a - b);
+  const finalCombo = proposal.slice(0,9).sort((a,b)=>a-b);
 
-  // 9. Σκορ εμπιστοσύνης (0-100): πολλοί παράγοντες
+  // 14. Σκορ εμπιστοσύνης
   let conf = 50;
   if (accelPct > 10) conf += Math.min(20, accelPct);
-  if (isWarm) conf += 15;
-  if (isCool) conf -= 15;
-  if (anchorFreq / actual > 0.35) conf += 10;
+  if (isWarm) conf += 15; if (isCool) conf -= 15;
+  if (anchor > 0 && coFreq[anchor]/(actual||1) > 0.2) conf += 10;
+  if (convergence.length >= 3) conf += 10;
+  if (consePairs.length > 0) conf += 5;
   conf = Math.max(10, Math.min(95, Math.round(conf)));
 
-  // Εμφάνιση αποτελεσμάτων
   revEngRender({
-    actual, topCols, colFreq, anchor, anchorFreq,
+    actual, topCols, colFreq, topRows, rowFreq,
+    anchor, anchorFreq, coFreq,
     accelPct, recentRate, oldRate, ACCEL_WIN,
-    clusterA, clusterB, bridge, bridgeFreq,
+    clusterA, clusterB, bridge, bridgeFreq: bridgeFreqVal,
     isWarm, isCool, pct2peak, lastAvg,
-    finalCombo, freq, conf, topColSet
+    finalCombo, freq, conf, topColSet, topRowSet,
+    convergence, consePairs, useRowMode
   });
 }
 
@@ -4816,106 +4845,149 @@ function revEngRender(r) {
   const el = document.getElementById('revEngOut');
   if (!el) return;
 
-  // Χρώμα στήλης
   function colC(c) {
-    const isTop = r.topCols.includes(c);
-    const rank  = r.topCols.indexOf(c);
-    if (rank === 0) return '#f5a623';
-    if (rank === 1) return '#ef5350';
-    if (rank === 2) return '#42a5f5';
-    return '#2a3a2a';
+    const rank = r.topCols.indexOf(c);
+    return rank===0?'#f5a623':rank===1?'#ef5350':rank===2?'#42a5f5':'#2a3a2a';
+  }
+  function rowC(row) {
+    const rank = r.topRows.indexOf(row);
+    return rank===0?'#f5a623':rank===1?'#ef5350':rank===2?'#42a5f5':'#1a2a1a';
   }
 
-  // Επιτάχυνση label
   const accelLabel = r.accelPct > 20 ? `<span style="color:#ef5350">🔥 +${r.accelPct.toFixed(0)}%</span>`
     : r.accelPct > 5 ? `<span style="color:#ffa726">↑ +${r.accelPct.toFixed(0)}%</span>`
     : r.accelPct < -10 ? `<span style="color:#42a5f5">❄ ${r.accelPct.toFixed(0)}%</span>`
     : `<span style="color:#78909c">≈ ${r.accelPct.toFixed(0)}%</span>`;
 
-  // Phase label
   const phaseLabel = r.isWarm
-    ? `<span style="color:#ffa726">🟠 Ζεστό (${r.pct2peak.toFixed(0)}% του peak)</span>`
+    ? `<span style="color:#ffa726">🟠 Ζεστό (${r.pct2peak.toFixed(0)}% peak)</span>`
     : r.isCool
-    ? `<span style="color:#42a5f5">❄️ Ψυχρό (${r.pct2peak.toFixed(0)}% του peak)</span>`
-    : `<span style="color:#78909c">⚪ Ουδέτερο (${r.pct2peak.toFixed(0)}% του peak)</span>`;
+    ? `<span style="color:#42a5f5">❄️ Ψυχρό (${r.pct2peak.toFixed(0)}% peak)</span>`
+    : `<span style="color:#78909c">⚪ Ουδέτερο (${r.pct2peak.toFixed(0)}% peak)</span>`;
 
-  // Σκορ εμπιστοσύνης χρώμα
   const confColor = r.conf >= 70 ? '#66bb6a' : r.conf >= 50 ? '#ffa726' : '#ef5350';
+  const modeLabel = r.useRowMode
+    ? `<span style="color:#ce93d8;font-size:.55rem">↔ ΓΡΑΜΜΕΣ</span>`
+    : `<span style="color:#80cbc4;font-size:.55rem">↕ ΣΤΗΛΕΣ</span>`;
+
+  // Mini 8×10 convergence grid
+  function miniGrid() {
+    let g = '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:1px;font-family:monospace;font-size:.5rem">';
+    for (let row=1;row<=8;row++) for (let col=1;col<=10;col++) {
+      const n = (row-1)*10+col;
+      const inConv = r.convergence.includes(n);
+      const inHotRow = r.topRowSet.has(row);
+      const inHotCol = r.topColSet.has(col);
+      const isAnchor = n === r.anchor;
+      const bg = isAnchor ? '#3a2000' : inConv ? '#0d2a0d' : inHotRow && inHotCol ? '#1a1a0a' : inHotRow ? '#0a0d18' : inHotCol ? '#0a0d18' : '#050a05';
+      const bd = isAnchor ? '#c07800' : inConv ? '#2e7d32' : inHotRow || inHotCol ? '#1a2a1a' : '#0a0f0a';
+      const tc = isAnchor ? '#f5a623' : inConv ? '#a5d6a7' : inHotRow || inHotCol ? '#3a5a3a' : '#1a2a1a';
+      g += `<div style="text-align:center;background:${bg};border:1px solid ${bd};color:${tc};padding:1px 0;border-radius:1px" title="${n}">${n}</div>`;
+    }
+    g += '</div>';
+    return g;
+  }
 
   let html = `
   <div style="display:flex;flex-direction:column;gap:8px">
 
-    <!-- Row 1: Hot columns -->
-    <div>
-      <div style="color:#3a5a3a;font-size:.58rem;letter-spacing:.08em;margin-bottom:3px">ΣΤΗΛΕΣ (${r.actual} κλ.)</div>
-      <div style="display:flex;gap:3px;flex-wrap:wrap">
-        ${Array.from({length:10}, (_,i) => i+1).map(c => {
-          const hits = r.colFreq[c];
-          const pct  = (hits / (r.actual * 20) * 100).toFixed(0); // ~20 nums/col hit per draw on avg base
-          const rank = r.topCols.indexOf(c);
-          const cc   = colC(c);
-          const bg   = rank === 0 ? '#1a0e00' : rank === 1 ? '#1a0808' : rank === 2 ? '#080d1a' : '#080e08';
-          const bd   = rank >= 0 && rank <= 2 ? cc : '#1a2a1a';
-          const rankBadge = rank === 0 ? ' #1' : rank === 1 ? ' #2' : rank === 2 ? ' #3' : '';
-          return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 5px;min-width:30px">
-            <div style="font-family:monospace;font-size:.65rem;font-weight:bold;color:${cc}">C${c}${rankBadge}</div>
-            <div style="font-size:.55rem;color:${cc};opacity:.8">${hits}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-
-    <!-- Row 2: Anchor + Acceleration + Phase -->
+    <!-- Στήλες + Γραμμές -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
-      <div style="background:#1a0e00;border:1px solid #7a4a00;border-radius:4px;padding:4px 10px">
-        <div style="font-size:.55rem;color:#7a4a00;letter-spacing:.08em">ΑΓΚΥΡΑ</div>
-        <div style="font-family:monospace;font-size:1rem;font-weight:bold;color:#f5a623">${r.anchor}</div>
-        <div style="font-size:.55rem;color:#7a4a00">${r.anchorFreq}/${r.actual} (${(r.anchorFreq/r.actual*100).toFixed(0)}%)</div>
+      <div style="flex:1;min-width:180px">
+        <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">ΣΤΗΛΕΣ ${r.useRowMode?'':'▶ DOMINANT'}</div>
+        <div style="display:flex;gap:2px;flex-wrap:wrap">
+          ${[1,2,3,4,5,6,7,8,9,10].map(c => {
+            const rank=r.topCols.indexOf(c); const cc=colC(c);
+            const bg=rank===0?'#1a0e00':rank===1?'#1a0808':rank===2?'#080d1a':'#080e08';
+            const bd=rank>=0&&rank<=2?cc:'#1a2a1a';
+            return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:2px;padding:1px 4px;min-width:24px">
+              <div style="font-family:monospace;font-size:.58rem;font-weight:bold;color:${cc}">C${c}</div>
+              <div style="font-size:.5rem;color:${cc};opacity:.8">${r.colFreq[c]}</div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
-      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
-        <div style="font-size:.55rem;color:#3a5a7a;letter-spacing:.08em">ΕΠΙΤΑΧΥΝΣΗ (τελ.${r.ACCEL_WIN} κλ.)</div>
-        <div style="font-size:.75rem;font-weight:bold;margin-top:1px">${accelLabel}</div>
-        <div style="font-size:.55rem;color:#3a5a7a">${r.recentRate.toFixed(2)} vs ${r.oldRate.toFixed(2)} hits/κλ.</div>
-      </div>
-      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
-        <div style="font-size:.55rem;color:#3a5a7a;letter-spacing:.08em">ΦΑΣΗ</div>
-        <div style="font-size:.72rem;font-weight:bold;margin-top:1px">${phaseLabel}</div>
+      <div style="flex:0 0 auto">
+        <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">ΓΡΑΜΜΕΣ ${r.useRowMode?'▶ DOMINANT':''}</div>
+        <div style="display:flex;gap:2px">
+          ${[1,2,3,4,5,6,7,8].map(row => {
+            const rank=r.topRows.indexOf(row); const rc=rowC(row);
+            const bg=rank===0?'#1a0e00':rank===1?'#1a0808':rank===2?'#080d1a':'#080e08';
+            const bd=rank>=0&&rank<=2?rc:'#1a2a1a';
+            return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:2px;padding:1px 4px;min-width:22px">
+              <div style="font-family:monospace;font-size:.58rem;font-weight:bold;color:${rc}">Γ${row}</div>
+              <div style="font-size:.5rem;color:${rc};opacity:.8">${r.rowFreq[row]}</div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
     </div>
 
-    <!-- Row 3: Clusters + Bridge -->
+    <!-- Mini Grid σύγκλισης -->
     <div>
-      <div style="color:#3a5a3a;font-size:.58rem;letter-spacing:.08em;margin-bottom:3px">CLUSTERS & ΓΕΦΥΡΑ</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <span style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em">ΖΩΝΗ ΣΥΓΚΛΙΣΗΣ</span>
+        ${modeLabel}
+        <span style="color:#555;font-size:.5rem">${r.convergence.length} αρ. σε hot row+col</span>
+      </div>
+      ${miniGrid()}
+    </div>
+
+    <!-- Άγκυρα + Επιτάχυνση + Φάση -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start">
+      <div style="background:#1a0e00;border:1px solid #7a4a00;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.52rem;color:#7a4a00;letter-spacing:.08em">ΑΓΚΥΡΑ ⚓</div>
+        <div style="font-family:monospace;font-size:1rem;font-weight:bold;color:#f5a623">${r.anchor}</div>
+        <div style="font-size:.5rem;color:#7a4a00">${r.anchorFreq}/${r.actual} · co:${r.coFreq[r.anchor]||0}</div>
+      </div>
+      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.52rem;color:#3a5a7a;letter-spacing:.08em">ΕΠΙΤΑΧΥΝΣΗ (τελ.${r.ACCEL_WIN})</div>
+        <div style="font-size:.72rem;font-weight:bold;margin-top:1px">${accelLabel}</div>
+        <div style="font-size:.5rem;color:#3a5a7a">${r.recentRate.toFixed(2)} vs ${r.oldRate.toFixed(2)}</div>
+      </div>
+      <div style="background:#0d0d14;border:1px solid #1a2a3a;border-radius:4px;padding:4px 10px">
+        <div style="font-size:.52rem;color:#3a5a7a;letter-spacing:.08em">ΦΑΣΗ</div>
+        <div style="font-size:.7rem;font-weight:bold;margin-top:1px">${phaseLabel}</div>
+      </div>
+      ${r.consePairs.length ? `<div style="background:#100a1a;border:1px solid #4a2a6a;border-radius:4px;padding:4px 8px">
+        <div style="font-size:.52rem;color:#6a3a8a;letter-spacing:.08em">ΣΥΝΕΧΟΜΕΝΑ ⚡</div>
+        <div style="font-family:monospace;font-size:.68rem;color:#ce93d8;font-weight:bold;margin-top:2px">
+          ${r.consePairs.map(([a,b])=>`${a}-${b}`).join(' · ')}
+        </div>
+      </div>` : ''}
+    </div>
+
+    <!-- Clusters + Bridge -->
+    <div>
+      <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">CLUSTERS & ΓΕΦΥΡΑ</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         ${r.clusterA ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
-          <div style="font-size:.55rem;color:#3a6a3a">Cluster A · γρ.${r.clusterA.row}</div>
-          <div style="font-family:monospace;font-size:.7rem;color:#a5d6a7;font-weight:bold">
-            ${[...r.clusterA.nums].sort((a,b)=>r.freq[b]-r.freq[a]).map(n =>
-              `<span style="opacity:${0.5+r.freq[n]/r.actual}">${n}</span>`).join(' ')}
+          <div style="font-size:.52rem;color:#3a6a3a">Cluster A · γρ.${r.clusterA.row}</div>
+          <div style="font-family:monospace;font-size:.68rem;color:#a5d6a7;font-weight:bold">
+            ${[...r.clusterA.nums].sort((a,b)=>(r.coFreq[b]*2+r.freq[b])-(r.coFreq[a]*2+r.freq[a])).map(n =>
+              `<span style="opacity:${Math.min(1,0.4+r.freq[n]/r.actual)}" title="freq:${r.freq[n]} co:${r.coFreq[n]}">${n}</span>`).join(' ')}
           </div>
         </div>` : ''}
-        ${r.bridge ? `<div style="color:#ce93d8;font-size:.7rem;font-weight:bold;padding:3px 6px;border:1px solid #4a2a6a;border-radius:4px;background:#0d080d">
-          <div style="font-size:.55rem;color:#6a3a8a">ΓΕΦΥΡΑ</div>
-          <span style="font-family:monospace;font-size:.8rem">${r.bridge}</span>
-          <div style="font-size:.55rem;color:#6a3a8a">${r.bridgeFreq}/${r.actual}</div>
+        ${r.bridge ? `<div style="color:#ce93d8;padding:3px 6px;border:1px solid #4a2a6a;border-radius:4px;background:#0d080d">
+          <div style="font-size:.52rem;color:#6a3a8a">ΓΕΦΥΡΑ 🔗</div>
+          <div style="font-family:monospace;font-size:.78rem;font-weight:bold;color:#ce93d8">${r.bridge}</div>
+          <div style="font-size:.5rem;color:#6a3a8a">${r.bridgeFreq}/${r.actual}</div>
         </div>` : ''}
         ${r.clusterB ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
-          <div style="font-size:.55rem;color:#3a6a3a">Cluster B · γρ.${r.clusterB.row}</div>
-          <div style="font-family:monospace;font-size:.7rem;color:#a5d6a7;font-weight:bold">
-            ${[...r.clusterB.nums].sort((a,b)=>r.freq[b]-r.freq[a]).map(n =>
-              `<span style="opacity:${0.5+r.freq[n]/r.actual}">${n}</span>`).join(' ')}
+          <div style="font-size:.52rem;color:#3a6a3a">Cluster B · γρ.${r.clusterB.row}</div>
+          <div style="font-family:monospace;font-size:.68rem;color:#a5d6a7;font-weight:bold">
+            ${[...r.clusterB.nums].sort((a,b)=>(r.coFreq[b]*2+r.freq[b])-(r.coFreq[a]*2+r.freq[a])).map(n =>
+              `<span style="opacity:${Math.min(1,0.4+r.freq[n]/r.actual)}" title="freq:${r.freq[n]} co:${r.coFreq[n]}">${n}</span>`).join(' ')}
           </div>
         </div>` : ''}
       </div>
     </div>
 
-    <!-- Row 4: Proposed combo -->
+    <!-- Proposed combo -->
     <div style="background:#080f08;border:1px solid #2e7d32;border-radius:4px;padding:6px 10px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:.58rem;color:#3a6a3a;letter-spacing:.08em">ΠΡΟΤΕΙΝΟΜΕΝΗ ΕΝΝΙΑΔΑ</span>
-        <span style="font-family:monospace;font-size:.6rem;color:${confColor}">
-          ⚡ Εμπιστοσύνη: ${r.conf}%
-        </span>
+        <span style="font-family:monospace;font-size:.6rem;color:${confColor}">⚡ ${r.conf}%</span>
         <button onclick="revEngPinLive([${r.finalCombo.join(',')}])"
           style="margin-left:auto;padding:2px 9px;background:#0d200d;border:1px solid #2e7d32;
           border-radius:3px;color:#66bb6a;font-size:.6rem;font-weight:700;cursor:pointer">
@@ -4924,16 +4996,17 @@ function revEngRender(r) {
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap">
         ${r.finalCombo.map(n => {
-          const col = ((n-1)%10)+1;
-          const rank = r.topCols.indexOf(col);
-          const isAnc = n === r.anchor;
-          const isBrg = n === r.bridge;
-          const cc = rank === 0 ? '#f5a623' : rank === 1 ? '#ef5350' : rank === 2 ? '#42a5f5' : '#66bb6a';
-          const bg = isAnc ? '#1a0e00' : isBrg ? '#0d080d' : '#0d1a0d';
-          const bd = isAnc ? '#c07800' : isBrg ? '#6a3a8a' : cc;
-          const prefix = isAnc ? '⚓' : isBrg ? '🔗' : '';
-          return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 7px">
-            <div style="font-size:.5rem;color:${cc};height:10px">${prefix}</div>
+          const col=((n-1)%10)+1, row=Math.floor((n-1)/10)+1;
+          const colRank=r.topCols.indexOf(col), rowRank=r.topRows.indexOf(row);
+          const inConv=r.convergence.includes(n);
+          const isAnc=n===r.anchor, isBrg=n===r.bridge;
+          const isPair=r.consePairs.some(([a,b])=>n===a||n===b);
+          const cc = isAnc?'#f5a623':isBrg?'#ce93d8':inConv?'#80cbc4':isPair?'#9c27b0':'#66bb6a';
+          const bg = isAnc?'#1a0e00':isBrg?'#0d080d':inConv?'#0a1a1a':'#0d1a0d';
+          const bd = isAnc?'#c07800':isBrg?'#6a3a8a':inConv?'#00696f':cc;
+          const icon = isAnc?'⚓':isBrg?'🔗':inConv?'✦':isPair?'⚡':'';
+          return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 7px" title="col${col} γρ${row} f:${r.freq[n]} co:${r.coFreq[n]}">
+            <div style="font-size:.48rem;color:${cc};height:9px">${icon}</div>
             <div style="font-family:monospace;font-size:.78rem;font-weight:bold;color:${cc}">${n}</div>
           </div>`;
         }).join('')}
