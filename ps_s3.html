@@ -4678,7 +4678,10 @@ function revEngRun() {
       for (const n of d.n) if (top20Set.has(n)) coFreq[n]++;
   }
 
-  // 3. Στήλη-συχνότητα (col 1-10)
+  // 3. Σύνολο hits (χρειάζεται πριν από τα υπόλοιπα)
+  const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
+
+  // 4. Στήλη-συχνότητα (col 1-10)
   const colFreq = new Array(11).fill(0);
   for (let n = 1; n <= 80; n++) colFreq[((n-1)%10)+1] += freq[n];
   const topCols = [1,2,3,4,5,6,7,8,9,10].sort((a,b)=>colFreq[b]-colFreq[a]).slice(0,3);
@@ -4689,16 +4692,14 @@ function revEngRun() {
   // Αν η top-1 στήλη έχει ≥45% παραπάνω hits από την top-2 ΚΑΙ ≥13% των συνολικών
   const singleColMode = colDomRatio >= 1.45 && topColShare >= 0.13;
 
-  // 4. Γραμμή-συχνότητα (row 1-8) — νέο
+  // 5. Γραμμή-συχνότητα (row 1-8)
   const rowFreq = new Array(9).fill(0);
   for (let n = 1; n <= 80; n++) rowFreq[Math.floor((n-1)/10)+1] += freq[n];
   const topRows = [1,2,3,4,5,6,7,8].sort((a,b)=>rowFreq[b]-rowFreq[a]).slice(0,3);
   const topRowSet = new Set(topRows);
 
-  // 5. Κυρίαρχος τρόπος: columns ή rows?
-  //    Υπολογίζουμε το excess πάνω από τον τυχαίο μέσο.
+  // 6. Κυρίαρχος τρόπος: columns ή rows?
   //    Expected: top-3 από 10 cols = 30% hits, top-3 από 8 rows = 37.5% hits
-  const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
   const colConc = topCols.reduce((s,c)=>s+colFreq[c],0) / (totalHits||1);
   const rowConc = topRows.reduce((s,r)=>s+rowFreq[r],0) / (totalHits||1);
   const useRowMode = (rowConc - 0.375) > (colConc - 0.30);
