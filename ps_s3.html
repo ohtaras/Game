@@ -4689,8 +4689,10 @@ function revEngRun() {
   // Ανίχνευση "single column" dominance: μία στήλη πολύ πάνω από τις υπόλοιπες
   const topColShare = colFreq[topCols[0]] / (totalHits||1);
   const colDomRatio = colFreq[topCols[0]] / (colFreq[topCols[1]]||1);
-  // Αν η top-1 στήλη έχει ≥45% παραπάνω hits από την top-2 ΚΑΙ ≥13% των συνολικών
   const singleColMode = colDomRatio >= 1.45 && topColShare >= 0.13;
+  // Ανίχνευση "flat" κατανομής: καμία στήλη δεν κυριαρχεί αισθητά
+  const colFlatnessRatio = colFreq[topCols[0]] / (colFreq[topCols[9]]||1);
+  const flatMode = !singleColMode && colFlatnessRatio < 1.30;
 
   // 5. Γραμμή-συχνότητα (row 1-8)
   const rowFreq = new Array(9).fill(0);
@@ -4702,7 +4704,8 @@ function revEngRun() {
   //    Expected: top-3 από 10 cols = 30% hits, top-3 από 8 rows = 37.5% hits
   const colConc = topCols.reduce((s,c)=>s+colFreq[c],0) / (totalHits||1);
   const rowConc = topRows.reduce((s,r)=>s+rowFreq[r],0) / (totalHits||1);
-  const useRowMode = (rowConc - 0.375) > (colConc - 0.30);
+  // Σε flatMode δεν έχει νόημα ο row/col mode — η κατανομή είναι ομοιόμορφη
+  const useRowMode = !flatMode && (rowConc - 0.375) > (colConc - 0.30);
 
   // 6. Σημεία σύγκλισης: αριθμοί σε hot row ΚΑΙ hot col ταυτόχρονα
   const convergence = [];
@@ -4734,7 +4737,30 @@ function revEngRun() {
     if (freq[n] >= hotThresh && freq[n+1] >= hotThresh)
       consePairs.push([n, n+1]);
 
-  // 9. Cluster detection — adaptive (singleCol / row / col mode)
+  // 8b. Same-row pairs: ζεύγη στην ίδια γραμμή που εμφανίζονται μαζί
+  //     (ανεξαρτήτως στήλης — ο ένας δεν χρειάζεται να είναι ο επόμενος)
+  //     Ανιχνεύει pattern όπου πολλές γραμμές έχουν από 2 hot αριθμούς
+  const rowPairThresh = actual * 0.18;
+  const rowPairs = [];
+  for (let row = 1; row <= 8; row++) {
+    const rowNums = Array.from({length:10},(_,i)=>(row-1)*10+i+1).filter(n=>n<=80);
+    const hotInRow = rowNums.filter(n => freq[n] >= rowPairThresh);
+    for (let i = 0; i < hotInRow.length; i++) {
+      for (let j = i+1; j < hotInRow.length; j++) {
+        const [a, b] = [hotInRow[i], hotInRow[j]];
+        const coCount = slice.filter(d => d.n.includes(a) && d.n.includes(b)).length;
+        if (coCount >= actual * 0.07)  // μαζί σε ≥7% κληρώσεων
+          rowPairs.push({ a, b, row, coCount });
+      }
+    }
+  }
+  rowPairs.sort((x,y) => y.coCount - x.coCount);
+  // Πόσες διαφορετικές γραμμές έχουν τουλάχιστον ένα row-pair;
+  const rowPairRows = new Set(rowPairs.map(p=>p.row));
+  // Flat mode συνδυάζεται με spread pattern όταν ≥3 γραμμές έχουν pairs
+  const spreadMode = flatMode && rowPairRows.size >= 3;
+
+  // 9. Cluster detection — adaptive (singleCol / spread / row / col mode)
   const allRowGroups = {};
   for (let n = 1; n <= 80; n++) {
     const row = Math.floor((n-1)/10)+1;
@@ -4744,7 +4770,30 @@ function revEngRun() {
   function rowScore(nums) { return nums.reduce((s,n)=>s+coFreq[n]*2+freq[n],0); }
 
   let clusterCandidates;
-  if (singleColMode) {
+  if (spreadMode) {
+    // Spread: κάθε γραμμή που έχει row-pair είναι cluster με τα 2 καλύτερα νούμερά της
+    const seenRows = new Set();
+    clusterCandidates = [];
+    for (const rp of rowPairs) {
+      if (!seenRows.has(rp.row)) {
+        seenRows.add(rp.row);
+        const allInRow = Array.from({length:10},(_,i)=>(rp.row-1)*10+i+1).filter(n=>n<=80);
+        clusterCandidates.push({ row: rp.row, nums: allInRow, score: rowScore(allInRow), pairAnchor: [rp.a, rp.b] });
+      }
+    }
+    // Συμπλήρωμα με τις υπόλοιπες γραμμές
+    for (let row = 1; row <= 8; row++) {
+      if (!seenRows.has(row)) {
+        const allInRow = Array.from({length:10},(_,i)=>(row-1)*10+i+1).filter(n=>n<=80);
+        clusterCandidates.push({ row, nums: allInRow, score: rowScore(allInRow) });
+      }
+    }
+  } else if (flatMode) {
+    // Flat χωρίς spread: καμία δομή — χρησιμοποιούμε γενική κατάταξη γραμμών
+    clusterCandidates = Object.entries(allRowGroups)
+      .map(([row,nums])=>({ row:+row, nums, score:rowScore(nums) }))
+      .sort((a,b)=>b.score-a.score);
+  } else if (singleColMode) {
     // Κάθετο cluster: όλα τα νούμερα της κυρίαρχης στήλης σε μία ομάδα
     const domCol = topCols[0];
     const domColNums = Array.from({length:8},(_,i)=>domCol+i*10).filter(n=>n<=80);
@@ -4843,13 +4892,20 @@ function revEngRun() {
   function addNum(n) { if (n && n>=1 && n<=80 && !used.has(n)) { used.add(n); proposal.push(n); } }
 
   addNum(anchor);
-  if (singleColMode) {
+  if (spreadMode) {
+    // Spread στρατηγική: από κάθε γραμμή με row-pair παίρνουμε τα 2 καλύτερα
+    for (const cl of clusterCandidates.slice(0, 5)) {
+      // Προτεραιότητα στα pair anchors (τα 2 που εμφανίστηκαν μαζί πιο συχνά)
+      const pairFirst = cl.pairAnchor || [];
+      const rest = [...cl.nums].filter(n => !pairFirst.includes(n))
+        .sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a]));
+      [...pairFirst, ...rest].slice(0, 2).forEach(addNum);
+    }
+  } else if (singleColMode) {
     // Κάθετη στρατηγική: γεμίζουμε από την κυρίαρχη στήλη + γειτονικά consecutive pairs
     const domCol = topCols[0];
     const domColNums = Array.from({length:8},(_,i)=>domCol+i*10).filter(n=>n<=80);
-    // Ταξινόμηση κατά score
     [...domColNums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).forEach(addNum);
-    // Consecutive pairs (γείτονες της κυρίαρχης στήλης)
     for (const [a,b] of consePairs) { addNum(a); addNum(b); }
     addNum(bridge);
   } else {
@@ -4876,6 +4932,8 @@ function revEngRun() {
   if (convergence.length >= 3) conf += 10;
   if (consePairs.length > 0) conf += 5;
   if (singleColMode) conf += 15;  // ισχυρό σήμα μιας κυρίαρχης στήλης
+  if (spreadMode) conf += 10;    // εντοπίστηκαν row-pairs σε ≥3 γραμμές
+  if (flatMode && !spreadMode) conf -= 10;  // flat χωρίς δομή = αβέβαιο
   conf = Math.max(10, Math.min(95, Math.round(conf)));
 
   revEngRender({
@@ -4886,7 +4944,8 @@ function revEngRun() {
     isWarm, isCool, pct2peak, lastAvg,
     finalCombo, freq, conf, topColSet, topRowSet,
     convergence, consePairs, useRowMode,
-    singleColMode, topColShare, colDomRatio
+    singleColMode, topColShare, colDomRatio,
+    flatMode, spreadMode, rowPairs, rowPairRows, colFlatnessRatio
   });
 }
 
@@ -4915,7 +4974,11 @@ function revEngRender(r) {
     : `<span style="color:#78909c">⚪ Ουδέτερο (${r.pct2peak.toFixed(0)}% peak)</span>`;
 
   const confColor = r.conf >= 70 ? '#66bb6a' : r.conf >= 50 ? '#ffa726' : '#ef5350';
-  const modeLabel = r.singleColMode
+  const modeLabel = r.spreadMode
+    ? `<span style="color:#81c784;font-size:.55rem">🔲 ΔΙΑΣΠΟΡΑ (${r.rowPairRows.size} γρ. με pairs)</span>`
+    : r.flatMode
+    ? `<span style="color:#78909c;font-size:.55rem">≈ FLAT (ratio ×${r.colFlatnessRatio.toFixed(2)})</span>`
+    : r.singleColMode
     ? `<span style="color:#f5a623;font-size:.55rem">⬇ ΜΟΝΗ ΣΤΗΛΗ C${r.topCols[0]} (×${r.colDomRatio.toFixed(1)})</span>`
     : r.useRowMode
     ? `<span style="color:#ce93d8;font-size:.55rem">↔ ΓΡΑΜΜΕΣ</span>`
@@ -5007,6 +5070,12 @@ function revEngRender(r) {
           ${r.consePairs.map(([a,b])=>`${a}-${b}`).join(' · ')}
         </div>
       </div>` : ''}
+      ${r.rowPairs.length ? `<div style="background:#0a1a0a;border:1px solid #2a5a2a;border-radius:4px;padding:4px 8px">
+        <div style="font-size:.52rem;color:#3a7a3a;letter-spacing:.08em">ROW PAIRS 🔲</div>
+        <div style="font-family:monospace;font-size:.62rem;color:#81c784;font-weight:bold;margin-top:2px">
+          ${r.rowPairs.slice(0,6).map(p=>`γ${p.row}:(${p.a},${p.b})×${p.coCount}`).join(' ')}
+        </div>
+      </div>` : ''}
     </div>
 
     <!-- Clusters + Bridge -->
@@ -5014,7 +5083,7 @@ function revEngRender(r) {
       <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">CLUSTERS & ΓΕΦΥΡΑ</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         ${r.clusterA ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
-          <div style="font-size:.52rem;color:#3a6a3a">${r.singleColMode?`⬇ Κάθετο C${r.topCols[0]}`:`Cluster A · γρ.${r.clusterA.row}`}</div>
+          <div style="font-size:.52rem;color:#3a6a3a">${r.singleColMode?`⬇ Κάθετο C${r.topCols[0]}`:r.spreadMode?`🔲 γρ.${r.clusterA.row} pair`:`Cluster A · γρ.${r.clusterA.row}`}</div>
           <div style="font-family:monospace;font-size:.68rem;color:#a5d6a7;font-weight:bold">
             ${[...r.clusterA.nums].sort((a,b)=>(r.coFreq[b]*2+r.freq[b])-(r.coFreq[a]*2+r.freq[a])).map(n =>
               `<span style="opacity:${Math.min(1,0.4+r.freq[n]/r.actual)}" title="freq:${r.freq[n]} co:${r.coFreq[n]}">${n}</span>`).join(' ')}
