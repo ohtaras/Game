@@ -4683,6 +4683,11 @@ function revEngRun() {
   for (let n = 1; n <= 80; n++) colFreq[((n-1)%10)+1] += freq[n];
   const topCols = [1,2,3,4,5,6,7,8,9,10].sort((a,b)=>colFreq[b]-colFreq[a]).slice(0,3);
   const topColSet = new Set(topCols);
+  // Ανίχνευση "single column" dominance: μία στήλη πολύ πάνω από τις υπόλοιπες
+  const topColShare = colFreq[topCols[0]] / (totalHits||1);
+  const colDomRatio = colFreq[topCols[0]] / (colFreq[topCols[1]]||1);
+  // Αν η top-1 στήλη έχει ≥45% παραπάνω hits από την top-2 ΚΑΙ ≥13% των συνολικών
+  const singleColMode = colDomRatio >= 1.45 && topColShare >= 0.13;
 
   // 4. Γραμμή-συχνότητα (row 1-8) — νέο
   const rowFreq = new Array(9).fill(0);
@@ -4707,10 +4712,13 @@ function revEngRun() {
 
   // 7. Άγκυρα: υψηλότερο weighted score στη ζώνη σύγκλισης (ή στη dominant zone)
   //    Score = coFreq * 2 + freq (ποιοτική co-occurrence πλέον απλής συχνότητας)
-  const anchorPool = convergence.length >= 2 ? convergence
-    : useRowMode
-      ? Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet.has(Math.floor((n-1)/10)+1))
-      : Array.from({length:80},(_,i)=>i+1).filter(n=>topColSet.has(((n-1)%10)+1));
+  //    Σε singleColMode: pool = όλα τα νούμερα της κυρίαρχης στήλης
+  const anchorPool = singleColMode
+    ? Array.from({length:8},(_,i)=>topCols[0]+i*10).filter(n=>n<=80)
+    : convergence.length >= 2 ? convergence
+      : useRowMode
+        ? Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet.has(Math.floor((n-1)/10)+1))
+        : Array.from({length:80},(_,i)=>i+1).filter(n=>topColSet.has(((n-1)%10)+1));
   let anchor = -1, anchorScore = -1;
   for (const n of anchorPool) {
     const s = coFreq[n]*2 + freq[n];
@@ -4725,8 +4733,7 @@ function revEngRun() {
     if (freq[n] >= hotThresh && freq[n+1] >= hotThresh)
       consePairs.push([n, n+1]);
 
-  // 9. Cluster detection — adaptive (row ή col mode)
-  //    Όλες οι γραμμές (για row mode) ή γραμμές μέσα στις top cols
+  // 9. Cluster detection — adaptive (singleCol / row / col mode)
   const allRowGroups = {};
   for (let n = 1; n <= 80; n++) {
     const row = Math.floor((n-1)/10)+1;
@@ -4736,7 +4743,12 @@ function revEngRun() {
   function rowScore(nums) { return nums.reduce((s,n)=>s+coFreq[n]*2+freq[n],0); }
 
   let clusterCandidates;
-  if (useRowMode) {
+  if (singleColMode) {
+    // Κάθετο cluster: όλα τα νούμερα της κυρίαρχης στήλης σε μία ομάδα
+    const domCol = topCols[0];
+    const domColNums = Array.from({length:8},(_,i)=>domCol+i*10).filter(n=>n<=80);
+    clusterCandidates = [{ row: -1, col: domCol, nums: domColNums, score: rowScore(domColNums), isVertical: true }];
+  } else if (useRowMode) {
     clusterCandidates = Object.entries(allRowGroups)
       .map(([row,nums])=>({ row:+row, nums, score:rowScore(nums) }))
       .sort((a,b)=>b.score-a.score);
@@ -4753,11 +4765,34 @@ function revEngRun() {
       .sort((a,b)=>b.score-a.score);
   }
   const clusterA = clusterCandidates[0] || null;
-  const clusterB = clusterCandidates[1] || null;
+  const clusterB = singleColMode ? null : (clusterCandidates[1] || null);
 
-  // 10. Γέφυρα: καλύτερος αριθμός σε row ανάμεσα στα clusters
+  // 10. Γέφυρα
   let bridge = null, bridgeFreqVal = 0;
-  if (clusterA && clusterB) {
+  if (singleColMode) {
+    // Γέφυρα σε singleColMode = καλύτερος γείτονας (consecutive pair) από άλλη στήλη
+    const domCol = topCols[0];
+    for (const [a,b] of consePairs) {
+      const colA = ((a-1)%10)+1, colB = ((b-1)%10)+1;
+      if (colA === domCol || colB === domCol) {
+        const neighbor = colA === domCol ? b : a;
+        const s = coFreq[neighbor]*2 + freq[neighbor];
+        if (s > bridgeFreqVal) { bridgeFreqVal = freq[neighbor]; bridge = neighbor; }
+      }
+    }
+    // Fallback: καλύτερος αριθμός σε γειτονικές στήλες
+    if (!bridge) {
+      for (const adjCol of [domCol-1, domCol+1]) {
+        if (adjCol < 1 || adjCol > 10) continue;
+        for (let row=1;row<=8;row++) {
+          const n = (row-1)*10+adjCol;
+          if (n<1||n>80) continue;
+          const s = coFreq[n]*2+freq[n];
+          if (s > bridgeFreqVal) { bridgeFreqVal = freq[n]; bridge = n; }
+        }
+      }
+    }
+  } else if (clusterA && clusterB) {
     const minRow = Math.min(clusterA.row, clusterB.row);
     const maxRow = Math.max(clusterA.row, clusterB.row);
     for (let row = minRow+1; row < maxRow; row++) {
@@ -4804,14 +4839,25 @@ function revEngRun() {
   // 13. Πρόταση combo (9 αριθμοί)
   const used = new Set();
   const proposal = [];
-  function addNum(n) { if (n && !used.has(n)) { used.add(n); proposal.push(n); } }
+  function addNum(n) { if (n && n>=1 && n<=80 && !used.has(n)) { used.add(n); proposal.push(n); } }
 
   addNum(anchor);
-  // Συνεχόμενα ζεύγη πρώτα (σπάνιο pattern — υψηλή αξία)
-  for (const [a,b] of consePairs.slice(0,2)) { addNum(a); addNum(b); }
-  if (clusterA) [...clusterA.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
-  addNum(bridge);
-  if (clusterB) [...clusterB.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
+  if (singleColMode) {
+    // Κάθετη στρατηγική: γεμίζουμε από την κυρίαρχη στήλη + γειτονικά consecutive pairs
+    const domCol = topCols[0];
+    const domColNums = Array.from({length:8},(_,i)=>domCol+i*10).filter(n=>n<=80);
+    // Ταξινόμηση κατά score
+    [...domColNums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).forEach(addNum);
+    // Consecutive pairs (γείτονες της κυρίαρχης στήλης)
+    for (const [a,b] of consePairs) { addNum(a); addNum(b); }
+    addNum(bridge);
+  } else {
+    // Συνεχόμενα ζεύγη πρώτα (σπάνιο pattern — υψηλή αξία)
+    for (const [a,b] of consePairs.slice(0,2)) { addNum(a); addNum(b); }
+    if (clusterA) [...clusterA.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
+    addNum(bridge);
+    if (clusterB) [...clusterB.nums].sort((a,b)=>(coFreq[b]*2+freq[b])-(coFreq[a]*2+freq[a])).slice(0,3).forEach(addNum);
+  }
   // Συμπλήρωση από convergence, μετά γενικά hot
   if (proposal.length < 9) {
     [...convergence, ...Array.from({length:80},(_,i)=>i+1)]
@@ -4828,6 +4874,7 @@ function revEngRun() {
   if (anchor > 0 && coFreq[anchor]/(actual||1) > 0.2) conf += 10;
   if (convergence.length >= 3) conf += 10;
   if (consePairs.length > 0) conf += 5;
+  if (singleColMode) conf += 15;  // ισχυρό σήμα μιας κυρίαρχης στήλης
   conf = Math.max(10, Math.min(95, Math.round(conf)));
 
   revEngRender({
@@ -4837,7 +4884,8 @@ function revEngRun() {
     clusterA, clusterB, bridge, bridgeFreq: bridgeFreqVal,
     isWarm, isCool, pct2peak, lastAvg,
     finalCombo, freq, conf, topColSet, topRowSet,
-    convergence, consePairs, useRowMode
+    convergence, consePairs, useRowMode,
+    singleColMode, topColShare, colDomRatio
   });
 }
 
@@ -4866,7 +4914,9 @@ function revEngRender(r) {
     : `<span style="color:#78909c">⚪ Ουδέτερο (${r.pct2peak.toFixed(0)}% peak)</span>`;
 
   const confColor = r.conf >= 70 ? '#66bb6a' : r.conf >= 50 ? '#ffa726' : '#ef5350';
-  const modeLabel = r.useRowMode
+  const modeLabel = r.singleColMode
+    ? `<span style="color:#f5a623;font-size:.55rem">⬇ ΜΟΝΗ ΣΤΗΛΗ C${r.topCols[0]} (×${r.colDomRatio.toFixed(1)})</span>`
+    : r.useRowMode
     ? `<span style="color:#ce93d8;font-size:.55rem">↔ ΓΡΑΜΜΕΣ</span>`
     : `<span style="color:#80cbc4;font-size:.55rem">↕ ΣΤΗΛΕΣ</span>`;
 
@@ -4879,9 +4929,10 @@ function revEngRender(r) {
       const inHotRow = r.topRowSet.has(row);
       const inHotCol = r.topColSet.has(col);
       const isAnchor = n === r.anchor;
-      const bg = isAnchor ? '#3a2000' : inConv ? '#0d2a0d' : inHotRow && inHotCol ? '#1a1a0a' : inHotRow ? '#0a0d18' : inHotCol ? '#0a0d18' : '#050a05';
-      const bd = isAnchor ? '#c07800' : inConv ? '#2e7d32' : inHotRow || inHotCol ? '#1a2a1a' : '#0a0f0a';
-      const tc = isAnchor ? '#f5a623' : inConv ? '#a5d6a7' : inHotRow || inHotCol ? '#3a5a3a' : '#1a2a1a';
+      const inSingleCol = r.singleColMode && col === r.topCols[0];
+      const bg = isAnchor ? '#3a2000' : inSingleCol ? '#1a1a00' : inConv ? '#0d2a0d' : inHotRow && inHotCol ? '#1a1a0a' : inHotRow ? '#0a0d18' : inHotCol ? '#0a0d18' : '#050a05';
+      const bd = isAnchor ? '#c07800' : inSingleCol ? '#7a6a00' : inConv ? '#2e7d32' : inHotRow || inHotCol ? '#1a2a1a' : '#0a0f0a';
+      const tc = isAnchor ? '#f5a623' : inSingleCol ? '#d4c040' : inConv ? '#a5d6a7' : inHotRow || inHotCol ? '#3a5a3a' : '#1a2a1a';
       g += `<div style="text-align:center;background:${bg};border:1px solid ${bd};color:${tc};padding:1px 0;border-radius:1px" title="${n}">${n}</div>`;
     }
     g += '</div>';
@@ -4894,7 +4945,7 @@ function revEngRender(r) {
     <!-- Στήλες + Γραμμές -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
       <div style="flex:1;min-width:180px">
-        <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">ΣΤΗΛΕΣ ${r.useRowMode?'':'▶ DOMINANT'}</div>
+        <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">ΣΤΗΛΕΣ ${r.useRowMode?'':r.singleColMode?'⬇ ΚΥΡΊΑΡΧΗ':'▶ DOMINANT'}</div>
         <div style="display:flex;gap:2px;flex-wrap:wrap">
           ${[1,2,3,4,5,6,7,8,9,10].map(c => {
             const rank=r.topCols.indexOf(c); const cc=colC(c);
@@ -4962,7 +5013,7 @@ function revEngRender(r) {
       <div style="color:#3a5a3a;font-size:.55rem;letter-spacing:.08em;margin-bottom:3px">CLUSTERS & ΓΕΦΥΡΑ</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         ${r.clusterA ? `<div style="background:#0d1a0d;border:1px solid #1e4020;border-radius:4px;padding:3px 8px">
-          <div style="font-size:.52rem;color:#3a6a3a">Cluster A · γρ.${r.clusterA.row}</div>
+          <div style="font-size:.52rem;color:#3a6a3a">${r.singleColMode?`⬇ Κάθετο C${r.topCols[0]}`:`Cluster A · γρ.${r.clusterA.row}`}</div>
           <div style="font-family:monospace;font-size:.68rem;color:#a5d6a7;font-weight:bold">
             ${[...r.clusterA.nums].sort((a,b)=>(r.coFreq[b]*2+r.freq[b])-(r.coFreq[a]*2+r.freq[a])).map(n =>
               `<span style="opacity:${Math.min(1,0.4+r.freq[n]/r.actual)}" title="freq:${r.freq[n]} co:${r.coFreq[n]}">${n}</span>`).join(' ')}
