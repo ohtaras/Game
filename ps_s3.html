@@ -2222,14 +2222,13 @@ function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(ki
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
 
 function msToNextKino() {
+  // ΚΙΝΟ runs 24/7 with a draw every 5 minutes — no end boundary.
   const now  = athensDate(Date.now());
   const secs = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds()
              + now.getUTCMilliseconds() / 1000;
-  const mins  = secs / 60;
-  const start = 0, step = 5, end = 1435;
-  const stepsAhead = Math.ceil(Math.max(0, mins - start) / step);
-  const nextMin    = start + stepsAhead * step;
-  if (nextMin > end) return (1440 - mins) * 60 * 1000;
+  const mins = secs / 60;
+  const step = 5;
+  const nextMin = Math.ceil(mins / step) * step;  // next multiple of 5, rolls over midnight naturally
   return Math.max(0, nextMin * 60 - secs) * 1000;
 }
 
