@@ -4669,11 +4669,10 @@ function revEngRun() {
   const freq = new Array(81).fill(0);
   for (const d of slice) for (const n of d.n) freq[n]++;
 
-  // 1b. Exponential recency-weighted frequency: τελευταία κλήρωση ~20x η πρώτη
-  //     exp(3×i/N): εστιάζει στα πρόσφατα 20-30 draws αντί για ισόποση κατανομή
+  // 1b. Linear recency-weighted frequency (0.3→1.0 — 2.3x spread)
   const wfreq = new Array(81).fill(0);
   for (let i = 0; i < slice.length; i++) {
-    const w = Math.exp(3 * i / Math.max(1, slice.length - 1));
+    const w = 0.3 + 0.7 * (i / Math.max(1, slice.length - 1));
     for (const n of slice[i].n) wfreq[n] += w;
   }
 
@@ -4690,21 +4689,20 @@ function revEngRun() {
     momentum[n] = rNew - rOld;
   }
 
-  // 1d. Multi-window consensus: τρέχουμε σε 4 παράθυρα (25/50/75/100)
-  //     Αριθμοί που βγαίνουν hot σε πολλά παράθυρα είναι πιο αξιόπιστοι
-  const consensusScore = new Array(81).fill(0);
-  const mwWindows = [25, 50, 75, actual].filter((v,i,a)=>v<=actual&&a.indexOf(v)===i);
-  for (const win of mwWindows) {
-    const wSlice = slice.slice(Math.max(0, slice.length - win));
-    const wF = new Array(81).fill(0);
-    for (let i = 0; i < wSlice.length; i++) {
-      const w2 = Math.exp(3 * i / Math.max(1, wSlice.length - 1));
-      for (const n of wSlice[i].n) wF[n] += w2;
-    }
-    // Rank βάσει wF, top-20 παίρνουν inverse-rank bonus
-    const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>wF[b]-wF[a]);
-    ranked.slice(0,20).forEach((n,rank) => { consensusScore[n] += (20 - rank) / mwWindows.length; });
+  // 1d. Hot streak: αριθμοί που βγήκαν σε ≥3 από τις τελευταίες 10 κληρώσεις
+  //     Αυτοί έχουν ρυθμό ≥30% — πάνω από το baseline 25% (20/80)
+  //     Σε hot streak 4/10: +bonus, 5+/10: +μεγάλο bonus
+  const last10 = slice.slice(-10);
+  const streak = new Array(81).fill(0);
+  for (const d of last10) for (const n of d.n) streak[n]++;
+  const hotStreakBonus = new Array(81).fill(0);
+  for (let n = 1; n <= 80; n++) {
+    if (streak[n] >= 5) hotStreakBonus[n] = 15;
+    else if (streak[n] >= 4) hotStreakBonus[n] = 8;
+    else if (streak[n] >= 3) hotStreakBonus[n] = 3;
   }
+  const hotStreakNums = Array.from({length:80},(_,i)=>i+1)
+    .filter(n=>streak[n]>=3).sort((a,b)=>streak[b]-streak[a]);
 
   // Top trending: αριθμοί με θετική ορμή
   const trendingNums = Array.from({length:80},(_,i)=>i+1)
@@ -4712,9 +4710,9 @@ function revEngRun() {
     .sort((a,b) => momentum[b] - momentum[a])
     .slice(0, 15);
 
-  // Composite score: consensus (πολλά παράθυρα) + coFreq + wfreq + momentum
+  // Composite score: coFreq + wfreq + momentum + hot-streak bonus
   function numScore(n) {
-    return consensusScore[n] * 2 + coFreq[n] * 1.5 + wfreq[n] * 0.5 + Math.max(0, momentum[n]) * actual * 0.4;
+    return coFreq[n]*2 + wfreq[n] + Math.max(0, momentum[n]) * actual * 0.3 + hotStreakBonus[n];
   }
 
   // 2. Co-occurrence score: πόσες φορές εμφανίζεται κάθε αριθμός
@@ -4961,10 +4959,14 @@ function revEngRun() {
     ]);
     candPool = [...inZone];
   }
+  // Προσθέτουμε πάντα hot-streak αριθμούς στο pool (βγήκαν ≥3/10 πρόσφατα)
+  const poolSet = new Set(candPool);
+  hotStreakNums.forEach(n => poolSet.add(n));
+  candPool = [...poolSet];
   // Συμπλήρωση αν το pool είναι πολύ μικρό
   if (candPool.length < 20) {
     const extra = Array.from({length:80},(_,i)=>i+1)
-      .filter(n=>!candPool.includes(n))
+      .filter(n=>!poolSet.has(n))
       .sort((a,b)=>numScore(b)-numScore(a));
     candPool = [...candPool, ...extra.slice(0, 20-candPool.length)];
   }
@@ -5020,7 +5022,7 @@ function revEngRun() {
     flatMode, spreadMode, rowPairs, rowPairRows, colFlatnessRatio,
     momentum, trendingNums, wfreq, freqOld, freqNew, t1, t2,
     sOldLen: sOld.length, sNewLen: sNew.length,
-    sortedPool, consensusScore
+    sortedPool, hotStreakNums, streak
   });
 }
 
@@ -5107,19 +5109,17 @@ function revEngPredict(endIdx, N) {
     momentum[n] = (freqNew[n]/(sNew.length||1)) - (freqOld[n]/(sOld.length||1));
   }
 
-  // Multi-window consensus
-  const consensusScore = new Array(81).fill(0);
-  const mwW2 = [25, 50, 75, actual].filter((v,i,a)=>v<=actual&&a.indexOf(v)===i);
-  for (const win of mwW2) {
-    const ws = slice.slice(Math.max(0, slice.length - win));
-    const wF2 = new Array(81).fill(0);
-    for (let i = 0; i < ws.length; i++) {
-      const w2 = Math.exp(3 * i / Math.max(1, ws.length - 1));
-      for (const n of ws[i].n) wF2[n] += w2;
-    }
-    const ranked2 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>wF2[b]-wF2[a]);
-    ranked2.slice(0,20).forEach((n,rank) => { consensusScore[n] += (20-rank)/mwW2.length; });
+  // Hot streak: αριθμοί σε τελευταίες 10 κληρώσεις
+  const last10b = slice.slice(-10);
+  const streak2 = new Array(81).fill(0);
+  for (const d of last10b) for (const n of d.n) streak2[n]++;
+  const hsBonus2 = new Array(81).fill(0);
+  for (let n = 1; n <= 80; n++) {
+    if (streak2[n] >= 5) hsBonus2[n] = 15;
+    else if (streak2[n] >= 4) hsBonus2[n] = 8;
+    else if (streak2[n] >= 3) hsBonus2[n] = 3;
   }
+  const hotStreakNums2 = Array.from({length:80},(_,i)=>i+1).filter(n=>streak2[n]>=3);
 
   const top20 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]).slice(0,20);
   const top20Set = new Set(top20);
@@ -5130,7 +5130,7 @@ function revEngPredict(endIdx, N) {
   }
 
   function numScore(n) {
-    return consensusScore[n]*2 + coFreq[n]*1.5 + wfreq[n]*0.5 + Math.max(0, momentum[n]) * actual * 0.4;
+    return coFreq[n]*2 + wfreq[n] + Math.max(0, momentum[n]) * actual * 0.3 + hsBonus2[n];
   }
 
   const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
@@ -5179,8 +5179,9 @@ function revEngPredict(endIdx, N) {
       ...Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet2.has(Math.floor((n-1)/10)+1))]);
     candPool2=[...z];
   }
+  const poolSet2=new Set(candPool2); hotStreakNums2.forEach(n=>poolSet2.add(n)); candPool2=[...poolSet2];
   if (candPool2.length < 20) {
-    const extra=Array.from({length:80},(_,i)=>i+1).filter(n=>!candPool2.includes(n)).sort((a,b)=>numScore(b)-numScore(a));
+    const extra=Array.from({length:80},(_,i)=>i+1).filter(n=>!poolSet2.has(n)).sort((a,b)=>numScore(b)-numScore(a));
     candPool2=[...candPool2,...extra.slice(0,20-candPool2.length)];
   }
   const sortedPool2=[...candPool2].sort((a,b)=>numScore(b)-numScore(a)).slice(0,22);
@@ -5328,15 +5329,24 @@ function revEngRender(r) {
           ${r.rowPairs.slice(0,6).map(p=>`γ${p.row}:(${p.a},${p.b})×${p.coCount}`).join(' ')}
         </div>
       </div>` : ''}
+      ${(r.hotStreakNums&&r.hotStreakNums.length) ? `<div style="background:#1a0a00;border:1px solid #6a3a00;border-radius:4px;padding:4px 8px">
+        <div style="font-size:.52rem;color:#9a5a00;letter-spacing:.08em">HOT STREAK 🔥 (τελ. 10 κληρώσεις)</div>
+        <div style="font-family:monospace;font-size:.64rem;font-weight:bold;margin-top:2px;display:flex;flex-wrap:wrap;gap:3px">
+          ${r.hotStreakNums.slice(0,15).map(n=>{
+            const s=r.streak[n]; const pct=Math.round(s/10*100);
+            const clr=s>=5?'#ffd54f':s>=4?'#ffb300':'#ff8f00';
+            return `<span style="color:${clr}" title="${s}/10 κλ.">${n}<sup style="font-size:.42rem">${s}/10</sup></span>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
       ${r.trendingNums.length ? `<div style="background:#0d0a1a;border:1px solid #3a2a6a;border-radius:4px;padding:4px 8px">
         <div style="font-size:.52rem;color:#6a4a9a;letter-spacing:.08em">ΟΡΜΗ 🚀 (τελ.τρίτο vs παλιό)</div>
         <div style="font-family:monospace;font-size:.62rem;font-weight:bold;margin-top:2px;display:flex;flex-wrap:wrap;gap:3px">
           ${r.trendingNums.slice(0,12).map(n=>{
             const pct = Math.round(r.momentum[n]*100);
-            const col=((n-1)%10)+1,row=Math.floor((n-1)/10)+1;
             const heat=Math.min(1,r.momentum[n]*4);
             const clr=`hsl(${280-heat*100},80%,${55+heat*15}%)`;
-            return `<span style="color:${clr}" title="C${col}γ${row} +${pct}%/κλ">${n}<sup style="font-size:.45rem">+${pct}</sup></span>`;
+            return `<span style="color:${clr}" title="+${pct}%/κλ">${n}<sup style="font-size:.45rem">+${pct}</sup></span>`;
           }).join('')}
         </div>
       </div>` : ''}
@@ -5379,8 +5389,8 @@ function revEngRender(r) {
           const bd=inFinal?clr:'#1a1a2a';
           const bg=inFinal?(mom>0.01?'#1a0e00':'#0d1a0d'):'#0a0a14';
           const momIcon=mom>0.02?'↑':mom<-0.02?'↓':'';
-          const cs=(r.consensusScore||[])[n]||0;
-          return `<span style="font-family:monospace;font-size:.6rem;color:${clr};background:${bg};border:1px solid ${bd};border-radius:2px;padding:0 3px" title="#${i+1} cons:${cs.toFixed(1)} co:${r.coFreq[n]}">${n}${momIcon}</span>`;
+          const hs=(r.streak||[])[n]||0;
+          return `<span style="font-family:monospace;font-size:.6rem;color:${clr};background:${bg};border:1px solid ${bd};border-radius:2px;padding:0 3px" title="#${i+1} streak:${hs}/10 co:${r.coFreq[n]}">${n}${momIcon}${hs>=3?'🔥':''}</span>`;
         }).join('')}
       </div>
     </div>
