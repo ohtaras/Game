@@ -2233,13 +2233,20 @@ function msToNextKino() {
 }
 
 let kinoRefreshTimer = null;
-function scheduleKino() {
+let _kinoDeadCycles = 0;
+async function scheduleKino() {
   clearTimeout(kinoRefreshTimer);
-  const ms = msToNextKino();
-  kinoRefreshTimer = setTimeout(() => { autoFetchKino(); scheduleKino(); }, ms + 10000);
+  // After 3+ consecutive dead cycles (no new draws found), back off to 30-min intervals.
+  const dead = _kinoDeadCycles >= 3;
+  const ms = dead ? 30 * 60 * 1000 : msToNextKino();
+  kinoRefreshTimer = setTimeout(async () => {
+    const found = await autoFetchKino();
+    if (found) _kinoDeadCycles = 0; else _kinoDeadCycles++;
+    scheduleKino();
+  }, ms + 10000);
 }
 
-function autoFetchKino() {
+async function autoFetchKino() {
   return autoFetchToday(KINO_GAME_ID, kinoDraws, parseKinoItem, kinoIdxRef,
     () => { kinoRender(); revEngAutoTick(); }, 'ΚΙΝΟ');
 }
@@ -2955,20 +2962,27 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
       if (isLive) idxSetter.set(drawsArr.length - 1);
       renderFn();
       sb.textContent = `✓ +${added} νέες κληρώσεις ${label} — ${new Date().toLocaleTimeString('el-GR')}`;
+      return true;
     } else if (_retries < 12) {
       // Retry up to 12× (2 min) while waiting for a delayed draw result.
       // After 12 retries, stop — the scheduleKino/PS/S3 timer will pick it up at the next draw window.
       sb.textContent = `⏳ ${label}: αναμονή αποτελέσματος — επαναδοκιμή σε 10s`;
-      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1), 10000);
+      return await new Promise(resolve =>
+        setTimeout(() => resolve(autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1)), 10000)
+      );
     } else {
       sb.textContent = `— ${label}: αναμονή επόμενης κλήρωσης`;
+      return false;
     }
   } catch(e) {
     if (_retries < 12) {
       sb.textContent = `⚠ Σφάλμα live ${label} — επαναδοκιμή σε 10s`;
-      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1), 10000);
+      return await new Promise(resolve =>
+        setTimeout(() => resolve(autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1)), 10000)
+      );
     } else {
       sb.textContent = `⚠ ${label}: σφάλμα δικτύου — αναμονή επόμενης κλήρωσης`;
+      return false;
     }
   }
 }
