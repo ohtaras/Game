@@ -4669,14 +4669,15 @@ function revEngRun() {
   const freq = new Array(81).fill(0);
   for (const d of slice) for (const n of d.n) freq[n]++;
 
-  // 1b. Recency-weighted frequency: πιο πρόσφατες κληρώσεις ζυγίζουν έως 2.3x
+  // 1b. Exponential recency-weighted frequency: τελευταία κλήρωση ~20x η πρώτη
+  //     exp(3×i/N): εστιάζει στα πρόσφατα 20-30 draws αντί για ισόποση κατανομή
   const wfreq = new Array(81).fill(0);
   for (let i = 0; i < slice.length; i++) {
-    const w = 0.3 + 0.7 * (i / Math.max(1, slice.length - 1));
+    const w = Math.exp(3 * i / Math.max(1, slice.length - 1));
     for (const n of slice[i].n) wfreq[n] += w;
   }
 
-  // 1c. 3-window momentum: compare oldest third vs newest third
+  // 1c. 3-window momentum: oldest third vs newest third
   const t1 = Math.floor(actual/3), t2 = Math.floor(2*actual/3);
   const sOld = slice.slice(0, t1), sNew = slice.slice(t2);
   const freqOld = new Array(81).fill(0), freqNew = new Array(81).fill(0);
@@ -4688,15 +4689,32 @@ function revEngRun() {
     const rNew = freqNew[n] / (sNew.length||1);
     momentum[n] = rNew - rOld;
   }
-  // Top trending: αριθμοί με θετική ορμή, ταξινομημένοι
+
+  // 1d. Multi-window consensus: τρέχουμε σε 4 παράθυρα (25/50/75/100)
+  //     Αριθμοί που βγαίνουν hot σε πολλά παράθυρα είναι πιο αξιόπιστοι
+  const consensusScore = new Array(81).fill(0);
+  const mwWindows = [25, 50, 75, actual].filter((v,i,a)=>v<=actual&&a.indexOf(v)===i);
+  for (const win of mwWindows) {
+    const wSlice = slice.slice(Math.max(0, slice.length - win));
+    const wF = new Array(81).fill(0);
+    for (let i = 0; i < wSlice.length; i++) {
+      const w2 = Math.exp(3 * i / Math.max(1, wSlice.length - 1));
+      for (const n of wSlice[i].n) wF[n] += w2;
+    }
+    // Rank βάσει wF, top-20 παίρνουν inverse-rank bonus
+    const ranked = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>wF[b]-wF[a]);
+    ranked.slice(0,20).forEach((n,rank) => { consensusScore[n] += (20 - rank) / mwWindows.length; });
+  }
+
+  // Top trending: αριθμοί με θετική ορμή
   const trendingNums = Array.from({length:80},(_,i)=>i+1)
     .filter(n => momentum[n] > 0)
     .sort((a,b) => momentum[b] - momentum[a])
     .slice(0, 15);
 
-  // Composite score: co-occurrence + weighted freq + momentum bonus
+  // Composite score: consensus (πολλά παράθυρα) + coFreq + wfreq + momentum
   function numScore(n) {
-    return coFreq[n]*2 + wfreq[n] + Math.max(0, momentum[n]) * actual * 0.3;
+    return consensusScore[n] * 2 + coFreq[n] * 1.5 + wfreq[n] * 0.5 + Math.max(0, momentum[n]) * actual * 0.4;
   }
 
   // 2. Co-occurrence score: πόσες φορές εμφανίζεται κάθε αριθμός
@@ -5002,7 +5020,7 @@ function revEngRun() {
     flatMode, spreadMode, rowPairs, rowPairRows, colFlatnessRatio,
     momentum, trendingNums, wfreq, freqOld, freqNew, t1, t2,
     sOldLen: sOld.length, sNewLen: sNew.length,
-    sortedPool
+    sortedPool, consensusScore
   });
 }
 
@@ -5075,7 +5093,7 @@ function revEngPredict(endIdx, N) {
 
   const wfreq = new Array(81).fill(0);
   for (let i = 0; i < slice.length; i++) {
-    const w = 0.3 + 0.7 * (i / Math.max(1, slice.length - 1));
+    const w = Math.exp(3 * i / Math.max(1, slice.length - 1));
     for (const n of slice[i].n) wfreq[n] += w;
   }
 
@@ -5089,6 +5107,20 @@ function revEngPredict(endIdx, N) {
     momentum[n] = (freqNew[n]/(sNew.length||1)) - (freqOld[n]/(sOld.length||1));
   }
 
+  // Multi-window consensus
+  const consensusScore = new Array(81).fill(0);
+  const mwW2 = [25, 50, 75, actual].filter((v,i,a)=>v<=actual&&a.indexOf(v)===i);
+  for (const win of mwW2) {
+    const ws = slice.slice(Math.max(0, slice.length - win));
+    const wF2 = new Array(81).fill(0);
+    for (let i = 0; i < ws.length; i++) {
+      const w2 = Math.exp(3 * i / Math.max(1, ws.length - 1));
+      for (const n of ws[i].n) wF2[n] += w2;
+    }
+    const ranked2 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>wF2[b]-wF2[a]);
+    ranked2.slice(0,20).forEach((n,rank) => { consensusScore[n] += (20-rank)/mwW2.length; });
+  }
+
   const top20 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]).slice(0,20);
   const top20Set = new Set(top20);
   const coFreq = new Array(81).fill(0);
@@ -5098,7 +5130,7 @@ function revEngPredict(endIdx, N) {
   }
 
   function numScore(n) {
-    return coFreq[n]*2 + wfreq[n] + Math.max(0, momentum[n]) * actual * 0.3;
+    return consensusScore[n]*2 + coFreq[n]*1.5 + wfreq[n]*0.5 + Math.max(0, momentum[n]) * actual * 0.4;
   }
 
   const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
@@ -5347,7 +5379,8 @@ function revEngRender(r) {
           const bd=inFinal?clr:'#1a1a2a';
           const bg=inFinal?(mom>0.01?'#1a0e00':'#0d1a0d'):'#0a0a14';
           const momIcon=mom>0.02?'↑':mom<-0.02?'↓':'';
-          return `<span style="font-family:monospace;font-size:.6rem;color:${clr};background:${bg};border:1px solid ${bd};border-radius:2px;padding:0 3px" title="#${i+1} score:${(r.coFreq[n]*2+r.wfreq[n]+Math.max(0,mom)*r.actual*.3).toFixed(1)}">${n}${momIcon}</span>`;
+          const cs=(r.consensusScore||[])[n]||0;
+          return `<span style="font-family:monospace;font-size:.6rem;color:${clr};background:${bg};border:1px solid ${bd};border-radius:2px;padding:0 3px" title="#${i+1} cons:${cs.toFixed(1)} co:${r.coFreq[n]}">${n}${momIcon}</span>`;
         }).join('')}
       </div>
     </div>
