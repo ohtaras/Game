@@ -2937,7 +2937,7 @@ function scheduleS3() {
 // (kept for tickCountdowns compatibility)
 let psAutoFetchTimer = null, s3AutoFetchTimer = null;
 
-async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label) {
+async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries = 0) {
   const sb = document.getElementById('statusBar');
   const athNow   = athensDate(Date.now());
   const todayStr = `${athNow.getUTCFullYear()}-${pad(athNow.getUTCMonth()+1)}-${pad(athNow.getUTCDate())}`;
@@ -2956,13 +2956,21 @@ async function autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, 
       if (isLive) idxSetter.set(drawsArr.length - 1);
       renderFn();
       sb.textContent = `✓ +${added} νέες κληρώσεις ${label} — ${new Date().toLocaleTimeString('el-GR')}`;
-    } else {
+    } else if (_retries < 12) {
+      // Retry up to 12× (2 min) while waiting for a delayed draw result.
+      // After 12 retries, stop — the scheduleKino/PS/S3 timer will pick it up at the next draw window.
       sb.textContent = `⏳ ${label}: αναμονή αποτελέσματος — επαναδοκιμή σε 10s`;
-      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label), 10000);
+      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1), 10000);
+    } else {
+      sb.textContent = `— ${label}: αναμονή επόμενης κλήρωσης`;
     }
   } catch(e) {
-    sb.textContent = `⚠ Σφάλμα live ${label} — επαναδοκιμή σε 10s`;
-    setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label), 10000);
+    if (_retries < 12) {
+      sb.textContent = `⚠ Σφάλμα live ${label} — επαναδοκιμή σε 10s`;
+      setTimeout(() => autoFetchToday(gameId, drawsArr, parseItem, idxSetter, renderFn, label, _retries + 1), 10000);
+    } else {
+      sb.textContent = `⚠ ${label}: σφάλμα δικτύου — αναμονή επόμενης κλήρωσης`;
+    }
   }
 }
 
