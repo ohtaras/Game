@@ -608,7 +608,9 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <span style="color:#4a6a4a;font-size:.58rem">Παράθυρο:</span>
           <div id="revEngWinBtns" style="display:flex;gap:2px"></div>
           <button onclick="revEngRun()" style="margin-left:6px;padding:2px 10px;background:#0d2010;border:1px solid #2e7d32;border-radius:4px;color:#66bb6a;font-size:.65rem;font-weight:700;cursor:pointer">▶ Ανάλυσε</button>
+          <button onclick="revEngBackTest()" style="padding:2px 10px;background:#0d1020;border:1px solid #2a4a8a;border-radius:4px;color:#64b5f6;font-size:.65rem;font-weight:700;cursor:pointer">📊 Back-test</button>
         </div>
+        <div id="revEngBackTestOut" style="display:none;font-size:.65rem;padding:4px 8px;margin-bottom:6px;background:#080810;border:1px solid #1a2a4a;border-radius:4px"></div>
         <div id="revEngOut" style="font-size:.7rem;color:#888">Πάτα «Ανάλυσε» για να εκτελεστεί η ανάλυση.</div>
 
         <!-- Live tracking combo από αντίστροφη μηχανική -->
@@ -4916,43 +4918,61 @@ function revEngRun() {
   const isWarm   = pct2peak >= 75;
   const isCool   = pct2peak < 50;
 
-  // 13. Πρόταση combo (9 αριθμοί)
-  const used = new Set();
-  const proposal = [];
-  function addNum(n) { if (n && n>=1 && n<=80 && !used.has(n)) { used.add(n); proposal.push(n); } }
-
-  addNum(anchor);
-  if (spreadMode) {
-    // Spread στρατηγική: από κάθε γραμμή με row-pair παίρνουμε τα 2 καλύτερα
-    for (const cl of clusterCandidates.slice(0, 5)) {
-      // Προτεραιότητα στα pair anchors (τα 2 που εμφανίστηκαν μαζί πιο συχνά)
-      const pairFirst = cl.pairAnchor || [];
-      const rest = [...cl.nums].filter(n => !pairFirst.includes(n))
-        .sort((a,b)=>numScore(b)-numScore(a));
-      [...pairFirst, ...rest].slice(0, 2).forEach(addNum);
-    }
-  } else if (singleColMode) {
-    // Κάθετη στρατηγική: γεμίζουμε από την κυρίαρχη στήλη + γειτονικά consecutive pairs
+  // 13. Πρόταση combo — greedy co-occurrence maximization
+  //
+  // Βήμα 1: pool υποψηφίων από τη χωρική ζώνη (διατηρούμε mode analysis)
+  //   singleColMode → dominant col + γειτονικές
+  //   spreadMode    → αριθμοί από γραμμές με row-pairs + top-score
+  //   κανονικά      → convergence + top cols/rows
+  let candPool;
+  if (singleColMode) {
     const domCol = topCols[0];
-    const domColNums = Array.from({length:8},(_,i)=>domCol+i*10).filter(n=>n<=80);
-    [...domColNums].sort((a,b)=>numScore(b)-numScore(a)).forEach(addNum);
-    for (const [a,b] of consePairs) { addNum(a); addNum(b); }
-    addNum(bridge);
+    const adj = [domCol-1, domCol, domCol+1].filter(c=>c>=1&&c<=10);
+    candPool = Array.from({length:80},(_,i)=>i+1).filter(n=>adj.includes(((n-1)%10)+1));
+  } else if (spreadMode) {
+    const spreadRows = new Set(rowPairs.map(p=>p.row));
+    candPool = Array.from({length:80},(_,i)=>i+1).filter(n=>{
+      const r=Math.floor((n-1)/10)+1; return spreadRows.has(r);
+    });
   } else {
-    // Συνεχόμενα ζεύγη πρώτα (σπάνιο pattern — υψηλή αξία)
-    for (const [a,b] of consePairs.slice(0,2)) { addNum(a); addNum(b); }
-    if (clusterA) [...clusterA.nums].sort((a,b)=>numScore(b)-numScore(a)).slice(0,3).forEach(addNum);
-    addNum(bridge);
-    if (clusterB) [...clusterB.nums].sort((a,b)=>numScore(b)-numScore(a)).slice(0,3).forEach(addNum);
+    // union: convergence + top-col + top-row
+    const inZone = new Set([
+      ...convergence,
+      ...Array.from({length:80},(_,i)=>i+1).filter(n=>topColSet.has(((n-1)%10)+1)),
+      ...Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet.has(Math.floor((n-1)/10)+1))
+    ]);
+    candPool = [...inZone];
   }
-  // Συμπλήρωση από convergence, μετά γενικά hot
-  if (proposal.length < 9) {
-    [...convergence, ...Array.from({length:80},(_,i)=>i+1)]
-      .filter(n=>!used.has(n))
-      .sort((a,b)=>numScore(b)-numScore(a))
-      .forEach(n => { if (proposal.length < 9) addNum(n); });
+  // Συμπλήρωση αν το pool είναι πολύ μικρό
+  if (candPool.length < 20) {
+    const extra = Array.from({length:80},(_,i)=>i+1)
+      .filter(n=>!candPool.includes(n))
+      .sort((a,b)=>numScore(b)-numScore(a));
+    candPool = [...candPool, ...extra.slice(0, 20-candPool.length)];
   }
-  const finalCombo = proposal.slice(0,9).sort((a,b)=>a-b);
+  // Ταξινόμηση pool κατά numScore, κρατάμε top-22
+  const sortedPool = [...candPool].sort((a,b)=>numScore(b)-numScore(a)).slice(0,22);
+
+  // Βήμα 2: co-occurrence matrix για το pool (φτιαγμένη από slice)
+  function pairCo(a, b) {
+    return slice.filter(d => d.n.includes(a) && d.n.includes(b)).length;
+  }
+
+  // Βήμα 3: greedy — προσθέτουμε κάθε φορά τον αριθμό που μεγιστοποιεί
+  //   αθροιστική co-occurrence με τους ήδη επιλεγμένους + numScore bonus
+  const selected = [sortedPool[0]];
+  const remaining = sortedPool.slice(1);
+  while (selected.length < 9 && remaining.length > 0) {
+    let bestIdx = 0, bestVal = -1;
+    for (let i = 0; i < remaining.length; i++) {
+      const coSum = selected.reduce((s,x)=>s+pairCo(x, remaining[i]),0);
+      const val = coSum * 3 + numScore(remaining[i]);
+      if (val > bestVal) { bestVal = val; bestIdx = i; }
+    }
+    selected.push(remaining[bestIdx]);
+    remaining.splice(bestIdx, 1);
+  }
+  const finalCombo = selected.sort((a,b)=>a-b);
 
   // 14. Σκορ εμπιστοσύνης
   // Momentum overlap: πόσοι από τους trending ανήκουν στο finalCombo;
@@ -4981,8 +5001,172 @@ function revEngRun() {
     singleColMode, topColShare, colDomRatio,
     flatMode, spreadMode, rowPairs, rowPairRows, colFlatnessRatio,
     momentum, trendingNums, wfreq, freqOld, freqNew, t1, t2,
-    sOldLen: sOld.length, sNewLen: sNew.length
+    sOldLen: sOld.length, sNewLen: sNew.length,
+    sortedPool
   });
+}
+
+// Back-test: τρέχουμε τον αλγόριθμο αναδρομικά για να μετρήσουμε
+// πόσα hits κάνει κατά μέσο όρο στις τελευταίες N κληρώσεις.
+function revEngBackTest() {
+  if (!kinoDraws || !kinoDraws.length) return;
+  const out = document.getElementById('revEngBackTestOut');
+  if (!out) return;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:#64b5f6">Εκτελείται back-test...</span>';
+
+  const N = _revEngWin;
+  const TEST_DRAWS = 20;  // δοκιμάζουμε στις τελευταίες 20 κληρώσεις
+  const results = [];
+
+  setTimeout(() => {
+    for (let testI = 1; testI <= TEST_DRAWS; testI++) {
+      const predEndIdx = kinoIdx - testI;
+      if (predEndIdx < N + 5) continue;
+      const combo = revEngPredict(predEndIdx, N);
+      if (!combo || combo.length < 9) continue;
+      const actual = kinoDraws[predEndIdx].n;
+      const hits = combo.filter(n => actual.includes(n)).length;
+      results.push({ draw: predEndIdx, combo, actual, hits });
+    }
+
+    if (!results.length) { out.innerHTML = '<span style="color:#ef5350">Ανεπαρκή δεδομένα.</span>'; return; }
+
+    const avgHits = results.reduce((s,r)=>s+r.hits,0) / results.length;
+    const maxHits = Math.max(...results.map(r=>r.hits));
+    const dist = [0,0,0,0,0,0,0,0,0,0];
+    results.forEach(r => { if (r.hits<=9) dist[r.hits]++; });
+
+    const barColors = ['#2a2a2a','#3a2a2a','#4a3020','#5a3a20','#6a4820','#7a5828','#8a6830','#9a7840','#aaa050','#f5a623'];
+    const bars = dist.map((c,i)=>{
+      const pct = results.length ? Math.round(c/results.length*100) : 0;
+      const w = Math.round(pct * 0.8);
+      return `<div style="display:flex;align-items:center;gap:4px;line-height:1.4">
+        <span style="color:#555;min-width:14px;text-align:right">${i}:</span>
+        <div style="background:${barColors[i]};width:${w}px;height:8px;border-radius:1px;min-width:${c?2:0}px"></div>
+        <span style="color:${i>=4?'#ffa726':'#555'};font-size:.58rem">${c}×(${pct}%)</span>
+      </div>`;
+    }).join('');
+
+    const confColor = avgHits >= 4 ? '#66bb6a' : avgHits >= 3 ? '#ffa726' : '#ef5350';
+    out.innerHTML = `
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="color:#64b5f6;font-size:.58rem;letter-spacing:.06em;margin-bottom:2px">BACK-TEST (${results.length} κληρώσεις)</div>
+          <div style="font-size:.85rem;font-weight:bold;color:${confColor}">⌀ ${avgHits.toFixed(2)} hits / 9</div>
+          <div style="font-size:.55rem;color:#555">max: ${maxHits} hits</div>
+        </div>
+        <div style="font-family:monospace">${bars}</div>
+        <div style="font-size:.55rem;color:#3a5a3a;max-width:160px">
+          ${results.slice(0,5).map(r=>`<div><span style="color:#555">#${r.draw}:</span> <span style="color:${r.hits>=4?'#66bb6a':r.hits>=3?'#ffa726':'#ef5350'}">${r.hits}/9</span> [${r.combo.join(',')}]</div>`).join('')}
+        </div>
+      </div>`;
+  }, 10);
+}
+
+// Καθαρή συνάρτηση πρόβλεψης (χωρίς render) — χρησιμοποιείται από back-test
+function revEngPredict(endIdx, N) {
+  const slice = kinoDraws.slice(Math.max(0, endIdx - N), endIdx);
+  if (!slice.length) return null;
+  const actual = Math.min(N, slice.length);
+
+  const freq = new Array(81).fill(0);
+  for (const d of slice) for (const n of d.n) freq[n]++;
+
+  const wfreq = new Array(81).fill(0);
+  for (let i = 0; i < slice.length; i++) {
+    const w = 0.3 + 0.7 * (i / Math.max(1, slice.length - 1));
+    for (const n of slice[i].n) wfreq[n] += w;
+  }
+
+  const t1 = Math.floor(actual/3), t2 = Math.floor(2*actual/3);
+  const sOld = slice.slice(0, t1), sNew = slice.slice(t2);
+  const freqOld = new Array(81).fill(0), freqNew = new Array(81).fill(0);
+  for (const d of sOld) for (const n of d.n) freqOld[n]++;
+  for (const d of sNew) for (const n of d.n) freqNew[n]++;
+  const momentum = new Array(81).fill(0);
+  for (let n = 1; n <= 80; n++) {
+    momentum[n] = (freqNew[n]/(sNew.length||1)) - (freqOld[n]/(sOld.length||1));
+  }
+
+  const top20 = Array.from({length:80},(_,i)=>i+1).sort((a,b)=>freq[b]-freq[a]).slice(0,20);
+  const top20Set = new Set(top20);
+  const coFreq = new Array(81).fill(0);
+  for (const d of slice) {
+    if (d.n.filter(n => top20Set.has(n)).length >= 3)
+      for (const n of d.n) if (top20Set.has(n)) coFreq[n]++;
+  }
+
+  function numScore(n) {
+    return coFreq[n]*2 + wfreq[n] + Math.max(0, momentum[n]) * actual * 0.3;
+  }
+
+  const totalHits = freq.slice(1).reduce((s,f)=>s+f,0);
+  const colFreq2 = new Array(11).fill(0);
+  for (let n = 1; n <= 80; n++) colFreq2[((n-1)%10)+1] += wfreq[n];
+  const topCols2 = [1,2,3,4,5,6,7,8,9,10].sort((a,b)=>colFreq2[b]-colFreq2[a]).slice(0,3);
+  const topColSet2 = new Set(topCols2);
+  const colDomRatio2 = colFreq2[topCols2[0]] / (colFreq2[topCols2[1]]||1);
+  const topColShare2 = colFreq2[topCols2[0]] / (totalHits||1);
+  const singleColMode2 = colDomRatio2 >= 1.45 && topColShare2 >= 0.13;
+  const colFlatnessRatio2 = colFreq2[topCols2[0]] / (colFreq2[topCols2[9]]||1);
+  const flatMode2 = !singleColMode2 && colFlatnessRatio2 < 1.30;
+  const rowFreq2 = new Array(9).fill(0);
+  for (let n = 1; n <= 80; n++) rowFreq2[Math.floor((n-1)/10)+1] += wfreq[n];
+  const topRows2 = [1,2,3,4,5,6,7,8].sort((a,b)=>rowFreq2[b]-rowFreq2[a]).slice(0,3);
+  const topRowSet2 = new Set(topRows2);
+  const convergence2 = Array.from({length:80},(_,i)=>i+1)
+    .filter(n=>topColSet2.has(((n-1)%10)+1)&&topRowSet2.has(Math.floor((n-1)/10)+1));
+
+  // row pairs για spreadMode
+  const rowPairThresh2 = actual * 0.18;
+  const rowPairs2 = [];
+  for (let row=1;row<=8;row++) {
+    const rn=Array.from({length:10},(_,i)=>(row-1)*10+i+1).filter(n=>n<=80);
+    const hot=rn.filter(n=>freq[n]>=rowPairThresh2);
+    for(let i=0;i<hot.length;i++) for(let j=i+1;j<hot.length;j++){
+      const co=slice.filter(d=>d.n.includes(hot[i])&&d.n.includes(hot[j])).length;
+      if(co>=actual*0.07) rowPairs2.push({a:hot[i],b:hot[j],row});
+    }
+  }
+  const rowPairRows2=new Set(rowPairs2.map(p=>p.row));
+  const spreadMode2=flatMode2&&rowPairRows2.size>=3;
+
+  // Build candidate pool
+  let candPool2;
+  if (singleColMode2) {
+    const domCol=topCols2[0];
+    const adj=[domCol-1,domCol,domCol+1].filter(c=>c>=1&&c<=10);
+    candPool2=Array.from({length:80},(_,i)=>i+1).filter(n=>adj.includes(((n-1)%10)+1));
+  } else if (spreadMode2) {
+    const sr=new Set(rowPairs2.map(p=>p.row));
+    candPool2=Array.from({length:80},(_,i)=>i+1).filter(n=>sr.has(Math.floor((n-1)/10)+1));
+  } else {
+    const z=new Set([...convergence2,
+      ...Array.from({length:80},(_,i)=>i+1).filter(n=>topColSet2.has(((n-1)%10)+1)),
+      ...Array.from({length:80},(_,i)=>i+1).filter(n=>topRowSet2.has(Math.floor((n-1)/10)+1))]);
+    candPool2=[...z];
+  }
+  if (candPool2.length < 20) {
+    const extra=Array.from({length:80},(_,i)=>i+1).filter(n=>!candPool2.includes(n)).sort((a,b)=>numScore(b)-numScore(a));
+    candPool2=[...candPool2,...extra.slice(0,20-candPool2.length)];
+  }
+  const sortedPool2=[...candPool2].sort((a,b)=>numScore(b)-numScore(a)).slice(0,22);
+
+  function pairCo2(a,b) { return slice.filter(d=>d.n.includes(a)&&d.n.includes(b)).length; }
+
+  const sel=[sortedPool2[0]];
+  const rem=sortedPool2.slice(1);
+  while(sel.length<9&&rem.length>0){
+    let bi=0,bv=-1;
+    for(let i=0;i<rem.length;i++){
+      const coS=sel.reduce((s,x)=>s+pairCo2(x,rem[i]),0);
+      const v=coS*3+numScore(rem[i]);
+      if(v>bv){bv=v;bi=i;}
+    }
+    sel.push(rem[bi]); rem.splice(bi,1);
+  }
+  return sel.sort((a,b)=>a-b);
 }
 
 function revEngRender(r) {
@@ -5152,6 +5336,22 @@ function revEngRender(r) {
       </div>
     </div>
 
+    <!-- Top candidates pool -->
+    <div style="background:#080810;border:1px solid #1a1a3a;border-radius:4px;padding:4px 8px">
+      <div style="font-size:.52rem;color:#3a3a6a;letter-spacing:.08em;margin-bottom:3px">ΥΠΟΨΗΦΙΟΙ POOL (top-22 · greedy co-occurrence)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px">
+        ${(r.sortedPool||[]).map((n,i) => {
+          const inFinal=r.finalCombo.includes(n);
+          const mom=r.momentum[n];
+          const clr=inFinal?(mom>0.01?'#f5a623':'#66bb6a'):(mom>0.01?'#9c7a3a':'#2a4a2a');
+          const bd=inFinal?clr:'#1a1a2a';
+          const bg=inFinal?(mom>0.01?'#1a0e00':'#0d1a0d'):'#0a0a14';
+          const momIcon=mom>0.02?'↑':mom<-0.02?'↓':'';
+          return `<span style="font-family:monospace;font-size:.6rem;color:${clr};background:${bg};border:1px solid ${bd};border-radius:2px;padding:0 3px" title="#${i+1} score:${(r.coFreq[n]*2+r.wfreq[n]+Math.max(0,mom)*r.actual*.3).toFixed(1)}">${n}${momIcon}</span>`;
+        }).join('')}
+      </div>
+    </div>
+
     <!-- Proposed combo -->
     <div style="background:#080f08;border:1px solid #2e7d32;border-radius:4px;padding:6px 10px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
@@ -5174,10 +5374,13 @@ function revEngRender(r) {
           const bg = isAnc?'#1a0e00':isBrg?'#0d080d':inConv?'#0a1a1a':'#0d1a0d';
           const bd = isAnc?'#c07800':isBrg?'#6a3a8a':inConv?'#00696f':cc;
           const icon = isAnc?'⚓':isBrg?'🔗':inConv?'✦':isPair?'⚡':'';
-          const momStr = r.momentum[n]>0.01?`↑${(r.momentum[n]*100).toFixed(0)}%`:r.momentum[n]<-0.01?`↓${(r.momentum[n]*100).toFixed(0)}%`:'';
+          const mom=r.momentum[n];
+          const momStr = mom>0.01?`↑${(mom*100).toFixed(0)}%`:mom<-0.01?`↓${(mom*100).toFixed(0)}%`:'';
+          const momClr = mom>0.02?'#f5a623':mom<-0.02?'#42a5f5':'transparent';
           return `<div style="text-align:center;background:${bg};border:1px solid ${bd};border-radius:3px;padding:2px 7px" title="col${col} γρ${row} f:${r.freq[n]} co:${r.coFreq[n]} ${momStr}">
             <div style="font-size:.48rem;color:${cc};height:9px">${icon}</div>
             <div style="font-family:monospace;font-size:.78rem;font-weight:bold;color:${cc}">${n}</div>
+            <div style="font-size:.42rem;color:${momClr};height:8px">${momStr}</div>
           </div>`;
         }).join('')}
       </div>
