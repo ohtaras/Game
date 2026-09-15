@@ -437,8 +437,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
 
     <!-- ── Σύστημα Κάλυψης Τετράδας ── -->
-    <div style="margin-top:16px;border-top:1px solid #1a1a2e;padding-top:12px">
-      <div style="color:#7c4dff;font-weight:700;font-size:.82rem;margin-bottom:8px">🎯 Σύστημα Κάλυψης Τετράδας</div>
+    <div style="margin-top:10px;background:#0a0a1a;border:1px solid #2a1a4a;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:0" onclick="kinoToggleBlock('coverBody','coverChev')">
+        <span style="color:#7c4dff;font-weight:700;font-size:.78rem">🎯 Σύστημα Κάλυψης Τετράδας</span>
+        <span id="coverChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="coverBody" style="display:none;margin-top:8px">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.72rem;color:#666;margin-bottom:8px">
         <span>Hot αριθμοί:</span>
         <select id="coverNSel" style="background:#0d0d1a;color:#ccc;border:1px solid #1a1a2e;border-radius:4px;padding:2px 6px">
@@ -468,24 +472,48 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       </div>
       <div id="kinoCoverResult" style="font-size:.72rem"></div>
       <div id="kinoCoverEval" style="margin-top:8px;font-size:.72rem"></div>
+      </div><!-- /coverBody -->
     </div>
 
-    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
-      <div id="kinoClusterGrid" style="min-height:30px"></div>
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="kinoToggleBlock('clusterBody','clusterChev')">
+        <span style="color:#7986cb;font-weight:700;font-size:.74rem">🔵 Cluster Ανάλυση</span>
+        <span id="clusterChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="clusterBody" style="display:none;margin-top:6px">
+        <div id="kinoClusterGrid" style="min-height:30px"></div>
+      </div>
     </div>
 
-    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
-      <div id="kinoPatternHeat" style="min-height:30px"></div>
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="kinoToggleBlock('patternBody','patternChev')">
+        <span style="color:#80cbc4;font-weight:700;font-size:.74rem">🌡 Pattern Heat</span>
+        <span id="patternChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="patternBody" style="display:none;margin-top:6px">
+        <div id="kinoPatternHeat" style="min-height:30px"></div>
+      </div>
     </div>
 
-    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px">
-      <div id="kinoAnalysis" style="min-height:30px"></div>
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #1a2540;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="kinoToggleBlock('analysisBody','analysisChev')">
+        <span style="color:#a5d6a7;font-weight:700;font-size:.74rem">📈 Στατιστική Ανάλυση</span>
+        <span id="analysisChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="analysisBody" style="display:none;margin-top:6px">
+        <div id="kinoAnalysis" style="min-height:30px"></div>
+      </div>
     </div>
 
     <!-- ── Last Chance ── -->
-    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #4a1a6e;border-radius:6px;padding:10px">
+    <div style="margin-top:10px;background:#0a0e1a;border:1px solid #4a1a6e;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer" onclick="kinoToggleBlock('lcBody','lcChev')">
+        <span style="color:#ce93d8;font-weight:700;font-size:.78rem">🎲 LAST CHANCE — Τελευταία Ευκαιρία</span>
+        <span id="lcChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="lcBody" style="display:none;margin-top:8px">
       <div id="kinoLastChance">
-        <div style="font-size:.75rem;font-weight:700;color:#ce93d8;margin-bottom:8px;letter-spacing:.06em">🎲 LAST CHANCE — Τελευταία Ευκαιρία</div>
+        <div style="font-size:.75rem;font-weight:700;color:#ce93d8;margin-bottom:8px;letter-spacing:.06em;display:none">🎲 LAST CHANCE — Τελευταία Ευκαιρία</div>
         <!-- Παράμετροι -->
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:.62rem;color:#888">
 
@@ -594,6 +622,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <div id="lcLiveHistory" style="display:flex;flex-wrap:wrap;gap:2px;max-height:72px;overflow-y:auto"></div>
         </div>
       </div>
+      </div><!-- /lcBody -->
     </div>
 
     <!-- ── Αντίστροφη Μηχανική ── -->
@@ -609,7 +638,9 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <div id="revEngWinBtns" style="display:flex;gap:2px"></div>
           <button onclick="revEngRun()" style="margin-left:6px;padding:2px 10px;background:#0d2010;border:1px solid #2e7d32;border-radius:4px;color:#66bb6a;font-size:.65rem;font-weight:700;cursor:pointer">▶ Ανάλυσε</button>
           <button onclick="revEngBackTest()" style="padding:2px 10px;background:#0d1020;border:1px solid #2a4a8a;border-radius:4px;color:#64b5f6;font-size:.65rem;font-weight:700;cursor:pointer">📊 Back-test</button>
+          <button id="revEngAutoBtn" onclick="revEngToggleAuto()" style="padding:2px 10px;background:#0d0a1a;border:1px solid #3a2a6a;border-radius:4px;color:#9c7ab8;font-size:.65rem;font-weight:700;cursor:pointer">🔄 Αυτόματο</button>
         </div>
+        <div id="revEngAutoEval" style="display:none;font-size:.63rem;color:#666;margin-bottom:4px;padding:3px 6px;background:#0a080f;border:1px solid #1a1530;border-radius:3px"></div>
         <div id="revEngBackTestOut" style="display:none;font-size:.65rem;padding:4px 8px;margin-bottom:6px;background:#080810;border:1px solid #1a2a4a;border-radius:4px"></div>
         <div id="revEngOut" style="font-size:.7rem;color:#888">Πάτα «Ανάλυσε» για να εκτελεστεί η ανάλυση.</div>
 
@@ -2209,7 +2240,10 @@ function scheduleKino() {
   kinoRefreshTimer = setTimeout(() => { autoFetchKino(); scheduleKino(); }, ms + 10000);
 }
 
-function autoFetchKino() { return autoFetchToday(KINO_GAME_ID, kinoDraws, parseKinoItem, kinoIdxRef, kinoRender, 'ΚΙΝΟ'); }
+function autoFetchKino() {
+  return autoFetchToday(KINO_GAME_ID, kinoDraws, parseKinoItem, kinoIdxRef,
+    () => { kinoRender(); revEngAutoTick(); }, 'ΚΙΝΟ');
+}
 
 // ── Load data ──────────────────────────────────────────────────────────────
 async function loadData() {
@@ -4631,9 +4665,21 @@ function renderLcLive(draw) {
 // Αρχικοποίηση buttons όταν φορτωθεί το DOM
 document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); revEngInitBtns(); });
 
+// ── Block toggle helper ────────────────────────────────────────────────────────
+function kinoToggleBlock(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  if (chev) chev.textContent = open ? '▲' : '▼';
+}
+
 // ── Αντίστροφη Μηχανική ───────────────────────────────────────────────────────
 let _revEngWin = 100;
 let _revEngOpen = false;
+let _revEngAutoMode = false;
+let _revEngLastCombo = null;
 
 function revEngInitBtns() {
   const el = document.getElementById('revEngWinBtns');
@@ -4655,6 +4701,38 @@ function revEngToggle() {
   _revEngOpen = !_revEngOpen;
   document.getElementById('revEngBody').style.display = _revEngOpen ? '' : 'none';
   document.getElementById('revEngChevron').textContent = _revEngOpen ? '▲' : '▼';
+}
+
+function revEngToggleAuto() {
+  _revEngAutoMode = !_revEngAutoMode;
+  const btn = document.getElementById('revEngAutoBtn');
+  if (btn) {
+    btn.style.background = _revEngAutoMode ? '#1a0a2a' : '#0d0a1a';
+    btn.style.borderColor = _revEngAutoMode ? '#8a3aaa' : '#3a2a6a';
+    btn.style.color = _revEngAutoMode ? '#ce93d8' : '#9c7ab8';
+    btn.textContent = _revEngAutoMode ? '🔄 ΑΥΤ. ON' : '🔄 Αυτόματο';
+  }
+  const evalEl = document.getElementById('revEngAutoEval');
+  if (evalEl) evalEl.style.display = _revEngAutoMode ? '' : 'none';
+  if (_revEngAutoMode && _revEngOpen) revEngRun();
+}
+
+function revEngAutoTick() {
+  if (!_revEngAutoMode) return;
+  if (!_revEngOpen) { revEngToggle(); }
+  const evalEl = document.getElementById('revEngAutoEval');
+  if (_revEngLastCombo && kinoIdx >= 0 && kinoDraws && kinoDraws[kinoIdx]) {
+    const d = kinoDraws[kinoIdx];
+    const hits = _revEngLastCombo.filter(n => d.n.includes(n)).length;
+    const clr = hits >= 5 ? '#69f0ae' : hits >= 3 ? '#ffd54f' : '#ef9a9a';
+    if (evalEl) {
+      evalEl.style.display = '';
+      evalEl.innerHTML = `<span style="color:#666">Αξιολ. κλήρ. #${d.id}:</span> `
+        + `<span style="color:${clr};font-weight:700">${hits}/9 hits</span>`
+        + ` <span style="color:#333;font-size:.58rem">[${_revEngLastCombo.join(', ')}]</span>`;
+    }
+  }
+  revEngRun();
 }
 
 function revEngRun() {
@@ -4993,6 +5071,7 @@ function revEngRun() {
     remaining.splice(bestIdx, 1);
   }
   const finalCombo = selected.sort((a,b)=>a-b);
+  _revEngLastCombo = [...finalCombo];
 
   // 14. Σκορ εμπιστοσύνης
   // Momentum overlap: πόσοι από τους trending ανήκουν στο finalCombo;
