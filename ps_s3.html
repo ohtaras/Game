@@ -1599,7 +1599,7 @@ function showToast(msg) {
 // ── OPAP API with CORS fallbacks ───────────────────────────────────────────
 async function apiFetch(url) {
   const direct = async () => {
-    const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(12000) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
   };
@@ -1630,7 +1630,7 @@ async function fetchActive(gameId) {
 async function fetchDayOpap(gameId, dayStr) {
   let items = [], page = 0;
   while (true) {
-    const url = `https://api.opap.gr/draws/v3.0/${gameId}/draw-date/${dayStr}/${dayStr}?page=${page}&size=500`;
+    const url = `https://api.opap.gr/draws/v3.0/${gameId}/draw-date/${dayStr}/${dayStr}?page=${page}&size=500&_=${Date.now()}`;
     let raw = null;
     try { raw = await apiFetch(url); } catch(_) { break; }
     if (!raw) break;
