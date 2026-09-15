@@ -5026,61 +5026,90 @@ function revEngRun() {
   });
 }
 
-// Back-test: τρέχουμε τον αλγόριθμο αναδρομικά για να μετρήσουμε
-// πόσα hits κάνει κατά μέσο όρο στις τελευταίες N κληρώσεις.
+// Back-test: δοκιμάζει όλα τα παράθυρα (25/50/75/100) και βρίσκει το καλύτερο
+let _revEngBestWin = null;  // αποθηκεύεται από back-test για χρήση στην πρόβλεψη
+
 function revEngBackTest() {
   if (!kinoDraws || !kinoDraws.length) return;
   const out = document.getElementById('revEngBackTestOut');
   if (!out) return;
   out.style.display = 'block';
-  out.innerHTML = '<span style="color:#64b5f6">Εκτελείται back-test...</span>';
+  out.innerHTML = '<span style="color:#64b5f6">Εκτελείται back-test για όλα τα παράθυρα...</span>';
 
-  const N = _revEngWin;
-  const TEST_DRAWS = 20;  // δοκιμάζουμε στις τελευταίες 20 κληρώσεις
-  const results = [];
+  const TEST_DRAWS = 20;
+  const WINDOWS = [25, 50, 75, 100];
 
   setTimeout(() => {
-    for (let testI = 1; testI <= TEST_DRAWS; testI++) {
-      const predEndIdx = kinoIdx - testI;
-      if (predEndIdx < N + 5) continue;
-      const combo = revEngPredict(predEndIdx, N);
-      if (!combo || combo.length < 9) continue;
-      const actual = kinoDraws[predEndIdx].n;
-      const hits = combo.filter(n => actual.includes(n)).length;
-      results.push({ draw: predEndIdx, combo, actual, hits });
+    const winResults = {};
+    for (const N of WINDOWS) {
+      const results = [];
+      for (let testI = 1; testI <= TEST_DRAWS; testI++) {
+        const predEndIdx = kinoIdx - testI;
+        if (predEndIdx < N + 5) continue;
+        const combo = revEngPredict(predEndIdx, N);
+        if (!combo || combo.length < 9) continue;
+        const actual = kinoDraws[predEndIdx].n;
+        const hits = combo.filter(n => actual.includes(n)).length;
+        results.push(hits);
+      }
+      if (results.length > 0)
+        winResults[N] = { avg: results.reduce((s,h)=>s+h,0)/results.length, results, n: results.length };
     }
 
-    if (!results.length) { out.innerHTML = '<span style="color:#ef5350">Ανεπαρκή δεδομένα.</span>'; return; }
+    // Επιλογή βέλτιστου παραθύρου
+    let bestWin = _revEngWin, bestAvg = -1;
+    for (const [w, r] of Object.entries(winResults)) {
+      if (r.avg > bestAvg) { bestAvg = r.avg; bestWin = +w; }
+    }
+    _revEngBestWin = bestWin;
 
-    const avgHits = results.reduce((s,r)=>s+r.hits,0) / results.length;
-    const maxHits = Math.max(...results.map(r=>r.hits));
-    const dist = [0,0,0,0,0,0,0,0,0,0];
-    results.forEach(r => { if (r.hits<=9) dist[r.hits]++; });
+    // Ανακατέψτε το παράθυρο εφόσον το βέλτιστο διαφέρει
+    if (bestWin !== _revEngWin) {
+      _revEngWin = bestWin;
+      revEngInitBtns();
+    }
 
-    const barColors = ['#2a2a2a','#3a2a2a','#4a3020','#5a3a20','#6a4820','#7a5828','#8a6830','#9a7840','#aaa050','#f5a623'];
-    const bars = dist.map((c,i)=>{
-      const pct = results.length ? Math.round(c/results.length*100) : 0;
-      const w = Math.round(pct * 0.8);
-      return `<div style="display:flex;align-items:center;gap:4px;line-height:1.4">
-        <span style="color:#555;min-width:14px;text-align:right">${i}:</span>
-        <div style="background:${barColors[i]};width:${w}px;height:8px;border-radius:1px;min-width:${c?2:0}px"></div>
-        <span style="color:${i>=4?'#ffa726':'#555'};font-size:.58rem">${c}×(${pct}%)</span>
+    // Απεικόνιση αποτελεσμάτων
+    const rows = WINDOWS.map(N => {
+      const r = winResults[N];
+      if (!r) return `<div style="color:#333">N=${N}: ανεπαρκή</div>`;
+      const isBest = N === bestWin;
+      const cc = r.avg >= 3 ? '#66bb6a' : r.avg >= 2.5 ? '#ffa726' : '#ef5350';
+      const bar = Math.round(r.avg / 5 * 80);
+      return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:1px">
+        <span style="color:${isBest?'#f5a623':'#3a5a3a'};min-width:36px;font-size:.6rem${isBest?';font-weight:bold':''}">N=${N}${isBest?' ★':''}</span>
+        <div style="background:${cc};opacity:.7;width:${bar}px;height:7px;border-radius:1px"></div>
+        <span style="color:${cc};font-size:.6rem;font-weight:bold">⌀${r.avg.toFixed(2)}</span>
+        <span style="color:#444;font-size:.52rem">(${r.n} δείγ.)</span>
       </div>`;
     }).join('');
 
-    const confColor = avgHits >= 4 ? '#66bb6a' : avgHits >= 3 ? '#ffa726' : '#ef5350';
-    out.innerHTML = `
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-        <div>
-          <div style="color:#64b5f6;font-size:.58rem;letter-spacing:.06em;margin-bottom:2px">BACK-TEST (${results.length} κληρώσεις)</div>
-          <div style="font-size:.85rem;font-weight:bold;color:${confColor}">⌀ ${avgHits.toFixed(2)} hits / 9</div>
-          <div style="font-size:.55rem;color:#555">max: ${maxHits} hits</div>
-        </div>
-        <div style="font-family:monospace">${bars}</div>
-        <div style="font-size:.55rem;color:#3a5a3a;max-width:160px">
-          ${results.slice(0,5).map(r=>`<div><span style="color:#555">#${r.draw}:</span> <span style="color:${r.hits>=4?'#66bb6a':r.hits>=3?'#ffa726':'#ef5350'}">${r.hits}/9</span> [${r.combo.join(',')}]</div>`).join('')}
-        </div>
+    const best = winResults[bestWin];
+    const dist = [0,0,0,0,0,0,0,0,0,0];
+    (best?.results||[]).forEach(h => { if(h<=9) dist[h]++; });
+    const barColors = ['#2a2a2a','#3a2a2a','#4a3020','#5a3a20','#6a4820','#7a5828','#8a6830','#9a7840','#aaa050','#f5a623'];
+    const distBars = dist.map((c,i)=>{
+      const pct=best?.n ? Math.round(c/best.n*100) : 0;
+      const w=Math.round(pct*.7);
+      return `<div style="display:flex;align-items:center;gap:3px;line-height:1.3">
+        <span style="color:#555;min-width:12px;text-align:right;font-size:.52rem">${i}:</span>
+        <div style="background:${barColors[i]};width:${w}px;height:7px;border-radius:1px;min-width:${c?2:0}px"></div>
+        <span style="color:${i>=4?'#ffa726':'#555'};font-size:.5rem">${c}(${pct}%)</span>
       </div>`;
+    }).join('');
+
+    out.innerHTML = `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="color:#64b5f6;font-size:.55rem;letter-spacing:.06em;margin-bottom:3px">ΠΑΡΑΘΥΡΑ (${TEST_DRAWS} κλ.)</div>
+          <div style="font-family:monospace">${rows}</div>
+        </div>
+        <div>
+          <div style="color:#f5a623;font-size:.55rem;letter-spacing:.06em;margin-bottom:3px">★ ΒΕΛΤΙΣΤΟ N=${bestWin} · ⌀${bestAvg.toFixed(2)} hits</div>
+          <div style="font-family:monospace">${distBars}</div>
+        </div>
+      </div>
+      <div style="color:#3a6a3a;font-size:.52rem;margin-top:3px">↪ Το παράθυρο ενημερώθηκε αυτόματα σε N=${bestWin}</div>`;
   }, 10);
 }
 
