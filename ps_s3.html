@@ -2279,7 +2279,7 @@ function renderPinnedNines(draw) {
   body.innerHTML = html;
 }
 
-function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); revEngAutoTick(); }
+function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); revEngNavTick(); }
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
 
 function msToNextKino() {
@@ -4805,28 +4805,40 @@ function revEngToggleAuto() {
   }
 }
 
+// Shared: evaluate combo against a draw, update evalEl + history
+function _revEngEval(combo, draw) {
+  const evalEl = document.getElementById('revEngAutoEval');
+  const hits = combo.filter(n => draw.n.includes(n)).length;
+  const clr = hits >= 5 ? '#69f0ae' : hits >= 3 ? '#ffd54f' : '#ef9a9a';
+  if (evalEl) {
+    evalEl.style.display = '';
+    evalEl.innerHTML = `<span style="color:#666">Αξιολ. κλήρ. #${draw.id}:</span> `
+      + `<span style="color:${clr};font-weight:700">${hits}/9 hits</span>`
+      + ` <span style="color:#555;font-size:.58rem">[${combo.join(', ')}]</span>`;
+  }
+  if (!_revEngHistory.length || _revEngHistory[0].drawId !== draw.id) {
+    _revEngHistory.unshift({ drawId: draw.id, combo: [...combo], hits });
+    if (_revEngHistory.length > 10) _revEngHistory.pop();
+    renderRevEngHistory();
+  }
+}
+
+// Live mode: evaluate previous prediction against the new draw, then run fresh analysis
 function revEngAutoTick() {
   if (!_revEngAutoMode) return;
-  if (!_revEngOpen) { revEngToggle(); }
-  const evalEl = document.getElementById('revEngAutoEval');
-  if (_revEngLastCombo && kinoIdx >= 0 && kinoDraws && kinoDraws[kinoIdx]) {
-    const d = kinoDraws[kinoIdx];
-    const hits = _revEngLastCombo.filter(n => d.n.includes(n)).length;
-    const clr = hits >= 5 ? '#69f0ae' : hits >= 3 ? '#ffd54f' : '#ef9a9a';
-    if (evalEl) {
-      evalEl.style.display = '';
-      evalEl.innerHTML = `<span style="color:#666">Αξιολ. κλήρ. #${d.id}:</span> `
-        + `<span style="color:${clr};font-weight:700">${hits}/9 hits</span>`
-        + ` <span style="color:#555;font-size:.58rem">[${_revEngLastCombo.join(', ')}]</span>`;
-    }
-    // Record to history (avoid duplicate entries for same draw)
-    if (!_revEngHistory.length || _revEngHistory[0].drawId !== d.id) {
-      _revEngHistory.unshift({ drawId: d.id, combo: [..._revEngLastCombo], hits });
-      if (_revEngHistory.length > 10) _revEngHistory.pop();
-      renderRevEngHistory();
-    }
-  }
+  if (!_revEngOpen) revEngToggle();
+  if (_revEngLastCombo && kinoIdx >= 0 && kinoDraws?.[kinoIdx])
+    _revEngEval(_revEngLastCombo, kinoDraws[kinoIdx]);
   revEngRun();
+}
+
+// Navigation mode: run analysis at current position first, then evaluate against current draw
+function revEngNavTick() {
+  if (!_revEngAutoMode) return;
+  if (!_revEngOpen) revEngToggle();
+  revEngRun(); // uses data up to kinoIdx-1, sets _revEngLastCombo
+  if (_revEngLastCombo && kinoIdx >= 0 && kinoDraws?.[kinoIdx])
+    _revEngEval(_revEngLastCombo, kinoDraws[kinoIdx]);
 }
 
 function renderRevEngHistory() {
