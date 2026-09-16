@@ -409,7 +409,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px;font-size:.56rem">
           <span style="color:#ff8a65;font-weight:bold">■ βγήκε+hot</span>
           <span style="color:#4dd0e1;font-weight:bold">■ βγήκε+cold</span>
-          <span style="color:#ff8a65">■ hot</span>
+          <span style="color:#ff8a65;text-decoration:underline dotted;text-underline-offset:2px">■ hot</span>
           <span style="color:#4dd0e1">■ cold</span>
           <span style="color:#555;font-size:.52rem">(top/bottom 40)</span>
         </div>
@@ -2019,7 +2019,7 @@ function kinoRender() {
     html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">${highLabel} (${hitsHigh.length}):</span>`;
     for (const r of hitsHigh) {
       html += `<div style="margin:3px 0;font-size:.78rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
-        r.combo.map(n => { const d=drawnSet.has(n); const c=hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':d?'#4caf50':'#555'; return `<span style="color:${c};font-weight:${d?'bold':'normal'}">${n}</span>`; }).join(' ') +
+        r.combo.map(n => { const d=drawnSet.has(n),h=hotSet20.has(n),cl=coldSet20.has(n); const c=h?'#ff8a65':cl?'#4dd0e1':d?'#4caf50':'#555'; const dec=(!d&&h)?'underline dotted':'none'; return `<span style="color:${c};font-weight:${d?'bold':'normal'};text-decoration:${dec};text-underline-offset:2px">${n}</span>`; }).join(' ') +
         ` <span style="color:#4caf50">(${r.hits}/${comboSz})</span></div>`;
     }
     html += '</div>';
@@ -2030,7 +2030,7 @@ function kinoRender() {
     const showMid = isC ? hitsMid.slice(0, 5) : hitsMid.slice(0, 8);
     for (const r of showMid) {
       html += `<div style="margin:3px 0;font-size:.75rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
-        r.combo.map(n => { const d=drawnSet.has(n); const c=hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':d?'#ffd700':'#444'; return `<span style="color:${c};font-weight:${d?'bold':'normal'}">${n}</span>`; }).join(' ') +
+        r.combo.map(n => { const d=drawnSet.has(n),h=hotSet20.has(n),cl=coldSet20.has(n); const c=h?'#ff8a65':cl?'#4dd0e1':d?'#ffd700':'#444'; const dec=(!d&&h)?'underline dotted':'none'; return `<span style="color:${c};font-weight:${d?'bold':'normal'};text-decoration:${dec};text-underline-offset:2px">${n}</span>`; }).join(' ') +
         ` <span style="color:#ffd700">(${r.hits}/${comboSz})</span></div>`;
     }
     html += '</div>';
