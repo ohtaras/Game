@@ -641,6 +641,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
           <button id="revEngAutoBtn" onclick="revEngToggleAuto()" style="padding:2px 10px;background:#0d0a1a;border:1px solid #3a2a6a;border-radius:4px;color:#9c7ab8;font-size:.65rem;font-weight:700;cursor:pointer">🔄 Αυτόματο</button>
         </div>
         <div id="revEngAutoEval" style="display:none;font-size:.63rem;color:#666;margin-bottom:4px;padding:3px 6px;background:#0a080f;border:1px solid #1a1530;border-radius:3px"></div>
+        <div id="revEngHistLog" style="display:none;margin-bottom:4px"></div>
         <div id="revEngBackTestOut" style="display:none;font-size:.65rem;padding:4px 8px;margin-bottom:6px;background:#080810;border:1px solid #1a2a4a;border-radius:4px"></div>
         <div id="revEngOut" style="font-size:.7rem;color:#888">Πάτα «Ανάλυσε» για να εκτελεστεί η ανάλυση.</div>
 
@@ -4701,6 +4702,7 @@ let _revEngWin = 100;
 let _revEngOpen = false;
 let _revEngAutoMode = false;
 let _revEngLastCombo = null;
+let _revEngHistory = [];  // [{drawId, combo, hits}] last 10
 
 function revEngInitBtns() {
   const el = document.getElementById('revEngWinBtns');
@@ -4735,6 +4737,8 @@ function revEngToggleAuto() {
   }
   const evalEl = document.getElementById('revEngAutoEval');
   if (evalEl) evalEl.style.display = _revEngAutoMode ? '' : 'none';
+  const histEl = document.getElementById('revEngHistLog');
+  if (histEl) histEl.style.display = (_revEngAutoMode && _revEngHistory.length) ? '' : 'none';
   if (_revEngAutoMode && _revEngOpen) revEngRun();
 }
 
@@ -4750,10 +4754,43 @@ function revEngAutoTick() {
       evalEl.style.display = '';
       evalEl.innerHTML = `<span style="color:#666">Αξιολ. κλήρ. #${d.id}:</span> `
         + `<span style="color:${clr};font-weight:700">${hits}/9 hits</span>`
-        + ` <span style="color:#333;font-size:.58rem">[${_revEngLastCombo.join(', ')}]</span>`;
+        + ` <span style="color:#555;font-size:.58rem">[${_revEngLastCombo.join(', ')}]</span>`;
+    }
+    // Record to history (avoid duplicate entries for same draw)
+    if (!_revEngHistory.length || _revEngHistory[0].drawId !== d.id) {
+      _revEngHistory.unshift({ drawId: d.id, combo: [..._revEngLastCombo], hits });
+      if (_revEngHistory.length > 10) _revEngHistory.pop();
+      renderRevEngHistory();
     }
   }
   revEngRun();
+}
+
+function renderRevEngHistory() {
+  const el = document.getElementById('revEngHistLog');
+  if (!el) return;
+  if (!_revEngHistory.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const rows = _revEngHistory.map((h, i) => {
+    const clr = h.hits >= 5 ? '#69f0ae' : h.hits >= 3 ? '#ffd54f' : '#ef9a9a';
+    const bg  = i === 0 ? '#0d0a14' : '#080610';
+    const nums = h.combo.map(n =>
+      `<span style="display:inline-block;min-width:16px;text-align:center;color:#9c7ab8">${n}</span>`
+    ).join('<span style="color:#222">,</span>');
+    return `<div style="display:flex;align-items:center;gap:6px;padding:2px 6px;background:${bg};border-bottom:1px solid #110e1a;font-size:.6rem">
+      <span style="color:#444;min-width:34px">#${h.drawId}</span>
+      <span style="color:${clr};font-weight:700;min-width:36px">${h.hits}/9</span>
+      <span style="flex:1;line-height:1.6">${nums}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="background:#0a0810;border:1px solid #1a1530;border-radius:3px;overflow:hidden">
+    <div style="display:flex;gap:6px;padding:2px 6px;background:#06040d;font-size:.58rem;color:#333;border-bottom:1px solid #110e1a">
+      <span style="min-width:34px">Κλήρ.</span>
+      <span style="min-width:36px">Hits</span>
+      <span>Πρόταση</span>
+    </div>
+    ${rows}
+  </div>`;
 }
 
 function revEngRun() {
