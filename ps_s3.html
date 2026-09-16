@@ -400,7 +400,12 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 
     <div style="display:flex;gap:6px;margin-bottom:10px;align-items:flex-start">
       <div style="flex:1;min-width:0">
-        <div style="font-size:.62rem;color:#555;margin-bottom:3px">🔵 Τρέχουσα &nbsp;<span style="color:#ffd700">🟡=σύσταση</span></div>
+        <div style="font-size:.62rem;color:#555;margin-bottom:2px">🔵 Τρέχουσα &nbsp;<span style="color:#ffd700">🟡=σύσταση</span></div>
+        <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-bottom:3px">
+          <span style="font-size:.58rem;color:#ff7043">🔥Hot</span><span style="font-size:.58rem;color:#555">/</span><span style="font-size:.58rem;color:#4dd0e1">❄Cold</span>
+          <span style="font-size:.58rem;color:#333">·</span>
+          <div id="kinoHCBtns" style="display:flex;gap:2px;flex-wrap:wrap"></div>
+        </div>
         <div id="kinoNumGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
       </div>
       <div id="kinoNextWrap" style="flex:1;min-width:0;display:none;background:#120c04;border:1px solid #3a2000;border-radius:6px;padding:5px">
@@ -1572,7 +1577,41 @@ let kinoIdx   = -1;
 let kinoLiveMode = true;
 let kinoMode  = '9'; // '9' = εννιάδες, '6' = εξάδες
 let kinoSet       = 'A'; // 'A' = κλασικό, 'C' = Σετ Γ (hot live)
-let kinoHotWindow = 10;  // πλήθος τελευταίων κληρώσεων για hot numbers
+let kinoHotWindow = 10;  // πλήθος τελευταίων κληρώσεων για hot numbers (Σετ Γ)
+let kinoHCWindow  = 10;  // hot/cold overlay window on the main grid
+const KINO_HC_WINS = [5,6,7,8,9,10,15,20];
+
+function kinoInitHCBtns() {
+  const el = document.getElementById('kinoHCBtns');
+  if (!el || el.children.length) return;
+  KINO_HC_WINS.forEach(w => {
+    const b = document.createElement('button');
+    b.id = `kinoHCBtn${w}`;
+    b.textContent = w;
+    b.style.cssText = 'padding:1px 5px;font-size:.58rem;border-radius:3px;border:1px solid #222;background:#0d0d0d;color:#444;cursor:pointer';
+    b.onclick = () => kinoSetHC(w);
+    el.appendChild(b);
+  });
+  kinoUpdateHCBtns();
+}
+
+function kinoSetHC(w) {
+  kinoHCWindow = w;
+  kinoUpdateHCBtns();
+  kinoRender();
+}
+
+function kinoUpdateHCBtns() {
+  KINO_HC_WINS.forEach(w => {
+    const b = document.getElementById(`kinoHCBtn${w}`);
+    if (!b) return;
+    if (w === kinoHCWindow) {
+      b.style.background = '#2a1200'; b.style.borderColor = '#ff7043'; b.style.color = '#ff8a65';
+    } else {
+      b.style.background = '#0d0d0d'; b.style.borderColor = '#222'; b.style.color = '#444';
+    }
+  });
+}
 const kinoIdxRef = { get: () => kinoIdx, set: v => { kinoIdx = v; }, isLive: () => kinoLiveMode };
 
 // ── Utilities ─────────────────────────────────────────────────────────────
@@ -1900,16 +1939,28 @@ function kinoRender() {
     return c;
   }
 
+  // Hot/Cold frequency for main grid overlay
+  kinoInitHCBtns();
+  const hcStart = Math.max(0, kinoIdx - kinoHCWindow);
+  const hcFreq  = new Array(81).fill(0);
+  for (let i = hcStart; i < kinoIdx; i++) kinoDraws[i].n.forEach(x => hcFreq[x]++);
+  const hcRanked = Array.from({length:80}, (_,i) => i+1).sort((a,b) => hcFreq[b]-hcFreq[a]);
+  const hotSet20 = new Set(hcRanked.slice(0, 20));
+  const coldSet20= new Set(hcRanked.slice(60));
+
   const grid = document.getElementById('kinoNumGrid');
   if (grid) {
     grid.innerHTML = '';
     for (let n = 1; n <= 80; n++) {
       const drawn  = drawnSet.has(n);
       const inBest = bestSet.has(n);
+      const hc = hotSet20.has(n) ? 'hot' : coldSet20.has(n) ? 'cold' : null;
       let bg, color, border;
-      if (drawn && inBest) { bg='#1b5e20'; color='#69f0ae'; border='#4caf50'; }
-      else if (drawn)      { bg='#0d47a1'; color='#90caf9'; border='#1565c0'; }
-      else if (inBest)     { bg='#332900'; color='#ffd700'; border='#665000'; }
+      if (drawn && inBest) { bg='#1b5e20'; color='#69f0ae'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#4caf50'; }
+      else if (drawn)      { bg='#0d47a1'; color='#90caf9'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#1565c0'; }
+      else if (inBest)     { bg='#332900'; color='#ffd700'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#665000'; }
+      else if (hc==='hot') { bg='#1f0800'; color='#ff8a65'; border='#5d2000'; }
+      else if (hc==='cold'){ bg='#001520'; color='#4dd0e1'; border='#003a4a'; }
       else                 { bg='#0d1117'; color='#2a2a3a'; border='#111';    }
       grid.appendChild(makeCell(n, bg, color, border, drawn));
     }
@@ -4685,7 +4736,7 @@ function renderLcLive(draw) {
 }
 
 // Αρχικοποίηση buttons όταν φορτωθεί το DOM
-document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); revEngInitBtns(); });
+document.addEventListener('DOMContentLoaded', () => { lcInitButtons(); revEngInitBtns(); kinoInitHCBtns(); });
 
 // ── Block toggle helper ────────────────────────────────────────────────────────
 function kinoToggleBlock(bodyId, chevId) {
