@@ -4796,7 +4796,10 @@ function revEngToggleAuto() {
   if (evalEl) evalEl.style.display = _revEngAutoMode ? '' : 'none';
   const histEl = document.getElementById('revEngHistLog');
   if (histEl) histEl.style.display = (_revEngAutoMode && _revEngHistory.length) ? '' : 'none';
-  if (_revEngAutoMode && _revEngOpen) revEngRun();
+  if (_revEngAutoMode) {
+    if (!_revEngOpen) revEngToggle();
+    revEngRun();
+  }
 }
 
 function revEngAutoTick() {
