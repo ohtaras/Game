@@ -409,9 +409,9 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:3px;font-size:.56rem">
           <span style="color:#ff8a65;font-weight:bold">■ βγήκε+hot</span>
           <span style="color:#4dd0e1;font-weight:bold">■ βγήκε+cold</span>
-          <span style="color:#4caf50;font-weight:bold">■ βγήκε</span>
           <span style="color:#ff8a65">■ hot</span>
           <span style="color:#4dd0e1">■ cold</span>
+          <span style="color:#555;font-size:.52rem">(top/bottom 40)</span>
         </div>
         <div id="kinoNumGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
       </div>
@@ -434,18 +434,21 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
 
     <!-- ── Live Monitor Ιστορικών Εννιάδων ── -->
     <div id="topNinesMonitor" style="margin-top:10px;background:#0d0d1a;border:1px solid #1a1a3a;border-radius:6px;padding:8px 10px;display:none">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer" onclick="kinoToggleBlock('topNinesBodyWrap','topNinesChev')">
         <span style="color:#ce93d8;font-weight:700;font-size:.8rem">🔍 Εννιάδες-Ρεκόρ στην κλήρωση</span>
         <span id="topNinesMonitorInfo" style="color:#555;font-size:.7rem"></span>
-        <span style="margin-left:auto;display:flex;align-items:center;gap:5px;font-size:.68rem;color:#666">
+        <span id="topNinesChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="topNinesBodyWrap" style="display:none;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:5px;font-size:.68rem;color:#666;margin-bottom:6px">
           🔥 Hot από
           <input type="range" id="topNinesHotSlider" min="5" max="50" value="20" step="5"
             style="width:70px;accent-color:#ce93d8"
             oninput="document.getElementById('topNinesHotVal').textContent=this.value;renderTopNinesMonitor(kinoDraws[kinoIdx])">
           <span id="topNinesHotVal">20</span> κλ.
-        </span>
+        </div>
+        <div id="topNinesMonitorBody"></div>
       </div>
-      <div id="topNinesMonitorBody"></div>
     </div>
 
     <!-- ── Σύστημα Κάλυψης Τετράδας ── -->
@@ -1952,8 +1955,8 @@ function kinoRender() {
   const hcFreq  = new Array(81).fill(0);
   for (let i = hcStart; i < kinoIdx; i++) kinoDraws[i].n.forEach(x => hcFreq[x]++);
   const hcRanked = Array.from({length:80}, (_,i) => i+1).sort((a,b) => hcFreq[b]-hcFreq[a]);
-  const hotSet20 = new Set(hcRanked.slice(0, 20));
-  const coldSet20= new Set(hcRanked.slice(60));
+  const hotSet20 = new Set(hcRanked.slice(0, 40));
+  const coldSet20= new Set(hcRanked.slice(40));
 
   const grid = document.getElementById('kinoNumGrid');
   if (grid) {
