@@ -2279,7 +2279,7 @@ function renderPinnedNines(draw) {
   body.innerHTML = html;
 }
 
-function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); }
+function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); revEngAutoTick(); }
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
 
 function msToNextKino() {
