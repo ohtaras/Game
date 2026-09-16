@@ -1954,13 +1954,10 @@ function kinoRender() {
     for (let n = 1; n <= 80; n++) {
       const drawn  = drawnSet.has(n);
       const inBest = bestSet.has(n);
-      const hc = hotSet20.has(n) ? 'hot' : coldSet20.has(n) ? 'cold' : null;
       let bg, color, border;
-      if (drawn && inBest) { bg='#1b5e20'; color='#69f0ae'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#4caf50'; }
-      else if (drawn)      { bg='#0d47a1'; color='#90caf9'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#1565c0'; }
-      else if (inBest)     { bg='#332900'; color='#ffd700'; border=hc==='hot'?'#ff7043':hc==='cold'?'#4dd0e1':'#665000'; }
-      else if (hc==='hot') { bg='#1f0800'; color='#ff8a65'; border='#5d2000'; }
-      else if (hc==='cold'){ bg='#001520'; color='#4dd0e1'; border='#003a4a'; }
+      if (drawn && inBest) { bg='#1b5e20'; color='#69f0ae'; border='#4caf50'; }
+      else if (drawn)      { bg='#0d47a1'; color='#90caf9'; border='#1565c0'; }
+      else if (inBest)     { bg='#332900'; color='#ffd700'; border='#665000'; }
       else                 { bg='#0d1117'; color='#2a2a3a'; border='#111';    }
       grid.appendChild(makeCell(n, bg, color, border, drawn));
     }
@@ -2012,7 +2009,7 @@ function kinoRender() {
     html += `<div style="margin-bottom:8px"><span style="color:#4caf50;font-weight:bold;font-size:.82rem">${highLabel} (${hitsHigh.length}):</span>`;
     for (const r of hitsHigh) {
       html += `<div style="margin:3px 0;font-size:.78rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
-        r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#4caf50':'#555'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
+        r.combo.map(n => { const d=drawnSet.has(n); const c=d?'#4caf50':hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':'#555'; return `<span style="color:${c};font-weight:${d?'bold':'normal'}">${n}</span>`; }).join(' ') +
         ` <span style="color:#4caf50">(${r.hits}/${comboSz})</span></div>`;
     }
     html += '</div>';
@@ -2023,7 +2020,7 @@ function kinoRender() {
     const showMid = isC ? hitsMid.slice(0, 5) : hitsMid.slice(0, 8);
     for (const r of showMid) {
       html += `<div style="margin:3px 0;font-size:.75rem"><span style="color:#555">${label} #${r.idx}:</span> ` +
-        r.combo.map(n => `<span style="color:${drawnSet.has(n)?'#ffd700':'#444'};font-weight:${drawnSet.has(n)?'bold':'normal'}">${n}</span>`).join(' ') +
+        r.combo.map(n => { const d=drawnSet.has(n); const c=d?'#ffd700':hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':'#444'; return `<span style="color:${c};font-weight:${d?'bold':'normal'}">${n}</span>`; }).join(' ') +
         ` <span style="color:#ffd700">(${r.hits}/${comboSz})</span></div>`;
     }
     html += '</div>';
@@ -2043,14 +2040,16 @@ function kinoRender() {
   if (nextDraw) {
     const bestNext  = bestAvail.combo.filter(n => nextSet0.has(n)).length;
     const nextColor = bestNext >= hitHigh ? '#4caf50' : bestNext >= hitMid ? '#ffd700' : '#888';
+    const suggNums = bestAvail.combo.map(n => { const c=hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':'#fff'; return `<span style="color:${c}">${n}</span>`; }).join(' · ');
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
       <div style="color:#9fa8da;font-size:.72rem">▶ Σύσταση για #${nextDraw.id} — <span style="color:${nextColor};font-weight:bold">${bestNext}/${comboSz} hits</span>${availInfo}</div>
-      <div style="font-size:.9rem;font-weight:bold;color:#fff;margin-top:4px">${bestAvail.combo.join(' · ')}</div>
+      <div style="font-size:.9rem;font-weight:bold;margin-top:4px">${suggNums}</div>
     </div>`;
   } else {
+    const suggNums2 = bestAvail.combo.map(n => { const c=hotSet20.has(n)?'#ff8a65':coldSet20.has(n)?'#4dd0e1':'#fff'; return `<span style="color:${c}">${n}</span>`; }).join(' · ');
     html += `<div style="border-top:1px solid #1a2540;padding-top:8px;margin-top:4px">
       <div style="color:#9fa8da;font-size:.72rem">▶ ΠΑΙΞΕ ΕΠΟΜΕΝΗ (${label} #${bestAvail.idx}, ${bestAvail.hits}/${comboSz} τελ. κλ.)${availInfo}</div>
-      <div style="font-size:1rem;font-weight:bold;color:#fff;letter-spacing:.05em;margin-top:3px">${bestAvail.combo.join(' · ')}</div>
+      <div style="font-size:1rem;font-weight:bold;letter-spacing:.05em;margin-top:3px">${suggNums2}</div>
     </div>`;
   }
   panel.innerHTML = html;
