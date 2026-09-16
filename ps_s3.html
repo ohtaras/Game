@@ -4847,10 +4847,11 @@ function renderRevEngHistory() {
     </div>`;
   }).join('');
   el.innerHTML = `<div style="background:#0a0810;border:1px solid #1a1530;border-radius:3px;overflow:hidden">
-    <div style="display:flex;gap:6px;padding:2px 6px;background:#06040d;font-size:.58rem;color:#333;border-bottom:1px solid #110e1a">
+    <div style="display:flex;align-items:center;gap:6px;padding:2px 6px;background:#06040d;font-size:.58rem;color:#333;border-bottom:1px solid #110e1a">
       <span style="min-width:34px">Κλήρ.</span>
       <span style="min-width:36px">Hits</span>
-      <span>Πρόταση</span>
+      <span style="flex:1">Πρόταση</span>
+      <button onclick="_revEngHistory=[];renderRevEngHistory()" style="background:transparent;border:1px solid #1a1530;color:#333;border-radius:3px;padding:0 6px;font-size:.56rem;cursor:pointer;line-height:1.6">✕</button>
     </div>
     ${rows}
   </div>`;
