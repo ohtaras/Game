@@ -422,6 +422,21 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
     <div id="kinoComboHits"></div>
 
+    <!-- ── Πίνακας Αποκλεισμού ── -->
+    <div id="kinoExcludePanel" style="margin-top:8px;background:#090c09;border:1px solid #1a2a1a;border-radius:6px;padding:8px 10px;display:none">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="kinoToggleBlock('kinoExcludeBody','kinoExcludeChev')">
+        <span style="color:#80cbc4;font-weight:700;font-size:.78rem">🔍 Αποκλεισμός εννιάδων — αριθμοί που απομένουν</span>
+        <span id="kinoExcludeInfo" style="color:#555;font-size:.68rem"></span>
+        <span id="kinoExcludeChev" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="kinoExcludeBody" style="margin-top:6px">
+        <div style="font-size:.56rem;color:#444;margin-bottom:4px">
+          Εξαιρούνται οι αριθμοί που ανήκουν σε εννιάδες με <span style="color:#4caf50">5+</span> ή <span style="color:#ffd700">4</span> επιτυχίες
+        </div>
+        <div id="kinoExcludeGrid" style="display:grid;grid-template-columns:repeat(10,1fr);gap:2px"></div>
+      </div>
+    </div>
+
     <!-- ── Καρφιτσωμένες Εννιάδες (πάντα ορατές) ── -->
     <div id="pinnedNinesPanel" style="margin-top:10px;display:none">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -2063,6 +2078,40 @@ function kinoRender() {
     </div>`;
   }
   panel.innerHTML = html;
+
+  // ── Πίνακας Αποκλεισμού ──────────────────────────────────────
+  const excludePanel = document.getElementById('kinoExcludePanel');
+  const excludeGrid  = document.getElementById('kinoExcludeGrid');
+  const excludeInfo  = document.getElementById('kinoExcludeInfo');
+  if (excludePanel && excludeGrid && (hitsHigh.length || hitsMid.length)) {
+    excludePanel.style.display = '';
+    const excludedNums = new Set();
+    [...hitsHigh, ...hitsMid].forEach(r => r.combo.forEach(n => excludedNums.add(n)));
+    const remaining = 80 - excludedNums.size;
+    if (excludeInfo) excludeInfo.textContent = `Απομένουν: ${remaining}/80 · Εξαιρούνται: ${excludedNums.size}`;
+    excludeGrid.innerHTML = '';
+    for (let n = 1; n <= 80; n++) {
+      const excl  = excludedNums.has(n);
+      const drawn = drawnSet.has(n);
+      const hot   = hotSet20.has(n);
+      const cold  = coldSet20.has(n);
+      const c = document.createElement('div');
+      let bg, color, border, fw;
+      if (excl) {
+        bg = '#050505'; color = '#1a1a1a'; border = '#0d0d0d'; fw = 'normal';
+      } else if (drawn && hot)  { bg='#2a1400'; color='#ff8a65'; border='#ff7043'; fw='bold'; }
+      else if (drawn && cold)  { bg='#001a1a'; color='#4dd0e1'; border='#00acc1'; fw='bold'; }
+      else if (drawn)          { bg='#0d2a0d'; color='#69f0ae'; border='#2e7d32'; fw='bold'; }
+      else if (hot)            { bg='#1a0d00'; color='#ff8a65'; border='#6d3a00'; fw='normal'; }
+      else if (cold)           { bg='#00101a'; color='#4dd0e1'; border='#00515f'; fw='normal'; }
+      else                     { bg='#0a1a12'; color='#2e6b4a'; border='#142e22'; fw='normal'; }
+      c.style.cssText = `text-align:center;border-radius:3px;padding:3px 1px;font-size:.62rem;font-weight:${fw};background:${bg};color:${color};border:1px solid ${border}`;
+      c.textContent = excl ? '' : n;
+      excludeGrid.appendChild(c);
+    }
+  } else if (excludePanel) {
+    excludePanel.style.display = 'none';
+  }
 
   document.getElementById('kinoPrevBtn').disabled = kinoIdx <= 0;
   document.getElementById('kinoNextBtn').disabled = kinoIdx >= kinoDraws.length - 1;
