@@ -4023,6 +4023,15 @@ function renderHot() {
         if (!coldSet.has(v) && !negDevSet.has(v) && !last20Set.has(v)) remaining.push(v);
       }
 
+      // O/U 12.5 από τους αριθμούς που απομένουν (χωρίς σύμβολα)
+      const remNums = remaining.filter(v => v <= 24);
+      const overCnt  = remNums.filter(v => v >= 13).length;
+      const underCnt = remNums.filter(v => v <= 12).length;
+      let ouLabel = '', ouColor = '';
+      if (overCnt > underCnt)       { ouLabel = `O ${overCnt}`;  ouColor = '#ef6c00'; }
+      else if (underCnt > overCnt)  { ouLabel = `U ${underCnt}`; ouColor = '#1e88e5'; }
+      else if (remNums.length > 0)  { ouLabel = `O=U ${overCnt}`; ouColor = '#888'; }
+
       const chips = remaining.map(v => {
         const isRed = prevNegDevSet.has(v);
         const color  = isRed ? '#ef5350' : '#80cbc4';
@@ -4038,6 +4047,7 @@ function renderHot() {
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
           <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 Τροχός 1 — Απομένουν</span>
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
+          ${ouLabel ? `<span style="font-size:.75rem;font-weight:900;color:${ouColor};letter-spacing:.04em">${ouLabel}</span>` : ''}
           <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
             <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλιση &lt; 0</button>
             <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">τελ.</button>
