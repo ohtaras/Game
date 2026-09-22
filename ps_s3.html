@@ -3989,7 +3989,7 @@ function renderHot() {
       </div>
     </div>`;
 
-    if (wi === 0) {
+    if (wi === 0 && pool.length > 0) {
       // Αριθμοί από τις τελευταίες N κληρώσεις
       const last20Set = psFilterUseLast
         ? new Set(visibleDraws.slice(-psFilterLastN).map(d => d.w[0]))
