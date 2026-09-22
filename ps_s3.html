@@ -3909,6 +3909,7 @@ function renderHot() {
 
   let html = '';
   let filterHtml = '';
+  const remainingByWheel = [[], [], []];
   const wheelNames = ['Τροχός 1', 'Τροχός 2', 'Τροχός 3'];
   const wheelColors = ['#ff8a65', '#ffb74d', '#fff176'];
 
@@ -4046,6 +4047,7 @@ function renderHot() {
       for (let v = 1; v <= 27; v++) {
         if (!coldSet.has(v) && !negDevSet.has(v) && !lastNSet.has(v)) remaining.push(v);
       }
+      remainingByWheel[wi] = remaining;
 
       // O/U 12.5 από τους αριθμούς που απομένουν (χωρίς σύμβολα)
       const remNums = remaining.filter(v => v <= 24);
@@ -4116,6 +4118,32 @@ function renderHot() {
         </div>
         <div style="font-size:.58rem;color:#444;margin-bottom:2px">${infoText}</div>
         ${filterHtml}
+        ${(() => {
+          const SYM = { 25:'★', 26:'♦', 27:'✦' };
+          const nextDraw = cutIdx + 1 < dayDraws.length ? dayDraws[cutIdx + 1] : null;
+          if (!nextDraw || remainingByWheel[0].length === 0) return '';
+          const lbl = v => SYM[v] || String(v);
+          const r0 = new Set(remainingByWheel[0]);
+          const r1 = new Set(remainingByWheel[1]);
+          const r2 = new Set(remainingByWheel[2]);
+          const v0 = nextDraw.w[0], v1 = nextDraw.w[1], v2 = nextDraw.w[2];
+          const h0 = r0.has(v0), h1 = r1.has(v1), h2 = r2.has(v2);
+          const chip = (v, hit) => `<span style="display:inline-block;background:${hit?'rgba(102,187,106,.18)':'rgba(239,83,80,.15)'};color:${hit?'#66bb6a':'#ef5350'};border:1px solid ${hit?'#388e3c':'#b71c1c'};border-radius:4px;padding:1px 7px;font-size:.74rem;font-weight:700">${lbl(v)}</span>`;
+          const row = (label, hits, vals) => {
+            const allHit = hits.every(Boolean);
+            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #111">
+              <span style="font-size:.63rem;color:#555;min-width:70px">${label}</span>
+              <span style="display:flex;gap:4px">${vals.map((v,i) => chip(v, hits[i])).join('')}</span>
+              <span style="font-size:.72rem;font-weight:900;color:${allHit?'#66bb6a':'#ef5350'};margin-left:auto">${allHit?'✓':'✗'}</span>
+            </div>`;
+          };
+          return `<div style="margin-top:4px;padding:6px 8px;background:#060910;border:1px solid #1a1a2e;border-radius:6px">
+            <div style="font-size:.68rem;color:#80cbc4;font-weight:700;margin-bottom:5px">📊 Αξιολόγηση επόμενης κλήρωσης</div>
+            ${row('Τροχός 1', [h0], [v0])}
+            ${row('Τροχός 1+2', [h0,h1], [v0,v1])}
+            ${row('Τροχός 1+2+3', [h0,h1,h2], [v0,v1,v2])}
+          </div>`;
+        })()}
       </div>
     </div>`;
   }
