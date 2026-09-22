@@ -3972,6 +3972,59 @@ function renderHot() {
         </table>
       </div>
     </div>`;
+
+    if (wi === 0) {
+      // Αριθμοί από τις 20 τελευταίες κληρώσεις
+      const last20Set = new Set(visibleDraws.slice(-20).map(d => d.w[0]));
+
+      // Αρνητική απόκλιση στο τρέχον παράθυρο
+      const negDevSet = new Set();
+      for (const { v, c } of counts) {
+        if (v <= 24 && (c - expectedAll) < 0) negDevSet.add(v);
+      }
+
+      // Αρνητική απόκλιση της ΠΡΟΗΓΟΥΜΕΝΗΣ ημέρας
+      const prevDayStr = getCmpDayStr(hotDayOffset + 1);
+      const prevDayDraws = psDraws
+        .filter(d => d.d === prevDayStr && d.w && d.w.every(v => v >= 1 && v <= 27))
+        .sort((a, b) => a.m - b.m);
+      const prevCnt = {};
+      for (let v = 1; v <= 27; v++) prevCnt[v] = 0;
+      for (const d of prevDayDraws) { const pv = d.w[0]; if (pv >= 1 && pv <= 27) prevCnt[pv]++; }
+      const prevExpected = prevDayDraws.length > 0 ? prevDayDraws.length / 27 : 0;
+      const prevNegDevSet = new Set();
+      for (let v = 1; v <= 24; v++) {
+        if (prevCnt[v] - prevExpected < 0) prevNegDevSet.add(v);
+      }
+
+      // Αριθμοί που απομένουν (1-24, εξαιρούνται ψυχρά, αρν. απόκλιση, τελ.20)
+      const remaining = [];
+      for (let v = 1; v <= 24; v++) {
+        if (!coldSet.has(v) && !negDevSet.has(v) && !last20Set.has(v)) remaining.push(v);
+      }
+
+      const chips = remaining.map(v => {
+        const isRed = prevNegDevSet.has(v);
+        const color  = isRed ? '#ef5350' : '#80cbc4';
+        const border = isRed ? '#b71c1c' : '#26a69a';
+        const bg     = isRed ? 'rgba(239,83,80,.13)' : 'rgba(38,166,154,.10)';
+        return `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums">${v}</span>`;
+      }).join('');
+
+      html += `<div style="margin-top:8px;background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
+        <div style="font-size:.73rem;color:#80cbc4;font-weight:700;margin-bottom:5px">
+          🎯 Τροχός 1 — Αριθμοί που απομένουν
+          <span style="color:#555;font-weight:400;margin-left:6px;font-size:.67rem">${remaining.length} / 24</span>
+        </div>
+        <div style="font-size:.58rem;color:#555;margin-bottom:6px">
+          Εξαιρούνται: ❄️ ψυχρά · απόκλιση &lt; 0 · τελευταίες 20 κλ.
+          ${prevDayDraws.length > 0 ? `&nbsp;·&nbsp;<span style="color:#ef5350">κόκκινο = μείον απόκλιση χθες (${prevDayStr})</span>` : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${chips || '<span style="color:#555;font-size:.7rem">Κανένας αριθμός</span>'}
+        </div>
+      </div>`;
+    }
   }
 
   container.innerHTML = html;
