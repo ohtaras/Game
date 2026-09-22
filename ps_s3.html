@@ -3800,7 +3800,23 @@ let hotDrawCutoff = null; // null = όλες, αριθμός = δείκτης τ
 let psFilterUseLast = true;
 let psFilterLastN   = 20;
 let psFilterNegDev  = true;
+let hotWheelOpen    = [true, false, false];
+let hotFilterOpen   = true;
 
+function toggleHotWheel(wi) {
+  hotWheelOpen[wi] = !hotWheelOpen[wi];
+  const body = document.getElementById('hotWheelBody' + wi);
+  const chev = document.getElementById('hotWheelChev' + wi);
+  if (body) body.style.display = hotWheelOpen[wi] ? '' : 'none';
+  if (chev) chev.textContent = hotWheelOpen[wi] ? '▲' : '▼';
+}
+function toggleHotFilter() {
+  hotFilterOpen = !hotFilterOpen;
+  const body = document.getElementById('hotFilterBody');
+  const chev = document.getElementById('hotFilterChev');
+  if (body) body.style.display = hotFilterOpen ? 'flex' : 'none';
+  if (chev) chev.textContent = hotFilterOpen ? '▲' : '▼';
+}
 function togglePsFilterLast() {
   psFilterUseLast = !psFilterUseLast;
   renderHot();
@@ -3918,7 +3934,11 @@ function renderHot() {
     const coldSet = new Set(sorted.slice(-5).map(x => x.v));
 
     html += `<div class="hot-wheel-card">
-      <div class="hot-wheel-title" style="color:${wheelColors[wi]}">${wheelNames[wi]}</div>
+      <div class="hot-wheel-title" style="color:${wheelColors[wi]};cursor:pointer;display:flex;align-items:center" onclick="toggleHotWheel(${wi})">
+        ${wheelNames[wi]}
+        <span id="hotWheelChev${wi}" style="font-size:.65rem;color:#555;margin-left:auto">${hotWheelOpen[wi] ? '▲' : '▼'}</span>
+      </div>
+      <div id="hotWheelBody${wi}" style="display:${hotWheelOpen[wi] ? '' : 'none'}">
       <div class="hot-grid">`;
 
     for (const { v, c } of counts) {
@@ -3987,6 +4007,7 @@ function renderHot() {
             }).join('')}
           </tbody>
         </table>
+      </div>
       </div>
     </div>`;
 
@@ -4068,7 +4089,15 @@ function renderHot() {
   }
 
   if (filterHtml) {
-    html += `<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">${filterHtml}</div>`;
+    html += `<div style="background:#090c12;border:1px solid #1a1a2e;border-radius:8px;overflow:hidden">
+      <div onclick="toggleHotFilter()" style="cursor:pointer;display:flex;align-items:center;padding:8px 10px;gap:6px">
+        <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 Αριθμοί που απομένουν</span>
+        <span id="hotFilterChev" style="font-size:.65rem;color:#555;margin-left:auto">${hotFilterOpen ? '▲' : '▼'}</span>
+      </div>
+      <div id="hotFilterBody" style="display:${hotFilterOpen ? 'flex' : 'none'};flex-direction:column;gap:6px;padding:0 6px 8px">
+        ${filterHtml}
+      </div>
+    </div>`;
   }
   container.innerHTML = html;
 }
