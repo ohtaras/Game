@@ -3829,6 +3829,12 @@ function setPsFilterLastN(val) {
   const n = parseInt(val, 10);
   if (!isNaN(n) && n > 0) { psFilterLastN = n; renderHot(); }
 }
+let psFilterW2 = false, psFilterW2N = 20;
+let psFilterW3 = false, psFilterW3N = 20;
+function togglePsFilterW2() { psFilterW2 = !psFilterW2; renderHot(); }
+function togglePsFilterW3() { psFilterW3 = !psFilterW3; renderHot(); }
+function setPsFilterW2N(v) { const n=parseInt(v,10); if(!isNaN(n)&&n>0){psFilterW2N=n;renderHot();} }
+function setPsFilterW3N(v) { const n=parseInt(v,10); if(!isNaN(n)&&n>0){psFilterW3N=n;renderHot();} }
 
 function setHotWindow(n) {
   hotWindow = n;
@@ -4042,10 +4048,18 @@ function renderHot() {
         if (prevCnt[v] - prevExpected < 0) prevNegDevSet.add(v);
       }
 
+      // Τελευταίες κληρώσεις Τροχός 2 και 3 (μόνο για Τροχός 1)
+      const lastW2Set = (wi === 0 && psFilterW2)
+        ? new Set(visibleDraws.slice(-psFilterW2N).map(d => d.w[1]))
+        : new Set();
+      const lastW3Set = (wi === 0 && psFilterW3)
+        ? new Set(visibleDraws.slice(-psFilterW3N).map(d => d.w[2]))
+        : new Set();
+
       // Αριθμοί + σύμβολα που απομένουν (1-27, εξαιρούνται ψυχρά, αρν. απόκλιση, τελ.N)
       const remaining = [];
       for (let v = 1; v <= 27; v++) {
-        if (!coldSet.has(v) && !negDevSet.has(v) && !lastNSet.has(v)) remaining.push(v);
+        if (!coldSet.has(v) && !negDevSet.has(v) && !lastNSet.has(v) && !lastW2Set.has(v) && !lastW3Set.has(v)) remaining.push(v);
       }
       remainingByWheel[wi] = remaining;
 
@@ -4075,12 +4089,17 @@ function renderHot() {
           <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 ${wheelNames[wi]} — Απομένουν</span>
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
           ${ouLabel ? `<span style="font-size:.75rem;font-weight:900;color:${ouColor};letter-spacing:.04em">${ouLabel}</span>` : ''}
-          ${showControls ? `<span style="margin-left:auto;display:flex;align-items:center;gap:5px">
-            <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλιση &lt; 0</button>
-            <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">τελ.</button>
-            <input type="number" min="1" max="999" value="${psFilterLastN}"
-              onchange="setPsFilterLastN(this.value)"
-              style="width:38px;background:#111;color:${psFilterUseLast?'#80cbc4':'#333'};border:1px solid ${psFilterUseLast?'#26a69a':'#222'};border-radius:4px;padding:2px 4px;font-size:.68rem;text-align:center">
+          ${showControls ? `<span style="margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+            <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλ.&lt;0</button>
+            <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">Τρ1 τελ.</button>
+            <input type="number" min="1" max="999" value="${psFilterLastN}" onchange="setPsFilterLastN(this.value)"
+              style="width:34px;background:#111;color:${psFilterUseLast?'#80cbc4':'#333'};border:1px solid ${psFilterUseLast?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <button onclick="togglePsFilterW2()" style="${psFilterW2 ? btnOn : btnOff}">Τρ2 τελ.</button>
+            <input type="number" min="1" max="999" value="${psFilterW2N}" onchange="setPsFilterW2N(this.value)"
+              style="width:34px;background:#111;color:${psFilterW2?'#80cbc4':'#333'};border:1px solid ${psFilterW2?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <button onclick="togglePsFilterW3()" style="${psFilterW3 ? btnOn : btnOff}">Τρ3 τελ.</button>
+            <input type="number" min="1" max="999" value="${psFilterW3N}" onchange="setPsFilterW3N(this.value)"
+              style="width:34px;background:#111;color:${psFilterW3?'#80cbc4':'#333'};border:1px solid ${psFilterW3?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
             <span style="font-size:.63rem;color:#444">κλ.</span>
           </span>` : ''}
         </div>
