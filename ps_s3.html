@@ -3989,10 +3989,10 @@ function renderHot() {
       </div>
     </div>`;
 
-    if (wi === 0 && pool.length > 0) {
+    if (pool.length > 0) {
       // Αριθμοί από τις τελευταίες N κληρώσεις
-      const last20Set = psFilterUseLast
-        ? new Set(visibleDraws.slice(-psFilterLastN).map(d => d.w[0]))
+      const lastNSet = psFilterUseLast
+        ? new Set(visibleDraws.slice(-psFilterLastN).map(d => d.w[wi]))
         : new Set();
 
       // Αρνητική απόκλιση στο τρέχον παράθυρο
@@ -4010,7 +4010,7 @@ function renderHot() {
         .sort((a, b) => a.m - b.m);
       const prevCnt = {};
       for (let v = 1; v <= 27; v++) prevCnt[v] = 0;
-      for (const d of prevDayDraws) { const pv = d.w[0]; if (pv >= 1 && pv <= 27) prevCnt[pv]++; }
+      for (const d of prevDayDraws) { const pv = d.w[wi]; if (pv >= 1 && pv <= 27) prevCnt[pv]++; }
       const prevExpected = prevDayDraws.length > 0 ? prevDayDraws.length / 27 : 0;
       const prevNegDevSet = new Set();
       for (let v = 1; v <= 27; v++) {
@@ -4020,7 +4020,7 @@ function renderHot() {
       // Αριθμοί + σύμβολα που απομένουν (1-27, εξαιρούνται ψυχρά, αρν. απόκλιση, τελ.N)
       const remaining = [];
       for (let v = 1; v <= 27; v++) {
-        if (!coldSet.has(v) && !negDevSet.has(v) && !last20Set.has(v)) remaining.push(v);
+        if (!coldSet.has(v) && !negDevSet.has(v) && !lastNSet.has(v)) remaining.push(v);
       }
 
       // O/U 12.5 από τους αριθμούς που απομένουν (χωρίς σύμβολα)
@@ -4043,19 +4043,20 @@ function renderHot() {
 
       const btnOn  = 'background:#1a2e1a;color:#80cbc4;border:1px solid #26a69a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
       const btnOff = 'background:#1a1a1a;color:#444;border:1px solid #2a2a2a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
+      const showControls = wi === 0;
       html += `<div style="margin-top:8px;background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
-          <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 Τροχός 1 — Απομένουν</span>
+          <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 ${wheelNames[wi]} — Απομένουν</span>
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
           ${ouLabel ? `<span style="font-size:.75rem;font-weight:900;color:${ouColor};letter-spacing:.04em">${ouLabel}</span>` : ''}
-          <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
+          ${showControls ? `<span style="margin-left:auto;display:flex;align-items:center;gap:5px">
             <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλιση &lt; 0</button>
             <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">τελ.</button>
             <input type="number" min="1" max="999" value="${psFilterLastN}"
               onchange="setPsFilterLastN(this.value)"
               style="width:38px;background:#111;color:${psFilterUseLast?'#80cbc4':'#333'};border:1px solid ${psFilterUseLast?'#26a69a':'#222'};border-radius:4px;padding:2px 4px;font-size:.68rem;text-align:center">
             <span style="font-size:.63rem;color:#444">κλ.</span>
-          </span>
+          </span>` : ''}
         </div>
         ${prevDayDraws.length > 0 ? `<div style="font-size:.58rem;color:#555;margin-bottom:5px"><span style="color:#ef5350">■</span> μείον απόκλιση χθες (${prevDayStr})</div>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:4px">
