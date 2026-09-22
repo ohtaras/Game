@@ -3999,7 +3999,7 @@ function renderHot() {
       const negDevSet = new Set();
       if (psFilterNegDev) {
         for (const { v, c } of counts) {
-          if (v <= 24 && (c - expectedAll) < 0) negDevSet.add(v);
+          if ((c - expectedAll) < 0) negDevSet.add(v);
         }
       }
 
@@ -4013,13 +4013,13 @@ function renderHot() {
       for (const d of prevDayDraws) { const pv = d.w[0]; if (pv >= 1 && pv <= 27) prevCnt[pv]++; }
       const prevExpected = prevDayDraws.length > 0 ? prevDayDraws.length / 27 : 0;
       const prevNegDevSet = new Set();
-      for (let v = 1; v <= 24; v++) {
+      for (let v = 1; v <= 27; v++) {
         if (prevCnt[v] - prevExpected < 0) prevNegDevSet.add(v);
       }
 
-      // Αριθμοί που απομένουν (1-24, εξαιρούνται ψυχρά, αρν. απόκλιση, τελ.20)
+      // Αριθμοί + σύμβολα που απομένουν (1-27, εξαιρούνται ψυχρά, αρν. απόκλιση, τελ.N)
       const remaining = [];
-      for (let v = 1; v <= 24; v++) {
+      for (let v = 1; v <= 27; v++) {
         if (!coldSet.has(v) && !negDevSet.has(v) && !last20Set.has(v)) remaining.push(v);
       }
 
@@ -4028,7 +4028,8 @@ function renderHot() {
         const color  = isRed ? '#ef5350' : '#80cbc4';
         const border = isRed ? '#b71c1c' : '#26a69a';
         const bg     = isRed ? 'rgba(239,83,80,.13)' : 'rgba(38,166,154,.10)';
-        return `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums">${v}</span>`;
+        const lbl    = SYM_MAP[v] || String(v);
+        return `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:700">${lbl}</span>`;
       }).join('');
 
       const btnOn  = 'background:#1a2e1a;color:#80cbc4;border:1px solid #26a69a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
@@ -4036,7 +4037,7 @@ function renderHot() {
       html += `<div style="margin-top:8px;background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
           <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 Τροχός 1 — Απομένουν</span>
-          <span style="color:#555;font-size:.67rem">${remaining.length} / 24</span>
+          <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
           <span style="margin-left:auto;display:flex;align-items:center;gap:5px">
             <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλιση &lt; 0</button>
             <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">τελ.</button>
