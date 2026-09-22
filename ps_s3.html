@@ -3890,6 +3890,7 @@ function renderHot() {
   const expected = pool.length > 0 ? pool.length / 24 : 0; // αναμενόμενος αριθμός εμφανίσεων
 
   let html = '';
+  let filterHtml = '';
   const wheelNames = ['Τροχός 1', 'Τροχός 2', 'Τροχός 3'];
   const wheelColors = ['#ff8a65', '#ffb74d', '#fff176'];
 
@@ -4044,7 +4045,7 @@ function renderHot() {
       const btnOn  = 'background:#1a2e1a;color:#80cbc4;border:1px solid #26a69a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
       const btnOff = 'background:#1a1a1a;color:#444;border:1px solid #2a2a2a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
       const showControls = wi === 0;
-      html += `<div style="margin-top:8px;background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
+      filterHtml += `<div style="background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
         <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
           <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 ${wheelNames[wi]} — Απομένουν</span>
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
@@ -4066,6 +4067,9 @@ function renderHot() {
     }
   }
 
+  if (filterHtml) {
+    html += `<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">${filterHtml}</div>`;
+  }
   container.innerHTML = html;
 }
 
