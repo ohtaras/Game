@@ -3881,18 +3881,20 @@ function renderHot() {
   const lastDraw = visibleDraws.length > 0 ? visibleDraws[visibleDraws.length - 1] : null;
 
   // Labels
-  const dayLbl = document.getElementById('hotDayLabel');
-  if (dayLbl) dayLbl.textContent = isLiveDay ? '🟢 Σήμερα' : dayStr;
-  const drawLbl = document.getElementById('hotDrawLabel');
-  if (drawLbl) drawLbl.textContent = dayDraws.length > 0
-    ? `${cutIdx + 1} / ${dayDraws.length}`
-    : '—';
-  const livBtn = document.getElementById('hotLiveBtn');
-  if (livBtn) livBtn.style.opacity = isLiveDay && hotDrawCutoff === null ? '1' : '0.4';
-
-  const info = document.getElementById('hotInfo');
+  const dayLblText  = isLiveDay ? '🟢 Σήμερα' : dayStr;
+  const drawLblText = dayDraws.length > 0 ? `${cutIdx + 1} / ${dayDraws.length}` : '—';
+  const liveOpacity = isLiveDay && hotDrawCutoff === null ? '1' : '0.4';
   const nowStr = new Date().toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  if (info) info.textContent = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} στο παράθυρο · ${dayStr} · ανανέωση ${nowStr}`;
+  const infoText = `${pool.length} κλήρωση${pool.length !== 1 ? 'εις' : ''} στο παράθυρο · ${dayStr} · ${nowStr}`;
+
+  const dayLbl = document.getElementById('hotDayLabel');
+  if (dayLbl) dayLbl.textContent = dayLblText;
+  const drawLbl = document.getElementById('hotDrawLabel');
+  if (drawLbl) drawLbl.textContent = drawLblText;
+  const livBtn = document.getElementById('hotLiveBtn');
+  if (livBtn) livBtn.style.opacity = liveOpacity;
+  const info = document.getElementById('hotInfo');
+  if (info) info.textContent = infoText;
 
   const container = document.getElementById('hotCharts');
   if (!container) return;
@@ -4089,12 +4091,30 @@ function renderHot() {
   }
 
   if (filterHtml) {
+    const nb = 'background:#0d1a0d;color:#aaa;border:1px solid #1a2a1a;border-radius:4px;padding:2px 7px;font-size:.68rem;cursor:pointer';
+    const wb = (n) => `background:${hotWindow===n?'#1a3a1a':'#0a0a0a'};color:${hotWindow===n?'#80cbc4':'#444'};border:1px solid ${hotWindow===n?'#26a69a':'#1a1a1a'};border-radius:4px;padding:2px 6px;font-size:.65rem;cursor:pointer`;
     html += `<div style="background:#090c12;border:1px solid #1a1a2e;border-radius:8px;overflow:hidden">
       <div onclick="toggleHotFilter()" style="cursor:pointer;display:flex;align-items:center;padding:8px 10px;gap:6px">
         <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 Αριθμοί που απομένουν</span>
         <span id="hotFilterChev" style="font-size:.65rem;color:#555;margin-left:auto">${hotFilterOpen ? '▲' : '▼'}</span>
       </div>
-      <div id="hotFilterBody" style="display:${hotFilterOpen ? 'flex' : 'none'};flex-direction:column;gap:6px;padding:0 6px 8px">
+      <div id="hotFilterBody" style="display:${hotFilterOpen ? 'flex' : 'none'};flex-direction:column;gap:6px;padding:0 8px 8px">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 0;border-bottom:1px solid #1a1a2e;margin-bottom:2px">
+          <button style="${nb}" onclick="hotNavDay(+1)">◀ Μέρα</button>
+          <span style="font-size:.72rem;color:#ccc;min-width:82px;text-align:center">${dayLblText}</span>
+          <button style="${nb}" onclick="hotNavDay(-1)">Μέρα ▶</button>
+          <button style="${nb};color:#4caf50;border-color:#2e7d32;opacity:${liveOpacity}" onclick="hotGoLive()">● Live</button>
+          <span style="color:#333;margin:0 2px">|</span>
+          <button style="${nb}" onclick="hotNavDraw(-1)">◀ Κλ.</button>
+          <span style="font-size:.68rem;color:#888;min-width:60px;text-align:center">${drawLblText}</span>
+          <button style="${nb}" onclick="hotNavDraw(+1)">Κλ. ▶</button>
+          <span style="color:#333;margin:0 2px">|</span>
+          <button style="${wb(10)}" onclick="setHotWindow(10)">10</button>
+          <button style="${wb(20)}" onclick="setHotWindow(20)">20</button>
+          <button style="${wb(50)}" onclick="setHotWindow(50)">50</button>
+          <button style="${wb(0)}"  onclick="setHotWindow(0)">Όλες</button>
+        </div>
+        <div style="font-size:.58rem;color:#444;margin-bottom:2px">${infoText}</div>
         ${filterHtml}
       </div>
     </div>`;
