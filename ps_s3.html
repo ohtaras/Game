@@ -3800,6 +3800,7 @@ let hotDrawCutoff = null; // null = όλες, αριθμός = δείκτης τ
 let psFilterUseLast = true;
 let psFilterLastN   = 20;
 let psFilterNegDev  = true;
+let psFilterColdX   = 3;
 let hotWheelOpen    = [true, false, false];
 let hotFilterOpen   = true;
 
@@ -3824,6 +3825,10 @@ function togglePsFilterLast() {
 function togglePsFilterNegDev() {
   psFilterNegDev = !psFilterNegDev;
   renderHot();
+}
+function setPsFilterColdX(val) {
+  const n = parseInt(val, 10);
+  if (!isNaN(n) && n >= 0) { psFilterColdX = n; renderHot(); }
 }
 function setPsFilterLastN(val) {
   const n = parseInt(val, 10);
@@ -4026,13 +4031,10 @@ function renderHot() {
         ? new Set(visibleDraws.slice(-psFilterLastN).map(d => d.w[wi]))
         : new Set();
 
-      // Αρνητική απόκλιση στο τρέχον παράθυρο
-      const negDevSet = new Set();
-      if (psFilterNegDev) {
-        for (const { v, c } of counts) {
-          if ((c - expectedAll) < 0) negDevSet.add(v);
-        }
-      }
+      // Bottom-X ψυχροί από τη λίστα συχνότητας
+      const negDevSet = psFilterNegDev && psFilterColdX > 0
+        ? new Set(sorted.slice(-psFilterColdX).map(x => x.v))
+        : new Set();
 
       // Αρνητική απόκλιση της ΠΡΟΗΓΟΥΜΕΝΗΣ ημέρας
       const prevDayStr = getCmpDayStr(hotDayOffset + 1);
@@ -4090,7 +4092,9 @@ function renderHot() {
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
           ${ouLabel ? `<span style="font-size:.75rem;font-weight:900;color:${ouColor};letter-spacing:.04em">${ouLabel}</span>` : ''}
           ${showControls ? `<span style="margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-            <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">απόκλ.&lt;0</button>
+            <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">κρύοι τελ.</button>
+            <input type="number" min="0" max="27" value="${psFilterColdX}" onchange="setPsFilterColdX(this.value)"
+              style="width:34px;background:#111;color:${psFilterNegDev?'#80cbc4':'#333'};border:1px solid ${psFilterNegDev?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
             <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">Τρ1 τελ.</button>
             <input type="number" min="1" max="999" value="${psFilterLastN}" onchange="setPsFilterLastN(this.value)"
               style="width:34px;background:#111;color:${psFilterUseLast?'#80cbc4':'#333'};border:1px solid ${psFilterUseLast?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
