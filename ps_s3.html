@@ -3830,6 +3830,25 @@ function setPsFilterColdX(val) {
   const n = parseInt(val, 10);
   if (!isNaN(n) && n >= 0) { psFilterColdX = n; renderHot(); }
 }
+function showHotHelp(e, text) {
+  e.stopPropagation();
+  let pop = document.getElementById('hotHelpPopup');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'hotHelpPopup';
+    pop.style.cssText = 'position:fixed;z-index:9999;max-width:270px;background:#12172a;border:1px solid #26a69a;border-radius:7px;padding:9px 12px;font-size:.7rem;color:#ccc;line-height:1.6;box-shadow:0 6px 24px #0009';
+    document.body.appendChild(pop);
+    document.addEventListener('click', () => { if(pop) pop.style.display='none'; });
+  }
+  pop.innerHTML = text;
+  pop.style.display = 'block';
+  const r = e.target.getBoundingClientRect();
+  const left = Math.min(r.left, window.innerWidth - 285);
+  const top  = r.bottom + 6 + window.scrollY;
+  pop.style.left = left + 'px';
+  pop.style.top  = top + 'px';
+  pop.style.position = 'absolute';
+}
 function setPsFilterLastN(val) {
   const n = parseInt(val, 10);
   if (!isNaN(n) && n > 0) { psFilterLastN = n; renderHot(); }
@@ -4095,19 +4114,27 @@ function renderHot() {
             <button onclick="togglePsFilterNegDev()" style="${psFilterNegDev ? btnOn : btnOff}">κρύοι τελ.</button>
             <input type="number" min="0" max="27" value="${psFilterColdX}" onchange="setPsFilterColdX(this.value)"
               style="width:34px;background:#111;color:${psFilterNegDev?'#80cbc4':'#333'};border:1px solid ${psFilterNegDev?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <span onclick="showHotHelp(event,'<b>❄️ Κρύοι τελευταίοι X</b><br>Εξαιρεί τους X αριθμούς/σύμβολα με τις <u>λιγότερες εμφανίσεις</u> στο τρέχον παράθυρο κληρώσεων του Τροχού 1. Π.χ. με X=3 αφαιρούνται οι 3 πιο ψυχροί αριθμοί της λίστας συχνότητας.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;line-height:1;user-select:none">ℹ</span>
             <button onclick="togglePsFilterLast()" style="${psFilterUseLast ? btnOn : btnOff}">Τρ1 τελ.</button>
             <input type="number" min="1" max="999" value="${psFilterLastN}" onchange="setPsFilterLastN(this.value)"
               style="width:34px;background:#111;color:${psFilterUseLast?'#80cbc4':'#333'};border:1px solid ${psFilterUseLast?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <span onclick="showHotHelp(event,'<b>🔄 Τροχός 1 — τελευταίες X κληρώσεις</b><br>Εξαιρεί τους αριθμούς/σύμβολα που <u>βγήκαν στις τελευταίες X κληρώσεις του Τροχού 1</u>. Η λογική: αριθμός που μόλις εμφανίστηκε έχει μικρότερη τάση επανάληψης άμεσα.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;line-height:1;user-select:none">ℹ</span>
             <button onclick="togglePsFilterW2()" style="${psFilterW2 ? btnOn : btnOff}">Τρ2 τελ.</button>
             <input type="number" min="1" max="999" value="${psFilterW2N}" onchange="setPsFilterW2N(this.value)"
               style="width:34px;background:#111;color:${psFilterW2?'#80cbc4':'#333'};border:1px solid ${psFilterW2?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <span onclick="showHotHelp(event,'<b>🔁 Τροχός 2 → Τροχός 1 εξαίρεση</b><br>Εξαιρεί από τον Τροχό 1 τους αριθμούς/σύμβολα που <u>βγήκαν στις τελευταίες X κληρώσεις του Τροχού 2</u>. Ερευνά cross-wheel συσχετίσεις: αν ο Τρ2 έβγαλε τον αριθμό 7 πρόσφατα, αφαιρείται από τις επιλογές του Τρ1.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;line-height:1;user-select:none">ℹ</span>
             <button onclick="togglePsFilterW3()" style="${psFilterW3 ? btnOn : btnOff}">Τρ3 τελ.</button>
             <input type="number" min="1" max="999" value="${psFilterW3N}" onchange="setPsFilterW3N(this.value)"
               style="width:34px;background:#111;color:${psFilterW3?'#80cbc4':'#333'};border:1px solid ${psFilterW3?'#26a69a':'#222'};border-radius:4px;padding:2px 3px;font-size:.67rem;text-align:center">
+            <span onclick="showHotHelp(event,'<b>🔁 Τροχός 3 → Τροχός 1 εξαίρεση</b><br>Εξαιρεί από τον Τροχό 1 τους αριθμούς/σύμβολα που <u>βγήκαν στις τελευταίες X κληρώσεις του Τροχού 3</u>. Ίδια λογική με το Τρ2: cross-wheel φιλτράρισμα βάσει πρόσφατης συμπεριφοράς του τρίτου τροχού.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;line-height:1;user-select:none">ℹ</span>
             <span style="font-size:.63rem;color:#444">κλ.</span>
           </span>` : ''}
         </div>
-        ${prevDayDraws.length > 0 ? `<div style="font-size:.58rem;color:#555;margin-bottom:5px"><span style="color:#ef5350">■</span> μείον απόκλιση χθες (${prevDayStr})</div>` : ''}
+        <div style="font-size:.58rem;color:#444;margin:2px 0 4px;display:flex;align-items:center;gap:5px">
+          <span>❄️ ψυχρά bottom-5 (πάντα ενεργό)</span>
+          <span onclick="showHotHelp(event,'<b>❄️ Ψυχρά bottom-5 (σταθερό)</b><br>Εξαιρούνται <u>πάντα</u> οι 5 αριθμοί/σύμβολα με τις λιγότερες εμφανίσεις στο παράθυρο — αυτοί που εμφανίζονται με ❄️ στο bar chart. Δεν έχει κουμπί απενεργοποίησης γιατί αποτελεί βασικό φίλτρο ψυχρότητας.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;user-select:none">ℹ</span>
+          ${prevDayDraws.length > 0 ? `<span style="margin-left:6px"><span style="color:#ef5350">■</span> κόκκινο = μείον απόκλιση χθες (${prevDayStr})</span>` : ''}
+        </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px">
           ${chips || '<span style="color:#555;font-size:.7rem">Κανένας αριθμός</span>'}
         </div>
