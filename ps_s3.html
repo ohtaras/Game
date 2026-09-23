@@ -3950,6 +3950,21 @@ function renderHot() {
   let filterHtml = '';
   const remainingByWheel = [[], [], []];
   const wheelNames = ['Τροχός 1', 'Τροχός 2', 'Τροχός 3'];
+
+  // Zone counts across all 3 wheels for the current pool
+  let zoneBlue3 = 0, zoneRed3 = 0, zoneGreen3 = 0, zoneSym3 = 0;
+  for (const d of pool) {
+    for (let w = 0; w < 3; w++) {
+      const v = d.w[w];
+      if (BLUE.has(v)) zoneBlue3++;
+      else if (RED.has(v)) zoneRed3++;
+      else if (GREEN.has(v)) zoneGreen3++;
+      else if (v >= 25) zoneSym3++;
+    }
+  }
+  const poolTotal3 = pool.length * 3;
+  const expB3 = poolTotal3 * 8 / 27;
+  const expS3 = poolTotal3 * 3 / 27;
   const wheelColors = ['#ff8a65', '#ffb74d', '#fff176'];
 
   for (let wi = 0; wi < 3; wi++) {
@@ -4233,6 +4248,28 @@ function renderHot() {
           <button style="${wb(0)}"  onclick="setHotWindow(0)">Όλες</button>
         </div>
         <div style="font-size:.58rem;color:#444;margin-bottom:2px">${infoText}</div>
+        ${pool.length > 0 ? '<div style="display:flex;gap:4px;align-items:stretch;padding:4px 0 6px;border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
+          + '<span style="font-size:.58rem;color:#555;align-self:center;white-space:nowrap;min-width:56px;padding-right:4px">Ζώνες<br>3 τρ.</span>'
+          + [
+              {name:'ΜΠΛΕ', col:'#1565c0', light:'#42a5f5', c:zoneBlue3,  exp:expB3},
+              {name:'ΚΟΚΚ', col:'#c62828', light:'#ef5350', c:zoneRed3,   exp:expB3},
+              {name:'ΠΡΑΣ', col:'#2e7d32', light:'#66bb6a', c:zoneGreen3, exp:expB3},
+              {name:'ΣΥΜ',  col:'#546e7a', light:'#90a4ae', c:zoneSym3,   exp:expS3},
+            ].map(z => {
+              const diff = z.c - z.exp;
+              const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
+              const diffCol = diff > 2 ? z.light : diff < -2 ? '#455a64' : '#666';
+              const barW = poolTotal3 > 0 ? Math.round(z.c / poolTotal3 * 100) : 0;
+              return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:5px;padding:3px 5px;min-width:0;font-variant-numeric:tabular-nums">'
+                + '<div style="color:' + z.col + ';font-weight:700;font-size:.57rem;letter-spacing:.04em">' + z.name + '</div>'
+                + '<div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">' + z.c + '</div>'
+                + '<div style="color:' + diffCol + ';font-size:.57rem">' + diffStr + ' <span style="color:#333">αν.' + z.exp.toFixed(1) + '</span></div>'
+                + '<div style="height:3px;background:#111;border-radius:2px;margin-top:2px">'
+                + '<div style="height:3px;width:' + barW + '%;background:' + z.col + ';border-radius:2px"></div>'
+                + '</div>'
+                + '</div>';
+            }).join('')
+          + '</div>' : ''}
         ${filterHtml}
         ${(() => {
           const SYM = { 25:'★', 26:'♦', 27:'✦' };
