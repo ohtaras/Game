@@ -2434,6 +2434,23 @@ async function loadData() {
     for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
   } catch(e) { console.warn('S3 today:', e); }
 
+  // Always fetch yesterday + day-before so hot tab navigation has data
+  for (let dd = 1; dd <= 2; dd++) {
+    const dt  = athensDate(now.getTime() - dd * 86400000);
+    const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+    if (day < cutoffStr) continue;
+    sb.textContent = `⏳ Power Spin ${day}…`;
+    try {
+      const items = await fetchDayOpap(PS_GAME_ID, day);
+      for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
+    } catch(e) { console.warn('PS prev', day, e); }
+    sb.textContent = `⏳ Super 3 ${day}…`;
+    try {
+      const items = await fetchDayOpap(S3_GAME_ID, day);
+      for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
+    } catch(e) { console.warn('S3 prev', day, e); }
+  }
+
   sb.textContent = '⏳ ΚΙΝΟ σήμερα…';
   try {
     const items = await fetchDayOpap(KINO_GAME_ID, todayStr);
