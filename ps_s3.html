@@ -4179,6 +4179,30 @@ function renderHot() {
         <div style="display:flex;flex-wrap:wrap;gap:4px">
           ${chips || '<span style="color:#555;font-size:.7rem">Κανένας αριθμός</span>'}
         </div>
+        ${(() => {
+          const remB = remaining.filter(v => BLUE.has(v)).length;
+          const remR = remaining.filter(v => RED.has(v)).length;
+          const remG = remaining.filter(v => GREEN.has(v)).length;
+          const remS = remaining.filter(v => v >= 25).length;
+          return `<div style="display:flex;gap:3px;margin-top:5px;font-variant-numeric:tabular-nums">
+            ${[
+              {name:'ΜΠΛΕ', col:'#1565c0', light:'#42a5f5', c:remB, tot:8},
+              {name:'ΚΟΚΚ', col:'#c62828', light:'#ef5350', c:remR, tot:8},
+              {name:'ΠΡΑΣ', col:'#2e7d32', light:'#66bb6a', c:remG, tot:8},
+              {name:'ΣΥΜ',  col:'#546e7a', light:'#90a4ae', c:remS, tot:3},
+            ].map(z => {
+              const pct = z.tot > 0 ? Math.round(z.c / z.tot * 100) : 0;
+              const barW = pct;
+              return \`<div style="flex:1;background:#080b14;border:1px solid \${z.col}44;border-radius:4px;padding:3px 5px;min-width:0">
+                <div style="color:\${z.col};font-weight:700;font-size:.58rem;letter-spacing:.04em">\${z.name}</div>
+                <div style="color:#ddd;font-weight:700;font-size:.75rem;line-height:1.2">\${z.c}<span style="color:#333;font-size:.55rem">/\${z.tot}</span></div>
+                <div style="height:3px;background:#111;border-radius:2px;margin-top:2px">
+                  <div style="height:3px;width:\${barW}%;background:\${z.col};border-radius:2px"></div>
+                </div>
+              </div>\`;
+            }).join('')}
+          </div>`;
+        })()}
       </div>`;
     }
   }
