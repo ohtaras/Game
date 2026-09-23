@@ -2371,57 +2371,23 @@ async function loadData() {
   const cutoffAth = athensDate(now.getTime() - KEEP_DAYS * 86400000);
   const cutoffStr = `${cutoffAth.getUTCFullYear()}-${pad(cutoffAth.getUTCMonth()+1)}-${pad(cutoffAth.getUTCDate())}`;
 
-  const monthsSeen = new Set(), monthsNeeded = [];
-  for (let d = KEEP_DAYS; d >= 0; d--) {
-    const dt = athensDate(now.getTime() - d * 86400000);
-    const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
-    if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
-  }
+  const dedup = arr => {
+    const seen = new Set();
+    return arr
+      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
+      .sort((a, b) => a.id - b.id)
+      .filter(d => d.d >= cutoffStr);
+  };
+  const dedupKino = arr => {
+    const seen = new Set();
+    return arr
+      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
+      .sort((a, b) => a.id - b.id);
+  };
 
   let psAll = [], s3All = [], kinoAll = [];
 
-  for (const ym of monthsNeeded) {
-    sb.textContent = `⏳ PS ${ym.replace('_','-')}…`;
-    const d = await ghGet(`data/raw/ps_raw_${ym}.json`);
-    if (d?.draws) psAll.push(...d.draws);
-  }
-  for (const ym of monthsNeeded) {
-    sb.textContent = `⏳ S3 ${ym.replace('_','-')}…`;
-    const d = await ghGet(`data/raw/s3_raw_${ym}.json`);
-    if (d?.draws) s3All.push(...d.draws);
-  }
-  for (const ym of monthsNeeded) {
-    sb.textContent = `⏳ ΚΙΝΟ ${ym.replace('_','-')}…`;
-    const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
-    if (d?.draws) kinoAll.push(...d.draws);
-  }
-
-  // Gap-fill previous days missing from monthly files
-  const psDays = new Set(psAll.map(d => d.d));
-  const s3Days = new Set(s3All.map(d => d.d));
-  for (let dd = 2; dd >= 1; dd--) {
-    const dt  = athensDate(now.getTime() - dd * 86400000);
-    const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
-    if (day < cutoffStr) continue;
-    if (!psDays.has(day)) {
-      sb.textContent = `⏳ PS κενό ${day}…`;
-      try {
-        const items = await fetchDayOpap(PS_GAME_ID, day);
-        for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
-        if (items.length) await new Promise(r => setTimeout(r, 100));
-      } catch(e) { console.warn('PS gap', day, e); }
-    }
-    if (!s3Days.has(day)) {
-      sb.textContent = `⏳ S3 κενό ${day}…`;
-      try {
-        const items = await fetchDayOpap(S3_GAME_ID, day);
-        for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
-        if (items.length) await new Promise(r => setTimeout(r, 100));
-      } catch(e) { console.warn('S3 gap', day, e); }
-    }
-  }
-
-  // Today's draws
+  // ── Φάση 1: Σημερινές κληρώσεις — γρήγορη εκκίνηση ──────────────────────
   sb.textContent = '⏳ Power Spin σήμερα…';
   try {
     const items = await fetchDayOpap(PS_GAME_ID, todayStr);
@@ -2440,41 +2406,79 @@ async function loadData() {
     for (const it of items) { const d = parseKinoItem(it); if (d) kinoAll.push(d); }
   } catch(e) { console.warn('KINO today:', e); }
 
-  const dedup = arr => {
-    const seen = new Set();
-    return arr
-      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
-      .sort((a, b) => a.id - b.id)
-      .filter(d => d.d >= cutoffStr);
-  };
-
-  psDraws = dedup(psAll);
-  s3Draws = dedup(s3All);
-  psIdx   = psDraws.length - 1;
-  s3Idx   = s3Draws.length - 1;
-
-  const dedupKino = arr => {
-    const seen = new Set();
-    return arr
-      .filter(d => { if (seen.has(d.id)) return false; seen.add(d.id); return true; })
-      .sort((a, b) => a.id - b.id);
-  };
-  kinoDraws = dedupKino(kinoAll);
-  kinoIdx   = kinoDraws.length - 1;
-
+  psDraws = dedup(psAll);  s3Draws = dedup(s3All);
+  psIdx = psDraws.length - 1;  s3Idx = s3Draws.length - 1;
+  kinoDraws = dedupKino(kinoAll);  kinoIdx = kinoDraws.length - 1;
   buildFilterBtns('psFilterRow', 'ps', 20);
   buildFilterBtns('s3FilterRow', 's3', 20);
 
-  const parts = [];
-  if (psDraws.length)   { psRender();   parts.push(`PS: ${psDraws.length} κλ.`); }
-  if (s3Draws.length)   { s3Render();   parts.push(`S3: ${s3Draws.length} κλ.`); }
-  if (kinoDraws.length) { kinoRender(); lcInitButtons(); parts.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
+  const p1 = [];
+  if (psDraws.length)   { psRender();   p1.push(`PS: ${psDraws.length} κλ.`); }
+  if (s3Draws.length)   { s3Render();   p1.push(`S3: ${s3Draws.length} κλ.`); }
+  if (kinoDraws.length) { kinoRender(); lcInitButtons(); p1.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
   if (isCmpActive()) renderCmp();
+  sb.textContent = p1.length
+    ? `✓ ${p1.join('  ·  ')}  —  φόρτωση ιστορικού…`
+    : '⏳ φόρτωση ιστορικού…';
 
-  sb.textContent = parts.length
-    ? `✓ ${parts.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
+  // ── Φάση 2: Ιστορικό (monthly files + gap-fill) ───────────────────────────
+  const monthsSeen = new Set(), monthsNeeded = [];
+  for (let d = KEEP_DAYS; d >= 0; d--) {
+    const dt = athensDate(now.getTime() - d * 86400000);
+    const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
+    if (!monthsSeen.has(ym)) { monthsSeen.add(ym); monthsNeeded.push(ym); }
+  }
+  for (const ym of monthsNeeded) {
+    const d = await ghGet(`data/raw/ps_raw_${ym}.json`);
+    if (d?.draws) psAll.push(...d.draws);
+  }
+  for (const ym of monthsNeeded) {
+    const d = await ghGet(`data/raw/s3_raw_${ym}.json`);
+    if (d?.draws) s3All.push(...d.draws);
+  }
+  for (const ym of monthsNeeded) {
+    const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
+    if (d?.draws) kinoAll.push(...d.draws);
+  }
+
+  const psDays = new Set(psAll.map(d => d.d));
+  const s3Days = new Set(s3All.map(d => d.d));
+  for (let dd = 2; dd >= 1; dd--) {
+    const dt  = athensDate(now.getTime() - dd * 86400000);
+    const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
+    if (day < cutoffStr) continue;
+    if (!psDays.has(day)) {
+      sb.textContent = `⏳ PS ${day}…`;
+      try {
+        const items = await fetchDayOpap(PS_GAME_ID, day);
+        for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
+        if (items.length) await new Promise(r => setTimeout(r, 100));
+      } catch(e) { console.warn('PS gap', day, e); }
+    }
+    if (!s3Days.has(day)) {
+      sb.textContent = `⏳ S3 ${day}…`;
+      try {
+        const items = await fetchDayOpap(S3_GAME_ID, day);
+        for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
+        if (items.length) await new Promise(r => setTimeout(r, 100));
+      } catch(e) { console.warn('S3 gap', day, e); }
+    }
+  }
+
+  psDraws = dedup(psAll);  s3Draws = dedup(s3All);
+  psIdx = psDraws.length - 1;  s3Idx = s3Draws.length - 1;
+  kinoDraws = dedupKino(kinoAll);  kinoIdx = kinoDraws.length - 1;
+
+  const p2 = [];
+  if (psDraws.length)   { psRender();   p2.push(`PS: ${psDraws.length} κλ.`); }
+  if (s3Draws.length)   { s3Render();   p2.push(`S3: ${s3Draws.length} κλ.`); }
+  if (kinoDraws.length) { kinoRender(); lcInitButtons(); p2.push(`ΚΙΝΟ: ${kinoDraws.length} κλ.`); }
+  if (isCmpActive()) renderCmp();
+  if (isHotActive()) renderHot();
+
+  sb.textContent = p2.length
+    ? `✓ ${p2.join('  ·  ')}  —  ${new Date().toLocaleTimeString('el-GR')}`
     : '⚠ Δεν βρέθηκαν κληρώσεις';
-
 }
 
 // ── Filter buttons ─────────────────────────────────────────────────────────
