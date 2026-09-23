@@ -3975,6 +3975,16 @@ function renderHot() {
     const hotSet  = new Set(sorted.slice(0, 5).map(x => x.v));
     const coldSet = new Set(sorted.slice(-5).map(x => x.v));
 
+    // Zone counts
+    let blueC = 0, redC = 0, greenC = 0, symC = 0;
+    for (const d of pool) {
+      const v = d.w[wi];
+      if (BLUE.has(v)) blueC++; else if (RED.has(v)) redC++;
+      else if (GREEN.has(v)) greenC++; else if (v >= 25) symC++;
+    }
+    const expZone8 = pool.length * 8 / 27;
+    const expZone3 = pool.length * 3 / 27;
+
     html += `<div class="hot-wheel-card">
       <div class="hot-wheel-title" style="color:${wheelColors[wi]};cursor:pointer;display:flex;align-items:center" onclick="toggleHotWheel(${wi})">
         ${wheelNames[wi]}
@@ -4013,6 +4023,28 @@ function renderHot() {
         <span style="color:#2e7d32">■</span><span>GREEN</span>
         <span style="margin-left:8px;color:#333">αναμ. ${expectedAll.toFixed(1)} εμφ./τιμή (27 τιμές)</span>
       </div>
+      ${pool.length > 0 ? `<div style="display:flex;gap:4px;margin:8px 0 6px;font-size:.63rem;font-variant-numeric:tabular-nums">
+        ${[
+          {name:'ΜΠΛΕ', col:'#1565c0', light:'#42a5f5', c:blueC,  exp:expZone8},
+          {name:'ΚΟΚΚ', col:'#c62828', light:'#ef5350', c:redC,   exp:expZone8},
+          {name:'ΠΡΑΣ', col:'#2e7d32', light:'#66bb6a', c:greenC, exp:expZone8},
+          {name:'ΣΥΜ',  col:'#546e7a', light:'#90a4ae', c:symC,   exp:expZone3},
+        ].map(z => {
+          const diff = z.c - z.exp;
+          const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
+          const diffCol = diff > 1.5 ? z.light : diff < -1.5 ? '#455a64' : '#666';
+          const barW = Math.round(z.c / pool.length * 100);
+          return \`<div style="flex:1;background:#080b14;border:1px solid \${z.col}44;border-radius:5px;padding:4px 5px;min-width:0">
+            <div style="color:\${z.col};font-weight:700;letter-spacing:.04em">\${z.name}</div>
+            <div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">\${z.c}</div>
+            <div style="color:\${diffCol};font-size:.58rem">\${diffStr} <span style="color:#333">αν.\${z.exp.toFixed(1)}</span></div>
+            <div style="height:3px;background:#111;border-radius:2px;margin-top:3px">
+              <div style="height:3px;width:\${barW}%;background:\${z.col};border-radius:2px"></div>
+            </div>
+            <div style="color:#444;font-size:.55rem;margin-top:2px">\${(z.c/pool.length*100).toFixed(0)}%</div>
+          </div>\`;
+        }).join('')}
+      </div>` : ''}
       <div style="overflow-x:auto;margin-top:10px">
         <table style="width:100%;border-collapse:collapse;font-size:.72rem;font-variant-numeric:tabular-nums">
           <thead>
