@@ -2403,18 +2403,16 @@ async function loadData() {
     const dt  = athensDate(now.getTime() - dd * 86400000);
     const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
     if (day < cutoffStr) continue;
-    // Always refresh yesterday (dd=1) and day-before (dd=2); skip only older days already loaded
-    const alwaysFetch = dd <= 2;
-    if (alwaysFetch || !psDays.has(day)) {
-      sb.textContent = `⏳ PS ${day}…`;
+    if (!psDays.has(day)) {
+      sb.textContent = `⏳ PS κενό ${day}…`;
       try {
         const items = await fetchDayOpap(PS_GAME_ID, day);
         for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
         if (items.length) await new Promise(r => setTimeout(r, 100));
       } catch(e) { console.warn('PS gap', day, e); }
     }
-    if (alwaysFetch || !s3Days.has(day)) {
-      sb.textContent = `⏳ S3 ${day}…`;
+    if (!s3Days.has(day)) {
+      sb.textContent = `⏳ S3 κενό ${day}…`;
       try {
         const items = await fetchDayOpap(S3_GAME_ID, day);
         for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
