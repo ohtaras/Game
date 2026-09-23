@@ -4034,15 +4034,15 @@ function renderHot() {
           const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
           const diffCol = diff > 1.5 ? z.light : diff < -1.5 ? '#455a64' : '#666';
           const barW = Math.round(z.c / pool.length * 100);
-          return \`<div style="flex:1;background:#080b14;border:1px solid \${z.col}44;border-radius:5px;padding:4px 5px;min-width:0">
-            <div style="color:\${z.col};font-weight:700;letter-spacing:.04em">\${z.name}</div>
-            <div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">\${z.c}</div>
-            <div style="color:\${diffCol};font-size:.58rem">\${diffStr} <span style="color:#333">αν.\${z.exp.toFixed(1)}</span></div>
-            <div style="height:3px;background:#111;border-radius:2px;margin-top:3px">
-              <div style="height:3px;width:\${barW}%;background:\${z.col};border-radius:2px"></div>
-            </div>
-            <div style="color:#444;font-size:.55rem;margin-top:2px">\${(z.c/pool.length*100).toFixed(0)}%</div>
-          </div>\`;
+          return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:5px;padding:4px 5px;min-width:0">'
+            + '<div style="color:' + z.col + ';font-weight:700;letter-spacing:.04em">' + z.name + '</div>'
+            + '<div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">' + z.c + '</div>'
+            + '<div style="color:' + diffCol + ';font-size:.58rem">' + diffStr + ' <span style="color:#333">αν.' + z.exp.toFixed(1) + '</span></div>'
+            + '<div style="height:3px;background:#111;border-radius:2px;margin-top:3px">'
+            + '<div style="height:3px;width:' + barW + '%;background:' + z.col + ';border-radius:2px"></div>'
+            + '</div>'
+            + '<div style="color:#444;font-size:.55rem;margin-top:2px">' + (z.c/pool.length*100).toFixed(0) + '%</div>'
+            + '</div>';
         }).join('')}
       </div>` : ''}
       <div style="overflow-x:auto;margin-top:10px">
@@ -4193,13 +4193,13 @@ function renderHot() {
             ].map(z => {
               const pct = z.tot > 0 ? Math.round(z.c / z.tot * 100) : 0;
               const barW = pct;
-              return \`<div style="flex:1;background:#080b14;border:1px solid \${z.col}44;border-radius:4px;padding:3px 5px;min-width:0">
-                <div style="color:\${z.col};font-weight:700;font-size:.58rem;letter-spacing:.04em">\${z.name}</div>
-                <div style="color:#ddd;font-weight:700;font-size:.75rem;line-height:1.2">\${z.c}<span style="color:#333;font-size:.55rem">/\${z.tot}</span></div>
-                <div style="height:3px;background:#111;border-radius:2px;margin-top:2px">
-                  <div style="height:3px;width:\${barW}%;background:\${z.col};border-radius:2px"></div>
-                </div>
-              </div>\`;
+              return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:4px;padding:3px 5px;min-width:0">'
+                + '<div style="color:' + z.col + ';font-weight:700;font-size:.58rem;letter-spacing:.04em">' + z.name + '</div>'
+                + '<div style="color:#ddd;font-weight:700;font-size:.75rem;line-height:1.2">' + z.c + '<span style="color:#333;font-size:.55rem">/' + z.tot + '</span></div>'
+                + '<div style="height:3px;background:#111;border-radius:2px;margin-top:2px">'
+                + '<div style="height:3px;width:' + barW + '%;background:' + z.col + ';border-radius:2px"></div>'
+                + '</div>'
+                + '</div>';
             }).join('')}
           </div>`;
         })()}
