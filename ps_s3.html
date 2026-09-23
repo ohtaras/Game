@@ -817,6 +817,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
     </div>
     <!-- Draw navigation -->
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="nav-btn" onclick="hotGoFirst()">|◀</button>
       <button class="nav-btn" onclick="hotNavDraw(-1)">◀ Κλ.</button>
       <span id="hotDrawLabel" style="font-size:.72rem;color:#888;min-width:80px;text-align:center"></span>
       <button class="nav-btn" onclick="hotNavDraw(+1)">Κλ. ▶</button>
@@ -3893,6 +3894,10 @@ function hotNavDraw(dir) {
   hotDrawCutoff = Math.max(0, Math.min(maxIdx, hotDrawCutoff + dir));
   renderHot();
 }
+function hotGoFirst() {
+  hotDrawCutoff = 0;
+  renderHot();
+}
 
 function renderHot() {
   const dayStr  = getCmpDayStr(hotDayOffset);
@@ -4157,6 +4162,7 @@ function renderHot() {
           <button style="${nb}" onclick="hotNavDay(-1)">Μέρα ▶</button>
           <button style="${nb};color:#4caf50;border-color:#2e7d32;opacity:${liveOpacity}" onclick="hotGoLive()">● Live</button>
           <span style="color:#333;margin:0 2px">|</span>
+          <button style="${nb}" onclick="hotGoFirst()">|◀</button>
           <button style="${nb}" onclick="hotNavDraw(-1)">◀ Κλ.</button>
           <span style="font-size:.68rem;color:#888;min-width:60px;text-align:center">${drawLblText}</span>
           <button style="${nb}" onclick="hotNavDraw(+1)">Κλ. ▶</button>
