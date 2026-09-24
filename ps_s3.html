@@ -3788,7 +3788,15 @@ let psFilterColdX   = 3;
 let hotWheelOpen    = [true, false, false];
 let hotFilterOpen   = true;
 let hotSecOpen = { momentum: true, zones3: true, zonesPerWh: true, review: true };
+let hotWheelFiltOpen = [true, true, true];
 
+function toggleHotWheelFilt(wi) {
+  hotWheelFiltOpen[wi] = !hotWheelFiltOpen[wi];
+  const b = document.getElementById('hotWheelFilt_' + wi);
+  const c = document.getElementById('hotWheelFiltChev_' + wi);
+  if (b) b.style.display = hotWheelFiltOpen[wi] ? '' : 'none';
+  if (c) c.textContent = hotWheelFiltOpen[wi] ? '▲' : '▼';
+}
 function toggleHotSec(name) {
   hotSecOpen[name] = !hotSecOpen[name];
   const b = document.getElementById('hotSec_' + name);
@@ -4211,9 +4219,9 @@ function renderHot() {
       const btnOn  = 'background:#1a2e1a;color:#80cbc4;border:1px solid #26a69a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
       const btnOff = 'background:#1a1a1a;color:#444;border:1px solid #2a2a2a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
       const showControls = wi === 0;
-      filterHtml += `<div style="background:#090c12;border:1px solid #1a1a2e;border-radius:6px;padding:8px 10px">
-        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
-          <span style="font-size:.73rem;color:#80cbc4;font-weight:700">🎯 ${wheelNames[wi]} — Απομένουν</span>
+      filterHtml += `<div style="background:#090c12;border:1px solid #1a1a2e;border-radius:6px;overflow:hidden">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:8px 10px ${hotWheelFiltOpen[wi] ? '4px' : '8px'} 10px">
+          <span onclick="toggleHotWheelFilt(${wi})" style="cursor:pointer;font-size:.73rem;color:#80cbc4;font-weight:700">🎯 ${wheelNames[wi]} — Απομένουν</span>
           <span style="color:#555;font-size:.67rem">${remaining.length} / 27</span>
           ${ouLabel ? `<span style="font-size:.75rem;font-weight:900;color:${ouColor};letter-spacing:.04em">${ouLabel}</span>` : ''}
           ${showControls ? `<span style="margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
@@ -4235,7 +4243,9 @@ function renderHot() {
             <span onclick="showHotHelp(event,'<b>🔁 Τροχός 3 → Τροχός 1 εξαίρεση</b><br>Εξαιρεί από τον Τροχό 1 τους αριθμούς/σύμβολα που <u>βγήκαν στις τελευταίες X κληρώσεις του Τροχού 3</u>. Ίδια λογική με το Τρ2: cross-wheel φιλτράρισμα βάσει πρόσφατης συμπεριφοράς του τρίτου τροχού.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;line-height:1;user-select:none">ℹ</span>
             <span style="font-size:.63rem;color:#444">κλ.</span>
           </span>` : ''}
+          <span id="hotWheelFiltChev_${wi}" onclick="toggleHotWheelFilt(${wi})" style="cursor:pointer;font-size:.6rem;color:#555;${showControls ? '' : 'margin-left:auto'};padding:2px 4px;user-select:none">${hotWheelFiltOpen[wi] ? '▲' : '▼'}</span>
         </div>
+        <div id="hotWheelFilt_${wi}" style="display:${hotWheelFiltOpen[wi] ? '' : 'none'}">
         <div style="font-size:.58rem;color:#444;margin:2px 0 4px;display:flex;align-items:center;gap:5px">
           <span>❄️ ψυχρά bottom-5 (πάντα ενεργό)</span>
           <span onclick="showHotHelp(event,'<b>❄️ Ψυχρά bottom-5 (σταθερό)</b><br>Εξαιρούνται <u>πάντα</u> οι 5 αριθμοί/σύμβολα με τις λιγότερες εμφανίσεις στο παράθυρο — αυτοί που εμφανίζονται με ❄️ στο bar chart. Δεν έχει κουμπί απενεργοποίησης γιατί αποτελεί βασικό φίλτρο ψυχρότητας.')" style="cursor:pointer;color:#26a69a;font-size:.75rem;user-select:none">ℹ</span>
@@ -4268,6 +4278,7 @@ function renderHot() {
             }).join('')}
           </div>`;
         })()}
+        </div>
       </div>`;
     }
   }
