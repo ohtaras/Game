@@ -1593,9 +1593,11 @@ let apiFetchMethod = 0;
 let psDraws = [];  // {id, d:"YYYY-MM-DD", m:mins, w:[v0,v1,v2]}  v: 1-24=num, 25-27=sym
 let psIdx   = -1;
 const psDelayFilter = new Set();
+const psFetchedDays = new Set(); // days already fetched from OPAP
 
 let s3Draws = [];  // {id, d, m, n:0-999}
 let s3Idx   = -1;
+const s3FetchedDays = new Set(); // days already fetched from OPAP
 const s3DelayFilter = new Set();
 
 let kinoDraws = [];  // {id, n:[20 nums], b}
@@ -2409,6 +2411,7 @@ async function loadData() {
   psDraws = dedup(psAll);  s3Draws = dedup(s3All);
   psIdx = psDraws.length - 1;  s3Idx = s3Draws.length - 1;
   kinoDraws = dedupKino(kinoAll);  kinoIdx = kinoDraws.length - 1;
+  psFetchedDays.add(todayStr);  s3FetchedDays.add(todayStr);
   buildFilterBtns('psFilterRow', 'ps', 20);
   buildFilterBtns('s3FilterRow', 's3', 20);
 
@@ -2421,7 +2424,7 @@ async function loadData() {
     ? `✓ ${p1.join('  ·  ')}  —  φόρτωση ιστορικού…`
     : '⏳ φόρτωση ιστορικού…';
 
-  // ── Φάση 2: Ιστορικό (monthly files + gap-fill) ───────────────────────────
+  // ── Φάση 2: Monthly files (ΚΙΝΟ) ─────────────────────────────────────────
   const monthsSeen = new Set(), monthsNeeded = [];
   for (let d = KEEP_DAYS; d >= 0; d--) {
     const dt = athensDate(now.getTime() - d * 86400000);
@@ -2430,39 +2433,15 @@ async function loadData() {
   }
   for (const ym of monthsNeeded) {
     const d = await ghGet(`data/raw/ps_raw_${ym}.json`);
-    if (d?.draws) psAll.push(...d.draws);
+    if (d?.draws) { psAll.push(...d.draws); d.draws.forEach(x => { if (x.d) psFetchedDays.add(x.d); }); }
   }
   for (const ym of monthsNeeded) {
     const d = await ghGet(`data/raw/s3_raw_${ym}.json`);
-    if (d?.draws) s3All.push(...d.draws);
+    if (d?.draws) { s3All.push(...d.draws); d.draws.forEach(x => { if (x.d) s3FetchedDays.add(x.d); }); }
   }
   for (const ym of monthsNeeded) {
     const d = await ghGet(`data/raw/kino_raw_${ym}.json`);
     if (d?.draws) kinoAll.push(...d.draws);
-  }
-
-  const psDays = new Set(psAll.map(d => d.d));
-  const s3Days = new Set(s3All.map(d => d.d));
-  for (let dd = 2; dd >= 1; dd--) {
-    const dt  = athensDate(now.getTime() - dd * 86400000);
-    const day = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
-    if (day < cutoffStr) continue;
-    if (!psDays.has(day)) {
-      sb.textContent = `⏳ PS ${day}…`;
-      try {
-        const items = await fetchDayOpap(PS_GAME_ID, day);
-        for (const it of items) { const d = parsePsItem(it); if (d) psAll.push(d); }
-        if (items.length) await new Promise(r => setTimeout(r, 100));
-      } catch(e) { console.warn('PS gap', day, e); }
-    }
-    if (!s3Days.has(day)) {
-      sb.textContent = `⏳ S3 ${day}…`;
-      try {
-        const items = await fetchDayOpap(S3_GAME_ID, day);
-        for (const it of items) { const d = parseS3Item(it); if (d) s3All.push(d); }
-        if (items.length) await new Promise(r => setTimeout(r, 100));
-      } catch(e) { console.warn('S3 gap', day, e); }
-    }
   }
 
   psDraws = dedup(psAll);  s3Draws = dedup(s3All);
@@ -3875,10 +3854,45 @@ function setHotWindow(n) {
 
 function hotNavDay(dir) {
   const newOff = hotDayOffset + dir;
-  if (newOff < 0) return; // δεν πάμε μπροστά από σήμερα
+  if (newOff < 0) return;
   hotDayOffset  = newOff;
-  hotDrawCutoff = null;   // reset σε "όλες" για τη νέα μέρα
+  hotDrawCutoff = null;
+  const dayStr = getCmpDayStr(newOff);
+  if (!psFetchedDays.has(dayStr)) {
+    const container = document.getElementById('hotCharts');
+    if (container) container.innerHTML = '<div style="color:#666;padding:20px;font-size:.8rem">⏳ Φόρτωση ' + dayStr + '…</div>';
+    fetchDayLazy(dayStr).then(() => renderHot());
+    return;
+  }
   renderHot();
+}
+
+async function fetchDayLazy(dayStr) {
+  const sb = document.getElementById('statusBar');
+  const prevStatus = sb ? sb.textContent : '';
+  if (!psFetchedDays.has(dayStr)) {
+    psFetchedDays.add(dayStr);
+    if (sb) sb.textContent = `⏳ PS ${dayStr}…`;
+    try {
+      const items = await fetchDayOpap(PS_GAME_ID, dayStr);
+      const seen = new Set(psDraws.map(d => d.id));
+      for (const it of items) { const d = parsePsItem(it); if (d && !seen.has(d.id)) { psDraws.push(d); seen.add(d.id); } }
+      psDraws.sort((a, b) => a.id - b.id);
+      psIdx = psDraws.length - 1;
+    } catch(e) { console.warn('PS lazy', dayStr, e); }
+  }
+  if (!s3FetchedDays.has(dayStr)) {
+    s3FetchedDays.add(dayStr);
+    if (sb) sb.textContent = `⏳ S3 ${dayStr}…`;
+    try {
+      const items = await fetchDayOpap(S3_GAME_ID, dayStr);
+      const seen = new Set(s3Draws.map(d => d.id));
+      for (const it of items) { const d = parseS3Item(it); if (d && !seen.has(d.id)) { s3Draws.push(d); seen.add(d.id); } }
+      s3Draws.sort((a, b) => a.id - b.id);
+      s3Idx = s3Draws.length - 1;
+    } catch(e) { console.warn('S3 lazy', dayStr, e); }
+  }
+  if (sb) sb.textContent = prevStatus;
 }
 
 function hotGoLive() {
