@@ -6832,6 +6832,12 @@ document.addEventListener('keydown', e => {
   } else if (at === 'kino') {
     if (e.key === 'ArrowLeft')  kinoNav(-1);
     if (e.key === 'ArrowRight') kinoNav(+1);
+  } else if (at === 'hot') {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); hotNavDraw(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); hotNavDraw(+1); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); hotNavDay(+1); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); hotNavDay(-1); }
   }
 });
 
