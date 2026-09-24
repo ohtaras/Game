@@ -4364,6 +4364,64 @@ function renderHot() {
           }).join('') : ''}
         ${filterHtml}
         ${(() => {
+          // Αξιολόγηση τελ. κλήρωσης σε standby mode (cutoff=null)
+          const SYM2 = { 25:'★', 26:'♦', 27:'✦' };
+          if (hotDrawCutoff !== null || dayDraws.length === 0) return '';
+          const revDraw = dayDraws[dayDraws.length - 1];
+          const prevVis  = dayDraws.slice(0, -1);
+          const prevPool = hotWindow > 0 ? prevVis.slice(-hotWindow) : prevVis;
+
+          const prevRemByWheel = [0, 1, 2].map(function(wi) {
+            const cnt = {};
+            for (let v = 1; v <= 27; v++) cnt[v] = 0;
+            for (const d of prevPool) { const v = d.w[wi]; if (v >= 1 && v <= 27) cnt[v]++; }
+            const srt = Object.entries(cnt).map(function(e) { return {v:+e[0],c:e[1]}; }).sort(function(a,b){return b.c-a.c;});
+            const coldS = new Set(srt.slice(-5).map(function(x){return x.v;}));
+            const negS  = (psFilterNegDev && psFilterColdX > 0) ? new Set(srt.slice(-psFilterColdX).map(function(x){return x.v;})) : new Set();
+            const lastS = psFilterUseLast ? new Set(prevVis.slice(-psFilterLastN).map(function(d){return d.w[wi];})) : new Set();
+            const w2S   = (wi === 0 && psFilterW2) ? new Set(prevVis.slice(-psFilterW2N).map(function(d){return d.w[1];})) : new Set();
+            const w3S   = (wi === 0 && psFilterW3) ? new Set(prevVis.slice(-psFilterW3N).map(function(d){return d.w[2];})) : new Set();
+            const rem = new Set();
+            for (let v = 1; v <= 27; v++) {
+              if (!coldS.has(v) && !negS.has(v) && !lastS.has(v) && !w2S.has(v) && !w3S.has(v)) rem.add(v);
+            }
+            return rem;
+          });
+
+          const lbl2 = function(v) { return SYM2[v] || String(v); };
+          const chip2 = function(v, inR, inD) {
+            const bg  = inR ? (inD ? 'rgba(249,168,37,.22)' : 'rgba(102,187,106,.16)') : 'rgba(239,83,80,.14)';
+            const bor = inR ? (inD ? '#f9a825' : '#388e3c') : '#b71c1c';
+            const col = inR ? (inD ? '#ffd54f' : '#66bb6a') : '#ef5350';
+            return '<span style="display:inline-block;background:' + bg + ';color:' + col + ';border:1px solid ' + bor + ';border-radius:5px;padding:3px 10px;font-size:.82rem;font-weight:900">' + lbl2(v) + '</span>';
+          };
+          const wRow = function(wi, v) {
+            const inR = prevRemByWheel[wi].has(v);
+            const dn  = domZoneNameByWheel[wi];
+            const ds  = domZoneSetByWheel[wi];
+            const dc  = domZoneColByWheel[wi];
+            const inD = ds !== null && ds.has(v);
+            const zoneName = BLUE.has(v) ? 'ΜΠΛΕ' : RED.has(v) ? 'ΚΟΚΚ' : GREEN.has(v) ? 'ΠΡΑΣ' : 'ΣΥΜ';
+            const zc = zoneOf(v);
+            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0d0d1a">'
+              + '<span style="font-size:.63rem;color:' + wheelColors[wi] + ';font-weight:700;min-width:38px">Τρ.' + (wi+1) + '</span>'
+              + chip2(v, inR, inD)
+              + '<span style="font-size:.6rem;color:' + zc + ';font-weight:700">' + zoneName + '</span>'
+              + '<span style="font-size:.72rem;font-weight:900;color:' + (inR ? '#66bb6a' : '#ef5350') + ';margin-left:4px">'
+              + (inR ? '✓' : '✗') + ' chips</span>'
+              + (dn ? '<span style="font-size:.6rem;color:' + dc + ';margin-left:4px">'
+                  + (inD ? '✓' : '✗') + ' ' + dn + '</span>'
+                : '<span style="font-size:.58rem;color:#555;margin-left:4px">ισοπαλία</span>')
+              + '</div>';
+          };
+          return '<div style="margin-top:6px;padding:8px 10px;background:#060a10;border:1px solid #1a2a1a;border-radius:6px">'
+            + '<div style="font-size:.67rem;color:#80cbc4;font-weight:700;margin-bottom:6px">📊 Αξιολόγηση κλήρωσης #' + revDraw.id + '</div>'
+            + wRow(0, revDraw.w[0])
+            + wRow(1, revDraw.w[1])
+            + wRow(2, revDraw.w[2])
+            + '</div>';
+        })()}
+        ${(() => {
           const SYM = { 25:'★', 26:'♦', 27:'✦' };
           const nextDraw = cutIdx + 1 < dayDraws.length ? dayDraws[cutIdx + 1] : null;
           if (!nextDraw || remainingByWheel[0].length === 0) return '';
