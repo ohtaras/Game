@@ -3787,7 +3787,15 @@ let psFilterNegDev  = true;
 let psFilterColdX   = 3;
 let hotWheelOpen    = [true, false, false];
 let hotFilterOpen   = true;
+let hotSecOpen = { momentum: true, zones3: true, zonesPerWh: true, review: true };
 
+function toggleHotSec(name) {
+  hotSecOpen[name] = !hotSecOpen[name];
+  const b = document.getElementById('hotSec_' + name);
+  const c = document.getElementById('hotSecChev_' + name);
+  if (b) b.style.display = hotSecOpen[name] ? '' : 'none';
+  if (c) c.textContent = hotSecOpen[name] ? '▲' : '▼';
+}
 function toggleHotWheel(wi) {
   hotWheelOpen[wi] = !hotWheelOpen[wi];
   const body = document.getElementById('hotWheelBody' + wi);
@@ -4290,78 +4298,102 @@ function renderHot() {
           <button style="${wb(0)}"  onclick="setHotWindow(0)">Όλες</button>
         </div>
         <div style="font-size:.58rem;color:#444;margin-bottom:2px">${infoText}</div>
-        ${dayDraws.length > 0 ? '<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid #1a1a2e;margin-bottom:4px;flex-wrap:wrap">'
-          + '<span style="font-size:.6rem;color:#888;white-space:nowrap">🎯 Momentum πρώτων ' + MOMENTUM_N + ' κλ.</span>'
-          + (f20.length < MOMENTUM_N
-            ? '<span style="font-size:.65rem;color:#555">' + f20.length + '/' + MOMENTUM_N + ' κληρώσεις</span>'
-            : [0,1,2].map(function(wi){
-                var wz = f20ByWheel[wi];
-                var dn = domZoneNameByWheel[wi];
-                var dc = domZoneColByWheel[wi];
-                return '<span style="display:inline-flex;align-items:center;gap:3px;background:#0d1117;border:1px solid #1a1a2e;border-radius:6px;padding:2px 6px">'
-                  + '<span style="font-size:.6rem;color:' + wheelColors[wi] + ';font-weight:700">Τρ.' + (wi+1) + '</span>'
-                  + '<span style="font-size:.6rem;font-variant-numeric:tabular-nums;color:#888">'
-                  + '<span style="color:#1565c0;font-weight:700">Μ' + wz.b + '</span>'
-                  + '<span style="color:#555">·</span>'
-                  + '<span style="color:#c62828;font-weight:700">Κ' + wz.r + '</span>'
-                  + '<span style="color:#555">·</span>'
-                  + '<span style="color:#2e7d32;font-weight:700">Π' + wz.g + '</span>'
-                  + '</span>'
-                  + (dn
-                    ? '<span style="background:' + dc + '33;border:1px solid ' + dc + ';border-radius:10px;padding:1px 6px;font-size:.6rem;font-weight:900;color:' + dc + '">▲' + dn + '</span>'
-                    : '<span style="font-size:.58rem;color:#555">=</span>'
-                  )
-                  + '</span>';
-              }).join('')
-          )
-          + '</div>' : ''}
-        ${pool.length > 0 ? '<div style="display:flex;gap:4px;align-items:stretch;padding:4px 0 6px;border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
-          + '<span style="font-size:.58rem;color:#555;align-self:center;white-space:nowrap;min-width:56px;padding-right:4px">Ζώνες<br>3 τρ.</span>'
-          + [
-              {name:'ΜΠΛΕ', col:'#1565c0', light:'#42a5f5', c:zoneBlue3,  exp:expB3},
-              {name:'ΚΟΚΚ', col:'#c62828', light:'#ef5350', c:zoneRed3,   exp:expB3},
-              {name:'ΠΡΑΣ', col:'#2e7d32', light:'#66bb6a', c:zoneGreen3, exp:expB3},
-              {name:'ΣΥΜ',  col:'#546e7a', light:'#90a4ae', c:zoneSym3,   exp:expS3},
-            ].map(z => {
-              const diff = z.c - z.exp;
-              const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
-              const diffCol = diff > 2 ? z.light : diff < -2 ? '#455a64' : '#666';
-              const barW = poolTotal3 > 0 ? Math.round(z.c / poolTotal3 * 100) : 0;
-              return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:5px;padding:3px 5px;min-width:0;font-variant-numeric:tabular-nums">'
-                + '<div style="color:' + z.col + ';font-weight:700;font-size:.57rem;letter-spacing:.04em">' + z.name + '</div>'
-                + '<div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">' + z.c + '</div>'
-                + '<div style="color:' + diffCol + ';font-size:.57rem">' + diffStr + ' <span style="color:#333">αν.' + z.exp.toFixed(1) + '</span></div>'
-                + '<div style="height:3px;background:#111;border-radius:2px;margin-top:2px">'
-                + '<div style="height:3px;width:' + barW + '%;background:' + z.col + ';border-radius:2px"></div>'
-                + '</div>'
-                + '</div>';
-            }).join('')
-          + '</div>' : ''}
-        ${pool.length > 0 ? [0,1,2].map(wi => {
-            const wName = ['Τρ.1','Τρ.2','Τρ.3'][wi];
-            const wCol  = ['#ff8a65','#ffb74d','#fff176'][wi];
-            return '<div style="display:flex;gap:4px;align-items:stretch;padding:3px 0;border-bottom:1px solid #111">'
-              + '<span style="font-size:.57rem;color:' + wCol + ';align-self:center;white-space:nowrap;min-width:56px;padding-right:4px;font-weight:700">' + wName + '</span>'
-              + [{name:'ΜΠΛΕ',col:'#1565c0',light:'#42a5f5',c:wz[wi].b,exp:expB1},
-                 {name:'ΚΟΚΚ',col:'#c62828',light:'#ef5350',c:wz[wi].r,exp:expB1},
-                 {name:'ΠΡΑΣ',col:'#2e7d32',light:'#66bb6a',c:wz[wi].g,exp:expB1},
-                 {name:'ΣΥΜ', col:'#546e7a',light:'#90a4ae',c:wz[wi].s,exp:expS1},
-                ].map(z => {
-                  const diff = z.c - z.exp;
-                  const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
-                  const diffCol = diff > 2 ? z.light : diff < -2 ? '#455a64' : '#666';
-                  const barW = pool.length > 0 ? Math.round(z.c / pool.length * 100) : 0;
-                  return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:4px;padding:2px 4px;min-width:0;font-variant-numeric:tabular-nums">'
-                    + '<div style="color:' + z.col + ';font-weight:700;font-size:.52rem;letter-spacing:.03em">' + z.name + '</div>'
-                    + '<div style="color:#ddd;font-weight:700;font-size:.72rem;line-height:1.2">' + z.c + '</div>'
-                    + '<div style="color:' + diffCol + ';font-size:.52rem">' + diffStr + '</div>'
-                    + '<div style="height:2px;background:#111;border-radius:1px;margin-top:2px">'
-                    + '<div style="height:2px;width:' + barW + '%;background:' + z.col + ';border-radius:1px"></div>'
-                    + '</div>'
-                    + '</div>';
+        ${dayDraws.length > 0
+          ? '<div style="border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
+            + '<div onclick="toggleHotSec(\'momentum\')" style="cursor:pointer;display:flex;align-items:center;padding:4px 0 3px">'
+            + '<span style="font-size:.6rem;color:#888;white-space:nowrap">🎯 Momentum πρώτων ' + MOMENTUM_N + ' κλ.</span>'
+            + '<span id="hotSecChev_momentum" style="font-size:.55rem;color:#555;margin-left:auto">' + (hotSecOpen.momentum ? '▲' : '▼') + '</span>'
+            + '</div>'
+            + '<div id="hotSec_momentum" style="display:' + (hotSecOpen.momentum ? 'flex' : 'none') + ';flex-wrap:wrap;gap:6px;padding-bottom:5px;align-items:center">'
+            + (f20.length < MOMENTUM_N
+              ? '<span style="font-size:.65rem;color:#555">' + f20.length + '/' + MOMENTUM_N + ' κληρώσεις</span>'
+              : [0,1,2].map(function(wi){
+                  var wz = f20ByWheel[wi];
+                  var dn = domZoneNameByWheel[wi];
+                  var dc = domZoneColByWheel[wi];
+                  return '<span style="display:inline-flex;align-items:center;gap:3px;background:#0d1117;border:1px solid #1a1a2e;border-radius:6px;padding:2px 6px">'
+                    + '<span style="font-size:.6rem;color:' + wheelColors[wi] + ';font-weight:700">Τρ.' + (wi+1) + '</span>'
+                    + '<span style="font-size:.6rem;font-variant-numeric:tabular-nums;color:#888">'
+                    + '<span style="color:#1565c0;font-weight:700">Μ' + wz.b + '</span>'
+                    + '<span style="color:#555">·</span>'
+                    + '<span style="color:#c62828;font-weight:700">Κ' + wz.r + '</span>'
+                    + '<span style="color:#555">·</span>'
+                    + '<span style="color:#2e7d32;font-weight:700">Π' + wz.g + '</span>'
+                    + '</span>'
+                    + (dn
+                      ? '<span style="background:' + dc + '33;border:1px solid ' + dc + ';border-radius:10px;padding:1px 6px;font-size:.6rem;font-weight:900;color:' + dc + '">▲' + dn + '</span>'
+                      : '<span style="font-size:.58rem;color:#555">=</span>'
+                    )
+                    + '</span>';
                 }).join('')
-              + '</div>';
-          }).join('') : ''}
+            )
+            + '</div>'
+            + '</div>'
+          : ''}
+        ${pool.length > 0
+          ? '<div style="border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
+            + '<div onclick="toggleHotSec(\'zones3\')" style="cursor:pointer;display:flex;align-items:center;padding:4px 0 3px">'
+            + '<span style="font-size:.58rem;color:#555;white-space:nowrap">Ζώνες 3 Τροχών</span>'
+            + '<span id="hotSecChev_zones3" style="font-size:.55rem;color:#555;margin-left:auto">' + (hotSecOpen.zones3 ? '▲' : '▼') + '</span>'
+            + '</div>'
+            + '<div id="hotSec_zones3" style="display:' + (hotSecOpen.zones3 ? 'flex' : 'none') + ';gap:4px;align-items:stretch;padding-bottom:5px">'
+            + [
+                {name:'ΜΠΛΕ', col:'#1565c0', light:'#42a5f5', c:zoneBlue3,  exp:expB3},
+                {name:'ΚΟΚΚ', col:'#c62828', light:'#ef5350', c:zoneRed3,   exp:expB3},
+                {name:'ΠΡΑΣ', col:'#2e7d32', light:'#66bb6a', c:zoneGreen3, exp:expB3},
+                {name:'ΣΥΜ',  col:'#546e7a', light:'#90a4ae', c:zoneSym3,   exp:expS3},
+              ].map(z => {
+                const diff = z.c - z.exp;
+                const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
+                const diffCol = diff > 2 ? z.light : diff < -2 ? '#455a64' : '#666';
+                const barW = poolTotal3 > 0 ? Math.round(z.c / poolTotal3 * 100) : 0;
+                return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:5px;padding:3px 5px;min-width:0;font-variant-numeric:tabular-nums">'
+                  + '<div style="color:' + z.col + ';font-weight:700;font-size:.57rem;letter-spacing:.04em">' + z.name + '</div>'
+                  + '<div style="color:#ddd;font-weight:700;font-size:.78rem;line-height:1.2">' + z.c + '</div>'
+                  + '<div style="color:' + diffCol + ';font-size:.57rem">' + diffStr + ' <span style="color:#333">αν.' + z.exp.toFixed(1) + '</span></div>'
+                  + '<div style="height:3px;background:#111;border-radius:2px;margin-top:2px">'
+                  + '<div style="height:3px;width:' + barW + '%;background:' + z.col + ';border-radius:2px"></div>'
+                  + '</div>'
+                  + '</div>';
+              }).join('')
+            + '</div>'
+            + '</div>'
+          : ''}
+        ${pool.length > 0
+          ? '<div style="border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
+            + '<div onclick="toggleHotSec(\'zonesPerWh\')" style="cursor:pointer;display:flex;align-items:center;padding:4px 0 3px">'
+            + '<span style="font-size:.58rem;color:#555;white-space:nowrap">Ζώνες ανά Τροχό</span>'
+            + '<span id="hotSecChev_zonesPerWh" style="font-size:.55rem;color:#555;margin-left:auto">' + (hotSecOpen.zonesPerWh ? '▲' : '▼') + '</span>'
+            + '</div>'
+            + '<div id="hotSec_zonesPerWh" style="display:' + (hotSecOpen.zonesPerWh ? '' : 'none') + '">'
+            + [0,1,2].map(wi => {
+                const wName = ['Τρ.1','Τρ.2','Τρ.3'][wi];
+                const wCol  = ['#ff8a65','#ffb74d','#fff176'][wi];
+                return '<div style="display:flex;gap:4px;align-items:stretch;padding:3px 0;border-bottom:1px solid #111">'
+                  + '<span style="font-size:.57rem;color:' + wCol + ';align-self:center;white-space:nowrap;min-width:56px;padding-right:4px;font-weight:700">' + wName + '</span>'
+                  + [{name:'ΜΠΛΕ',col:'#1565c0',light:'#42a5f5',c:wz[wi].b,exp:expB1},
+                     {name:'ΚΟΚΚ',col:'#c62828',light:'#ef5350',c:wz[wi].r,exp:expB1},
+                     {name:'ΠΡΑΣ',col:'#2e7d32',light:'#66bb6a',c:wz[wi].g,exp:expB1},
+                     {name:'ΣΥΜ', col:'#546e7a',light:'#90a4ae',c:wz[wi].s,exp:expS1},
+                    ].map(z => {
+                      const diff = z.c - z.exp;
+                      const diffStr = (diff >= 0 ? '+' : '') + diff.toFixed(1);
+                      const diffCol = diff > 2 ? z.light : diff < -2 ? '#455a64' : '#666';
+                      const barW = pool.length > 0 ? Math.round(z.c / pool.length * 100) : 0;
+                      return '<div style="flex:1;background:#080b14;border:1px solid ' + z.col + '44;border-radius:4px;padding:2px 4px;min-width:0;font-variant-numeric:tabular-nums">'
+                        + '<div style="color:' + z.col + ';font-weight:700;font-size:.52rem;letter-spacing:.03em">' + z.name + '</div>'
+                        + '<div style="color:#ddd;font-weight:700;font-size:.72rem;line-height:1.2">' + z.c + '</div>'
+                        + '<div style="color:' + diffCol + ';font-size:.52rem">' + diffStr + '</div>'
+                        + '<div style="height:2px;background:#111;border-radius:1px;margin-top:2px">'
+                        + '<div style="height:2px;width:' + barW + '%;background:' + z.col + ';border-radius:1px"></div>'
+                        + '</div>'
+                        + '</div>';
+                    }).join('')
+                  + '</div>';
+              }).join('')
+            + '</div>'
+            + '</div>'
+          : ''}
         ${filterHtml}
         ${(() => {
           // Αξιολόγηση τελ. κλήρωσης σε standby mode (cutoff=null)
@@ -4414,11 +4446,16 @@ function renderHot() {
                 : '<span style="font-size:.58rem;color:#555;margin-left:4px">ισοπαλία</span>')
               + '</div>';
           };
-          return '<div style="margin-top:6px;padding:8px 10px;background:#060a10;border:1px solid #1a2a1a;border-radius:6px">'
-            + '<div style="font-size:.67rem;color:#80cbc4;font-weight:700;margin-bottom:6px">📊 Αξιολόγηση κλήρωσης #' + revDraw.id + '</div>'
+          return '<div style="margin-top:6px;background:#060a10;border:1px solid #1a2a1a;border-radius:6px;overflow:hidden">'
+            + '<div onclick="toggleHotSec(\'review\')" style="cursor:pointer;display:flex;align-items:center;padding:7px 10px;gap:6px">'
+            + '<span style="font-size:.67rem;color:#80cbc4;font-weight:700">📊 Αξιολόγηση κλήρωσης #' + revDraw.id + '</span>'
+            + '<span id="hotSecChev_review" style="font-size:.55rem;color:#555;margin-left:auto">' + (hotSecOpen.review ? '▲' : '▼') + '</span>'
+            + '</div>'
+            + '<div id="hotSec_review" style="display:' + (hotSecOpen.review ? '' : 'none') + ';padding:0 10px 8px">'
             + wRow(0, revDraw.w[0])
             + wRow(1, revDraw.w[1])
             + wRow(2, revDraw.w[2])
+            + '</div>'
             + '</div>';
         })()}
         ${(() => {
