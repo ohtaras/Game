@@ -3984,6 +3984,24 @@ function renderHot() {
   const expS1 = pool.length * 3 / 27;
   const wheelColors = ['#ff8a65', '#ffb74d', '#fff176'];
 
+  // ── Momentum ζώνης (πρώτες 20 κληρώσεις ημέρας) ─────────────────────────
+  const MOMENTUM_N = 20;
+  const f20 = dayDraws.slice(0, MOMENTUM_N);
+  let f20B = 0, f20R = 0, f20G = 0;
+  for (const d of f20) {
+    for (let w = 0; w < 3; w++) {
+      const v = d.w[w];
+      if (BLUE.has(v)) f20B++; else if (RED.has(v)) f20R++; else if (GREEN.has(v)) f20G++;
+    }
+  }
+  const f20Has = f20.length >= MOMENTUM_N;
+  const f20Max = Math.max(f20B, f20R, f20G);
+  // κυρίαρχη ζώνη: αυτή που ξεφεύγει μόνη (αν ισοπαλία = null)
+  const f20Tied = (f20B === f20Max && f20R === f20Max) || (f20B === f20Max && f20G === f20Max) || (f20R === f20Max && f20G === f20Max);
+  const domZoneName = f20Tied ? null : f20B === f20Max ? 'ΜΠΛΕ' : f20R === f20Max ? 'ΚΟΚΚ' : 'ΠΡΑΣ';
+  const domZoneSet  = domZoneName === 'ΜΠΛΕ' ? BLUE : domZoneName === 'ΚΟΚΚ' ? RED : domZoneName === 'ΠΡΑΣ' ? GREEN : null;
+  const domZoneCol  = domZoneName === 'ΜΠΛΕ' ? '#1565c0' : domZoneName === 'ΚΟΚΚ' ? '#c62828' : domZoneName === 'ΠΡΑΣ' ? '#2e7d32' : '#555';
+
   for (let wi = 0; wi < 3; wi++) {
     // Μέτρηση εμφανίσεων (αριθμοί 1-24 + σύμβολα 25-27)
     const SYM_MAP = { 25: '★', 26: '♦', 27: '✦' };
@@ -4167,12 +4185,14 @@ function renderHot() {
       else if (remNums.length > 0)  { ouLabel = `O=U ${overCnt}`; ouColor = '#888'; }
 
       const chips = remaining.map(v => {
-        const isRed = prevNegDevSet.has(v);
-        const color  = isRed ? '#ef5350' : '#80cbc4';
-        const border = isRed ? '#b71c1c' : '#26a69a';
-        const bg     = isRed ? 'rgba(239,83,80,.13)' : 'rgba(38,166,154,.10)';
+        const isRed  = prevNegDevSet.has(v);
+        const isDom  = domZoneSet !== null && domZoneSet.has(v);
+        const color  = isRed ? '#ef5350' : isDom ? '#ffd54f' : '#80cbc4';
+        const border = isRed ? '#b71c1c' : isDom ? '#f9a825' : '#26a69a';
+        const bg     = isRed ? 'rgba(239,83,80,.13)' : isDom ? 'rgba(249,168,37,.14)' : 'rgba(38,166,154,.10)';
+        const shadow = isDom && !isRed ? ';box-shadow:0 0 6px ' + domZoneCol + '55' : '';
         const lbl    = SYM_MAP[v] || String(v);
-        return `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:700">${lbl}</span>`;
+        return `<span style="display:inline-block;background:${bg};color:${color};border:1px solid ${border};border-radius:4px;padding:2px 7px;font-size:.74rem;font-weight:700${shadow}">${lbl}</span>`;
       }).join('');
 
       const btnOn  = 'background:#1a2e1a;color:#80cbc4;border:1px solid #26a69a;border-radius:4px;padding:2px 8px;font-size:.68rem;cursor:pointer';
@@ -4265,6 +4285,24 @@ function renderHot() {
           <button style="${wb(0)}"  onclick="setHotWindow(0)">Όλες</button>
         </div>
         <div style="font-size:.58rem;color:#444;margin-bottom:2px">${infoText}</div>
+        ${dayDraws.length > 0 ? '<div style="display:flex;align-items:center;gap:6px;padding:5px 0 6px;border-bottom:1px solid #1a1a2e;margin-bottom:4px;flex-wrap:wrap">'
+          + '<span style="font-size:.6rem;color:#888;white-space:nowrap">🎯 Momentum πρώτων ' + MOMENTUM_N + ' κλ.</span>'
+          + (f20.length < MOMENTUM_N
+            ? '<span style="font-size:.65rem;color:#555">' + f20.length + '/' + MOMENTUM_N + ' κληρώσεις</span>'
+            : '<span style="font-size:.65rem;font-variant-numeric:tabular-nums;color:#888">'
+              + '<span style="color:#1565c0;font-weight:700">ΜΠΛΕ ' + f20B + '</span> '
+              + '<span style="color:#555">·</span> '
+              + '<span style="color:#c62828;font-weight:700">ΚΟΚΚ ' + f20R + '</span> '
+              + '<span style="color:#555">·</span> '
+              + '<span style="color:#2e7d32;font-weight:700">ΠΡΑΣ ' + f20G + '</span>'
+              + '</span>'
+              + (domZoneName
+                ? '<span style="margin-left:4px;background:' + domZoneCol + '33;border:1px solid ' + domZoneCol + ';border-radius:12px;padding:2px 10px;font-size:.65rem;font-weight:900;color:' + domZoneCol + ';letter-spacing:.05em">▲ ' + domZoneName + '</span>'
+                + '<span style="font-size:.58rem;color:#555">προτεινόμενη ζώνη</span>'
+                : '<span style="font-size:.6rem;color:#555">ισοπαλία</span>'
+              )
+          )
+          + '</div>' : ''}
         ${pool.length > 0 ? '<div style="display:flex;gap:4px;align-items:stretch;padding:4px 0 6px;border-bottom:1px solid #1a1a2e;margin-bottom:4px">'
           + '<span style="font-size:.58rem;color:#555;align-self:center;white-space:nowrap;min-width:56px;padding-right:4px">Ζώνες<br>3 τρ.</span>'
           + [
