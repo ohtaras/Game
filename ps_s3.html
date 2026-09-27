@@ -688,6 +688,18 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       </div>
     </div>
 
+    <!-- ── 6 Φρέσκοι Αριθμοί ── -->
+    <div id="freshSixSection" style="margin-top:10px;background:#0a0f1a;border:1px solid #1a2a3a;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="freshSixToggle()">
+        <span style="color:#4fc3f7;font-size:.78rem;font-weight:700">❄️ 6 Φρέσκοι Αριθμοί</span>
+        <span style="color:#555;font-size:.6rem">— έναν αριθμό από κάθε μια από τις 6 τελευταίες κληρώσεις που δεν εμφανίστηκε στις 5 πριν</span>
+        <span id="freshSixChevron" style="color:#555;margin-left:auto;font-size:.7rem">▼</span>
+      </div>
+      <div id="freshSixBody" style="display:none">
+        <div id="freshSixPanel"></div>
+      </div>
+    </div>
+
     <div class="ctrl-bar" style="margin-top:10px">
       <button class="btn" id="kinoPrevBtn2" onclick="kinoNav(-1)" disabled>◀ Προηγ.</button>
       <button class="btn" id="kinoNextBtn2" onclick="kinoNav(+1)" disabled>Επόμ. ▶</button>
@@ -2132,6 +2144,7 @@ function kinoRender() {
   renderPinnedNines(draw);
   renderLcLive(draw);
   renderRevEngLive(draw);
+  renderFreshSix(draw);
   lcInitButtons();
 }
 
@@ -2333,6 +2346,111 @@ function renderPinnedNines(draw) {
 
 function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(kinoDraws.length-1, kinoIdx+dir)); kinoRender(); revEngNavTick(); }
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
+
+let freshSixOpen = false;
+function freshSixToggle() {
+  freshSixOpen = !freshSixOpen;
+  const b = document.getElementById('freshSixBody');
+  const c = document.getElementById('freshSixChevron');
+  if (b) b.style.display = freshSixOpen ? '' : 'none';
+  if (c) c.textContent = freshSixOpen ? '▲' : '▼';
+  if (freshSixOpen) renderFreshSix(kinoDraws[kinoIdx]);
+}
+
+function renderFreshSix(draw) {
+  const panel = document.getElementById('freshSixPanel');
+  if (!panel || !freshSixOpen) return;
+  if (!draw || kinoIdx < 5) {
+    panel.innerHTML = '<div style="color:#444;font-size:.65rem">Χρειάζονται τουλάχιστον 11 κληρώσεις (6 + 5 ιστορικό).</div>';
+    return;
+  }
+
+  // For each slot i=0..5: draw is kinoDraws[kinoIdx-i], lookback is kinoDraws[kinoIdx-i-1..kinoIdx-i-5]
+  const picks = [];
+  for (let i = 0; i < 6; i++) {
+    const slotIdx = kinoIdx - i;
+    if (slotIdx < 5) { picks.push(null); continue; }
+    const slotDraw = kinoDraws[slotIdx];
+    // union of numbers from previous 5 draws
+    const prevUnion = new Set();
+    for (let j = 1; j <= 5; j++) {
+      if (slotIdx - j >= 0) kinoDraws[slotIdx - j].n.forEach(n => prevUnion.add(n));
+    }
+    // candidates: numbers in slotDraw NOT in prevUnion
+    const candidates = slotDraw.n.filter(n => !prevUnion.has(n));
+    if (candidates.length === 0) { picks.push(null); continue; }
+    // pick candidate with longest absence: furthest back search in draws before slotIdx-5
+    let bestNum = candidates[0], bestAbs = 0;
+    for (const cand of candidates) {
+      let abs = 0;
+      for (let k = slotIdx - 6; k >= 0; k--) {
+        if (kinoDraws[k].n.includes(cand)) break;
+        abs++;
+      }
+      if (abs > bestAbs) { bestAbs = abs; bestNum = cand; }
+    }
+    picks.push({ num: bestNum, abs: bestAbs, drawId: slotDraw.id, slotIdx, candidatesCount: candidates.length });
+  }
+
+  const validPicks = picks.filter(Boolean);
+  const pickedNums = validPicks.map(p => p.num);
+
+  // Evaluation against next draw
+  let evalHtml = '';
+  const nextDraw = kinoIdx < kinoDraws.length - 1 ? kinoDraws[kinoIdx + 1] : null;
+  if (nextDraw) {
+    const nextSet = new Set(nextDraw.n);
+    const hits = pickedNums.filter(n => nextSet.has(n)).length;
+    const color = hits >= 3 ? '#69f0ae' : hits >= 2 ? '#ffd54f' : hits >= 1 ? '#80cbc4' : '#555';
+    evalHtml = '<div style="margin-top:8px;padding:5px 8px;background:#080d10;border:1px solid #1a2a3a;border-radius:4px">' +
+      '<span style="color:#4fc3f7;font-size:.68rem;font-weight:700">Αξιολόγηση → κλ. #' + nextDraw.id + ': </span>' +
+      '<span style="color:' + color + ';font-size:.75rem;font-weight:700">' + hits + '/6 επιτυχίες</span>' +
+      '  <span style="font-size:.62rem;color:#444">' +
+      pickedNums.map(n => '<span style="' + (nextSet.has(n) ? 'color:#69f0ae;font-weight:700' : 'color:#333') + '">' + n + '</span>').join(' ') +
+      '</span></div>';
+  } else {
+    evalHtml = '<div style="margin-top:6px;color:#444;font-size:.62rem">▶ Αναμονή επόμενης κλήρωσης για αξιολόγηση…</div>';
+  }
+
+  // Build rows — one per slot
+  let rowsHtml = '';
+  for (let i = 0; i < picks.length; i++) {
+    const p = picks[i];
+    const slotLabel = i === 0 ? 'Τελευταία' : 'Πριν ' + i;
+    if (!p) {
+      rowsHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
+        '<span style="color:#333;font-size:.6rem;min-width:72px">' + slotLabel + '</span>' +
+        '<span style="color:#222;font-size:.65rem">— (ανεπαρκή δεδομένα)</span></div>';
+      continue;
+    }
+    const nextSet2 = nextDraw ? new Set(nextDraw.n) : null;
+    const hit = nextSet2 ? nextSet2.has(p.num) : null;
+    const chipBg = hit === true ? '#0d2a12' : hit === false ? '#1a0a0a' : '#0d1520';
+    const chipBorder = hit === true ? '#2e7d32' : hit === false ? '#4a1a1a' : '#1a3a5a';
+    const chipColor = hit === true ? '#69f0ae' : hit === false ? '#ef5350' : '#4fc3f7';
+    const hitMark = hit === true ? ' ✓' : hit === false ? ' ✗' : '';
+    rowsHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
+      '<span style="color:#3a5a7a;font-size:.6rem;min-width:72px">' + slotLabel + '</span>' +
+      '<span style="background:' + chipBg + ';border:1px solid ' + chipBorder + ';color:' + chipColor + ';border-radius:4px;padding:2px 8px;font-size:.8rem;font-weight:700">' + p.num + hitMark + '</span>' +
+      '<span style="color:#2a4a6a;font-size:.58rem">' + p.candidatesCount + ' υποψ. · απουσία ' + p.abs + ' κλ.</span>' +
+      '<span style="color:#1a3a5a;font-size:.55rem">κλ.#' + p.drawId + '</span>' +
+      '</div>';
+  }
+
+  panel.innerHTML =
+    '<div style="margin-bottom:6px">' + rowsHtml + '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px">' +
+      '<span style="color:#3a5a7a;font-size:.6rem;align-self:center">Επιλογές:</span>' +
+      pickedNums.map(function(n) {
+        const hit2 = nextDraw ? new Set(nextDraw.n).has(n) : null;
+        const c2 = hit2 === true ? '#69f0ae' : hit2 === false ? '#ef5350' : '#4fc3f7';
+        const bg2 = hit2 === true ? '#0d2a12' : hit2 === false ? '#1a0a0a' : '#0a1a2a';
+        const bd2 = hit2 === true ? '#2e7d32' : hit2 === false ? '#4a1a1a' : '#1a3a6a';
+        return '<span style="background:' + bg2 + ';border:1px solid ' + bd2 + ';color:' + c2 + ';border-radius:4px;padding:3px 10px;font-size:.85rem;font-weight:700">' + n + '</span>';
+      }).join('') +
+    '</div>' +
+    evalHtml;
+}
 
 function msToNextKino() {
   // ΚΙΝΟ runs 24/7 with a draw every 5 minutes — no end boundary.
