@@ -2348,6 +2348,14 @@ function kinoNav(dir)  { kinoLiveMode = false; kinoIdx = Math.max(0, Math.min(ki
 function kinoGoLast()  { kinoLiveMode = true;  kinoIdx = kinoDraws.length - 1; kinoRender(); }
 
 let freshSixOpen = false;
+let freshSixWin = 10;
+const FRESH_SIX_WINS = [5, 10, 20, 50, 100];
+
+function freshSixSetWin(w) {
+  freshSixWin = w;
+  renderFreshSix(kinoDraws[kinoIdx]);
+}
+
 function freshSixToggle() {
   freshSixOpen = !freshSixOpen;
   const b = document.getElementById('freshSixBody');
@@ -2379,8 +2387,8 @@ function renderFreshSix(draw) {
     // candidates: numbers in slotDraw NOT in prevUnion
     const candidates = slotDraw.n.filter(n => !prevUnion.has(n));
     if (candidates.length === 0) { picks.push(null); continue; }
-    // pick candidate with highest frequency in last 100 draws before this slot
-    const freqWin = Math.min(100, slotIdx);
+    // pick candidate with highest frequency in last freshSixWin draws before this slot
+    const freqWin = Math.min(freshSixWin, slotIdx);
     const freq = {};
     for (let k = slotIdx - freqWin; k < slotIdx; k++)
       kinoDraws[k].n.forEach(n => { freq[n] = (freq[n] || 0) + 1; });
@@ -2437,7 +2445,18 @@ function renderFreshSix(draw) {
       '</div>';
   }
 
+  const winBtns = FRESH_SIX_WINS.map(function(w) {
+    const active = w === freshSixWin;
+    const bg = active ? '#0d1a2a' : '#080d10';
+    const bd = active ? '#1a6aaa' : '#1a2a3a';
+    const cl = active ? '#4fc3f7' : '#2a4a6a';
+    return '<button onclick="freshSixSetWin(' + w + ')" style="padding:1px 7px;font-size:.6rem;border-radius:3px;border:1px solid ' + bd + ';background:' + bg + ';color:' + cl + ';cursor:pointer">' + w + '</button>';
+  }).join('');
+
   panel.innerHTML =
+    '<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap">' +
+      '<span style="color:#2a4a6a;font-size:.6rem">Παράθυρο συχνότητας:</span>' + winBtns +
+    '</div>' +
     '<div style="margin-bottom:6px">' + rowsHtml + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px">' +
       '<span style="color:#3a5a7a;font-size:.6rem;align-self:center">Επιλογές:</span>' +
