@@ -2473,15 +2473,11 @@ function renderFreshSix(draw) {
 }
 
 function buildFreshSixHistory() {
-  // Show evaluations for the last 20 draws ending at kinoIdx (need kinoIdx+1 to evaluate)
   const HIST = 20;
-  let rows = '';
-  let shown = 0;
-  // iterate backwards from kinoIdx, each needs kinoIdx+1 to evaluate → stop at kinoDraws.length-2
-  for (let idx = Math.min(kinoIdx, kinoDraws.length - 2); idx >= 6 && shown < HIST; idx--) {
+  const entries = []; // {hits, nums, evalId}
+  for (let idx = Math.min(kinoIdx, kinoDraws.length - 2); idx >= 6 && entries.length < HIST; idx--) {
     const evalDraw = kinoDraws[idx + 1];
     const evalSet  = new Set(evalDraw.n);
-    // compute 6 picks for this idx
     const nums = [];
     for (let i = 0; i < 6; i++) {
       const slotIdx = idx - i;
@@ -2501,24 +2497,47 @@ function buildFreshSixHistory() {
       nums.push(best);
     }
     if (!nums.length) continue;
-    const hits = nums.filter(n => evalSet.has(n)).length;
-    const hc = hits >= 3 ? '#69f0ae' : hits >= 2 ? '#ffd54f' : hits >= 1 ? '#80cbc4' : '#555';
-    const chips = nums.map(function(n) {
-      const h = evalSet.has(n);
-      const cc = h ? '#69f0ae' : '#333'; const bc = h ? '#1a3a1a' : '#111';
-      return '<span style="background:' + bc + ';border:1px solid ' + (h ? '#2e4a2e' : '#1a1a1a') + ';color:' + cc + ';border-radius:3px;padding:1px 5px;font-size:.65rem;font-weight:' + (h ? '700' : 'normal') + '">' + n + (h ? '✓' : '') + '</span>';
+    entries.push({ hits: nums.filter(n => evalSet.has(n)).length, nums, evalSet, evalId: evalDraw.id });
+  }
+  if (!entries.length) return '';
+
+  // tally
+  const tally = [0,0,0,0,0,0,0];
+  entries.forEach(function(e) { tally[e.hits]++; });
+
+  // summary row
+  const tallyHtml = tally.map(function(cnt, h) {
+    if (!cnt) return '';
+    const c = h >= 3 ? '#69f0ae' : h >= 2 ? '#ffd54f' : h >= 1 ? '#80cbc4' : '#555';
+    return '<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-width:28px">' +
+      '<span style="color:' + c + ';font-size:.75rem;font-weight:700">' + cnt + 'x</span>' +
+      '<span style="color:#2a4a6a;font-size:.55rem">' + h + '/6</span>' +
+      '</span>';
+  }).join('');
+
+  // rows
+  let rows = '';
+  entries.forEach(function(e) {
+    const hc = e.hits >= 3 ? '#69f0ae' : e.hits >= 2 ? '#ffd54f' : e.hits >= 1 ? '#80cbc4' : '#555';
+    const chips = e.nums.map(function(n) {
+      const h = e.evalSet.has(n);
+      return '<span style="background:' + (h ? '#1a3a1a' : '#111') + ';border:1px solid ' + (h ? '#2e4a2e' : '#1a1a1a') + ';color:' + (h ? '#69f0ae' : '#333') + ';border-radius:3px;padding:1px 5px;font-size:.65rem;font-weight:' + (h ? '700' : 'normal') + '">' + n + (h ? '✓' : '') + '</span>';
     }).join('');
     rows += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #0d1520">' +
-      '<span style="color:#1a3a5a;font-size:.55rem;min-width:52px">#' + evalDraw.id + '</span>' +
-      '<span style="color:' + hc + ';font-size:.68rem;font-weight:700;min-width:24px">' + hits + '/6</span>' +
+      '<span style="color:#1a3a5a;font-size:.55rem;min-width:52px">#' + e.evalId + '</span>' +
+      '<span style="color:' + hc + ';font-size:.68rem;font-weight:700;min-width:24px">' + e.hits + '/6</span>' +
       '<div style="display:flex;flex-wrap:wrap;gap:2px">' + chips + '</div>' +
       '</div>';
-    shown++;
-  }
-  if (!shown) return '';
+  });
+
   return '<div style="margin-top:10px;border-top:1px solid #0d1a2a;padding-top:6px">' +
-    '<div style="color:#2a4a6a;font-size:.6rem;margin-bottom:4px">Ιστορικό ' + shown + ' αξιολογήσεων</div>' +
+    '<div style="color:#2a4a6a;font-size:.6rem;margin-bottom:6px">Ιστορικό ' + entries.length + ' αξιολογήσεων</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;padding:5px 8px;background:#070c12;border:1px solid #0d1a2a;border-radius:4px;margin-bottom:8px">' +
+      '<span style="color:#2a4a6a;font-size:.6rem;align-self:center;margin-right:2px">Σύνοψη:</span>' +
+      tallyHtml +
+    '</div>' +
     rows + '</div>';
+}
 }
 
 function msToNextKino() {
