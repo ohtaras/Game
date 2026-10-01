@@ -194,8 +194,9 @@ var histPool  = [];   // {id, arr[20], set, b, d, m}
 var liveDraw  = null; // latest completed draw
 var randDraw  = null; // random pick for upcoming slot
 var evalDraw  = null; // previous randDraw, kept for evaluation after new live
-var refreshTm = null;
-var cdTm      = null;
+var refreshTm  = null;
+var cdTm       = null;
+var lastNextMin = -1;
 
 // ── OPAP API ───────────────────────────────────────────────────────────────
 async function apiFetch(url) {
@@ -259,7 +260,14 @@ function tickCd() {
   var cdv  = document.getElementById('cdVal');
   var cdn  = document.getElementById('cdNext');
   if (cdv) cdv.textContent = mm + ':' + pad(ss);
-  if (cdn) cdn.textContent = 'ώρα ' + mStr(nextDrawMin());
+  var nm = nextDrawMin();
+  if (cdn) cdn.textContent = 'ώρα ' + mStr(nm);
+  // When the slot changes, re-pick the random draw immediately
+  if (nm !== lastNextMin) {
+    lastNextMin = nm;
+    randDraw = pickRandom();
+    renderRand();
+  }
 }
 
 // ── Load history ──────────────────────────────────────────────────────────
@@ -334,7 +342,6 @@ async function checkNewDraw() {
     liveDraw = latest;
     randDraw = pickRandom();
     renderAll();
-    scheduleRefresh();
     return true;
   }
   return false;
@@ -342,16 +349,21 @@ async function checkNewDraw() {
 
 function scheduleRefresh() {
   clearTimeout(refreshTm);
-  var delay = msToNextDraw() + 15000;
-  refreshTm = setTimeout(function() {
+  var delay   = msToNextDraw() + 15000;
+  var retries = 0;
+  function tryFetch() {
     checkNewDraw().then(function(found) {
-      if (!found) {
-        refreshTm = setTimeout(function() {
-          checkNewDraw().then(function(f){ if (!f) scheduleRefresh(); });
-        }, 12000);
+      if (found) { scheduleRefresh(); return; } // new draw found, arm next cycle
+      retries++;
+      if (retries < 12) {
+        // retry every 15s for up to ~3 min after expected draw time
+        refreshTm = setTimeout(tryFetch, 15000);
+      } else {
+        scheduleRefresh(); // give up on this slot, wait for next
       }
     });
-  }, delay);
+  }
+  refreshTm = setTimeout(tryFetch, delay);
 }
 
 // ── Render ─────────────────────────────────────────────────────────────────
