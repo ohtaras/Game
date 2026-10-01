@@ -1,1273 +1,494 @@
-<!DOCTYPE html>
-<html lang="el">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kino Live</title>
+<title>ΚΙΝΟ Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111;color:#e8e8e8;min-height:100vh}
-a{color:#64b5f6;text-decoration:none}
-
-/* ── Header ── */
-header{background:#1a1a2e;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #2a2a4a}
-header h1{font-size:1.2rem;font-weight:700;color:#e0e0ff}
-.badge{padding:4px 12px;border-radius:20px;font-size:.78rem;font-weight:700;letter-spacing:.04em}
-.badge.on{background:#1b5e20;color:#a5d6a7;animation:pulse 2s infinite}
-.badge.off{background:#333;color:#888}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-#countdown{font-size:.8rem;color:#aaa;margin-left:auto}
-
-/* ── Header settings link ── */
-#settingsLink{font-size:.8rem;color:#9fa8da;padding:4px 10px;border:1px solid #3a3a5a;border-radius:20px}
-#settingsLink:hover{background:#2a2a4a}
-/* ── Token bar ── */
-#tokenBar{background:#1a1a2e;padding:8px 16px;border-bottom:1px solid #2a2a4a;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.78rem}
-#tokenState{color:#aaa}
-
-/* ── Main layout ── */
-main{max-width:1100px;margin:0 auto;padding:12px 12px}
-section{background:#1a1a2e;border-radius:10px;padding:14px;margin-bottom:12px}
-section h2{font-size:.9rem;font-weight:600;color:#7986cb;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
-
-/* ── Current draw ── */
-#drawCard{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
-#drawMeta{font-size:.8rem;color:#aaa;min-width:160px}
-#drawMeta strong{display:block;font-size:1rem;color:#fff;margin-bottom:4px}
-.num-grid{display:flex;flex-wrap:wrap;gap:4px;flex:1}
-.num-ball{width:36px;height:36px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;background:#263238;color:#b0bec5;border:2px solid #37474f;cursor:default}
-.num-ball.drawn       {background:#1a2744;color:#e8eaf6;border-color:#37474f}
-.num-ball.verb        {background:#2a0d3e;color:#ce93d8;border-color:#7b1fa2}
-.num-ball.verb2       {background:#0d2e1a;color:#a5d6a7;border-color:#2e7d32}
-.num-ball.noun-nature {background:#0d2b1a;color:#80cbc4;border-color:#00695c}
-.num-ball.noun-life   {background:#0d2040;color:#90caf9;border-color:#1565c0}
-.num-ball.adverb      {background:#1a1200;color:#ffd54f;border-color:#f57f17}
-#drawLettersLine{font-size:.82rem;color:#b0bec5;margin-top:8px;line-height:1.7;word-break:break-word}
-
-/* ── Delay table ── */
-#delayGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
-.d-cell{border-radius:5px;padding:4px 2px;text-align:center;cursor:default;transition:transform .1s}
-.d-cell:hover{transform:scale(1.15);z-index:1;position:relative}
-.d-num{font-size:.68rem;font-weight:700;display:block;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
-.d-sym{font-size:.65rem;display:block;color:#fff;font-family:monospace;text-shadow:0 1px 3px rgba(0,0,0,.7)}
-.d-val{font-size:.6rem;display:block;color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.7)}
-
-#saveStatus{font-size:.75rem;color:#aaa;padding:4px 0}
-
-/* ── Hot 4-tuples ── */
-#hot4Grid{display:flex;flex-direction:column;gap:6px}
-.tuple-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:#1e2235;border:1px solid #333;flex-wrap:wrap;transition:background .3s,border-color .3s,box-shadow .3s}
-.tuple-card.hot{background:#3a0d0d;border-color:#e53935;box-shadow:0 0 10px rgba(229,57,53,.5)}
-.tuple-card .t-nums{display:flex;gap:4px}
-.tuple-card .t-num{width:34px;height:34px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;background:#263238;color:#cfd8dc;border:1px solid #37474f}
-.tuple-card.hot .t-num{background:#5c1a1a;border-color:#e53935;color:#ffcdd2}
-.tuple-card .t-num .t-d{font-size:.55rem;opacity:.8}
-.tuple-card .t-meta{font-size:.78rem;color:#999;margin-left:auto}
-.tuple-card.hot .t-meta{color:#ff8a80;font-weight:700}
-.tuple-card .t-eval{flex-basis:100%;font-size:.74rem;color:#80cbc4;margin-top:2px}
-
-/* ── Hot zones ── */
-#zoneGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.zone-card{border-radius:10px;padding:14px 8px;text-align:center;border:2px solid transparent;transition:transform .2s,box-shadow .3s}
-.zone-card.hottest{border-color:#fff;box-shadow:0 0 14px rgba(255,82,82,.7);transform:scale(1.04)}
-.zone-card .z-label{font-size:1rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.zone-card .z-avg{font-size:.72rem;color:rgba(255,255,255,.9);margin-top:4px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-.zone-card .z-flag{font-size:.72rem;font-weight:800;color:#fff;margin-top:6px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-@media(max-width:600px){
-  #zoneGrid{grid-template-columns:repeat(2,1fr)}
+/* Dark-first: KINO live dashboard — two-column, number grids as heroes */
+:root {
+  --bg:        #070b12;
+  --surface:   #0d1420;
+  --surface2:  #111927;
+  --border:    #182230;
+  --fg:        #b8cad8;
+  --muted:     #38506a;
+  --live:      #00c2d4;
+  --live-dim:  #00c2d41a;
+  --rand:      #ffba00;
+  --rand-dim:  #ffba001a;
+  --hit:       #5af0a8;
+  --hit-dim:   #5af0a81a;
+  --chip-bg:   #0c111a;
+  --chip-fg:   #1e2e3a;
+  color-scheme: dark;
 }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0 16px;
+  padding-block: 16px;
+}
+.page { max-width: 880px; margin: 0 auto; }
 
-/* ── Delay query ── */
-#delayQueryBox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* ── Top bar ── */
+.top-bar {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 14px;
+}
+.page-title { font-size: 1.05rem; font-weight: 700; color: var(--fg); letter-spacing: .06em; margin: 0; }
+.page-sub   { font-size: .68rem; color: var(--muted); margin-top: 2px; }
+.cd-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--live); border-radius: 6px;
+  padding: 6px 14px; min-width: 140px;
+}
+.cd-label { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; }
+.cd-val   { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 700;
+            color: var(--live); font-variant-numeric: tabular-nums; }
+.cd-next  { font-size: .62rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
 
-/* ── Word lookup ── */
-#lookupBox,#numsLookupBox{display:flex;gap:8px;flex-wrap:wrap}
-#wordInput,#numsInput{flex:1;min-width:180px;padding:9px 12px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:1rem;outline:none}
-#wordInput:focus,#numsInput:focus{border-color:#5c6bc0}
-#lookupBtn,#numsLookupBtn{padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer}
-#lookupBtn:hover,#numsLookupBtn:hover{background:#3f51b5}
-#lookupResult{margin-top:10px}
-.lk-tiles{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.lk-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:38px;padding:5px 7px;border-radius:8px;background:#1a2744;border:2px solid #37474f}
-.lk-tile .lk-c{font-size:.8rem;font-weight:700;color:#e8eaf6}
-.lk-tile .lk-n{font-size:.7rem;color:#9fa8da;font-weight:700}
-.lk-nums{margin-top:8px;font-size:.9rem;color:#b39ddb;font-family:monospace;letter-spacing:.06em}
-.lk-warn{font-size:.8rem;color:#ef9a9a;margin-top:6px}
+/* ── Status ── */
+#statusLine { font-size: .68rem; color: var(--muted); margin-bottom: 12px; min-height: 1.2em; }
 
-/* ── Auto sentence ── */
-#autoSentence{background:#0f1117;border-radius:8px;padding:14px 16px}
-#autoSentence .as-meta{display:block;font-size:.72rem;color:#666;margin-top:8px;font-style:normal}
-.oracle-sentence{font-size:1.1rem;font-weight:600;line-height:1.7;color:#e8eaf6;border-left:3px solid #7986cb;padding-left:12px;margin-bottom:12px}
-.oracle-prophecy{font-size:.95rem;line-height:1.8;color:#b0bec5;border-left:3px solid #6a1b9a;padding-left:12px}
-.proph-w{color:#ce93d8}
-.proph-n{font-size:.58rem;color:#9fa8da;vertical-align:super;margin-left:1px}
-.proph-nums-box{margin-bottom:10px;background:#16101f;border:1px solid #4a1a6a;border-radius:8px;padding:8px 12px;font-family:monospace;font-size:.85rem;color:#ce93d8;letter-spacing:.06em;line-height:1.6}
-#prophEval{display:none;background:#0a1a0a;border:1px solid #2e4a2e;border-radius:8px;padding:9px 14px;margin-bottom:8px;font-size:.82rem;line-height:1.7}
-.eval-hit{color:#a5d6a7;font-weight:700}
-.eval-miss{color:#4a4a4a}
+/* ── Two columns ── */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 580px) { .cols { grid-template-columns: 1fr; } }
 
-/* ── Perfect log ── */
-#perfectLogSec details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:600;color:#ffd54f;user-select:none}
-#perfectLogSec details summary::before{content:'▶';font-size:.7rem;transition:transform .2s}
-#perfectLogSec details[open] summary::before{transform:rotate(90deg)}
-#perfectLogSec details summary::-webkit-details-marker{display:none}
-.plog-empty{color:#555;font-size:.82rem;padding:8px 0}
-.plog-row{padding:8px 0;border-bottom:1px solid #2a2a3a;font-size:.82rem;line-height:1.7}
-.plog-row:last-child{border-bottom:none}
-.plog-nums{font-family:monospace;font-size:.78rem;color:#9fa8da;letter-spacing:.04em}
+.col {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0;
+}
+.col-head {
+  padding: 9px 12px 7px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.col-tag {
+  font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em;
+}
+.col-live .col-tag { color: var(--live); }
+.col-rand .col-tag { color: var(--rand); }
+.col-live { border-top: 2px solid var(--live); }
+.col-rand { border-top: 2px solid var(--rand); }
 
-/* ── Build timestamp ── */
-#buildStamp{position:fixed;bottom:6px;right:8px;font-size:.62rem;color:#444;pointer-events:none;z-index:99}
+.col-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 9px; }
 
-/* ── Responsive ── */
-@media(max-width:600px){
-  #delayGrid{grid-template-columns:repeat(8,1fr)}
+.draw-info { font-family: 'JetBrains Mono', monospace; }
+.draw-id   { font-size: .82rem; font-weight: 700; }
+.draw-meta { font-size: .62rem; color: var(--muted); margin-top: 1px; }
+
+/* ── 80-number grid ── */
+.num-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+}
+.chip {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-family: 'JetBrains Mono', monospace;
+  font-size: .58rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--chip-bg); color: var(--chip-fg);
+}
+.chip.c-live { background: var(--live-dim); color: var(--live); }
+.chip.c-live.bright { background: var(--live); color: #03080e; }
+.chip.c-rand { background: var(--rand-dim); color: var(--rand); }
+.chip.c-rand.bright { background: var(--rand); color: #0a0800; }
+.chip.c-hit  { background: var(--hit); color: #02120a; font-weight: 700; }
+.chip.c-miss { background: transparent; border: 1px solid #ffba0030; color: #ffba0040; }
+
+/* ── Eval section ── */
+.eval-sep { height: 1px; background: var(--border); margin: 0 12px; }
+.eval-body { padding: 9px 12px; display: flex; flex-direction: column; gap: 7px; }
+.eval-tag { font-size: .6rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.eval-score {
+  font-family: 'JetBrains Mono', monospace; font-size: .78rem; font-weight: 700;
+}
+.score-n { font-size: 1.1rem; }
+.h-color { color: var(--hit); }
+.m-color { color: var(--muted); }
+
+/* ── Placeholder ── */
+.ph { padding: 24px 12px; color: var(--muted); font-size: .72rem; text-align: center; }
+
+/* ── Loading overlay ── */
+#loadBar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 12px; font-size: .7rem; color: var(--muted);
+  margin-bottom: 10px; display: none;
+}
+.prog-fill {
+  height: 2px; background: var(--live); border-radius: 1px; margin-top: 4px;
+  transition: width .3s;
 }
 </style>
-</head>
-<body>
 
-<header>
-  <h1>🎱 Kino Live</h1>
-  <a href="index.html" id="settingsLink" title="Αρχική">🏠 Αρχική</a>
-  <span id="liveBadge" class="badge off">⏸ ΕΚΤΟΣ</span>
-  <a href="kino_settings.html" id="settingsLink" title="Ρυθμίσεις">⚙ Ρυθμίσεις</a>
-  <a href="kino_predict.html" id="settingsLink" title="Ανάλυση & Πρόβλεψη" style="color:#80cbc4;border-color:#2a4a4a">🔮 Ανάλυση</a>
-  <span id="countdown"></span>
-</header>
+<div class="page">
+  <div class="top-bar">
+    <div>
+      <p class="page-title">ΚΙΝΟ Live</p>
+      <p class="page-sub">Τελευταία κλήρωση · Τυχαία ίδιας ώρας · Αξιολόγηση</p>
+    </div>
+    <div class="cd-box">
+      <div class="cd-label">Επόμενη κλήρωση</div>
+      <div class="cd-val" id="cdVal">—:——</div>
+      <div class="cd-next" id="cdNext">ώρα —:——</div>
+    </div>
+  </div>
 
-<div id="tokenBar">
-  <span id="tokenState"></span>
-  <a href="kino_settings.html">Άνοιγμα ρυθμίσεων →</a>
-</div>
+  <div id="statusLine">Ετοιμασία…</div>
+  <div id="loadBar">
+    <span id="loadText">Φόρτωση ιστορικού…</span>
+    <div class="prog-fill" id="progFill" style="width:0%"></div>
+  </div>
 
-<div id="ttBanner" style="display:none;background:#3a2a0d;border-bottom:1px solid #ff9800;color:#ffcc80;padding:8px 14px;font-size:.82rem"></div>
-
-<main>
-  <!-- Current Draw -->
-  <section id="drawSec">
-    <h2>Τρέχουσα Κλήρωση</h2>
-    <div id="drawCard">
-      <div id="drawMeta"><strong id="drawId">—</strong><span id="drawTime">Φόρτωση...</span></div>
-      <div style="flex:1">
-        <div class="num-grid" id="numGrid"></div>
-        <div id="drawLettersLine"></div>
+  <div class="cols">
+    <!-- Live draw column -->
+    <div class="col col-live" id="colLive">
+      <div class="col-head">
+        <span class="col-tag">● Τελευταία κλήρωση</span>
+        <span id="liveDrawId" style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted)"></span>
+      </div>
+      <div id="liveBody" class="col-body">
+        <div class="ph">Φόρτωση κληρώσεων…</div>
+      </div>
+      <div id="evalSection" style="display:none">
+        <div class="eval-sep"></div>
+        <div class="eval-body">
+          <div class="eval-tag">Αξιολόγηση τυχαίας</div>
+          <div class="eval-score" id="evalScore"></div>
+          <div class="num-grid" id="evalGrid"></div>
+        </div>
       </div>
     </div>
-    <div id="saveStatus"></div>
-    <div id="backfillBar" style="display:none;margin-top:6px">
-      <button id="backfillBtn" onclick="startBackfillJune()" style="background:#c56200;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.75rem">
-        ⚠ Ανάκτηση κενών Ιούν 2026
-      </button>
-      <span style="font-size:.7rem;color:#888;margin-left:6px">~8000 κληρώσεις 1–27 Ιουν λείπουν</span>
+
+    <!-- Random draw column -->
+    <div class="col col-rand" id="colRand">
+      <div class="col-head">
+        <span class="col-tag" id="randTag">🎲 Τυχαία — ίδια ώρα</span>
+        <span id="randDrawId" style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--muted)"></span>
+      </div>
+      <div id="randBody" class="col-body">
+        <div class="ph">Φόρτωση ιστορικού…</div>
+      </div>
     </div>
-  </section>
-
-  <!-- Delay Table -->
-  <section id="delaySec">
-    <h2>Καθυστερήσεις (κληρώσεις απουσίας ανά αριθμό)</h2>
-    <div id="delayGrid"><span style="color:#666;font-size:.8rem">Φόρτωση ιστορικών δεδομένων...</span></div>
-  </section>
-
-  <!-- Hot zones -->
-  <section id="zoneSec">
-    <h2>🌡️ Ζεστές Περιοχές</h2>
-    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Οι 80 αριθμοί χωρισμένοι σε 4 περιοχές των 20. Κόκκινο = η περιοχή με τη μικρότερη μέση καθυστέρηση αυτή τη στιγμή (πιο "ζεστή" — βγαίνει πιο συχνά τελευταία).
-    </div>
-    <div id="zoneGrid"><span style="color:#666;font-size:.8rem">Φόρτωση...</span></div>
-  </section>
-
-  <!-- Hot 4-tuples -->
-  <section id="hot4Sec">
-    <h2>🔥 "Ζεστές" 4άδες (ιστορικά πιο συχνές)</h2>
-    <div style="font-size:.78rem;color:#888;margin-bottom:8px">
-      Οι 20 τετράδες με τις περισσότερες κοινές εμφανίσεις σε 236.947 κληρώσεις (Ιαν 2024 – Μάιος 2026).
-      Κόκκινο = αυτή τη στιγμή όλοι οι αριθμοί της έχουν εμφανιστεί πρόσφατα (καθυστέρηση ≤ <span id="hot4ThreshLabel">3</span> κληρώσεις) — υποψήφια προς παιχνίδι.
-    </div>
-    <div id="hot4Grid"><span style="color:#666;font-size:.8rem">Φόρτωση...</span></div>
-  </section>
-
-  <!-- Delay range query -->
-  <section id="delayQuerySec">
-    <h2>Ερώτηση από καθυστερήσεις</h2>
-    <div id="delayQueryBox">
-      <span style="color:#aaa;font-size:.9rem">Από</span>
-      <input type="number" id="dqMin" min="0" value="10" style="width:58px;padding:8px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:.95rem;text-align:center">
-      <span style="color:#aaa;font-size:.9rem">έως</span>
-      <input type="number" id="dqMax" min="0" value="40" style="width:58px;padding:8px;background:#0e0e1a;border:1px solid #3a3a5a;border-radius:8px;color:#e8e8e8;font-size:.95rem;text-align:center">
-      <span style="color:#aaa;font-size:.9rem">κλ. απουσίας</span>
-      <button id="dqBtn" style="padding:9px 18px;border:none;border-radius:8px;background:#3949ab;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer">Δημιουργία</button>
-    </div>
-    <div id="dqResult" style="margin-top:10px"></div>
-  </section>
-
-  <!-- Word search -->
-  <section id="lookupSec">
-    <h2>Αναζήτηση στα 80</h2>
-    <div id="lookupBox">
-      <input type="text" id="wordInput" placeholder="π.χ. μοίρα  ή  φέρν" autocomplete="off" spellcheck="false">
-      <button id="lookupBtn">Αναζήτηση</button>
-    </div>
-    <div id="lookupResult"></div>
-  </section>
-
-  <!-- Numbers → Words lookup -->
-  <section id="numsLookupSec">
-    <h2>Αριθμοί → Λέξεις</h2>
-    <div id="numsLookupBox">
-      <input type="text" id="numsInput" placeholder="π.χ. 5 12 31 10  ή  5,12,31,10" autocomplete="off" spellcheck="false">
-      <button id="numsLookupBtn">Ανάλυση</button>
-    </div>
-    <div id="numsLookupResult"></div>
-  </section>
-
-  <!-- Claude prophecy -->
-  <section id="sentenceSec">
-    <h2>Προφητεία κλήρωσης (Claude)</h2>
-    <div id="prophEval"></div>
-    <div id="autoSentence">—</div>
-  </section>
-
-  <!-- Perfect log -->
-  <section id="perfectLogSec">
-    <details>
-      <summary>🏆 Αποθηκευμένες επιτυχίες</summary>
-      <div id="perfectLog" style="margin-top:10px"></div>
-    </details>
-  </section>
-
-  <!-- Hot 4-tuple evaluation log -->
-  <section id="hot4LogSec">
-    <details>
-      <summary>🔥 Αξιολογήσεις Ζεστών 4άδων</summary>
-      <div id="hot4Log" style="margin-top:10px"></div>
-    </details>
-  </section>
-</main>
+  </div>
+</div>
 
 <script>
 'use strict';
-// ── Constants ──────────────────────────────────────────────────────────────
-const REPO        = 'ohtaras/Game';
-const DATA_BRANCH = 'main';
-const OPAP_BASE   = 'https://api.opap.gr/draws/v3.0/1100';
-const TZ_MS       = 3 * 3600 * 1000;           // Athens UTC+3
-const LIVE_BASE_MS= Date.UTC(2024, 11, 31, 22, 0, 0); // 2025-01-01 00:00 EET
-const LIVE_BASE_ID= 1155022;
-const pad = n => String(n).padStart(2,'0');
-function estDrawId(){ return LIVE_BASE_ID + Math.floor((Date.now() - LIVE_BASE_MS) / 300000); }
 
-// ── ΕΡΩΤΗΣΗ: 80 ρήματα α΄ ενικού — σταθερό (Q words) ───────────────────
-// Ζεύγη από ανάλυση 236.947 κληρώσεων (ισχυρή εμφάνιση στην ίδια κλήρωση):
-// 9+13, 6+73, 63+64, 53+80, 44+53, 31+47+40, 22+54, 34+74, 5+41, 16+78
-const BASE_NUM_TO_CHAR = [
-  null,
-  'διψώ','αγαπώ','φοβάμαι','ελπίζω','ονειρεύομαι',              // 1-5  (pair: 1+5)
-  'ακούω','ρωτώ','ψάχνω','απορώ','θαυμάζω',                      // 6-10 (pair: 6+73, 9+13)
-  'λαχταρώ','αντέχω','ξεκινώ','μαντεύω','ταξιδεύω',              // 11-15 (pair: 9+13)
-  'αναρωτιέμαι','φαντάζομαι','αγωνίζομαι','χάνομαι','εξελίσσομαι', // 16-20 (pair: 16+78)
-  'διδάσκομαι','δίνω','εξερευνώ','μετρώ','κρύβομαι',             // 21-25 (pair: 22+54)
-  'προχωρώ','αγρυπνώ','πλανιέμαι','χτίζω','χάνω',               // 26-30 (pair: 29+16)
-  'βαδίζω','μοιράζω','αναμένω','επιστρέφω','αλλάζω',              // 31-35 (pair: 31+47+40)
-  'κοιτάζω','φεύγω','πλησιάζω','περπατώ','κατακτώ',              // 36-40 (pair: 31+40)
-  'φυτρώνω','ανθίζω','ξαπλώνω','εκπλήσσομαι','σκύβω',            // 41-45 (pair: 5+41, 44+53)
-  'συναντώ','ακολουθώ','ξυπνώ','αναπαύομαι','παρατηρώ',           // 46-50 (pair: 31+47)
-  'συνδέω','σκέφτομαι','ανακαλύπτω','χαρίζω','διαβαίνω',          // 51-55 (pair: 22+54, 44+53, 53+80)
-  'βυθίζομαι','ανεβαίνω','ανακαλώ','αγγίζω','τελειώνω',           // 56-60
-  'στοχάζομαι','μεταβαίνω','αναζητώ','προσδοκώ','θρηνώ',          // 61-65 (pair: 63+64, 34+63, 61+73)
-  'ελευθερώνω','φωνάζω','χαίρομαι','εμβαθύνω','αναπνέω',          // 66-70 (pair: 6+67, 67+74, 68+79)
-  'ανησυχώ','ισορροπώ','σιωπώ','κατευθύνω','διατηρώ',             // 71-75 (pair: 6+73, 61+73)
-  'γειώνομαι','ακτινοβολώ','αποκαλύπτω','αδημονώ','ολοκληρώνω'   // 76-80 (pair: 16+78, 53+80, 68+79)
-];
+const KINO_ID   = 1100;
+const ATHENS_MS = 3 * 3600000; // UTC+3
 
-// ── ΑΠΑΝΤΗΣΗ: 80 ουσιαστικά — ανακατεύεται ανά κλήρωση (A words) ────────
-// Κάθε Q[n] → A[n]: σημαντικό ζεύγος (πχ ανακαλύπτω53→θησαυρός53, σιωπώ73→ησυχία73)
-const BASE_ANS_NUM_TO_CHAR = [
-  null,
-  'νερό','καρδιά','θάρρος','φως','ξύπνημα',                      // 1-5
-  'ηχώ','απάντηση','εύρεση','αλήθεια','δέος',                     // 6-10
-  'ικανοποίηση','νίκη','δρόμος','αποκάλυψη','ορίζοντας',          // 11-15
-  'σοφία','όραμα','δύναμη','επιστροφή','μεταμόρφωση',             // 16-20
-  'γνώση','χαρά','ανακάλυψη','αξία','φανέρωση',                   // 21-25
-  'στόχος','αυγή','κατεύθυνση','θεμέλιο','ανεύρεση',              // 26-30
-  'προορισμός','αφθονία','στιγμή','πατρίδα','ανανέωση',            // 31-35
-  'ευκρίνεια','πτήση','επαφή','βήμα','κορυφή',                    // 36-40
-  'ρίζα','άνθος','ξεκούραση','θαύμα','ταπεινοφροσύνη',            // 41-45
-  'δεσμός','μονοπάτι','αρχή','γαλήνη','εικόνα',                   // 46-50
-  'αρμονία','ιδέα','θησαυρός','ευγνωμοσύνη','πέρασμα',            // 51-55
-  'βάθος','ύψος','μνήμη','θερμότητα','τέλος',                     // 56-60
-  'νόημα','αλλαγή','πληρότητα','εκπλήρωση','παρηγοριά',           // 61-65
-  'ελευθερία','ανταπόκριση','ευτυχία','μυστήριο','ζωή',            // 66-70
-  'ηρεμία','ευστάθεια','ησυχία','σκοπός','διάρκεια',               // 71-75
-  'γη','λάμψη','διαφάνεια','υπομονή','ολοκλήρωση'                 // 76-80
-];
-
-// Mutable answer mapping — shuffled fresh on each new draw
-let NUM_TO_CHAR = [...BASE_ANS_NUM_TO_CHAR];
-let WORD_TO_NUM = {};
-
-function buildWordToNum() {
-  WORD_TO_NUM = {};
-  for (let n = 1; n <= 80; n++) {
-    const w = (NUM_TO_CHAR[n] || '').toLowerCase();
-    if (w) WORD_TO_NUM[w] = n;
-  }
-}
-buildWordToNum();
-
-function shuffleMapping() {
-  const words = BASE_ANS_NUM_TO_CHAR.slice(1);
-  for (let i = words.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [words[i], words[j]] = [words[j], words[i]];
-  }
-  NUM_TO_CHAR = [null, ...words];
-  buildWordToNum();
-}
-
-// Σταθερά reverse lookups
-const BASE_WORD_TO_NUM = {};
-for (let n = 1; n <= 80; n++) {
-  const w = (BASE_NUM_TO_CHAR[n] || '').toLowerCase();
-  if (w) BASE_WORD_TO_NUM[w] = n;
-}
-const BASE_ANS_WORD_TO_NUM = {};
-for (let n = 1; n <= 80; n++) {
-  const w = (BASE_ANS_NUM_TO_CHAR[n] || '').toLowerCase();
-  if (w) BASE_ANS_WORD_TO_NUM[w] = n;
-}
-
-function wordCat(n) {
-  if (n >= 1  && n <= 20) return ' verb';
-  if (n >= 21 && n <= 40) return ' verb2';
-  if (n >= 41 && n <= 60) return ' noun-nature';
-  if (n >= 61 && n <= 75) return ' noun-life';
-  if (n >= 76 && n <= 80) return ' adverb';
-  return '';
-}
+const ath    = ms => new Date(ms + ATHENS_MS);
+const pad    = n  => String(n).padStart(2, '0');
+const dateOf = ms => { const d = ath(ms); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate()); };
+const minsOf = ms => { const d = ath(ms); return d.getUTCHours()*60 + d.getUTCMinutes(); };
+const mStr   = m  => pad(Math.floor(m/60)) + ':' + pad(m%60);
 
 // ── State ──────────────────────────────────────────────────────────────────
-let liveRunning      = false;
-let liveTimerId      = null;
-let liveCountdownId  = null;
-let lastDrawId       = 0;
-let drawCounter      = 0;
-let lastSeen         = new Array(81).fill(-1);
-let delays           = new Array(81).fill(0);
-let delaysReady      = false;
-let saveLock         = false;
-let liveBuffer       = new Map();
-let liveLastSavedCount = 0;
-let hot4Pending      = new Map(); // tuple index -> {forDrawId}
-let hot4Results      = new Map(); // tuple index -> {drawId, hits, nums}
+var histPool  = [];   // {id, arr[20], set, b, d, m}
+var liveDraw  = null; // latest completed draw
+var randDraw  = null; // random pick for upcoming slot
+var evalDraw  = null; // previous randDraw, kept for evaluation after new live
+var refreshTm = null;
+var cdTm      = null;
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-function ghHeaders() {
-  const t = localStorage.getItem('gh_token');
-  return t ? {Authorization:'token '+t,'Content-Type':'application/json'} : {'Content-Type':'application/json'};
-}
-
-function refreshTokenState() {
-  const gh = !!localStorage.getItem('gh_token');
-  const cl = !!localStorage.getItem('claude_api_key');
-  const parts = [];
-  parts.push(gh ? '🔑 GitHub token ✓ (αυτόματη αποθήκευση)' : '⚠ Χωρίς GitHub token (καμία αποθήκευση)');
-  parts.push(cl ? '✦ Claude key ✓ (AI λέξεις)' : '✦ Χωρίς Claude key (χωρίς AI λέξεις)');
-  document.getElementById('tokenState').textContent = parts.join('  ·  ');
-}
-
-// Remembers which transport actually worked this session, so once we know
-// direct fetch is CORS-blocked we stop wasting a 12s timeout on it for
-// every single page — this was the main cause of gap-fill looking "stuck".
-let apiFetchMethod = 0;
+// ── OPAP API ───────────────────────────────────────────────────────────────
 async function apiFetch(url) {
-  const tryDirect = async () => {
-    const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(12000)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  };
-  const tryCorsProxy = async () => {
-    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent(url),{signal:AbortSignal.timeout(16000)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.json();
-  };
-  const tryAllOrigins = async () => {
-    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url),{signal:AbortSignal.timeout(20000)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return JSON.parse((await r.json()).contents);
-  };
-  const methods = [tryDirect, tryCorsProxy, tryAllOrigins];
-  const order = [apiFetchMethod, ...methods.map((_,i)=>i).filter(i=>i!==apiFetchMethod)];
-  let lastErr;
-  for (const i of order) {
-    try { const result = await methods[i](); apiFetchMethod = i; return result; }
-    catch(e) { lastErr = e; }
-  }
-  throw lastErr;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
 }
 
-async function ghGet(path, opts) {
-  // fresh=true skips the CDN fast path — raw.githubusercontent.com caches for
-  // several minutes, so a read right after our own write can return stale
-  // content and make already-saved draws look like gaps again.
-  if (!opts?.fresh) {
-    const raw = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${path}`;
-    try { const r=await fetch(raw,{cache:'no-store',signal:AbortSignal.timeout(20000)}); if(r.ok)return r.json(); } catch(_) {}
-  }
-  const url = `https://api.github.com/repos/${REPO}/contents/${path}`;
-  try {
-    const r=await fetch(url,{headers:ghHeaders(),cache:'no-store',signal:AbortSignal.timeout(30000)});
-    if(!r.ok) return null;
-    const meta=await r.json();
-    if((!meta.content||meta.content==='')&&meta.download_url) {
-      const dr=await fetch(meta.download_url,{cache:'no-store',signal:AbortSignal.timeout(30000)});
-      return dr.ok?dr.json():null;
-    }
-    if(!meta.content) return null;
-    return JSON.parse(atob(meta.content.replace(/\n/g,'')));
-  } catch(_) { return null; }
-}
-
-async function ghPut(path, obj, message) {
-  const h=ghHeaders(), url=`https://api.github.com/repos/${REPO}/contents/${path}`;
-  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
-  for(let attempt=0; attempt<3; attempt++) {
-    let sha, chk;
-    try {
-      chk=await fetch(url+'?ref='+encodeURIComponent(DATA_BRANCH),{headers:h,cache:'no-store',signal:AbortSignal.timeout(20000)});
-    } catch(netErr) { // transient network failure ("Failed to fetch") → retry instead of aborting
-      if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
-      await new Promise(res=>setTimeout(res,1500)); continue;
-    }
-    if(chk.ok) { const ex=await chk.json(); sha=ex.sha; }
-    let r;
-    try {
-      r=await fetch(url,{method:'PUT',headers:h,body:JSON.stringify({message,content:b64,branch:DATA_BRANCH,...(sha?{sha}:{})}),signal:AbortSignal.timeout(60000)});
-    } catch(netErr) {
-      if(attempt===2) throw new Error('Δίκτυο: '+netErr.message);
-      await new Promise(res=>setTimeout(res,1500)); continue;
-    }
-    if(r.ok) return;
-    if(r.status===409) { await new Promise(res=>setTimeout(res,1200)); continue; }
-    throw new Error('GitHub API '+r.status);
-  }
-  throw new Error('Αποτυχία εγγραφής μετά από 3 προσπάθειες');
-}
-
-function toMs(t) { return t>1e11?t:t*1000; }
-
-function localTimeStr(ms) {
-  return new Date(ms).toLocaleTimeString('el-GR',{timeZone:'Europe/Athens',hour:'2-digit',minute:'2-digit'});
-}
-
-
-function delayColor(d) {
-  const maxD = Math.max(...delays.slice(1), 20);
-  const t = Math.min(d / maxD, 1);
-  const hue = Math.round(120 * (1 - t));
-  const sat = 95;
-  const lig = Math.round(50 - t * 24);
-  return `hsl(${hue},${sat}%,${lig}%)`;
-}
-
-function fmtMs(ms) {
-  const s = Math.round(ms / 1000);
-  return `${pad(Math.floor(s/60))}:${pad(s%60)}`;
-}
-
-// ── Timer helper ──────────────────────────────────────────────────────────
-function msToNext() {
-  const now = new Date(), m = now.getMinutes(), s = now.getSeconds() + now.getMilliseconds()/1000;
-  const cur5 = Math.floor(m/5)*5;
-  let diff = (cur5+5)*60 + 15 - (m*60+s);
-  if (diff <= 0) diff += 300;
-  return diff * 1000;
-}
-
-// ── Historical delays ──────────────────────────────────────────────────────
-async function loadHistoricalDelays() {
-  const now = new Date();
-  const months = [];
-  for (let i=0; i<3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.push(`${d.getFullYear()}_${pad(d.getMonth()+1)}`);
-  }
-
-  let allDraws = [];
-  for (const ym of months) {
-    const data = await ghGet(`data/raw/kino_raw_${ym}.json`);
-    if (data?.draws) allDraws.push(...data.draws);
-  }
-  allDraws.sort((a,b)=>a.id-b.id);
-
-  const hist = new Array(81).fill(-1);
-  for (let i=0; i<allDraws.length; i++) {
-    for (const n of allDraws[i].n) if (n>=1&&n<=80) hist[n] = i;
-  }
-  const total = allDraws.length;
-  for (let n=1; n<=80; n++) {
-    delays[n] = hist[n]===-1 ? total : total - hist[n];
-    lastSeen[n] = hist[n];
-  }
-  drawCounter = total;
-  hot4ComboDelay = computeHot4ComboDelays(allDraws);
-
-  delaysReady = true;
-  renderDelayTable();
-}
-
-// ── Gap-fill: fetch last N days from OPAP and save any missing draws ───────
-async function gapFill(days=3) {
-  if (!localStorage.getItem('gh_token')) return;
-  const el = document.getElementById('saveStatus');
-  el.textContent = '⏳ Έλεγχος κληρώσεων τελευταίων ' + days + ' ημερών...';
-  try {
-    const byMonth = {};
-    for (let d=0; d<days; d++) {
-      const dt = new Date(Date.now() - d * 86400000);
-      const dayStr = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
-      el.textContent = `⏳ Έλεγχος ${dayStr} (${d+1}/${days})...`;
-      const items = await fetchDaySeq(dayStr);
-      for (const item of items) {
-        if (!item.winningNumbers?.list?.length) continue;
-        const id = item.drawId;
-        const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
-        const dt2 = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
-        const ym = `${dt2.getUTCFullYear()}_${pad(dt2.getUTCMonth()+1)}`;
-        if (!byMonth[ym]) byMonth[ym] = [];
-        byMonth[ym].push({id, n:[...item.winningNumbers.list].sort((a,b)=>a-b), b:(item.winningNumbers.bonus||[])[0]||null});
-      }
-    }
-    let totalNew = 0;
-    for (const [ym, draws] of Object.entries(byMonth)) {
-      const path = `data/raw/kino_raw_${ym}.json`;
-      const mStr = ym.replace('_','-');
-      const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
-      const exArr = existing.draws || [];
-      const exIds = new Set(exArr.map(d=>d.id));
-      const newOnes = draws.filter(d=>!exIds.has(d.id));
-      if (!newOnes.length) continue;
-      const merged = [...exArr, ...newOnes].sort((a,b)=>a.id-b.id);
-      // Safety: never write fewer draws than what's already stored — means the
-      // fresh read failed silently and we'd be clobbering real data with only
-      // the last-3-days window.
-      if (merged.length < exArr.length) {
-        console.warn(`gapFill: merged(${merged.length}) < existing(${exArr.length}) for ${ym} — aborting write to prevent data loss`);
-        continue;
-      }
-      await ghPut(path, {month:mStr, draws:merged}, `Gap-fill: +${newOnes.length} ${mStr}`);
-      totalNew += newOnes.length;
-    }
-    el.textContent = totalNew > 0
-      ? `✓ Gap-fill: ${totalNew} νέες κληρώσεις αποθηκεύτηκαν`
-      : '✓ Gap-fill: όλα ενημερωμένα';
-  } catch(e) {
-    if (e.name === 'AbortError') {
-      // Page navigated/refreshed mid-fetch — the browser cancelled our request,
-      // not an actual failure. Nothing to report, the page is reloading anyway.
-      console.warn('gapFill aborted (page navigated away)');
-      return;
-    }
-    el.textContent = '⚠ Gap-fill σφάλμα: ' + e.message;
-    console.error('gapFill error:', e);
-  }
-}
-
-async function backfillDateRange(fromStr, toStr) {
-  if (!localStorage.getItem('gh_token')) { alert('Χρειάζεται GitHub token'); return; }
-  const el = document.getElementById('saveStatus');
-  const btn = document.getElementById('backfillBtn');
-  if (btn) btn.disabled = true;
-  try {
-    const from = new Date(fromStr + 'T00:00:00Z');
-    const to   = new Date(toStr   + 'T00:00:00Z');
-    const days = Math.round((to - from) / 86400000) + 1;
-    const byMonth = {};
-    for (let d = 0; d < days; d++) {
-      const dt = new Date(from.getTime() + d * 86400000);
-      const dayStr = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth()+1)}-${pad(dt.getUTCDate())}`;
-      el.textContent = `⏳ Backfill ${dayStr} (${d+1}/${days})...`;
-      const items = await fetchDaySeq(dayStr, 50);
-      el.textContent = `⏳ Backfill ${dayStr} (${d+1}/${days}): ${items.length} κλ...`;
-      if (d > 0) await new Promise(res => setTimeout(res, 150));
-      for (const item of items) {
-        if (!item.winningNumbers?.list?.length) continue;
-        const id = item.drawId;
-        const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
-        const dt2 = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
-        const ym = `${dt2.getUTCFullYear()}_${pad(dt2.getUTCMonth()+1)}`;
-        if (!byMonth[ym]) byMonth[ym] = [];
-        byMonth[ym].push({id, n:[...item.winningNumbers.list].sort((a,b)=>a-b), b:(item.winningNumbers.bonus||[])[0]||null});
-      }
-    }
-    let totalNew = 0;
-    for (const [ym, draws] of Object.entries(byMonth)) {
-      const path = `data/raw/kino_raw_${ym}.json`;
-      const mStr = ym.replace('_', '-');
-      el.textContent = `⏳ Αποθήκευση ${mStr}...`;
-      const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
-      const exArr = existing.draws || [];
-      const exIds = new Set(exArr.map(d=>d.id));
-      const newOnes = draws.filter(d=>!exIds.has(d.id));
-      if (!newOnes.length) continue;
-      const merged = [...exArr, ...newOnes].sort((a,b)=>a.id-b.id);
-      if (merged.length < exArr.length) {
-        console.warn(`backfill: merged(${merged.length}) < existing(${exArr.length}) for ${ym} — skipping`);
-        continue;
-      }
-      await ghPut(path, {month:mStr, draws:merged}, `Backfill: +${newOnes.length} ${mStr}`);
-      totalNew += newOnes.length;
-    }
-    el.textContent = totalNew > 0
-      ? `✓ Backfill: ${totalNew} κληρώσεις αποθηκεύτηκαν`
-      : '✓ Backfill: όλα ενημερωμένα';
-    localStorage.setItem('backfill_june_2026_done', '1');
-    if (btn) { btn.disabled = false; document.getElementById('backfillBar').style.display = 'none'; }
-  } catch(e) {
-    if (e.name === 'AbortError') { console.warn('backfill aborted'); return; }
-    el.textContent = '⚠ Backfill σφάλμα: ' + e.message;
-    console.error('backfill error:', e);
-    if (btn) btn.disabled = false;
-  }
-}
-
-function startBackfillJune() {
-  if (!confirm('Θα ανακτηθούν οι κληρώσεις 1–30 Ιουν 2026 (~8000 κλ).\nΘα πάρει 3–5 λεπτά. Συνεχίζεις;')) return;
-  localStorage.removeItem('backfill_june_2026_done');
-  backfillDateRange('2026-06-01', '2026-06-30').catch(e => console.error(e));
-}
-
-async function fetchDaySeq(dayStr, size=10) {
-  let items=[], page=0;
-  while(true) {
-    const url = `${OPAP_BASE}/draw-date/${dayStr}/${dayStr}?page=${page}&size=${size}`;
-    let raw=null;
-    try { raw = await apiFetch(url); } catch(_) {}
+async function fetchDay(dayStr) {
+  var items = [], page = 0;
+  for (;;) {
+    var url = 'https://api.opap.gr/draws/v3.0/' + KINO_ID + '/draw-date/' + dayStr + '/' + dayStr +
+              '?page=' + page + '&size=500&_=' + Date.now();
+    var raw;
+    try { raw = await apiFetch(url); } catch(e) { break; }
     if (!raw) break;
-    const pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    var pg = Array.isArray(raw) ? raw : (raw.content || raw.draws || []);
+    if (!pg.length) break;
     items = items.concat(pg);
-    if (Array.isArray(raw) || raw.last===true || pg.length===0 || pg.length<size) break;
-    page++;
-    if (page>35) break;
+    if (Array.isArray(raw) || raw.last) break;
+    if (++page > 10) break;
   }
   return items;
 }
 
-// ── Hot 4-tuples ───────────────────────────────────────────────────────────
-// Top 20 4-number combos by total co-occurrences across 236.947 κληρώσεις
-// (Ιαν 2024 – Μάιος 2026). Αναμενόμενο τυχαίο ≈ 726 εμφανίσεις.
-const TOP4 = [
-  {n:[2,51,55,74],  c:864},
-  {n:[31,47,48,53], c:859},
-  {n:[16,44,53,78], c:850},
-  {n:[8,40,41,78],  c:850},
-  {n:[7,27,32,62],  c:849},
-  {n:[37,40,62,80], c:848},
-  {n:[31,40,63,77], c:847},
-  {n:[15,32,34,63], c:847},
-  {n:[44,52,71,74], c:846},
-  {n:[1,7,65,74],   c:846},
-  {n:[17,41,55,67], c:846},
-  {n:[23,25,74,76], c:845},
-  {n:[6,39,63,69],  c:845},
-  {n:[26,60,63,70], c:844},
-  {n:[5,20,35,62],  c:844},
-  {n:[1,27,31,56],  c:844},
-  {n:[17,38,53,80], c:843},
-  {n:[18,38,57,77], c:843},
-  {n:[35,37,50,63], c:843},
-  {n:[10,13,44,53], c:843}
-];
-const HOT4_THRESHOLD = 3;
-let hot4ComboDelay = []; // tuple index -> draws since all 4 numbers last appeared together
-
-// scan back from the latest loaded draw to find, for each combo, how many draws ago
-// all 4 of its numbers last appeared together in the same draw
-function computeHot4ComboDelays(draws) {
-  const liveIdx = draws.length - 1;
-  const delays = new Array(TOP4.length).fill(null);
-  let remaining = TOP4.length;
-  for (let i = liveIdx; i >= 0 && remaining > 0; i--) {
-    const set = new Set(draws[i].n);
-    for (let idx = 0; idx < TOP4.length; idx++) {
-      if (delays[idx] !== null) continue;
-      if (TOP4[idx].n.every(n => set.has(n))) { delays[idx] = liveIdx - i; remaining--; }
-    }
-  }
-  for (let idx = 0; idx < TOP4.length; idx++) if (delays[idx] === null) delays[idx] = liveIdx + 1;
-  return delays;
+function parseDraw(item) {
+  if (!item || !item.drawTime) return null;
+  var wn  = item.winningNumbers || {};
+  var lst = (wn.list || []).map(Number).filter(function(n){ return n >= 1 && n <= 80; });
+  if (lst.length < 20) return null;
+  var arr = lst.slice(0, 20).sort(function(a,b){ return a-b; });
+  return {
+    id:  item.drawId,
+    arr: arr,
+    set: new Set(arr),
+    b:   (wn.bonus||[])[0] ? Number((wn.bonus||[])[0]) : null,
+    d:   dateOf(item.drawTime),
+    m:   minsOf(item.drawTime)
+  };
 }
 
-// incrementally update combo delays when a new draw arrives
-function updateHot4ComboDelays(nums) {
-  const set = new Set(nums);
-  for (let idx = 0; idx < TOP4.length; idx++) {
-    hot4ComboDelay[idx] = TOP4[idx].n.every(n => set.has(n)) ? 0 : (hot4ComboDelay[idx] ?? 0) + 1;
-  }
+// ── Time helpers ──────────────────────────────────────────────────────────
+function msToNextDraw() {
+  var now  = ath(Date.now());
+  var secs = now.getUTCHours()*3600 + now.getUTCMinutes()*60 + now.getUTCSeconds() + now.getUTCMilliseconds()/1000;
+  var next = Math.ceil(secs / 300) * 300;
+  return Math.max(0, next - secs) * 1000;
+}
+function nextDrawMin() {
+  var now  = ath(Date.now());
+  var mins = now.getUTCHours()*60 + now.getUTCMinutes() + now.getUTCSeconds()/60;
+  return Math.ceil(mins / 5) * 5;
 }
 
-function evaluateHot4(draw) {
-  for (const [idx, pending] of hot4Pending) {
-    if (pending.forDrawId === draw.id) {
-      const t = TOP4[idx];
-      const hits = t.n.filter(n => draw.nums.includes(n)).length;
-      const rec = { idx, drawId: draw.id, time: draw.time, hits, total: t.n.length, nums: [...t.n] };
-      hot4Results.set(idx, rec);
-      hot4Pending.delete(idx);
-      try {
-        const log = JSON.parse(localStorage.getItem('kino_hot4_log') || '[]');
-        log.push(rec);
-        localStorage.setItem('kino_hot4_log', JSON.stringify(log.slice(-30)));
-      } catch(_) {}
-      renderHot4Log();
-    }
-  }
+// ── Countdown ─────────────────────────────────────────────────────────────
+function tickCd() {
+  var ms   = msToNextDraw();
+  var sec  = Math.round(ms / 1000);
+  var mm   = Math.floor(sec / 60);
+  var ss   = sec % 60;
+  var cdv  = document.getElementById('cdVal');
+  var cdn  = document.getElementById('cdNext');
+  if (cdv) cdv.textContent = mm + ':' + pad(ss);
+  if (cdn) cdn.textContent = 'ώρα ' + mStr(nextDrawMin());
 }
 
-function renderHot4Log() {
-  const el = document.getElementById('hot4Log');
-  if (!el) return;
-  let records = [];
-  try { records = JSON.parse(localStorage.getItem('kino_hot4_log') || '[]'); } catch(_) {}
-  if (!records.length) {
-    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αξιολογήσεις ακόμα.</div>';
-    return;
-  }
-  el.innerHTML = records.slice().reverse().map(r => {
-    const label = r.hits === r.total
-      ? `<strong style="color:#ffd54f">🎯 ΠΕΤΥΧΕ ${r.hits}/${r.total}</strong>`
-      : `<span style="color:#80cbc4">${r.hits}/${r.total} σωστά</span>`;
-    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId} ${r.time}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
-  }).join('');
-}
+// ── Load history ──────────────────────────────────────────────────────────
+async function loadHistory() {
+  var lb = document.getElementById('loadBar');
+  var lt = document.getElementById('loadText');
+  var pf = document.getElementById('progFill');
+  if (lb) lb.style.display = '';
 
-function renderHot4() {
-  const grid = document.getElementById('hot4Grid');
-  if (!delaysReady) return;
-  document.getElementById('hot4ThreshLabel').textContent = HOT4_THRESHOLD;
-  const cards = TOP4.map((t, idx) => {
-    const ds = t.n.map(n => delays[n]);
-    const maxD = Math.max(...ds);
-    const isHot = maxD <= HOT4_THRESHOLD;
-    const nums = t.n.map((n,i) => `<div class="t-num" title="${BASE_NUM_TO_CHAR[n]||''}">${n}<span class="t-d">${ds[i]}</span></div>`).join('');
-    const comboDelay = hot4ComboDelay[idx];
-    const meta = isHot
-      ? '🔥 ΖΕΣΤΗ ΤΩΡΑ — αξίζει να παίξεις!'
-      : `καθυστερεί ${comboDelay} κληρώσεις · εμφανίσεις ιστορικά: ${t.c} φορές`;
+  var today = dateOf(Date.now());
+  var days  = [];
+  for (var i = 1; i <= 14; i++) days.push(dateOf(Date.now() - i*86400000));
 
-    if (isHot) hot4Pending.set(idx, { forDrawId: lastDrawId + 1 });
-
-    let evalHtml = '';
-    const result = hot4Results.get(idx);
-    if (result) {
-      evalHtml = result.hits === result.total
-        ? `<div class="t-eval">🎯 Κλήρωση #${result.drawId}: <strong style="color:#ffd54f">${result.hits}/${result.total} ΠΕΤΥΧΕ!</strong></div>`
-        : `<div class="t-eval">Κλήρωση #${result.drawId}: ${result.hits}/${result.total} σωστά</div>`;
-    } else if (hot4Pending.has(idx)) {
-      evalHtml = `<div class="t-eval">⏳ Αναμονή αξιολόγησης στην κλήρωση #${hot4Pending.get(idx).forDrawId}</div>`;
-    }
-
-    return `<div class="tuple-card${isHot?' hot':''}"><div class="t-nums">${nums}</div><div class="t-meta">${meta}</div>${evalHtml}</div>`;
-  }).join('');
-  grid.innerHTML = cards;
-}
-
-// ── Hot zones ──────────────────────────────────────────────────────────────
-const ZONES = [
-  {label:'1–20',  from:1,  to:20},
-  {label:'21–40', from:21, to:40},
-  {label:'41–60', from:41, to:60},
-  {label:'61–80', from:61, to:80}
-];
-
-function renderZones() {
-  const grid = document.getElementById('zoneGrid');
-  if (!delaysReady) return;
-  const stats = ZONES.map(z => {
-    let sum = 0, n = 0;
-    for (let i = z.from; i <= z.to; i++) { sum += delays[i]; n++; }
-    return {...z, avg: sum / n};
-  });
-  const avgs = stats.map(s => s.avg);
-  const minA = Math.min(...avgs), maxA = Math.max(...avgs);
-  grid.innerHTML = stats.map(s => {
-    const t = maxA === minA ? 0 : (maxA - s.avg) / (maxA - minA); // 1 = hottest
-    const hue = Math.round(120 * (1 - t));
-    const bg = `hsl(${hue},85%,${Math.round(45 - t*15)}%)`;
-    const isHottest = s.avg === minA;
-    return `<div class="zone-card${isHottest?' hottest':''}" style="background:${bg}">
-      <div class="z-label">${s.label}</div>
-      <div class="z-avg">μέση καθ.: ${s.avg.toFixed(1)}</div>
-      ${isHottest?'<div class="z-flag">🔥 ΖΕΣΤΗ ΠΕΡΙΟΧΗ</div>':''}
-    </div>`;
-  }).join('');
-}
-
-// ── Delay table rendering ──────────────────────────────────────────────────
-function renderDelayTable() {
-  const grid = document.getElementById('delayGrid');
-  const cells = [];
-  for (let n=1; n<=80; n++) {
-    const d = delays[n];
-    const bg = delayColor(d);
-    const sym = BASE_NUM_TO_CHAR[n] || '';
-    const symShort = sym.length > 5 ? sym.slice(0,4)+'.' : sym;
-    cells.push(`<div class="d-cell" style="background:${bg}" title="#${n} (${sym}) — ${d} κληρώσεις απόντος">
-      <span class="d-num">${n}</span>
-      <span class="d-sym">${symShort}</span>
-      <span class="d-val">${d}</span>
-    </div>`);
-  }
-  grid.innerHTML = cells.join('');
-  renderZones();
-  renderHot4();
-}
-
-// ── Claude API (browser-direct) ────────────────────────────────────────────
-async function anthropicFetch(apiKey, model, sys, messages, maxTokens) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({model, max_tokens: maxTokens, system: sys, messages}),
-    signal: AbortSignal.timeout(30000)
-  });
-  if (!resp.ok) { const t = await resp.text().catch(()=> ''); throw new Error(resp.status + ': ' + t.slice(0,150)); }
-  const data = await resp.json();
-  try {
-    const inTok = data.usage?.input_tokens||0, outTok = data.usage?.output_tokens||0;
-    const u = JSON.parse(localStorage.getItem('claude_usage')||'{}');
-    u.calls=(u.calls||0)+1; u.costUSD=(u.costUSD||0)+inTok*0.0000008+outTok*0.000004;
-    localStorage.setItem('claude_usage', JSON.stringify(u));
-  } catch(_) {}
-  return (data.content?.[0]?.text||'').trim();
-}
-
-async function claudeSentence(nums, apiKey) {
-  const model = 'claude-haiku-4-5-20251001';
-
-  // Ερώτηση: 20 κληρωμένες λέξεις από το BASE mapping
-  const drawn = nums.map(n => `${n}→${BASE_NUM_TO_CHAR[n]}`).join(', ');
-
-  // Απάντηση: ανακατεμένος πίνακας (shuffled)
-  const shuffledMap = NUM_TO_CHAR.slice(1).map((w, i) => `${i+1}:${w}`).join('  ');
-
-  const sys = `Για την ερώτηση χρησιμοποιείς τις κληρωμένες λέξεις (όλες ρήματα α΄ ενικού).\nΓια την απάντηση ο πίνακας ουσιαστικών είναι:\n${shuffledMap}`;
-  const prompt = `Κλήρωση: ${drawn}
-
-Γράψε δύο μέρη χωρισμένα με "---" σε ξεχωριστή γραμμή:
-
-Μέρος 1: Μία ερώτηση που ενσωματώνει φυσικά όσα ρήματα μπορεί από τα κληρωμένα (χρησιμοποιώντας τα ως ρήματα). Να έχει νόημα και σωστή γραμματική.
-
-Μέρος 2: Απάντηση άμεσα στην ερώτηση — να αφορά ακριβώς αυτό που ρωτήθηκε. Γράψε ελεύθερα. Ενσωμάτωσε φυσικά έως 8 ουσιαστικά από τον πίνακα.
-
-Χωρίς τίτλους, μόνο τα δύο μέρη.`;
-
-  return anthropicFetch(apiKey.trim(), model, sys, [{role:'user', content: prompt}], 600);
-}
-
-let recentProphNums = new Set(); // αριθμοί από τις 2 τελευταίες προβλέψεις
-
-function annotateProphecy(text) {
-  const seen = new Set();
-  const nums = [];
-  const html = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
-    const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
-    const num = WORD_TO_NUM[clean];
-    if (num && seen.size < 8 && !seen.has(num) && !recentProphNums.has(num)) {
-      seen.add(num);
-      nums.push(num);
-      return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
-    }
-    return tok;
-  }).join('');
-  return {html, nums};
-}
-
-let prophNumsForEval = [];
-
-function evaluateProphecy(drawnNums, drawId, drawTime) {
-  if (!prophNumsForEval.length) return;
-  const el = document.getElementById('prophEval');
-  if (!el) return;
-  const hits = prophNumsForEval.filter(n => drawnNums.includes(n));
-  const tiles = prophNumsForEval.map(n =>
-    drawnNums.includes(n)
-      ? `<span class="eval-hit">${n}✓</span>`
-      : `<span class="eval-miss">${n}</span>`
-  ).join(' ');
-  const total = prophNumsForEval.length;
-  const isPerfect  = hits.length === total && total > 0;
-  const isNearMiss = hits.length === total - 1 && total > 1;
-  if (isPerfect || isNearMiss) {
-    const rec = { drawId, time: drawTime, nums: [...prophNumsForEval], score: hits.length, total };
-    try {
-      const existing = JSON.parse(localStorage.getItem('kino_perfect') || '[]');
-      existing.push(rec);
-      localStorage.setItem('kino_perfect', JSON.stringify(existing));
-    } catch(_) {}
-    renderPerfectLog();
-    const label = isPerfect
-      ? `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ! ${hits.length}/${total}</strong>`
-      : `<strong style="color:#ffb74d">🔥 ΠΑΡΑ ΕΝΑ! ${hits.length}/${total}</strong>`;
-    el.style.display = 'block';
-    el.innerHTML = `${label} — Κλήρωση #${drawId} ${drawTime}<br>${tiles}`;
-  } else {
-    el.style.display = 'block';
-    el.innerHTML = `<strong style="color:#81c784">Αξιολόγηση πρόβλεψης:</strong> <span style="color:#e8e8e8">${hits.length} / ${total} βγήκαν</span><br>${tiles}`;
-  }
-  prophNumsForEval = [];
-}
-
-function annotateQuestion(text, drawnSet) {
-  return text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
-    const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
-    const num = BASE_WORD_TO_NUM[clean]; // πάντα base mapping για ερώτηση
-    if (num && drawnSet.has(num)) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
-    return tok;
-  }).join('');
-}
-
-function formatOracleOutput(text, drawnNums) {
-  const drawnSet = new Set(drawnNums || []);
-  const sep = text.indexOf('\n---\n') !== -1 ? '\n---\n' : '---';
-  const idx = text.indexOf(sep);
-  const sentence = (idx !== -1 ? text.slice(0, idx) : text).trim();
-  const prophecy = (idx !== -1 ? text.slice(idx + sep.length) : '').trim();
-  let html = `<div class="oracle-sentence">${annotateQuestion(sentence, drawnSet)}</div>`;
-  if (prophecy) {
-    const {html: pHtml, nums} = annotateProphecy(prophecy);
-    const unique = [...new Set(nums)];
-    if (unique.length) {
-      prophNumsForEval = unique;
-      // Κράτα τους αριθμούς των 2 τελευταίων προβλέψεων ως αποκλεισμένους
-      unique.forEach(n => recentProphNums.add(n));
-      if (recentProphNums.size > 16) {
-        recentProphNums = new Set([...recentProphNums].slice(-16));
+  var seen  = new Set(histPool.map(function(d){ return d.id; }));
+  var BATCH = 5;
+  for (var bi = 0; bi < days.length; bi += BATCH) {
+    var batch   = days.slice(bi, bi + BATCH);
+    if (lt) lt.textContent = 'Φόρτωση ιστορικού — ' + Math.min(bi+BATCH, days.length) + '/14 ημέρες…';
+    if (pf) pf.style.width = (Math.min(bi+BATCH, days.length) / 14 * 100).toFixed(0) + '%';
+    var results = await Promise.all(batch.map(function(ds){ return fetchDay(ds).catch(function(){ return []; }); }));
+    for (var ri = 0; ri < results.length; ri++) {
+      for (var ii = 0; ii < results[ri].length; ii++) {
+        var parsed = parseDraw(results[ri][ii]);
+        if (parsed && !seen.has(parsed.id)) { histPool.push(parsed); seen.add(parsed.id); }
       }
-      html += `<div class="proph-nums-box">🔢 ${unique.join('  ·  ')}</div>`;
     }
-    html += `<div class="oracle-prophecy">${pHtml}</div>`;
   }
+  histPool.sort(function(a,b){ return a.id - b.id; });
+  if (lb) lb.style.display = 'none';
+}
+
+async function loadToday() {
+  var today = dateOf(Date.now());
+  var items = await fetchDay(today).catch(function(){ return []; });
+  var seen  = new Set(histPool.map(function(d){ return d.id; }));
+  for (var i = 0; i < items.length; i++) {
+    var parsed = parseDraw(items[i]);
+    if (parsed && !seen.has(parsed.id)) { histPool.push(parsed); seen.add(parsed.id); }
+  }
+  histPool.sort(function(a,b){ return a.id - b.id; });
+  if (histPool.length) liveDraw = histPool[histPool.length - 1];
+}
+
+// ── Pick random draw ───────────────────────────────────────────────────────
+function pickRandom() {
+  var nm    = nextDrawMin();
+  var hour  = Math.floor(nm / 60);
+  var today = dateOf(Date.now());
+  var pool  = histPool.filter(function(d){
+    return Math.floor(d.m/60) === hour && d.d !== today;
+  });
+  if (!pool.length) {
+    pool = histPool.filter(function(d){ return Math.floor(d.m/60) === hour; });
+  }
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ── Check for new draw ─────────────────────────────────────────────────────
+async function checkNewDraw() {
+  var today = dateOf(Date.now());
+  var items = await fetchDay(today).catch(function(){ return []; });
+  var seen  = new Set(histPool.map(function(d){ return d.id; }));
+  var added = false;
+  for (var i = 0; i < items.length; i++) {
+    var parsed = parseDraw(items[i]);
+    if (parsed && !seen.has(parsed.id)) {
+      histPool.push(parsed); seen.add(parsed.id); added = true;
+    }
+  }
+  if (added) histPool.sort(function(a,b){ return a.id - b.id; });
+
+  var latest = histPool.length ? histPool[histPool.length - 1] : null;
+  if (latest && (!liveDraw || latest.id > liveDraw.id)) {
+    // New draw found — advance state
+    evalDraw = randDraw;
+    liveDraw = latest;
+    randDraw = pickRandom();
+    renderAll();
+    scheduleRefresh();
+    return true;
+  }
+  return false;
+}
+
+function scheduleRefresh() {
+  clearTimeout(refreshTm);
+  var delay = msToNextDraw() + 15000;
+  refreshTm = setTimeout(function() {
+    checkNewDraw().then(function(found) {
+      if (!found) {
+        refreshTm = setTimeout(function() {
+          checkNewDraw().then(function(f){ if (!f) scheduleRefresh(); });
+        }, 12000);
+      }
+    });
+  }, delay);
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function makeGrid(drawn, hitSet, classDrawn, classMiss) {
+  var html = '<div class="num-grid">';
+  for (var n = 1; n <= 80; n++) {
+    var isDrawn = drawn.has(n);
+    var isHit   = hitSet && hitSet.has(n);
+    var cls = 'chip';
+    if (isDrawn && isHit) {
+      cls += ' c-hit';
+    } else if (isDrawn) {
+      cls += ' ' + classDrawn + ' bright';
+    } else if (hitSet && !isDrawn && !isHit) {
+      // not drawn, not a hit — plain dim
+      cls += '';
+    } else {
+      cls += '';
+    }
+    html += '<div class="' + cls + '">' + n + '</div>';
+  }
+  html += '</div>';
   return html;
 }
 
-let claudeBusy = false, claudeCacheSig = null, claudeCache = null;
-
-async function renderAutoSentence(nums, sig) {
-  const el = document.getElementById('autoSentence');
-  const key = localStorage.getItem('claude_api_key');
-  if (!key) {
-    el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις.';
-    return;
+function makeEvalGrid(evalNums, liveSet) {
+  // evalNums = the 20 numbers of evalDraw
+  // Show each: green if it appears in liveSet, faint amber otherwise
+  var html = '<div class="num-grid">';
+  for (var n = 1; n <= 80; n++) {
+    var isEval = evalNums.has(n);
+    var isHit  = isEval && liveSet.has(n);
+    var cls = 'chip';
+    if (isHit)       cls += ' c-hit';
+    else if (isEval) cls += ' c-miss';
+    html += '<div class="' + cls + '">' + n + '</div>';
   }
-  if (claudeCacheSig === sig && claudeCache) { el.innerHTML = claudeCache; return; }
-  el.innerHTML = '<span class="as-meta">✦ Claude σχηματίζει πρόταση…</span>';
-  if (claudeBusy) return;
-  claudeBusy = true;
-  try {
-    const text = await claudeSentence(nums, key);
-    claudeCacheSig = sig;
-    claudeCache = formatOracleOutput(text, nums);
-    el.innerHTML = claudeCache;
-  } catch(e) {
-    el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
-  } finally { claudeBusy = false; }
+  html += '</div>';
+  return html;
 }
 
-// ── Draw rendering ─────────────────────────────────────────────────────────
-function renderDraw(draw) {
-  document.getElementById('drawId').textContent = `Κλήρωση #${draw.id}`;
-  document.getElementById('drawTime').textContent = draw.time;
-
-  const grid = document.getElementById('numGrid');
-  const balls = draw.nums.map(n => {
-    const w = BASE_NUM_TO_CHAR[n] || '';
-    const disp = w.length > 5 ? w.slice(0,5) : w;
-    return `<div class="num-ball drawn${wordCat(n)}" title="${w} (${n})">
-      <span style="font-size:.48rem;display:block;line-height:1.1;letter-spacing:0">${disp}</span>
-      <span style="font-size:.55rem;opacity:.75">${n}</span>
-    </div>`;
-  }).join('');
-  grid.innerHTML = balls;
-
-  const wordLine = draw.nums.map(n => BASE_NUM_TO_CHAR[n] || '').filter(Boolean).join('  ·  ');
-  document.getElementById('drawLettersLine').textContent = wordLine;
-}
-
-// ── Update delays on new draw ──────────────────────────────────────────────
-function updateDelays(nums) {
-  drawCounter++;
-  for (let n=1; n<=80; n++) {
-    if (nums.includes(n)) { delays[n] = 0; lastSeen[n] = drawCounter; }
-    else delays[n]++;
-  }
-  if (delaysReady) renderDelayTable();
-}
-
-// ── GitHub auto-save ───────────────────────────────────────────────────────
-async function autoSaveLiveBuffer() {
-  if (!localStorage.getItem('gh_token') || !liveBuffer.size) return;
-  if (saveLock) return;
-  saveLock = true;
-  const el = document.getElementById('saveStatus');
-  el.textContent = '⏳ Αποθήκευση...';
-  try {
-    const byMonth = {};
-    for (const [id, d] of liveBuffer) {
-      const dayN = Math.floor((id - LIVE_BASE_ID) / 288);
-      const dt = new Date(Date.UTC(2025, 0, 1) + dayN * 86400000);
-      const ym = `${dt.getUTCFullYear()}_${pad(dt.getUTCMonth()+1)}`;
-      if (!byMonth[ym]) byMonth[ym] = [];
-      byMonth[ym].push(d);
-    }
-    let totalNew = 0;
-    for (const [ym, draws] of Object.entries(byMonth)) {
-      const mStr = ym.replace('_','-');
-      const path = `data/raw/kino_raw_${ym}.json`;
-      const existing = await ghGet(path, {fresh:true}) || {month:mStr, draws:[]};
-      const exArr2 = existing.draws || [];
-      const exIds = new Set(exArr2.map(d=>d.id));
-      const newOnes = draws.filter(d=>!exIds.has(d.id));
-      if (!newOnes.length) continue;
-      const merged = [...exArr2, ...newOnes].sort((a,b) => a.id - b.id);
-      if (merged.length < exArr2.length) {
-        console.warn(`autoSave: merged(${merged.length}) < existing(${exArr2.length}) for ${mStr} — aborting`);
-        continue;
-      }
-      await ghPut(path, {month:mStr, draws:merged}, `Live +${newOnes.length} ${mStr}`);
-      totalNew += newOnes.length;
-    }
-    liveLastSavedCount = liveBuffer.size;
-    el.textContent = totalNew > 0
-      ? `✅ Αποθηκεύτηκαν ${totalNew} κλήρωση(εις) — ${new Date().toLocaleTimeString('el-GR')}`
-      : '✓ Ήδη αποθηκευμένες';
-  } catch(e) {
-    el.textContent = '⚠ Σφάλμα αποθήκευσης: ' + e.message;
-    console.error('autoSave error:', e);
-  } finally {
-    saveLock = false;
-  }
-}
-
-// ── Live monitoring ────────────────────────────────────────────────────────
-async function fetchLiveNow() {
-  try {
-    const raw = await apiFetch(`${OPAP_BASE}/last-result-and-active`);
-    const r = raw?.last;
-    if (!r?.winningNumbers?.list?.length) {
-      document.getElementById('drawTime').textContent = '⚠ Αδυναμία σύνδεσης — επόμενη προσπάθεια σε λίγο';
-      return;
-    }
-    const draw = {
-      id: r.drawId,
-      time: localTimeStr(toMs(r.drawTime)),
-      nums: [...r.winningNumbers.list].sort((a,b)=>a-b),
-      bonus: (r.winningNumbers.bonus||[])[0]||null
-    };
-    liveBuffer.set(draw.id, {id: draw.id, n: draw.nums, b: draw.bonus});
-
-    if (draw.id !== lastDrawId) {
-      evaluateProphecy(draw.nums, draw.id, draw.time);
-      evaluateHot4(draw);
-      if (delaysReady) updateHot4ComboDelays(draw.nums);
-      renderDraw(draw);
-      shuffleMapping();
-      lastDrawId = draw.id;
-      updateDelays(draw.nums);
-      claudeCacheSig = null; claudeCache = null;
-      document.getElementById('autoSentence').innerHTML = '<span class="as-meta">✦ Νέα κλήρωση — ανάλυση σε 2″…</span>';
-      const sig = draw.id.toString();
-      const numsSnap = [...draw.nums];
-      setTimeout(() => renderAutoSentence(numsSnap, sig), 2000);
-    } else {
-      renderDraw(draw);
-    }
-
-    if (liveBuffer.size - liveLastSavedCount >= 6) autoSaveLiveBuffer();
-
-  } catch(e) {
-    console.error('fetchLiveNow:', e);
-    document.getElementById('drawTime').textContent = '⚠ Σφάλμα — νέα προσπάθεια σε λίγο';
-  }
-}
-
-function scheduleLive() {
-  if (!liveRunning) return;
-  liveTimerId = setTimeout(() => { fetchLiveNow(); scheduleLive(); }, msToNext());
-}
-
-function startLive() {
-  liveRunning = true;
-  document.getElementById('liveBadge').className = 'badge on';
-  document.getElementById('liveBadge').textContent = '● ΖΩΝΤΑΝΑ';
-  fetchLiveNow();
-  scheduleLive();
-  liveCountdownId = setInterval(() => {
-    if (!liveRunning) { clearInterval(liveCountdownId); return; }
-    document.getElementById('countdown').textContent = `Επόμενη σε: ${fmtMs(msToNext())}`;
-  }, 500);
-}
-
-function stopLive() {
-  liveRunning = false;
-  clearTimeout(liveTimerId);
-  clearInterval(liveCountdownId);
-  document.getElementById('liveBadge').className = 'badge off';
-  document.getElementById('liveBadge').textContent = '⏸ ΕΚΤΟΣ';
-  document.getElementById('countdown').textContent = '';
-}
-
-// ── Word / sentence → Numbers lookup ──────────────────────────────────────
-function lookupWord() {
-  const raw = document.getElementById('wordInput').value.trim();
-  const out = document.getElementById('lookupResult');
-  if (!raw) { out.innerHTML = ''; return; }
-  const tokens = raw.split(/\s+/);
-  const tiles = tokens.map(token => {
-    const t = token.toLowerCase();
-    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w:BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase() === t) return {n, w:BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w:BASE_NUM_TO_CHAR[n], type:'Q', ok:true};
-    for (let n = 1; n <= 80; n++) if ((BASE_ANS_NUM_TO_CHAR[n]||'').toLowerCase().includes(t)) return {n, w:BASE_ANS_NUM_TO_CHAR[n], type:'A', ok:true};
-    return {n: null, w: token, type: null, ok: false};
-  });
-  const html = tiles.map(({n, w, type, ok}) => ok
-    ? `<div class="lk-tile"><span class="lk-c" style="font-size:.72rem;color:${type==='Q'?'#ce93d8':'#80cbc4'}">${w}</span><span class="lk-n">${n} (${type})</span></div>`
-    : `<div class="lk-tile" style="opacity:.45"><span class="lk-c">${w}</span><span class="lk-n">—</span></div>`
-  ).join('');
-  const nums = tiles.filter(x => x.ok).map(x => x.n).join(', ');
-  out.innerHTML = `<div class="lk-tiles">${html}</div>`
-    + (nums ? `<div class="lk-nums">Αριθμοί: ${nums}</div>` : '');
-}
-
-// ── Numbers → Words lookup ─────────────────────────────────────────────────
-function lookupNums() {
-  const raw = document.getElementById('numsInput').value.trim();
-  const out = document.getElementById('numsLookupResult');
-  if (!raw) { out.innerHTML = ''; return; }
-  const nums = raw.split(/[\s,;]+/).map(s => parseInt(s, 10)).filter(n => n >= 1 && n <= 80);
-  if (!nums.length) {
-    out.innerHTML = '<div class="lk-warn">Δώσε αριθμούς 1–80 χωρισμένους με κενό ή κόμμα.</div>';
-    return;
-  }
-  const tileHtml = nums.map(n =>
-    `<div class="lk-tile" title="${n}">
-      <span class="lk-c" style="font-size:.72rem;color:#ce93d8">${BASE_NUM_TO_CHAR[n]||'?'}</span>
-      <span class="lk-c" style="font-size:.72rem;color:#80cbc4">${BASE_ANS_NUM_TO_CHAR[n]||'?'}</span>
-      <span class="lk-n">${n}</span>
-    </div>`
-  ).join('');
-  const qLine = nums.map(n => BASE_NUM_TO_CHAR[n]||'?').join('  ·  ');
-  const aLine = nums.map(n => BASE_ANS_NUM_TO_CHAR[n]||'?').join('  ·  ');
-  out.innerHTML = `<div class="lk-tiles">${tileHtml}</div>
-    <div class="lk-nums" style="color:#ce93d8">Q: ${qLine}</div>
-    <div class="lk-nums" style="color:#80cbc4">A: ${aLine}</div>`;
-}
-
-// ── Perfect log ───────────────────────────────────────────────────────────
-function renderPerfectLog() {
-  const el = document.getElementById('perfectLog');
+function renderLive() {
+  var el = document.getElementById('liveBody');
+  var di = document.getElementById('liveDrawId');
   if (!el) return;
-  let records = [];
-  try { records = JSON.parse(localStorage.getItem('kino_perfect') || '[]'); } catch(_) {}
-  if (!records.length) {
-    el.innerHTML = '<div class="plog-empty">Δεν υπάρχουν αποθηκευμένες επιτυχίες ακόμα.</div>';
+  if (!liveDraw) {
+    el.innerHTML = '<div class="ph">Αναμονή κλήρωσης…</div>';
+    if (di) di.textContent = '';
     return;
   }
-  el.innerHTML = records.slice().reverse().map(r => {
-    const isPerfect = r.score === r.total;
-    const label = isPerfect
-      ? `<strong style="color:#ffd54f">🎯 ΑΠΟΛΥΤΟ ${r.score}/${r.total}</strong>`
-      : `<strong style="color:#ffb74d">🔥 ΠΑΡΑ ΕΝΑ ${r.score}/${r.total}</strong>`;
-    return `<div class="plog-row">${label} — Κλήρωση #${r.drawId} ${r.time}<br><span class="plog-nums">${r.nums.join(' · ')}</span></div>`;
-  }).join('');
+  if (di) di.textContent = '#' + liveDraw.id;
+  el.innerHTML =
+    '<div class="draw-info">' +
+      '<div class="draw-id" style="color:var(--live)">#' + liveDraw.id + '</div>' +
+      '<div class="draw-meta">' + liveDraw.d.slice(5).replace('-','/') + ' · ' + mStr(liveDraw.m) + '</div>' +
+    '</div>' +
+    makeGrid(liveDraw.set, null, 'c-live', '');
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
-  refreshTokenState();
-
-  const ttId = localStorage.getItem('kino_timetravel_id');
-  if (ttId) {
-    const el = document.getElementById('ttBanner');
-    el.style.display = 'block';
-    el.innerHTML = `🕰 <strong>Χρονικό Ταξίδι ενεργό</strong> (κλήρωση #${ttId}) στις καρτέλες Πρόβλεψη / Μετά την Πιο Όμοια — εδώ η ζωντανή καταγραφή συνεχίζει κανονικά. <a href="kino_settings.html" style="color:#ffcc80;text-decoration:underline">Διαχείριση</a>`;
+function renderRand() {
+  var el  = document.getElementById('randBody');
+  var di  = document.getElementById('randDrawId');
+  var tag = document.getElementById('randTag');
+  if (!el) return;
+  var hour = Math.floor(nextDrawMin() / 60);
+  if (tag) tag.textContent = '🎲 Τυχαία — ώρα ' + pad(hour) + ':xx';
+  if (!randDraw) {
+    el.innerHTML = '<div class="ph">Δεν βρέθηκε τυχαία κλήρωση για αυτή την ώρα.</div>';
+    if (di) di.textContent = '';
+    return;
   }
+  if (di) di.textContent = '#' + randDraw.id;
+  el.innerHTML =
+    '<div class="draw-info">' +
+      '<div class="draw-id" style="color:var(--rand)">#' + randDraw.id + '</div>' +
+      '<div class="draw-meta">' + randDraw.d.slice(5).replace('-','/') + ' · ' + mStr(randDraw.m) + '</div>' +
+    '</div>' +
+    makeGrid(randDraw.set, null, 'c-rand', '');
+}
 
-  document.getElementById('lookupBtn').addEventListener('click', lookupWord);
-  document.getElementById('wordInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupWord(); });
-  document.getElementById('wordInput').addEventListener('input', lookupWord);
-
-  document.getElementById('numsLookupBtn').addEventListener('click', lookupNums);
-  document.getElementById('numsInput').addEventListener('keydown', e => { if (e.key === 'Enter') lookupNums(); });
-  document.getElementById('numsInput').addEventListener('input', lookupNums);
-
-  // Placeholder delay grid
-  let ph = '';
-  for(let n=1;n<=80;n++){const s=NUM_TO_CHAR[n]||'';ph+=`<div class="d-cell" style="background:#222"><span class="d-num">${n}</span><span class="d-sym">${s.length>5?s.slice(0,4)+'.':s}</span><span class="d-val">?</span></div>`; }
-  document.getElementById('delayGrid').innerHTML = ph;
-
-  renderPerfectLog();
-  renderHot4Log();
-
-  if (localStorage.getItem('gh_token') && !localStorage.getItem('backfill_june_2026_done')) {
-    document.getElementById('backfillBar').style.display = 'block';
+function renderEval() {
+  var sec = document.getElementById('evalSection');
+  if (!sec) return;
+  if (!evalDraw || !liveDraw) { sec.style.display = 'none'; return; }
+  var hits = 0;
+  evalDraw.arr.forEach(function(n){ if (liveDraw.set.has(n)) hits++; });
+  sec.style.display = '';
+  var sc = document.getElementById('evalScore');
+  if (sc) {
+    sc.innerHTML =
+      'Τυχαία <span style="color:var(--muted)">#' + evalDraw.id + '</span>: ' +
+      '<span class="score-n h-color">' + hits + '</span>' +
+      '<span class="m-color">/20 αριθμοί σωστοί</span>';
   }
+  var eg = document.getElementById('evalGrid');
+  if (eg) eg.outerHTML = makeEvalGrid(evalDraw.set, liveDraw.set)
+    .replace('<div class="num-grid">', '<div class="num-grid" id="evalGrid">');
+}
 
-  loadHistoricalDelays().catch(e=>console.error('delay error',e))
-    .then(() => gapFill(3).catch(e=>console.error('gapFill error',e)));
+function renderStatus() {
+  var sl = document.getElementById('statusLine');
+  if (!sl) return;
+  if (!liveDraw) { sl.textContent = 'Φόρτωση…'; return; }
+  sl.textContent = 'Ιστορικό: ' + histPool.length + ' κληρώσεις · τελευταία #' + liveDraw.id +
+    ' · ' + liveDraw.d.slice(5).replace('-','/') + ' ' + mStr(liveDraw.m);
+}
 
-  setTimeout(startLive, 500);
+function renderAll() {
+  renderLive();
+  renderRand();
+  renderEval();
+  renderStatus();
+}
 
-  document.getElementById('dqBtn').addEventListener('click', async () => {
-    const minD = parseInt(document.getElementById('dqMin').value) || 0;
-    const maxD = parseInt(document.getElementById('dqMax').value) || 999;
-    const el   = document.getElementById('dqResult');
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  // Start countdown immediately
+  tickCd();
+  cdTm = setInterval(tickCd, 1000);
 
-    const matching = [];
-    for (let n = 1; n <= 80; n++) {
-      if (delays[n] >= minD && delays[n] <= maxD) matching.push(n);
-    }
+  document.getElementById('statusLine').textContent = 'Φόρτωση σημερινών κληρώσεων…';
+  await loadToday();
+  randDraw = pickRandom();
+  renderAll();
 
-    if (matching.length < 6) {
-      el.innerHTML = `<span style="color:#ef9a9a">Βρέθηκαν μόνο ${matching.length} αριθμοί στο εύρος ${minD}–${maxD} (χρειάζονται τουλάχιστον 6).</span>`;
-      return;
-    }
+  document.getElementById('statusLine').textContent = 'Φόρτωση ιστορικού 14 ημερών…';
+  await loadHistory();
+  randDraw = pickRandom(); // re-pick with full pool
+  renderAll();
 
-    const key = localStorage.getItem('claude_api_key');
-    if (!key) { el.innerHTML = 'Πρόσθεσε <a href="kino_settings.html">Claude API key</a> στις ρυθμίσεις.'; return; }
+  scheduleRefresh();
+}
 
-    el.innerHTML = '<span class="as-meta">✦ Claude φτιάχνει ερώτηση…</span>';
-
-    const wordList = matching.map(n => `${n}:${BASE_NUM_TO_CHAR[n]}`).join(', ');
-    const fullMap  = BASE_NUM_TO_CHAR.slice(1).map((w,i) => `${i+1}:${w}`).join('  ');
-    const sys      = `Κάθε αριθμός Κίνο αντιστοιχεί σε ρήμα βάσει του πίνακα:\n${fullMap}`;
-    const prompt   = `Οι παρακάτω αριθμοί δεν έχουν βγει εδώ και ${minD}–${maxD} κληρώσεις: ${wordList}
-
-Φτιάξε μία ερώτηση χρησιμοποιώντας ακριβώς 6 από αυτές τις λέξεις. Η ερώτηση να έχει νόημα και να είναι φυσική. Μόνο η ερώτηση, χωρίς άλλο κείμενο.`;
-
-    try {
-      const text = await anthropicFetch(key.trim(), 'claude-haiku-4-5-20251001', sys, [{role:'user', content: prompt}], 250);
-      const matchSet = new Set(matching);
-      const annotated = text.split(/(\s+|[.,;:!?«»"()\n])/).map(tok => {
-        const clean = tok.toLowerCase().replace(/[.,;:!?«»"()]/g, '');
-        const num = BASE_WORD_TO_NUM[clean];
-        if (num && matchSet.has(num)) return `<span class="proph-w">${tok}</span><sup class="proph-n">${num}</sup>`;
-        return tok;
-      }).join('');
-      el.innerHTML = `<div class="oracle-sentence" style="margin:0">${annotated}</div>`;
-    } catch(e) {
-      el.innerHTML = `<span class="as-meta">⚠ Claude σφάλμα: ${e.message}</span>`;
-    }
-  });
-});
+init();
 </script>
-<div id="buildStamp">v 2026-06-13 21:15</div>
-</body>
-</html>
