@@ -7049,14 +7049,11 @@ function getHourlyMonthStr() {
 }
 
 function getHourlyMonthDays() {
-  // last 30 days ending at (today - hourlyMonthOff*30)
-  const end = new Date();
-  end.setDate(end.getDate() - hourlyMonthOff * 30);
+  // last 30 days ending at (today - hourlyMonthOff*30), using Athens dates
+  const endMs = Date.now() - hourlyMonthOff * 30 * 86400000;
   const days = [];
   for (let i = 29; i >= 0; i--) {
-    const d = new Date(end);
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    days.push(drawDateStr(endMs - i * 86400000));
   }
   return days;
 }
@@ -7247,7 +7244,7 @@ function renderHourly() {
     return;
   }
 
-  // Draws: one per day at this slot (exact minute match, or ±3min fallback)
+  // Draws: exact minute match only — no fallback
   const wh = ['#ff8a65','#ffb74d','#fff176'];
   const wn = ['Τρ.1','Τρ.2','Τρ.3'];
 
@@ -7256,17 +7253,7 @@ function renderHourly() {
     const dayDraws = psDraws.filter(function(d){
       return d.d === ds && d.w && d.w.every(function(v){ return v >= 1 && v <= 27; });
     });
-    // exact match first
-    let match = dayDraws.find(function(d){ return d.m === hourlySlot; });
-    // fallback ±3 min (nearest wins)
-    if (!match) {
-      let best = null, bestDist = 4;
-      for (const d of dayDraws) {
-        const dist = Math.abs(d.m - hourlySlot);
-        if (dist < bestDist) { bestDist = dist; best = d; }
-      }
-      match = best;
-    }
+    const match = dayDraws.find(function(d){ return d.m === hourlySlot; }) || null;
     if (match) rows.push({ ds, draw: match });
     else rows.push({ ds, draw: null });
   }
@@ -7344,7 +7331,7 @@ function renderHourly() {
     '</tr></thead><tbody>';
 
   for (const row of rows) {
-    const dayNum = row.ds.slice(8);
+    const dayNum = row.ds.slice(5).replace('-', '/');
     const d = row.draw;
     if (!d) {
       html += '<tr><td style="color:#222;padding:3px 6px">' + dayNum + '</td>' +
