@@ -852,7 +852,8 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <span id="hourlyMonthLabel" style="font-size:.82rem;color:#ccc;min-width:90px;text-align:center">—</span>
       <button class="nav-btn" onclick="hourlyNavMonth(-1)">Μήνας ▶</button>
     </div>
-    <div id="hourlyHourBtns" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px"></div>
+    <div id="hourlyHourBtns" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px"></div>
+    <div id="hourlySlotBtns" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;min-height:24px"></div>
     <div id="hourlyContent" style="min-height:60px"></div>
   </section>
 
@@ -7028,12 +7029,18 @@ const TABS = ['ps', 's3', 'kino', 'cmp', 'hot', 'hourly', 'cfg'];
 
 // ── Ωριαίο Tab ─────────────────────────────────────────────────────────────
 let hourlyMonthOff = 0;
-let hourlyHour = 11;
+let hourlyHour     = 11;
+let hourlySlot     = null;  // selected minute (e.g. 680 = 11:20), null = pick slot
 let hourlyFetching = false;
 
+const HOURLY_MONTH_NAMES = ['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+const HOURLY_SYM = {25:'★', 26:'♦', 27:'✦'};
+const HOURLY_BLUE  = new Set([1,8,9,11,14,16,22,24]);
+const HOURLY_RED   = new Set([2,5,6,7,10,15,20,21]);
+const HOURLY_GREEN = new Set([3,4,12,13,17,18,19,23]);
+
 function getHourlyMonthStr() {
-  const d = new Date();
-  d.setDate(1);
+  const d = new Date(); d.setDate(1);
   d.setMonth(d.getMonth() - hourlyMonthOff);
   return d.toISOString().slice(0, 7);
 }
@@ -7060,7 +7067,7 @@ async function fetchMonthForHourly(monthStr) {
   const cont = document.getElementById('hourlyContent');
   let done = 0;
   for (const ds of missing) {
-    if (cont) cont.innerHTML = '<div style="color:#555;padding:16px;font-size:.78rem">⏳ Φόρτωση ' + done + '/' + missing.length + ' ημερών (' + ds + ')…</div>';
+    if (cont) cont.innerHTML = '<div style="color:#555;padding:16px;font-size:.78rem">⏳ ' + done + '/' + missing.length + ' ημέρες (' + ds + ')…</div>';
     await fetchDayLazy(ds);
     done++;
   }
@@ -7072,16 +7079,30 @@ function hourlyNavMonth(dir) {
   const newOff = hourlyMonthOff + dir;
   if (newOff < 0) return;
   hourlyMonthOff = newOff;
+  hourlySlot = null;
   renderHourly();
 }
 
-function setHourlyHour(h) {
+function hourlySetHour(h) {
   hourlyHour = h;
-  document.querySelectorAll('.hourly-h-btn').forEach(b => {
-    const active = +b.dataset.h === h;
-    b.style.background = active ? '#0d2020' : '#080d10';
-    b.style.borderColor = active ? '#26a69a' : '#1a2a3a';
-    b.style.color = active ? '#80cbc4' : '#2a4a5a';
+  hourlySlot = null;
+  document.querySelectorAll('.hourly-h-btn').forEach(function(b) {
+    const on = +b.dataset.h === h;
+    b.style.background   = on ? '#0d2020' : '#080d10';
+    b.style.borderColor  = on ? '#26a69a' : '#1a2a3a';
+    b.style.color        = on ? '#80cbc4' : '#2a4a5a';
+  });
+  hourlyBuildSlotBtns();
+  renderHourly();
+}
+
+function hourlySetSlot(m) {
+  hourlySlot = m;
+  document.querySelectorAll('.hourly-s-btn').forEach(function(b) {
+    const on = +b.dataset.m === m;
+    b.style.background  = on ? '#1a1200' : '#080a08';
+    b.style.borderColor = on ? '#ffb300' : '#1a2a1a';
+    b.style.color       = on ? '#ffcc02' : '#2a4a2a';
   });
   renderHourly();
 }
@@ -7093,139 +7114,233 @@ function hourlyInitHourBtns() {
     const b = document.createElement('button');
     b.className = 'hourly-h-btn';
     b.dataset.h = h;
-    b.textContent = pad(h) + ':xx';
-    b.style.cssText = 'padding:3px 8px;font-size:.65rem;border-radius:4px;border:1px solid #1a2a3a;background:#080d10;color:#2a4a5a;cursor:pointer';
-    b.onclick = () => setHourlyHour(h);
+    b.textContent = pad(h) + 'h';
+    b.style.cssText = 'padding:3px 9px;font-size:.65rem;border-radius:4px;border:1px solid #1a2a3a;background:#080d10;color:#2a4a5a;cursor:pointer';
+    b.onclick = function(){ hourlySetHour(h); };
     el.appendChild(b);
   }
-  setHourlyHour(hourlyHour);
+  // mark current
+  el.querySelectorAll('.hourly-h-btn').forEach(function(b) {
+    const on = +b.dataset.h === hourlyHour;
+    b.style.background = on ? '#0d2020' : '#080d10';
+    b.style.borderColor = on ? '#26a69a' : '#1a2a3a';
+    b.style.color = on ? '#80cbc4' : '#2a4a5a';
+  });
+}
+
+function hourlyBuildSlotBtns() {
+  const el = document.getElementById('hourlySlotBtns');
+  if (!el) return;
+  el.innerHTML = '';
+  const monthStr = getHourlyMonthStr();
+  // collect unique minutes for this hour from loaded data
+  const minuteSet = new Set();
+  for (const d of psDraws) {
+    if (d.d && d.d.startsWith(monthStr) && d.w && Math.floor(d.m / 60) === hourlyHour)
+      minuteSet.add(d.m);
+  }
+  // if no data yet, use theoretical 4-min grid
+  if (!minuteSet.size) {
+    for (let m = hourlyHour * 60 + 1; m < (hourlyHour + 1) * 60; m += 4) minuteSet.add(m);
+  }
+  const slots = Array.from(minuteSet).sort(function(a,b){ return a-b; });
+  for (const m of slots) {
+    const b = document.createElement('button');
+    b.className = 'hourly-s-btn';
+    b.dataset.m = m;
+    b.textContent = pad(Math.floor(m/60)) + ':' + pad(m%60);
+    b.style.cssText = 'padding:2px 7px;font-size:.62rem;border-radius:3px;border:1px solid #1a2a1a;background:#080a08;color:#2a4a2a;cursor:pointer';
+    b.onclick = (function(mm){ return function(){ hourlySetSlot(mm); }; })(m);
+    el.appendChild(b);
+  }
+  // mark active
+  if (hourlySlot !== null) {
+    el.querySelectorAll('.hourly-s-btn').forEach(function(b) {
+      const on = +b.dataset.m === hourlySlot;
+      b.style.background  = on ? '#1a1200' : '#080a08';
+      b.style.borderColor = on ? '#ffb300' : '#1a2a1a';
+      b.style.color       = on ? '#ffcc02' : '#2a4a2a';
+    });
+  }
 }
 
 function renderHourly() {
   hourlyInitHourBtns();
   const monthStr = getHourlyMonthStr();
   const days = getHourlyMonthDays(monthStr);
-
-  const MONTH_NAMES = ['Ιαν','Φεβ','Μαρ','Απρ','Μαϊ','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
   const ml = document.getElementById('hourlyMonthLabel');
   if (ml) {
     const [y, m] = monthStr.split('-').map(Number);
-    ml.textContent = MONTH_NAMES[m - 1] + ' ' + y;
+    ml.textContent = HOURLY_MONTH_NAMES[m - 1] + ' ' + y;
   }
-
-  const allFetched = days.length > 0 && days.every(d => psFetchedDays.has(d));
+  const allFetched = days.length > 0 && days.every(function(d){ return psFetchedDays.has(d); });
   const cont = document.getElementById('hourlyContent');
   if (!cont) return;
-
   if (!allFetched) { fetchMonthForHourly(monthStr); return; }
 
-  const BLUE  = new Set([1,8,9,11,14,16,22,24]);
-  const RED   = new Set([2,5,6,7,10,15,20,21]);
-  const GREEN = new Set([3,4,12,13,17,18,19,23]);
-  const SYM_MAP = {25:'★', 26:'♦', 27:'✦'};
-  const wheelColors = ['#ff8a65','#ffb74d','#fff176'];
-  const wheelNames  = ['Τροχός 1','Τροχός 2','Τροχός 3'];
+  // After data ready, rebuild slot buttons if empty
+  if (!document.getElementById('hourlySlotBtns').children.length) hourlyBuildSlotBtns();
 
-  const pool = psDraws.filter(function(d) {
-    return d.d && d.d.startsWith(monthStr) &&
-      d.w && d.w.every(function(v){ return v >= 1 && v <= 27; }) &&
-      Math.floor(d.m / 60) === hourlyHour;
-  }).sort(function(a,b){ return a.d < b.d ? -1 : a.d > b.d ? 1 : a.m - b.m; });
-
-  if (!pool.length) {
-    cont.innerHTML = '<div style="color:#444;padding:16px;font-size:.78rem">Δεν βρέθηκαν κληρώσεις για ' + monthStr + ' στις ' + pad(hourlyHour) + ':xx</div>';
+  if (hourlySlot === null) {
+    cont.innerHTML = '<div style="color:#2a4a5a;font-size:.72rem;padding:16px">← Επίλεξε ώρα, μετά ακριβή κλήρωση (πράσινα κουμπιά)</div>';
     return;
   }
 
-  const daysPresent = [];
-  const seenDays = new Set();
-  for (const d of pool) { if (!seenDays.has(d.d)) { seenDays.add(d.d); daysPresent.push(d.d); } }
+  // Draws: one per day at this slot (exact minute match, or ±2min fallback)
+  const wh = ['#ff8a65','#ffb74d','#fff176'];
+  const wn = ['Τρ.1','Τρ.2','Τρ.3'];
 
-  const zoneBar = function(label, count, exp, color) {
-    const pct = pool.length > 0 ? count / pool.length * 100 : 0;
-    const expPct = pool.length > 0 ? exp / pool.length * 100 : 0;
-    const dev = exp > 0 ? (count - exp) / exp * 100 : 0;
-    const devStr = (dev >= 0 ? '+' : '') + dev.toFixed(0) + '%';
-    const devCol = dev > 5 ? '#66bb6a' : dev < -5 ? '#ef5350' : '#555';
-    return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">' +
-      '<span style="color:#444;font-size:.58rem;min-width:52px">' + label + '</span>' +
-      '<div style="flex:1;background:#0a0a0a;border-radius:2px;height:6px;position:relative;overflow:hidden">' +
-        '<div style="height:100%;width:' + Math.min(pct, 100).toFixed(1) + '%;background:' + color + ';border-radius:2px"></div>' +
-        '<div style="position:absolute;top:0;height:100%;width:1px;background:#333;left:' + expPct.toFixed(1) + '%"></div>' +
-      '</div>' +
-      '<span style="font-size:.62rem;color:' + color + ';min-width:26px;text-align:right;font-weight:700">' + count + '</span>' +
-      '<span style="font-size:.57rem;color:' + devCol + ';min-width:30px">' + devStr + '</span>' +
-      '</div>';
-  };
+  const rows = [];
+  for (const ds of days) {
+    const dayDraws = psDraws.filter(function(d){
+      return d.d === ds && d.w && d.w.every(function(v){ return v >= 1 && v <= 27; });
+    });
+    // exact match first
+    let match = dayDraws.find(function(d){ return d.m === hourlySlot; });
+    // fallback ±2 min
+    if (!match) {
+      let best = null, bestDist = 3;
+      for (const d of dayDraws) {
+        const dist = Math.abs(d.m - hourlySlot);
+        if (dist < bestDist) { bestDist = dist; best = d; }
+      }
+      match = best;
+    }
+    if (match) rows.push({ ds, draw: match });
+    else rows.push({ ds, draw: null });
+  }
 
-  let html = '<div style="color:#2a4a5a;font-size:.63rem;margin-bottom:10px">' +
-    pool.length + ' κληρώσεις · ' + daysPresent.length + ' ημέρες · ' +
-    pad(hourlyHour) + ':00–' + pad(hourlyHour) + ':59</div>';
+  // Stats over found draws
+  const pool = rows.filter(function(r){ return r.draw; }).map(function(r){ return r.draw; });
 
-  for (let wi = 0; wi < 3; wi++) {
-    const cnt = {};
-    for (let v = 1; v <= 27; v++) cnt[v] = 0;
-    for (const d of pool) { const v = d.w[wi]; if (v >= 1 && v <= 27) cnt[v]++; }
-    const counts = [];
-    for (let v = 1; v <= 27; v++) counts.push({ v, c: cnt[v] });
-    const sorted = counts.slice().sort(function(a,b){ return b.c - a.c; });
-    const hotSet  = new Set(sorted.slice(0,5).map(function(x){ return x.v; }));
-    const coldSet = new Set(sorted.slice(-5).map(function(x){ return x.v; }));
-    const maxC = Math.max.apply(null, counts.map(function(x){ return x.c; })) || 1;
-
-    let blueC=0,redC=0,greenC=0,symC=0;
+  // Zone counts per wheel
+  const wZone = [0,1,2].map(function(wi) {
+    let b=0,r=0,g=0,s=0;
     for (const d of pool) {
       const v = d.w[wi];
-      if (BLUE.has(v)) blueC++; else if (RED.has(v)) redC++;
-      else if (GREEN.has(v)) greenC++; else if (v>=25) symC++;
+      if (HOURLY_BLUE.has(v)) b++; else if (HOURLY_RED.has(v)) r++;
+      else if (HOURLY_GREEN.has(v)) g++; else if (v>=25) s++;
     }
-    const expZ8 = pool.length * 8 / 27;
-    const expZ9 = pool.length * 9 / 27;
-    const expZ3 = pool.length * 3 / 27;
+    return {b,r,g,s};
+  });
 
-    let chips = '';
-    for (const { v, c } of counts) {
-      const isHot  = hotSet.has(v);
-      const isCold = coldSet.has(v);
-      const label  = v <= 24 ? v : SYM_MAP[v];
-      const zc = BLUE.has(v) ? '#1565c0' : RED.has(v) ? '#c62828' : GREEN.has(v) ? '#2e7d32' : '#555';
-      const bg  = isHot ? '#2a1400' : isCold ? '#00101a' : '#0a0a12';
-      const brd = isHot ? '#ff7043' : isCold ? '#00acc1' : zc;
-      const col = isHot ? '#ff8a65' : isCold ? '#4dd0e1' : '#666';
-      const barH = Math.max(2, Math.round(c / maxC * 18));
-      chips += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-width:22px">' +
-        '<span style="font-size:.52rem;color:#2a3a4a">' + c + '</span>' +
-        '<div style="background:' + bg + ';border:1px solid ' + brd + ';color:' + col + ';border-radius:3px;padding:3px 2px;font-size:.68rem;font-weight:700;min-width:20px;text-align:center">' + label + '</div>' +
-        '<div style="width:100%;height:' + barH + 'px;background:' + brd + ';border-radius:1px"></div>' +
-        '</div>';
-    }
+  // Freq per number per wheel
+  const wCnt = [0,1,2].map(function(wi) {
+    const cnt = {};
+    for (let v=1;v<=27;v++) cnt[v]=0;
+    for (const d of pool) { const v=d.w[wi]; if(v>=1&&v<=27) cnt[v]++; }
+    return cnt;
+  });
 
-    html += '<div style="background:#0d0d1a;border:1px solid #1e1e2e;border-radius:8px;padding:8px 10px;margin-bottom:8px">' +
-      '<div style="font-size:.68rem;color:' + wheelColors[wi] + ';text-transform:uppercase;letter-spacing:.1em;margin-bottom:7px">' + wheelNames[wi] + '</div>' +
-      zoneBar('ΜΠΛΕ (×8)', blueC, expZ8, '#42a5f5') +
-      zoneBar('ΚΟΚΚ (×8)', redC, expZ8, '#ef5350') +
-      zoneBar('ΠΡΑΣ (×9)', greenC, expZ9, '#66bb6a') +
-      zoneBar('ΣΥΜ (×3)', symC, expZ3, '#9e9e9e') +
-      '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:8px">' + chips + '</div>' +
+  const timeLabel = pad(Math.floor(hourlySlot/60)) + ':' + pad(hourlySlot%60);
+
+  // Build zone bar helper
+  function zoneBar(label, count, exp, color) {
+    const pct = pool.length > 0 ? count/pool.length*100 : 0;
+    const ePct = pool.length > 0 ? exp/pool.length*100 : 0;
+    const dev = exp > 0 ? (count-exp)/exp*100 : 0;
+    const dstr = (dev>=0?'+':'') + dev.toFixed(0)+'%';
+    const dc = dev>5?'#66bb6a':dev<-5?'#ef5350':'#555';
+    return '<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">' +
+      '<span style="color:#444;font-size:.57rem;min-width:50px">' + label + '</span>' +
+      '<div style="flex:1;background:#080808;border-radius:2px;height:5px;position:relative;overflow:hidden">' +
+        '<div style="height:100%;width:'+Math.min(pct,100).toFixed(1)+'%;background:'+color+';border-radius:2px"></div>' +
+        '<div style="position:absolute;top:0;height:100%;width:1px;background:#333;left:'+ePct.toFixed(1)+'%"></div>' +
+      '</div>' +
+      '<span style="font-size:.6rem;color:'+color+';min-width:22px;text-align:right;font-weight:700">'+count+'</span>' +
+      '<span style="font-size:.56rem;color:'+dc+';min-width:28px">'+dstr+'</span>' +
       '</div>';
   }
 
-  // Calendar overview
-  html += '<div style="margin-top:6px;border-top:1px solid #0d1520;padding-top:8px">' +
-    '<div style="color:#1a3a4a;font-size:.6rem;margin-bottom:6px">Ανά ημέρα · ' + pad(hourlyHour) + ':00–' + pad(hourlyHour) + ':59</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:3px">';
-  for (const ds of daysPresent) {
-    const dd = pool.filter(function(d){ return d.d === ds; });
-    let b=0,r=0,g=0;
-    for (const d of dd) for (const v of d.w) {
-      if (BLUE.has(v)) b++; else if (RED.has(v)) r++; else if (GREEN.has(v)) g++;
+  // ── Linear table ──────────────────────────────────────────────────────────
+  let html = '<div style="color:#2a4a5a;font-size:.62rem;margin-bottom:8px">' +
+    pool.length + ' κληρώσεις βρέθηκαν · κλήρωση ' + timeLabel + '</div>';
+
+  // Table
+  html += '<div style="overflow-x:auto">' +
+    '<table style="width:100%;border-collapse:collapse;font-size:.7rem">' +
+    '<thead><tr>' +
+    '<th style="color:#2a4a6a;font-weight:600;padding:4px 6px;text-align:left;border-bottom:1px solid #0d1a2a;white-space:nowrap">Ημέρα</th>' +
+    '<th style="color:#2a4a6a;font-weight:600;padding:4px 6px;text-align:center;border-bottom:1px solid #0d1a2a">Ώρα</th>' +
+    '<th style="color:' + wh[0] + ';font-weight:600;padding:4px 6px;text-align:center;border-bottom:1px solid #0d1a2a">' + wn[0] + '</th>' +
+    '<th style="color:' + wh[1] + ';font-weight:600;padding:4px 6px;text-align:center;border-bottom:1px solid #0d1a2a">' + wn[1] + '</th>' +
+    '<th style="color:' + wh[2] + ';font-weight:600;padding:4px 6px;text-align:center;border-bottom:1px solid #0d1a2a">' + wn[2] + '</th>' +
+    '<th style="color:#2a4a6a;font-weight:600;padding:4px 6px;text-align:center;border-bottom:1px solid #0d1a2a">Ζώνες</th>' +
+    '</tr></thead><tbody>';
+
+  for (const row of rows) {
+    const dayNum = row.ds.slice(8);
+    const d = row.draw;
+    if (!d) {
+      html += '<tr><td style="color:#222;padding:3px 6px">' + dayNum + '</td>' +
+        '<td colspan="5" style="color:#1a1a1a;padding:3px 6px;font-size:.58rem">—</td></tr>';
+      continue;
     }
-    const mx = Math.max(b,r,g);
-    const dc = mx === b ? '#42a5f5' : mx === r ? '#ef5350' : '#66bb6a';
-    html += '<div title="' + ds + ' · ' + dd.length + ' κλ." style="background:#08090f;border:1px solid ' + dc + '55;border-radius:3px;padding:2px 5px;font-size:.57rem;color:' + dc + '">' +
-      ds.slice(8) + '<span style="color:#1a2a3a;margin-left:2px">×' + dd.length + '</span></div>';
+    const timeStr = pad(Math.floor(d.m/60)) + ':' + pad(d.m%60);
+    function chip(v) {
+      const label = v<=24 ? v : HOURLY_SYM[v];
+      const zc = HOURLY_BLUE.has(v)?'#1565c0':HOURLY_RED.has(v)?'#c62828':HOURLY_GREEN.has(v)?'#2e7d32':'#444';
+      return '<span style="display:inline-block;background:'+zc+'22;border:1px solid '+zc+'88;color:'+zc+'cc;border-radius:4px;padding:2px 6px;font-weight:700;min-width:24px;text-align:center">'+label+'</span>';
+    }
+    const zones = d.w.map(function(v){
+      return HOURLY_BLUE.has(v)?'<span style="color:#42a5f5;font-size:.6rem">Μ</span>':
+             HOURLY_RED.has(v)?'<span style="color:#ef5350;font-size:.6rem">Κ</span>':
+             HOURLY_GREEN.has(v)?'<span style="color:#66bb6a;font-size:.6rem">Π</span>':
+             '<span style="color:#555;font-size:.6rem">★</span>';
+    }).join('');
+    const bgRow = rows.indexOf(row) % 2 === 0 ? '#080d12' : '#060a0f';
+    html += '<tr style="background:' + bgRow + '">' +
+      '<td style="color:#3a5a7a;padding:3px 6px;font-weight:600">' + dayNum + '</td>' +
+      '<td style="color:#2a4a5a;padding:3px 6px;text-align:center;font-size:.62rem">' + timeStr + '</td>' +
+      '<td style="padding:3px 6px;text-align:center">' + chip(d.w[0]) + '</td>' +
+      '<td style="padding:3px 6px;text-align:center">' + chip(d.w[1]) + '</td>' +
+      '<td style="padding:3px 6px;text-align:center">' + chip(d.w[2]) + '</td>' +
+      '<td style="padding:3px 6px;text-align:center;white-space:nowrap">' + zones + '</td>' +
+      '</tr>';
   }
-  html += '</div></div>';
+  html += '</tbody></table></div>';
+
+  // ── Stats per wheel ───────────────────────────────────────────────────────
+  if (pool.length > 0) {
+    html += '<div style="margin-top:12px;border-top:1px solid #0d1520;padding-top:10px">' +
+      '<div style="color:#2a4a5a;font-size:.6rem;margin-bottom:8px">Στατιστικά ' + pool.length + ' κληρώσεων στις ' + timeLabel + '</div>';
+    for (let wi=0; wi<3; wi++) {
+      const z = wZone[wi];
+      const cnt = wCnt[wi];
+      const sorted27 = Object.keys(cnt).map(function(v){ return {v:+v,c:cnt[v]}; }).sort(function(a,b){ return b.c-a.c; });
+      const hotSet  = new Set(sorted27.slice(0,5).map(function(x){ return x.v; }));
+      const coldSet = new Set(sorted27.slice(-5).map(function(x){ return x.v; }));
+      const maxC = sorted27[0] ? sorted27[0].c : 1;
+      const e8 = pool.length*8/27, e9 = pool.length*9/27, e3 = pool.length*3/27;
+
+      let chips = '';
+      for (let v=1; v<=27; v++) {
+        const c = cnt[v];
+        const label = v<=24 ? v : HOURLY_SYM[v];
+        const isHot = hotSet.has(v), isCold = coldSet.has(v);
+        const zc = HOURLY_BLUE.has(v)?'#1565c0':HOURLY_RED.has(v)?'#c62828':HOURLY_GREEN.has(v)?'#2e7d32':'#444';
+        const bg  = isHot?'#2a1400':isCold?'#00101a':'#0a0a12';
+        const brd = isHot?'#ff7043':isCold?'#00acc1':zc;
+        const col = isHot?'#ff8a65':isCold?'#4dd0e1':'#555';
+        const bh  = Math.max(2, Math.round(c/maxC*16));
+        chips += '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;min-width:22px">' +
+          '<span style="font-size:.5rem;color:#1a3a4a">' + c + '</span>' +
+          '<div style="background:'+bg+';border:1px solid '+brd+';color:'+col+';border-radius:3px;padding:2px 2px;font-size:.65rem;font-weight:700;min-width:20px;text-align:center">'+label+'</div>' +
+          '<div style="width:100%;height:'+bh+'px;background:'+brd+';border-radius:1px"></div>' +
+          '</div>';
+      }
+
+      html += '<div style="background:#0d0d1a;border:1px solid #1e1e2e;border-radius:6px;padding:7px 9px;margin-bottom:7px">' +
+        '<div style="font-size:.65rem;color:'+wh[wi]+';text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">'+wn[wi]+'</div>' +
+        zoneBar('ΜΠΛΕ ×8', z.b, e8, '#42a5f5') +
+        zoneBar('ΚΟΚΚ ×8', z.r, e8, '#ef5350') +
+        zoneBar('ΠΡΑΣ ×9', z.g, e9, '#66bb6a') +
+        zoneBar('ΣΥΜ ×3', z.s, e3, '#9e9e9e') +
+        '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:7px">' + chips + '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
 
   cont.innerHTML = html;
 }
