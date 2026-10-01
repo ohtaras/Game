@@ -7247,7 +7247,7 @@ function renderHourly() {
     return;
   }
 
-  // Draws: one per day at this slot (exact minute match, or ±2min fallback)
+  // Draws: one per day at this slot (exact minute match, or ±3min fallback)
   const wh = ['#ff8a65','#ffb74d','#fff176'];
   const wn = ['Τρ.1','Τρ.2','Τρ.3'];
 
@@ -7258,9 +7258,9 @@ function renderHourly() {
     });
     // exact match first
     let match = dayDraws.find(function(d){ return d.m === hourlySlot; });
-    // fallback ±2 min
+    // fallback ±3 min (nearest wins)
     if (!match) {
-      let best = null, bestDist = 3;
+      let best = null, bestDist = 4;
       for (const d of dayDraws) {
         const dist = Math.abs(d.m - hourlySlot);
         if (dist < bestDist) { bestDist = dist; best = d; }
@@ -7294,6 +7294,20 @@ function renderHourly() {
   });
 
   const timeLabel = pad(Math.floor(hourlySlot/60)) + ':' + pad(hourlySlot%60);
+
+  // Next slot for the prediction label
+  const _allSlotMins = new Set();
+  const _daySet2 = new Set(days);
+  for (const _d of psDraws) {
+    if (_d.d && _daySet2.has(_d.d) && _d.w && Math.floor(_d.m / 60) === hourlyHour)
+      _allSlotMins.add(_d.m);
+  }
+  const _sortedSlots = Array.from(_allSlotMins).sort(function(a,b){ return a-b; });
+  const _curIdx = _sortedSlots.indexOf(hourlySlot);
+  const _nextSlotM = _curIdx >= 0 && _curIdx < _sortedSlots.length - 1 ? _sortedSlots[_curIdx + 1] : null;
+  const nextTimeLabel = _nextSlotM !== null
+    ? pad(Math.floor(_nextSlotM/60)) + ':' + pad(_nextSlotM%60)
+    : '—';
 
   // Build zone bar helper
   function zoneBar(label, count, exp, color) {
@@ -7431,7 +7445,7 @@ function renderHourly() {
 
     var medals = ['#1','#2','#3'];
     var predHtml = '<div style="background:#06090f;border:1px solid #1a2a1a;border-radius:6px;padding:8px 10px;margin-bottom:12px">';
-    predHtml += '<div style="color:#69f0ae;font-size:.65rem;font-weight:700;margin-bottom:8px">🎯 Πρόβλεψη επόμενης — ' + timeLabel + '</div>';
+    predHtml += '<div style="color:#69f0ae;font-size:.65rem;font-weight:700;margin-bottom:8px">🎯 Πρόβλεψη επόμενης — ' + nextTimeLabel + '</div>';
     predHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
     for (var wi=0; wi<3; wi++) {
       var a = acc[wi];
