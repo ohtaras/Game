@@ -851,7 +851,7 @@ section h2{font-size:.88rem;font-weight:700;margin-bottom:10px;text-transform:up
       <button class="nav-btn" onclick="hourlyNavMonth(+1)">◀ −30μ</button>
       <span id="hourlyMonthLabel" style="font-size:.78rem;color:#aaa;min-width:110px;text-align:center">—</span>
       <button class="nav-btn" onclick="hourlyNavMonth(-1)">+30μ ▶</button>
-      <button class="nav-btn" onclick="hourlyMonthOff=0;hourlySlot=null;renderHourly()" style="color:#4caf50;border-color:#2e7d32;margin-left:4px">● Τώρα</button>
+      <button class="nav-btn" onclick="hourlyGoNow()" style="color:#4caf50;border-color:#2e7d32;margin-left:4px">● Τώρα</button>
     </div>
     <div id="hourlyHourBtns" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px"></div>
     <div id="hourlySlotBtns" style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:10px;min-height:24px"></div>
@@ -7088,6 +7088,63 @@ function hourlyNavMonth(dir) {
   renderHourly();
 }
 
+function hourlyGoNow() {
+  hourlyMonthOff = 0;
+  const ath    = athensDate(Date.now());
+  const curH   = ath.getUTCHours();
+  const curM   = ath.getUTCHours() * 60 + ath.getUTCMinutes();
+  hourlyHour   = Math.max(8, Math.min(23, curH));
+
+  // Update hour button visuals
+  document.querySelectorAll('.hourly-h-btn').forEach(function(b) {
+    const on = +b.dataset.h === hourlyHour;
+    b.style.background  = on ? '#0d2020' : '#080d10';
+    b.style.borderColor = on ? '#26a69a' : '#1a2a3a';
+    b.style.color       = on ? '#80cbc4' : '#2a4a5a';
+  });
+
+  // Rebuild slot buttons for this hour
+  hourlyBuildSlotBtns();
+
+  // Best slot = last completed draw at or before now today
+  const todayStr   = drawDateStr(Date.now());
+  const todayDraws = psDraws.filter(function(d) {
+    return d.d === todayStr && d.w && Math.floor(d.m / 60) === hourlyHour && d.m <= curM;
+  });
+
+  if (todayDraws.length) {
+    hourlySlot = todayDraws[todayDraws.length - 1].m;
+  } else {
+    // No draws yet — pick last historical slot before curM for this hour
+    const daySet    = new Set(getHourlyMonthDays());
+    const minuteSet = new Set();
+    for (const d of psDraws) {
+      if (d.d && daySet.has(d.d) && d.w && Math.floor(d.m / 60) === hourlyHour)
+        minuteSet.add(d.m);
+    }
+    if (minuteSet.size) {
+      const slots = Array.from(minuteSet).sort(function(a, b) { return a - b; });
+      var best = slots[0];
+      for (var si = 0; si < slots.length; si++) { if (slots[si] <= curM) best = slots[si]; }
+      hourlySlot = best;
+    } else {
+      hourlySlot = null;
+    }
+  }
+
+  // Update slot button visuals
+  if (hourlySlot !== null) {
+    document.querySelectorAll('.hourly-s-btn').forEach(function(b) {
+      const on = +b.dataset.m === hourlySlot;
+      b.style.background  = on ? '#1a1200' : '#080a08';
+      b.style.borderColor = on ? '#ffb300' : '#1a2a1a';
+      b.style.color       = on ? '#ffcc02' : '#2a4a2a';
+    });
+  }
+
+  renderHourly();
+}
+
 function hourlySetHour(h) {
   hourlyHour = h;
   hourlySlot = null;
@@ -7416,7 +7473,7 @@ function switchTab(name) {
   });
   if (name === 'cmp')    { buildCmpDayBar(); renderCmp(); }
   if (name === 'hot')    { renderHot(); }
-  if (name === 'hourly') { renderHourly(); }
+  if (name === 'hourly') { hourlyGoNow(); }
 }
 
 // ── Keyboard navigation ────────────────────────────────────────────────────
