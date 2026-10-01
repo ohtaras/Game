@@ -3402,7 +3402,7 @@ function clearPsHistCache() {
 
 function autoFetchPs() {
   return autoFetchToday(PS_GAME_ID, psDraws, parsePsItem, psIdxRef,
-    () => { psRender(); if (isCmpActive()) renderCmp(); if (isHotActive() && hotDayOffset === 0 && hotDrawCutoff === null) renderHot(); }, 'PS');
+    () => { psRender(); if (isCmpActive()) renderCmp(); if (isHotActive() && hotDayOffset === 0 && hotDrawCutoff === null) renderHot(); if (isHourlyActive()) renderHourly(); }, 'PS');
 }
 function autoFetchS3() {
   return autoFetchToday(S3_GAME_ID, s3Draws, parseS3Item, s3IdxRef,
@@ -3556,8 +3556,9 @@ function setCmpHourFilter(h) {
   renderCmp();
 }
 
-function isCmpActive() { return document.getElementById('cmpTab').style.display !== 'none'; }
-function isHotActive()  { return document.getElementById('hotTab').style.display  !== 'none'; }
+function isCmpActive()    { return document.getElementById('cmpTab').style.display    !== 'none'; }
+function isHotActive()    { return document.getElementById('hotTab').style.display    !== 'none'; }
+function isHourlyActive() { return document.getElementById('hourlyTab').style.display !== 'none'; }
 
 function getCmpDayStr(offset) {
   const dt = athensDate(Date.now() - offset * 86400000);
@@ -7064,14 +7065,16 @@ async function fetchMonthForHourly() {
   if (hourlyFetching) return;
   hourlyFetching = true;
   const days = getHourlyMonthDays();
-  const missing = days.filter(d => !psFetchedDays.has(d));
+  const missing = days.filter(function(d){ return !psFetchedDays.has(d); });
   if (!missing.length) { hourlyFetching = false; renderHourly(); return; }
   const cont = document.getElementById('hourlyContent');
+  const BATCH = 5;
   let done = 0;
-  for (const ds of missing) {
-    if (cont) cont.innerHTML = '<div style="color:#555;padding:16px;font-size:.78rem">⏳ ' + done + '/' + missing.length + ' ημέρες (' + ds + ')…</div>';
-    await fetchDayLazy(ds);
-    done++;
+  for (let bi = 0; bi < missing.length; bi += BATCH) {
+    const batch = missing.slice(bi, bi + BATCH);
+    if (cont) cont.innerHTML = '<div style="color:#555;padding:16px;font-size:.78rem">⏳ ' + done + '/' + missing.length + ' ημέρες…</div>';
+    await Promise.all(batch.map(function(ds){ return fetchDayLazy(ds); }));
+    done += batch.length;
   }
   hourlyFetching = false;
   renderHourly();
@@ -7341,6 +7344,66 @@ function renderHourly() {
         '</div>';
     }
     html += '</div>';
+  }
+
+  // ── Prediction + leave-one-out accuracy ──────────────────────────────────
+  if (pool.length >= 3) {
+    var acc = [0,1,2].map(function(wi) {
+      var h1=0, h3=0, total=0;
+      for (var ii=0; ii<pool.length; ii++) {
+        var cnt2 = {};
+        for (var vv=1;vv<=27;vv++) cnt2[vv]=0;
+        for (var jj=0; jj<pool.length; jj++) {
+          if (jj===ii) continue;
+          var vj = pool[jj].w[wi];
+          if (vj>=1&&vj<=27) cnt2[vj]++;
+        }
+        var sorted2 = Object.keys(cnt2).map(function(v){ return {v:+v,c:cnt2[v]}; }).sort(function(a,b){ return b.c-a.c; });
+        var actual2 = pool[ii].w[wi];
+        if (sorted2.length && sorted2[0].v === actual2) h1++;
+        if (sorted2.slice(0,3).some(function(x){ return x.v===actual2; })) h3++;
+        total++;
+      }
+      return {h1:h1, h3:h3, total:total};
+    });
+
+    var pred = [0,1,2].map(function(wi) {
+      return Object.keys(wCnt[wi]).map(function(v){ return {v:+v,c:wCnt[wi][v]}; })
+        .sort(function(a,b){ return b.c-a.c; }).slice(0,3);
+    });
+
+    var medals = ['#1','#2','#3'];
+    var predHtml = '<div style="background:#06090f;border:1px solid #1a2a1a;border-radius:6px;padding:8px 10px;margin-bottom:12px">';
+    predHtml += '<div style="color:#69f0ae;font-size:.65rem;font-weight:700;margin-bottom:8px">🎯 Πρόβλεψη επόμενης — ' + timeLabel + '</div>';
+    predHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    for (var wi=0; wi<3; wi++) {
+      var a = acc[wi];
+      var pct1 = a.total > 0 ? (a.h1/a.total*100).toFixed(0) : '—';
+      var pct3 = a.total > 0 ? (a.h3/a.total*100).toFixed(0) : '—';
+      var ratio1 = a.total > 0 ? a.h1/a.total : 0;
+      var ac1c = ratio1 > 0.30 ? '#66bb6a' : ratio1 > 0.15 ? '#ffb300' : '#ef5350';
+      predHtml += '<div style="flex:1;min-width:95px;background:#080d10;border:1px solid #1a2a2a;border-radius:5px;padding:5px 7px">';
+      predHtml += '<div style="color:' + wh[wi] + ';font-size:.6rem;font-weight:700;margin-bottom:4px">' + wn[wi] + '</div>';
+      predHtml += '<div style="display:flex;gap:3px;margin-bottom:4px">';
+      for (var k=0; k<pred[wi].length; k++) {
+        var p = pred[wi][k];
+        var label2 = p.v<=24 ? p.v : HOURLY_SYM[p.v];
+        var zc2 = HOURLY_BLUE.has(p.v)?'#1565c0':HOURLY_RED.has(p.v)?'#c62828':HOURLY_GREEN.has(p.v)?'#2e7d32':'#555';
+        predHtml += '<div style="text-align:center">';
+        predHtml += '<span style="font-size:.46rem;display:block;color:#2a3a2a">' + medals[k] + '</span>';
+        predHtml += '<span style="display:inline-block;background:' + zc2 + '33;border:1px solid ' + zc2 + '99;color:' + zc2 + 'ee;border-radius:4px;padding:2px 5px;font-weight:700;font-size:.72rem;min-width:22px;text-align:center">' + label2 + '</span>';
+        predHtml += '<span style="font-size:.46rem;display:block;color:#1a2a1a">' + p.c + 'x</span>';
+        predHtml += '</div>';
+      }
+      predHtml += '</div>';
+      predHtml += '<div style="font-size:.54rem">';
+      predHtml += '<span style="color:#333">#1: </span><span style="color:' + ac1c + ';font-weight:700">' + pct1 + '%</span>';
+      predHtml += '<span style="color:#222"> · top3: </span><span style="color:#3a6a3a">' + pct3 + '%</span>';
+      predHtml += '<span style="color:#1a2a1a"> (N=' + a.total + ')</span>';
+      predHtml += '</div></div>';
+    }
+    predHtml += '</div></div>';
+    html = predHtml + html;
   }
 
   cont.innerHTML = html;
