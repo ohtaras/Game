@@ -7192,25 +7192,52 @@ function hourlyBuildSlotBtns() {
   if (!el) return;
   el.innerHTML = '';
   const daySet = new Set(getHourlyMonthDays());
-  // collect unique minutes for this hour from loaded data
-  const minuteSet = new Set();
+
+  // Group draws by position within the hour (1st draw = pos 0, 2nd = pos 1, ...)
+  // For each position, collect observed minutes across all days → mode = label
+  const posMins = {};
   for (const d of psDraws) {
-    if (d.d && daySet.has(d.d) && d.w && Math.floor(d.m / 60) === hourlyHour)
-      minuteSet.add(d.m);
+    if (!d.d || !daySet.has(d.d) || !d.w || Math.floor(d.m/60) !== hourlyHour) continue;
+    // position = rank of this draw among this day's draws in this hour (by minute)
+    const dayH = psDraws.filter(function(x){
+      return x.d === d.d && x.w && Math.floor(x.m/60) === hourlyHour;
+    }).sort(function(a,b){ return a.m - b.m; });
+    const pos = dayH.findIndex(function(x){ return x.id === d.id; });
+    if (pos < 0) return;
+    if (!posMins[pos]) posMins[pos] = [];
+    posMins[pos].push(d.m);
   }
-  // if no data yet, use theoretical 4-min grid
-  if (!minuteSet.size) {
-    for (let m = hourlyHour * 60 + 1; m < (hourlyHour + 1) * 60; m += 4) minuteSet.add(m);
-  }
-  const slots = Array.from(minuteSet).sort(function(a,b){ return a-b; });
-  for (const m of slots) {
-    const b = document.createElement('button');
-    b.className = 'hourly-s-btn';
-    b.dataset.m = m;
-    b.textContent = pad(Math.floor(m/60)) + ':' + pad(m%60);
-    b.style.cssText = 'padding:2px 7px;font-size:.62rem;border-radius:3px;border:1px solid #1a2a1a;background:#080a08;color:#2a4a2a;cursor:pointer';
-    b.onclick = (function(mm){ return function(){ hourlySetSlot(mm); }; })(m);
-    el.appendChild(b);
+
+  const positions = Object.keys(posMins).map(Number).sort(function(a,b){ return a-b; });
+  if (!positions.length) {
+    for (let m = hourlyHour * 60 + 1; m < (hourlyHour + 1) * 60; m += 4) {
+      const b = document.createElement('button');
+      b.className = 'hourly-s-btn';
+      b.dataset.m = m;
+      b.dataset.pos = Math.floor((m - hourlyHour*60 - 1) / 4);
+      b.textContent = pad(hourlyHour) + ':' + pad(m%60);
+      b.style.cssText = 'padding:2px 7px;font-size:.62rem;border-radius:3px;border:1px solid #1a2a1a;background:#080a08;color:#2a4a2a;cursor:pointer';
+      b.onclick = (function(mm){ return function(){ hourlySetSlot(mm); }; })(m);
+      el.appendChild(b);
+    }
+  } else {
+    for (var pi = 0; pi < positions.length; pi++) {
+      var pos = positions[pi];
+      var freq = {};
+      for (var mi = 0; mi < posMins[pos].length; mi++) {
+        var mv = posMins[pos][mi];
+        freq[mv] = (freq[mv] || 0) + 1;
+      }
+      var modeMin = +Object.keys(freq).sort(function(a,b){ return freq[b]-freq[a]; })[0];
+      var b = document.createElement('button');
+      b.className = 'hourly-s-btn';
+      b.dataset.m = modeMin;
+      b.dataset.pos = pos;
+      b.textContent = pad(Math.floor(modeMin/60)) + ':' + pad(modeMin%60);
+      b.style.cssText = 'padding:2px 7px;font-size:.62rem;border-radius:3px;border:1px solid #1a2a1a;background:#080a08;color:#2a4a2a;cursor:pointer';
+      b.onclick = (function(mm){ return function(){ hourlySetSlot(mm); }; })(modeMin);
+      el.appendChild(b);
+    }
   }
   // mark active
   if (hourlySlot !== null) {
@@ -7244,18 +7271,31 @@ function renderHourly() {
     return;
   }
 
-  // Draws: exact minute match only — no fallback
+  // Pre-group: each day's draws in this hour, sorted by minute
+  const _dayHDraws = {};
+  for (var _di = 0; _di < psDraws.length; _di++) {
+    var _d = psDraws[_di];
+    if (!_d.d || !days.includes(_d.d) || !_d.w || Math.floor(_d.m/60) !== hourlyHour || !_d.w.every(function(v){ return v>=1&&v<=27; })) continue;
+    if (!_dayHDraws[_d.d]) _dayHDraws[_d.d] = [];
+    _dayHDraws[_d.d].push(_d);
+  }
+  for (var _dk in _dayHDraws) _dayHDraws[_dk].sort(function(a,b){ return a.m-b.m; });
+
+  // Slot position from button dataset
+  var _slotBtn = document.querySelector('.hourly-s-btn[data-m="' + hourlySlot + '"]');
+  var _slotPos = _slotBtn ? +_slotBtn.dataset.pos : -1;
+  // Max draws per hour across days (for whole-day backtest)
+  var _maxPos = 0;
+  for (var _dk2 in _dayHDraws) _maxPos = Math.max(_maxPos, _dayHDraws[_dk2].length - 1);
+
+  // Match by position
   const wh = ['#ff8a65','#ffb74d','#fff176'];
   const wn = ['Τρ.1','Τρ.2','Τρ.3'];
-
   const rows = [];
   for (const ds of days) {
-    const dayDraws = psDraws.filter(function(d){
-      return d.d === ds && d.w && d.w.every(function(v){ return v >= 1 && v <= 27; });
-    });
-    const match = dayDraws.find(function(d){ return d.m === hourlySlot; }) || null;
-    if (match) rows.push({ ds, draw: match });
-    else rows.push({ ds, draw: null });
+    const dayH = _dayHDraws[ds] || [];
+    const match = _slotPos >= 0 && _slotPos < dayH.length ? dayH[_slotPos] : null;
+    rows.push({ ds, draw: match });
   }
 
   // Stats over found draws
@@ -7282,16 +7322,10 @@ function renderHourly() {
 
   const timeLabel = pad(Math.floor(hourlySlot/60)) + ':' + pad(hourlySlot%60);
 
-  // Next slot for the prediction label
-  const _allSlotMins = new Set();
-  const _daySet2 = new Set(days);
-  for (const _d of psDraws) {
-    if (_d.d && _daySet2.has(_d.d) && _d.w && Math.floor(_d.m / 60) === hourlyHour)
-      _allSlotMins.add(_d.m);
-  }
-  const _sortedSlots = Array.from(_allSlotMins).sort(function(a,b){ return a-b; });
-  const _curIdx = _sortedSlots.indexOf(hourlySlot);
-  const _nextSlotM = _curIdx >= 0 && _curIdx < _sortedSlots.length - 1 ? _sortedSlots[_curIdx + 1] : null;
+  // Next slot label: read position-ordered slot buttons
+  var _sBtns = Array.from(document.querySelectorAll('.hourly-s-btn'));
+  var _sCurIdx = _sBtns.findIndex(function(b){ return +b.dataset.m === hourlySlot; });
+  var _nextSlotM = _sCurIdx >= 0 && _sCurIdx < _sBtns.length - 1 ? +_sBtns[_sCurIdx + 1].dataset.m : null;
   const nextTimeLabel = _nextSlotM !== null
     ? pad(Math.floor(_nextSlotM/60)) + ':' + pad(_nextSlotM%60)
     : '—';
@@ -7462,6 +7496,56 @@ function renderHourly() {
     }
     predHtml += '</div></div>';
     html = predHtml + html;
+  }
+
+  // ── Whole-hour backtest ────────────────────────────────────────────────────
+  if (_maxPos >= 0 && days.length >= 3) {
+    // For each day D, for each slot position P: predict from all other days, check D
+    var wdH1 = [0,0,0], wdH3 = [0,0,0], wdTotal = 0;
+    for (var wdD = 0; wdD < days.length; wdD++) {
+      var wdDs = days[wdD];
+      var wdRef = _dayHDraws[wdDs];
+      if (!wdRef || !wdRef.length) continue;
+      for (var wdP = 0; wdP <= _maxPos; wdP++) {
+        if (wdP >= wdRef.length) continue;
+        var wdActual = wdRef[wdP];
+        // Build freq from all other days at position wdP
+        for (var wdWi = 0; wdWi < 3; wdWi++) {
+          var wdCnt = {};
+          for (var vv2=1;vv2<=27;vv2++) wdCnt[vv2]=0;
+          for (var wdJ = 0; wdJ < days.length; wdJ++) {
+            if (wdJ === wdD) continue;
+            var wdOther = _dayHDraws[days[wdJ]];
+            if (!wdOther || wdP >= wdOther.length) continue;
+            var wdV = wdOther[wdP].w[wdWi];
+            if (wdV>=1&&wdV<=27) wdCnt[wdV]++;
+          }
+          var wdSorted = Object.keys(wdCnt).map(function(v){ return {v:+v,c:wdCnt[v]}; }).sort(function(a,b){ return b.c-a.c; });
+          var wdAct = wdActual.w[wdWi];
+          if (wdSorted.length && wdSorted[0].v === wdAct) wdH1[wdWi]++;
+          if (wdSorted.slice(0,3).some(function(x){ return x.v===wdAct; })) wdH3[wdWi]++;
+        }
+        wdTotal++;
+      }
+    }
+    if (wdTotal > 0) {
+      var wdAvg1 = ((wdH1[0]+wdH1[1]+wdH1[2]) / 3 / wdTotal * 100).toFixed(0);
+      var wdAvg3 = ((wdH3[0]+wdH3[1]+wdH3[2]) / 3 / wdTotal * 100).toFixed(0);
+      var wdColor = +wdAvg1 > 30 ? '#66bb6a' : +wdAvg1 > 15 ? '#ffb300' : '#ef5350';
+      var wdHtml = '<div style="background:#06060e;border:1px solid #1a1a2a;border-radius:6px;padding:7px 10px;margin-bottom:12px">';
+      wdHtml += '<div style="color:#b39ddb;font-size:.63rem;font-weight:700;margin-bottom:5px">📅 Αν ακολουθήσεις πιστά ολόκληρη την ώρα ' + pad(hourlyHour) + ':xx (' + wdTotal + ' κλ. backtest)</div>';
+      wdHtml += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+      for (var wdWi2=0; wdWi2<3; wdWi2++) {
+        var p1s = (wdH1[wdWi2]/wdTotal*100).toFixed(0);
+        var p3s = (wdH3[wdWi2]/wdTotal*100).toFixed(0);
+        var c1 = +p1s>30?'#66bb6a':+p1s>15?'#ffb300':'#ef5350';
+        wdHtml += '<div style="font-size:.6rem;color:#555">' + wn[wdWi2] + ': <span style="color:' + c1 + ';font-weight:700">' + p1s + '%</span> <span style="color:#2a2a3a">· top3 ' + p3s + '%</span></div>';
+      }
+      wdHtml += '</div>';
+      wdHtml += '<div style="margin-top:4px;font-size:.62rem">Μέσος #1: <span style="color:' + wdColor + ';font-weight:700">' + wdAvg1 + '%</span>  ·  μέσος top3: <span style="color:#4a4a6a">' + wdAvg3 + '%</span></div>';
+      wdHtml += '</div>';
+      html = wdHtml + html;
+    }
   }
 
   cont.innerHTML = html;
