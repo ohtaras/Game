@@ -305,15 +305,10 @@ async function loadToday() {
 
 // ── Pick random draw ───────────────────────────────────────────────────────
 function pickRandom() {
-  var nm    = nextDrawMin();
-  var hour  = Math.floor(nm / 60);
+  var nm    = nextDrawMin(); // exact minute of next draw (e.g. 750 = 12:30)
   var today = dateOf(Date.now());
-  var pool  = histPool.filter(function(d){
-    return Math.floor(d.m/60) === hour && d.d !== today;
-  });
-  if (!pool.length) {
-    pool = histPool.filter(function(d){ return Math.floor(d.m/60) === hour; });
-  }
+  // exact slot match from past dates
+  var pool  = histPool.filter(function(d){ return d.m === nm && d.d !== today; });
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -421,10 +416,10 @@ function renderRand() {
   var di  = document.getElementById('randDrawId');
   var tag = document.getElementById('randTag');
   if (!el) return;
-  var hour = Math.floor(nextDrawMin() / 60);
-  if (tag) tag.textContent = '🎲 Τυχαία — ώρα ' + pad(hour) + ':xx';
+  var nm = nextDrawMin();
+  if (tag) tag.textContent = '🎲 Τυχαία — ' + mStr(nm);
   if (!randDraw) {
-    el.innerHTML = '<div class="ph">Δεν βρέθηκε τυχαία κλήρωση για αυτή την ώρα.</div>';
+    el.innerHTML = '<div class="ph">Δεν βρέθηκε τυχαία κλήρωση για ' + mStr(nm) + '.</div>';
     if (di) di.textContent = '';
     return;
   }
