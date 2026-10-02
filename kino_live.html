@@ -468,8 +468,11 @@ function renderStatus() {
   var sl = document.getElementById('statusLine');
   if (!sl) return;
   if (!liveDraw) { sl.textContent = 'Φόρτωση…'; return; }
-  sl.textContent = 'Ιστορικό: ' + histPool.length + ' κληρώσεις · τελευταία #' + liveDraw.id +
-    ' · ' + liveDraw.d.slice(5).replace('-','/') + ' ' + mStr(liveDraw.m);
+  var nm      = nextDrawMin();
+  var today   = dateOf(Date.now());
+  var poolCnt = histPool.filter(function(d){ return slotMin(d.m) === nm && d.d !== today; }).length;
+  sl.textContent = 'Ιστορικό: ' + histPool.length + ' κλ. · τελευταία #' + liveDraw.id +
+    ' ' + mStr(liveDraw.m) + ' · slot ' + mStr(nm) + ': ' + poolCnt + ' ιστορικές';
 }
 
 function renderAll() {
