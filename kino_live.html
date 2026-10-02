@@ -217,7 +217,7 @@ async function fetchDay(dayStr) {
     if (!pg.length) break;
     items = items.concat(pg);
     if (Array.isArray(raw) || raw.last) break;
-    if (++page > 10) break;
+    page++;
   }
   return items;
 }
@@ -471,8 +471,12 @@ function renderStatus() {
   var nm      = nextDrawMin();
   var today   = dateOf(Date.now());
   var poolCnt = histPool.filter(function(d){ return slotMin(d.m) === nm && d.d !== today; }).length;
-  sl.textContent = 'Ιστορικό: ' + histPool.length + ' κλ. · τελευταία #' + liveDraw.id +
-    ' ' + mStr(liveDraw.m) + ' · slot ' + mStr(nm) + ': ' + poolCnt + ' ιστορικές';
+  // show a few raw d.m values near the target to diagnose mismatches
+  var near = histPool.filter(function(d){ return d.d !== today && Math.abs(d.m - nm) <= 10; })
+    .slice(0,5).map(function(d){ return d.d.slice(5)+' '+mStr(d.m); }).join(' | ');
+  sl.innerHTML = 'Ιστορικό: ' + histPool.length + ' κλ. · #' + liveDraw.id +
+    ' ' + mStr(liveDraw.m) + ' · slot ' + mStr(nm) + ': <b>' + poolCnt + ' ιστορικές</b>' +
+    (near ? '<br><small>κοντινές: ' + near + '</small>' : '<br><small>καμία κοντινή ±10 λ.</small>');
 }
 
 function renderAll() {
