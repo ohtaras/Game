@@ -312,11 +312,12 @@ async function loadToday() {
 }
 
 // ── Pick random draw ───────────────────────────────────────────────────────
+function slotMin(m) { return Math.round(m / 5) * 5; } // normalize to nearest 5-min slot
+
 function pickRandom() {
-  var nm    = nextDrawMin(); // target minute (e.g. 750 = 12:30)
+  var nm    = nextDrawMin(); // target slot, already a multiple of 5
   var today = dateOf(Date.now());
-  // match draws within ±2 min of target slot, excluding today
-  var pool  = histPool.filter(function(d){ return Math.abs(d.m - nm) <= 2 && d.d !== today; });
+  var pool  = histPool.filter(function(d){ return slotMin(d.m) === nm && d.d !== today; });
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }
